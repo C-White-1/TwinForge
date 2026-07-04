@@ -12,3 +12,22 @@ digital twins of industrial automation systems.
 - Export AutomationML
 - Export Asset Administration Shell (AAS)
 - Generate dependency and topology graphs
+
+## Roadmap
+
+- L5X parser
+- CIP discovery
+- Communication analysis
+- AutomationML export
+- Asset Administration Shell export
+- IEC 81346 integration
+
+## Example
+
+python
+from twinforge.parsers import L5XParser
+
+plant = L5XParser().parse("controller.l5x")
+
+for controller in plant.iter_controllers():
+    print(controller)
