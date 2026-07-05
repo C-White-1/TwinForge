@@ -1,0 +1,28 @@
+# Produced / Consumed Tags
+
+## How to recognise
+
+<Tag TagType="Produced">
+
+## Information available
+
+- Tag name
+- Consumer
+- Producer
+- Connection type
+
+## pyRockwell support
+
+# MSG
+
+## XML representation
+
+...
+
+## Information available
+
+...
+
+## pyRockwell support
+
+In progress

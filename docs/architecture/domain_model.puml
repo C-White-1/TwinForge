@@ -1,0 +1,19 @@
+@startuml
+
+title pyRockwell Domain Model
+
+class Plant
+class Controller
+class Chassis
+class Module
+class Program
+class Tag
+
+Plant *-- Controller
+Controller *-- Chassis
+Chassis *-- Module
+
+Controller *-- Program
+Controller *-- Tag
+
+@enduml
