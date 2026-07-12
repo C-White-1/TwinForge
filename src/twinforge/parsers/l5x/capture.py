@@ -3,6 +3,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
+from twinforge.schema.l5x.spec import AttributeSpec, ElementSpec
+
 
 @dataclass
 class CapturedSection:
@@ -65,7 +67,9 @@ class CapturedSection:
 
 
 def capture_section(
-    element: ET.Element, known_attributes: set[str], known_elements: set[str]
+    element: ET.Element,
+    known_attributes: dict[str, AttributeSpec],
+    known_elements: dict[str, ElementSpec],
 ) -> CapturedSection:
 
     section = CapturedSection(tag=element.tag)
@@ -82,8 +86,8 @@ def capture_section(
         )
         target.setdefault(child.tag, []).append(child)
 
-    present = set(section.elements.keys())
+    present = set(section.elements)
 
-    section.missing_elements = sorted(known_elements - present)
+    section.missing_elements = sorted(set(known_elements) - present)
 
     return section
