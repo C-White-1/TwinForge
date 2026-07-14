@@ -438,7 +438,9 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"element."
         ),
         l5x_only=False,
-        valid_values=("Context", "Target"),
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 61",
     ),
 }
@@ -519,6 +521,19 @@ SAFETY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"L5K and L5X. For controllers that support enabling and "
             r"disabling safety, the Safety Enabled setting checkbox "
             r"value. "
+            r"For L5X, this attribute is on the <SafetyInfo> tag "
+            r"element"
+        ),
+        l5x_only=False,
+        valid_values=("Context", "Target"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
+    ),
+    "SafetySignature": AttributeSpec(
+        name="SafetySignature",
+        description=(
+            r"Specifies the safety signature control as defined in the "
+            r"controller properties. This value is exported only; it is "
+            r"ignored on import. "
             r"For L5X, this attribute is on the <SafetyInfo> tag "
             r"element"
         ),
