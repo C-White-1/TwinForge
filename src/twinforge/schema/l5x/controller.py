@@ -116,173 +116,185 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
         datatype=str,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 57",
     ),
-    "Code": AttributeSpec(
-        name="Code",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
-    ),
     "SFCExecutionControl": AttributeSpec(
         name="SFCExecutionControl",
-        description="",
+        description=(
+            r"Specify whether the SFC executes the current active "
+            r"steps before returning control (CurrentActive) or "
+            r"whether the SFC executes all threads until reaching a "
+            r"false transition (UntilFalse)."
+        ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
+        datatype=str,
+        valid_values=("CurrentActive", "UntilFalse"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "SFCRestartPosition": AttributeSpec(
         name="SFCRestartPosition",
-        description="",
+        description=(
+            r"Specify whether the SFC restarts at the most recently "
+            r"executed step (MostRecent) or at the initial step "
+            r"(InitialStep)."
+        ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
+        datatype=str,
+        valid_values=("MostRecent", "InitialStep"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "SFCLastScan": AttributeSpec(
-        name="",
-        description="",
+        name="SFCLastScan",
+        description=(
+            r"Specify how the SFC manages its state on a last "
+            r"scan. Select AutomaticReset, ProgrammaticReset, or "
+            r"DontScan."
+        ),
+        l5x_only=True,
+        datatype=str,
+        valid_values=("AutomaticReset", "ProgrammaticReset", "DontScan"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "ProjectSN": AttributeSpec(
+        name="ProjectSN",
+        description=(
+            r"L5X only. Specify the serial number of the controller. If a "
+            r"serial number is specified, it is imported into the project "
+            r"regardless of the MatchProjectToController setting. Type "
+            r"a 32-bit, hexadecimal number with the 16# prefix, such "
+            r"as 16#0012_E2BC"
+        ),
+        l5x_only=True,
+        datatype=str,  # TODO(#13) replace with HexUInt32.
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "MatchProjectToController": AttributeSpec(
+        name="MatchProjectToController",
+        description=(
+            r"Specify whether to be sure that the project matches the "
+            r"controller or not. Type Yes or No."
+        ),
+        l5x_only=True,
+        datatype=str,
+        valid_values=("Yes", "No"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "InhibitAutomaticFirmwareUpdate": AttributeSpec(
+        name="InhibitAutomaticFirmwareUpdate",
+        description=(
+            r"Specify whether to inhibit the automatic update of "
+            r"controller firmware. Type a 0 to not inhibit; type a 1 to "
+            r"inhibit."
+        ),
+        l5x_only=True,
+        xml_type=int,
+        datatype=bool,
+        valid_values=(0, 1),  # or xml_type=int, datatype=bool in the future
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "CurrentProjectLanguage": AttributeSpec(
+        name="CurrentProjectLanguage",
+        description=(
+            r"Specify the current project language for a project "
+            r"documentation project."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "DefaultProjectLanguage": AttributeSpec(
+        name="DefaultProjectLanguage",
+        description=(
+            r"Specify the default project language for a project "
+            r"document at on project."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "ControllerLanguage": AttributeSpec(
+        name="ControllerLanguage",
+        description=(
+            r"Specify the controller project language for a project "
+            r"document at on project."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "CanUseRPIFromController": AttributeSpec(
+        name="CanUseRPIFromController",
+        description=(
+            r"Specify whether the consumed tags in the controller "
+            r"can connect to the producer with an RPI provided by the "
+            r"producer (true or false)."
+        ),
         l5x_only=True,
         valid_values=("Context", "Target"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
     ),
-    "ProjectSN": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "MatchProjectToController": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "InhibitAutomaticFirmwareUpdate": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "CurrentProjectLanguage": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "DefaultProjectLanguage": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "ControllerLanguage": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "CanUseRPIFromController": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "SecurityAuthorityID": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "SecurityAuthorityURI": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "PermissionSet": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
     "IsPermissionsSet": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "ChangesToDetect": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "TrustedSlots": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        name="IsPermissionsSet",
+        description=(
+            r"Indicates if this is associated with a permission set or a "
+            r"logical name."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "PassThroughConfiguration": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        name="PassThroughConfiguration",
+        description=(
+            r"For L5K and L5X. Indicates the pass through state of "
+            r"documentation for the project. "
+            r"Type Disabled, Enabled, or EnabledWithAppend"
+        ),
+        l5x_only=False,
+        datatype=str,
+        valid_values=("Disabled", "Enabled", "EnabledWithAppend"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "DownloadProjectDocumentationAndExtendedProperties": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        name="DownloadProjectDocumentationAndExtendedProperties",
+        description=(
+            r"For L5K and L5X. Indicates the download project "
+            r"documentation configuration setting of the project."
+        ),
+        l5x_only=False,
+        datatype=bool,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "DownloadCustomProperties": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        name="DownloadCustomProperties",
+        description=(
+            r"For L5K and L5X. Indicates the download custom "
+            r"properties configuration setting of the project. "
+            r"Only applies if the project is already configured to "
+            r"DownloadProjectDocumentation. "
+            r"Rockwell recommends setting this attribute to false "
+            r"only during startup testing to improve download speeds "
+            r"during commissioning testing. It should be set to true "
+            r"for the normal operating state of a system. For L5X, the "
+            r"setting is true or false. For L5K, the setting is 1 (true) or "
+            r"0 (false)."
+        ),
+        xml_type=bool,
+        datatype=bool,
+        l5x_only=False,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "EtherNetIPMode": AttributeSpec(
-        name="",
-        description="",
+        name="EtherNetIPMode",
+        description=(
+            r"The EtherNet/IP Mode describes the relationship "
+            r"between the CIP EtherNet/IP ports and the physical "
+            r"Ethernet ports. The CIP EtherNet/IP port can be "
+            r"configured as one of two modes: "
+            r"• Dual-IP"
+            r"• Linear/DLR"
+        ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "SafetyEnabled": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "FrontPortCrossloadEnabledPorts": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
-    ),
-    "FrontPortCrossloadSecurityEnabled": AttributeSpec(
-        name="",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        valid_values=("Dual-IP", "Linear/DLR"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "ProjectCreationDate": AttributeSpec(
         name="",
@@ -349,33 +361,171 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
     ),
     "KeepTestEditsOnSwitchOver": AttributeSpec(
         name="KeepTestEditsOnSwitchOver",
-        description="",
-        l5x_only=True,
-        valid_values=("Context", "Target"),
+        description=(
+            r"Specify whether to keep test edits on when a switchover "
+            r"occurs in a redundant system. Type a 0 not to keep test "
+            r"edits on; type a 1 to keep test edits on. "
+            r"For L5X, this attribute is on the <RedundancyInfo> tag "
+            r"element. Type false or true."
+        ),
+        l5x_only=False,
+        xml_type=int,
+        datatype=bool,
+        valid_values=(0, 1),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "IOMemoryPadPercentage": AttributeSpec(
         name="IOMemoryPadPercentage",
-        description="",
+        description=(
+            r"Specify the percentage (0...100) of I/O memory that "
+            r"is available to the system after the download when "
+            r"configured for redundancy. "
+            r"For L5X, this attribute is on the <RedundancyInfo> tag "
+            r"element."
+        ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
+        datatype=int,
+        minimum=0,
+        maximum=100,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "DataTablePadPercentage": AttributeSpec(
         name="DataTablePadPercentage",
+        description=(
+            r"Specify the percentage (0...100) of the data table "
+            r"to reserve. If redundancy is not enabled, type 0. If "
+            r"redundancy is enabled, type 50. "
+            r"For L5X, this attribute is on the <RedundancyInfo> tag "
+            r"element"
+        ),
+        l5x_only=True,
+        datatype=int,
+        minimum=0,  # TODO(#14) Add validation logic
+        maximum=100,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
+    ),
+    "FrontPortCrossloadEnabledPorts": AttributeSpec(
+        name="FrontPortCrossloadEnabledPorts",
+        description=(
+            r"L5K and L5X. Export the Front Port Crossload "
+            r"Enabled/Disabled selection value: "
+            r"• When FrontPortCrossloadEnabledPorts is selected, "
+            r"the attribute value is 1,2. "
+            r"• When FrontPortCrossloadEnabledPorts is cleared, "
+            r"the attribute value is "
+            ". "
+            r"When selected, the value is exported regardless of "
+            r"redundancy state. "
+            r"For L5X, this attribute is on the <RedundancyInfo> tag "
+            r"element."
+        ),
+        l5x_only=False,
+        valid_values=("Context", "Target"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 61",
+    ),
+    "FrontPortCrossloadSecurityEnabled": AttributeSpec(
+        name="FrontPortCrossloadSecurityEnabled",
+        description=(
+            r"L5K and L5X. Export the Front Port Crossload Security "
+            r"Enabled/Disabled selection: "
+            r"• When FrontPortCrossloadSecurityEnabled is "
+            r"selected, the exported value is true. "
+            r"• When FrontPortCrossloadSecurityEnabled is "
+            r"cleared, the exported value is false. "
+            r"When selected, the value is exported regardless of "
+            r"redundancy state. "
+            r"For L5X, this attribute is on the <RedundancyInfo> tag "
+            r"element."
+        ),
+        l5x_only=False,
+        valid_values=("Context", "Target"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 61",
+    ),
+}
+
+SECURITY_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "Code": AttributeSpec(
+        name="Code",
         description="",
         l5x_only=True,
         valid_values=("Context", "Target"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
-}
-
-SECURITY_ATTRIBUTES: dict[str, AttributeSpec] = {
-    # Populate from the Security attributes table.
+    "ChangesToDetect": AttributeSpec(
+        name="ChangesToDetect",
+        description=(
+            r"Mask that specifies the controller events that you wish to track."
+            r"For L5X only, this attribute is on the <Security> tag "
+            r"element."
+        ),
+        l5x_only=True,
+        datatype=str,  # TODO(#13) replace with HexMask.
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+    ),
+    "SecurityAuthorityID": AttributeSpec(
+        name="SecurityAuthorityID",
+        description=(
+            r"ID of the FactoryTalk Diagnostics® to which your "
+            r"controller is bound. "
+            r"For L5X only, this attribute is on the <Security> tag "
+            r"element."
+        ),
+        l5x_only=True,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "SecurityAuthorityURI": AttributeSpec(
+        name="SecurityAuthorityURI",
+        description=(
+            r"Network path to the FactoryTalk Diagnostics to which "
+            r"your controller is bound. "
+            r"For L5X only, this attribute is on the <Security> tag "
+            r"element."
+        ),
+        l5x_only=True,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "PermissionSet": AttributeSpec(
+        name="PermissionSet",
+        description=(
+            r"Name of the set of permissions, configured in "
+            r"FactoryTalk Security, to apply to this object. "
+            r"For L5X only, this attribute is on the <Security> tag"
+            r"element."
+        ),
+        l5x_only=True,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
+    ),
+    "TrustedSlots": AttributeSpec(
+        name="TrustedSlots",
+        description=(
+            r"Mask defining the slots through which the trusted "
+            r"communication is permitted to the controller. "
+            r"For L5X only, this attribute is on the <Security> tag "
+            r"element"
+        ),
+        l5x_only=True,
+        datatype=str,  # TODO(#13): Replace with HexMask once implemented. Possibly BitMask TBD
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
+    ),
 }
 
 SAFETY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
-    # Populate from the SafetyInfo attributes table.
+    "SafetyEnabled": AttributeSpec(
+        name="SafetyEnabled",
+        description=(
+            r"L5K and L5X. For controllers that support enabling and "
+            r"disabling safety, the Safety Enabled setting checkbox "
+            r"value. "
+            r"For L5X, this attribute is on the <SafetyInfo> tag "
+            r"element"
+        ),
+        l5x_only=False,
+        valid_values=("Context", "Target"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
+    ),
 }
 
 DATATYPE_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
