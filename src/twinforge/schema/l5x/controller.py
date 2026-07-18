@@ -228,7 +228,8 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"producer (true or false)."
         ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
+        xml_type=bool,
+        datatype=bool,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
     ),
     "IsPermissionsSet": AttributeSpec(
