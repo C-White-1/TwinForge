@@ -1,10 +1,10 @@
 from twinforge.model import (
-    Plant,
-    Controller,
     Chassis,
-    Module,
-    Program,
+    Controller,
     Identity,
+    Module,
+    Plant,
+    Program,
     Revision,
 )
 
@@ -19,7 +19,7 @@ controller = Controller(
         product_type="Programmable Logic Controller",
         revision=Revision(20, 55),
         serial="008b26cc",
-    )
+    ),
 )
 
 chassis = Chassis(name="Local Chassis")
@@ -33,10 +33,10 @@ module = Module(
 chassis.add_module(module)
 controller.add_chassis(chassis)
 plant.add_controller(controller)
-program = Program(name = "MainProgram")
+program = Program(name="MainProgram")
 controller.add_program(program)
-routine = Routine(name="MainRoutine")
-program.add_routine(routine)
+# routine = Routine(name="MainRoutine")
+# program.add_routine(routine)
 
 assert module.parent is chassis
 assert chassis.parent is controller
@@ -52,6 +52,6 @@ for controller in plant.controllers:
 
     for chassis in controller.iter_chassis():
         print(chassis)
-    
+
     for module in chassis.iter_modules():
         print(module)

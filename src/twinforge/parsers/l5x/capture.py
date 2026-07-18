@@ -10,9 +10,13 @@ from twinforge.schema.l5x.spec import AttributeSpec, ElementSpec
 class CapturedSection:
     tag: str
 
+    text: str | None = None
+
+    tail: str | None = None
+
     attributes: dict[str, str] = field(default_factory=dict)
 
-    elements: dict[str, list[ET.Element]] = field(default_factory=dict)
+    elements: dict[str, list["CapturedSection"]] = field(default_factory=dict)
 
     extra_attributes: dict[str, str] = field(default_factory=dict)
 
@@ -72,7 +76,11 @@ def capture_section(
     known_elements: dict[str, ElementSpec],
 ) -> CapturedSection:
 
-    section = CapturedSection(tag=element.tag)
+    section = CapturedSection(
+        tag=element.tag,
+        text=element.text,
+        tail=element.tail,
+    )
 
     for key, value in element.attrib.items():
         if key in known_attributes:
@@ -81,10 +89,16 @@ def capture_section(
             section.extra_attributes[key] = value
 
     for child in element:
-        target = (
-            section.elements if child.tag in known_elements else section.extra_elements
-        )
-        target.setdefault(child.tag, []).append(child)
+        if child.tag in known_elements:
+            child_spec = known_elements[child.tag]
+            child_section = capture_section(
+                child,
+                child_spec.attributes,
+                child_spec.elements,
+            )
+            section.elements.setdefault(child.tag, []).append(child_section)
+        else:
+            section.extra_elements.setdefault(child.tag, []).append(child)
 
     present = set(section.elements)
 

@@ -4,15 +4,18 @@ from .spec import AttributeSpec, ElementSpec
 CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
     "Use": AttributeSpec(
         name="Use",
-        description="",
+        description="L5X only. Specify context or target.",
         l5x_only=True,
         valid_values=("Context", "Target"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 57",
     ),
     "Name": AttributeSpec(
         name="Name",
-        description="The name of the controller component",
-        l5x_only=False,
+        description=(
+            "L5X only. Specify the name of the controller component. "
+            "In L5K, the name is an element of the controller component."
+        ),
+        l5x_only=True,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 57",
     ),
     "ProcessorType": AttributeSpec(
@@ -228,19 +231,10 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"producer (true or false)."
         ),
         l5x_only=True,
-        xml_type=bool,
+        xml_type=str,
         datatype=bool,
+        valid_values=("true", "false"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 59",
-    ),
-    "IsPermissionsSet": AttributeSpec(
-        name="IsPermissionsSet",
-        description=(
-            r"Indicates if this is associated with a permission set or a "
-            r"logical name."
-        ),
-        l5x_only=False,
-        datatype=str,
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "PassThroughConfiguration": AttributeSpec(
         name="PassThroughConfiguration",
@@ -261,7 +255,9 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"documentation configuration setting of the project."
         ),
         l5x_only=False,
+        xml_type=str,
         datatype=bool,
+        valid_values=("true", "false", "Yes", "No"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "DownloadCustomProperties": AttributeSpec(
@@ -278,8 +274,9 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"setting is true or false. For L5K, the setting is 1 (true) or "
             r"0 (false)."
         ),
-        xml_type=bool,
+        xml_type=str,
         datatype=bool,
+        valid_values=("true", "false", "1", "0"),
         l5x_only=False,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
@@ -298,53 +295,53 @@ CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "ProjectCreationDate": AttributeSpec(
-        name="",
-        description="",
+        name="ProjectCreationDate",
+        description="Observed L5X export metadata recording when the project was created.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "LastModifiedDate": AttributeSpec(
-        name="",
-        description="",
+        name="LastModifiedDate",
+        description="Observed L5X export metadata recording when the project was last modified.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "TargetName": AttributeSpec(
-        name="",
-        description="",
+        name="TargetName",
+        description="Observed L5X export metadata identifying the target component name.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "TargetType": AttributeSpec(
-        name="",
-        description="",
+        name="TargetType",
+        description="Observed L5X export metadata identifying the target component type.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "ContainsContext": AttributeSpec(
-        name="",
-        description="",
+        name="ContainsContext",
+        description="Observed L5X export metadata indicating whether context is included.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "ExportDate": AttributeSpec(
-        name="",
-        description="",
+        name="ExportDate",
+        description="Observed L5X export metadata recording when the file was exported.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
     "ExportOptions": AttributeSpec(
-        name="",
-        description="",
+        name="ExportOptions",
+        description="Observed L5X export metadata describing selected export options.",
         l5x_only=True,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes",
+        datatype=str,
+        manual_ref="Observed in L5X exports; not listed in Chapter 2 controller attributes table.",
     ),
 }
 
@@ -357,7 +354,9 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"This attribute is on the <RedundancyInfo> tag element."
         ),
         l5x_only=True,
+        xml_type=str,
         datatype=bool,
+        valid_values=("true", "false"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "KeepTestEditsOnSwitchOver": AttributeSpec(
@@ -370,9 +369,9 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"element. Type false or true."
         ),
         l5x_only=False,
-        xml_type=int,
+        xml_type=str,
         datatype=bool,
-        valid_values=(0, 1),
+        valid_values=("true", "false"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "IOMemoryPadPercentage": AttributeSpec(
@@ -421,7 +420,8 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"element."
         ),
         l5x_only=False,
-        valid_values=("Context", "Target"),
+        datatype=str,
+        valid_values=("1,2", ""),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 61",
     ),
     "FrontPortCrossloadSecurityEnabled": AttributeSpec(
@@ -449,9 +449,15 @@ REDUNDANCY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
 SECURITY_ATTRIBUTES: dict[str, AttributeSpec] = {
     "Code": AttributeSpec(
         name="Code",
-        description="",
+        description=(
+            r"L5X only. Specify whether the RSI Security Server is "
+            r"enabled for the controller. Type 0 if the controller is "
+            r"unsecured; type a 10-digit, non-zero value if the "
+            r"controller is secured. This attribute is on the "
+            r"<Security> tag element."
+        ),
         l5x_only=True,
-        valid_values=("Context", "Target"),
+        datatype=str,
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 58",
     ),
     "ChangesToDetect": AttributeSpec(
@@ -515,6 +521,52 @@ SECURITY_ATTRIBUTES: dict[str, AttributeSpec] = {
     ),
 }
 
+PRIMARY_ACTION_SET_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "PermissionSet": AttributeSpec(
+        name="PermissionSet",
+        description=(
+            r"Name of the permission set or logical name associated "
+            r"with this cached permissions entry."
+        ),
+        l5x_only=True,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 53",
+    ),
+    "IsPermissionSet": AttributeSpec(
+        name="IsPermissionSet",
+        description=(
+            r"Indicates if this is associated with a permission set or a "
+            r"logical name."
+        ),
+        l5x_only=True,
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
+    ),
+}
+
+SECURITY_ELEMENTS: dict[str, ElementSpec] = {
+    "PrimaryActionSets": ElementSpec(
+        name="PrimaryActionSets",
+        description="Container for cached permission entries.",
+        elements={
+            "PrimaryActionSet": ElementSpec(
+                name="PrimaryActionSet",
+                description=(
+                    "Cache of permissions associated with the specified "
+                    "logical name or permission set."
+                ),
+                attributes=PRIMARY_ACTION_SET_ATTRIBUTES,
+                repeatable=True,
+                content_type="cdata",
+                manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 53",
+            ),
+        },
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 53",
+    ),
+}
+
 SAFETY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
     "SafetyEnabled": AttributeSpec(
         name="SafetyEnabled",
@@ -526,7 +578,9 @@ SAFETY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"element"
         ),
         l5x_only=False,
-        valid_values=("Context", "Target"),
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
         manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
     ),
     "SafetySignature": AttributeSpec(
@@ -539,8 +593,83 @@ SAFETY_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
             r"element"
         ),
         l5x_only=False,
-        valid_values=("Context", "Target"),
-        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes. page 60",
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 61",
+        notes="Export only; ignored on import.",
+    ),
+    "SafetyLocked": AttributeSpec(
+        name="SafetyLocked",
+        description=(
+            r"Displays whether the safety controller is locked or not. "
+            r"For L5X, this attribute is on the <SafetyInfo> tag element. "
+            r"Type true or false."
+        ),
+        l5x_only=False,
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 61",
+        notes="Export only; ignored on import.",
+    ),
+    "SafetyLockPassword": AttributeSpec(
+        name="SafetyLockPassword",
+        description=(
+            r"Specifies the lock password in the controller. This value "
+            r"is encrypted on export. For L5X, this attribute is on the "
+            r"<SafetyInfo> tag element."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 61",
+    ),
+    "SafetyUnlockPassword": AttributeSpec(
+        name="SafetyUnlockPassword",
+        description=(
+            r"Specifies the unlock password in the controller. This value "
+            r"is encrypted on export. For L5X, this attribute is on the "
+            r"<SafetyInfo> tag element."
+        ),
+        l5x_only=False,
+        datatype=str,
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 62",
+    ),
+    "ConfigureSafetyIOAlways": AttributeSpec(
+        name="ConfigureSafetyIOAlways",
+        description=(
+            r"Specify whether to configure safety I/O when replacing "
+            r"safety I/O. For L5X, this attribute is on the <SafetyInfo> "
+            r"tag element. Type true or false."
+        ),
+        l5x_only=False,
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 62",
+    ),
+    "SignatureRunModeProtect": AttributeSpec(
+        name="SignatureRunModeProtect",
+        description=(
+            r"Indicates whether you can modify the safety signature when "
+            r"in Run mode. For L5X only, this attribute is on the "
+            r"<SafetyInfo> tag element."
+        ),
+        l5x_only=True,
+        xml_type=str,
+        datatype=bool,
+        valid_values=("true", "false"),
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 62",
+    ),
+}
+
+SAFETY_INFO_ELEMENTS: dict[str, ElementSpec] = {
+    "SafetyTagMap": ElementSpec(
+        name="SafetyTagMap",
+        description=(
+            "L5X safety tag map body. Mappings are separated with a "
+            "comma and a space."
+        ),
+        content_type="text",
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, Controller attributes in a safety controller system. page 62",
     ),
 }
 
@@ -569,12 +698,14 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
         name="Security",
         description="Controller security configuration.",
         attributes=SECURITY_ATTRIBUTES,
+        elements=SECURITY_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 2",
     ),
     "SafetyInfo": ElementSpec(
         name="SafetyInfo",
         description="Safety-controller configuration.",
         attributes=SAFETY_INFO_ATTRIBUTES,
+        elements=SAFETY_INFO_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 2",
     ),
     "DataTypes": ElementSpec(
@@ -637,9 +768,27 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
         description="Controller wall-clock time configuration.",
         manual_ref="1756-RM014D-EN-P, Controller configuration objects, Chapter 18",
     ),
-    "PrimaryActionSet": ElementSpec(
-        name="PrimaryActionSet",
-        description="Primary action set configuration.",
-        manual_ref="1756-RM014D-EN-P, Controller structure",
+    "InternetProtocol": ElementSpec(
+        name="InternetProtocol",
+        description="Controller Internet Protocol configuration.",
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 55",
+    ),
+    "EthernetPorts": ElementSpec(
+        name="EthernetPorts",
+        description="Container for controller Ethernet port configuration.",
+        elements={
+            "EthernetPort": ElementSpec(
+                name="EthernetPort",
+                description="Controller Ethernet port configuration.",
+                repeatable=True,
+                manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 55",
+            ),
+        },
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 55",
+    ),
+    "EthernetNetwork": ElementSpec(
+        name="EthernetNetwork",
+        description="Controller Ethernet network configuration.",
+        manual_ref="1756-RM014D-EN-P September 2025, Chapter 2, L5X controller structure. page 55",
     ),
 }

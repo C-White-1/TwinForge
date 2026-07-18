@@ -35,6 +35,7 @@ class ElementSpec:
     name: str
     description: str = ""
     attributes: dict[str, AttributeSpec] = field(default_factory=dict)
+    elements: dict[str, "ElementSpec"] = field(default_factory=dict)
     required: bool = False
     repeatable: bool = False
     content_type: str | None = None

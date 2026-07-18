@@ -17,6 +17,13 @@ src/twinforge/core/constants.py
 src/twinforge/core/exceptions.py
 src/twinforge/core/logging.py
 src/twinforge/core/utils.py
+src/twinforge/datatypes/__init__.py
+src/twinforge/datatypes/catalog.py
+src/twinforge/datatypes/cippath.py
+src/twinforge/datatypes/hexmask.py
+src/twinforge/datatypes/hexuint32.py
+src/twinforge/datatypes/references.py
+src/twinforge/datatypes/revision.py
 src/twinforge/discovery/__init__.py
 src/twinforge/discovery/chassis.py
 src/twinforge/discovery/controller.py
@@ -73,6 +80,7 @@ src/twinforge/parsers/xml.py
 src/twinforge/parsers/acd/acd.py
 src/twinforge/parsers/eds/eds.py
 src/twinforge/parsers/l5x/__init__.py
+src/twinforge/parsers/l5x/capture.py
 src/twinforge/parsers/l5x/controller.py
 src/twinforge/parsers/l5x/modules.py
 src/twinforge/parsers/l5x/parser.py
@@ -80,6 +88,11 @@ src/twinforge/parsers/l5x/programs.py
 src/twinforge/parsers/l5x/routines.py
 src/twinforge/parsers/l5x/tags.py
 src/twinforge/parsers/l5x/tasks.py
+src/twinforge/schema/__init__.py
+src/twinforge/schema/l5x/__init__.py
+src/twinforge/schema/l5x/controller.py
+src/twinforge/schema/l5x/reference.py
+src/twinforge/schema/l5x/spec.py
 src/twinforge/services/digital_twin.py
 src/twinforge/services/inventory.py
 src/twinforge/services/routing.py
