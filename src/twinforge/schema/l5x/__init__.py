@@ -12,6 +12,11 @@ from .controller import (
     SECURITY_ATTRIBUTES,
     SECURITY_ELEMENTS,
 )
+from .modules import (
+    MODULE_ATTRIBUTES,
+    MODULE_ELEMENTS,
+    MODULES_ELEMENTS,
+)
 from .reference import ReferenceType
 from .spec import AttributeSpec, ElementSpec
 
@@ -20,6 +25,9 @@ __all__ = [
     "ElementSpec",
     "CONTROLLER_ATTRIBUTES",
     "CONTROLLER_ELEMENTS",
+    "MODULE_ATTRIBUTES",
+    "MODULE_ELEMENTS",
+    "MODULES_ELEMENTS",
     "PRIMARY_ACTION_SET_ATTRIBUTES",
     "REDUNDANCY_INFO_ATTRIBUTES",
     "ReferenceType",

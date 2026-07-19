@@ -1,5 +1,6 @@
 from .reference import ReferenceType
 from .spec import AttributeSpec, ElementSpec
+from .modules import MODULES_ELEMENTS
 
 CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
     "Use": AttributeSpec(
@@ -716,6 +717,7 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
     "Modules": ElementSpec(
         name="Modules",
         description="Container for controller module definitions.",
+        elements=MODULES_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 2",
     ),
     "AddOnInstructionDefinitions": ElementSpec(

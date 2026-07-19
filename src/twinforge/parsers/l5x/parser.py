@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from twinforge.model import Plant
-from twinforge.parsers.l5x.capture import capture_section
+from twinforge.parsers.l5x.capture import ReportMode, capture_section
 from twinforge.schema.l5x import (
     CONTROLLER_ATTRIBUTES,
     CONTROLLER_ELEMENTS,
@@ -14,7 +14,13 @@ from twinforge.schema.l5x import (
 
 
 class L5XParser:
-    def parse(self, filename: str | Path) -> Plant:
+    def parse(
+        self,
+        filename: str | Path,
+        *,
+        report_mode: ReportMode | None = "summary",
+        report_depth: int | None = 2,
+    ) -> Plant:
 
         tree = ET.parse(filename)
         root = tree.getroot()
@@ -34,10 +40,13 @@ class L5XParser:
         #
         # Report exactly what was captured from the L5X.
         #
-        controller_section.report(
-            CONTROLLER_ATTRIBUTES,
-            CONTROLLER_ELEMENTS,
-        )
+        if report_mode is not None:
+            controller_section.report(
+                CONTROLLER_ATTRIBUTES,
+                CONTROLLER_ELEMENTS,
+                mode=report_mode,
+                max_depth=report_depth,
+            )
 
         #
         # TODO

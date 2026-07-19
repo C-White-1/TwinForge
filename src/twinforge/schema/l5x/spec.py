@@ -22,7 +22,12 @@ class AttributeSpec:
 
     applicability: frozenset[str] = frozenset({"standard", "safety"})
 
+    # Attribute values on the same element that make this attribute applicable.
+    # Each condition is (attribute_name, accepted_values).
+    applicable_when: tuple[tuple[str, tuple[Any, ...]], ...] = ()
+
     valid_values: tuple[Any, ...] | None = None
+    value_labels: tuple[tuple[Any, str], ...] = ()
     minimum: int | float | None = None
     maximum: int | float | None = None
 
