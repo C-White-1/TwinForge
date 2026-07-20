@@ -5,12 +5,21 @@ from dataclasses import dataclass, field
 
 from .controller import Controller
 from .routine import Routine
+from .source_extension import SourceExtension
 from .tag import Tag
 
 
 @dataclass
 class Program:
     name: str
+
+    test_edits: bool | None = None
+
+    disabled: bool | None = None
+
+    use_as_folder: bool | None = None
+
+    permission_set: str | None = None
 
     routines: dict[str, Routine] = field(default_factory=dict)
 
@@ -19,6 +28,8 @@ class Program:
     parent: Controller | None = None
 
     main_routine: Routine | None = None
+
+    source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
 
     # -------------------------
     # Construction / Mutation

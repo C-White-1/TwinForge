@@ -17,6 +17,10 @@ class Chassis(Asset):
     # Construction / Mutation
     # -------------------------
     def add_module(self, module: Module) -> None:
+        if module.slot is None:
+            raise ValueError(f"Module '{module.name}' does not have a chassis slot")
+        if module.slot in self.modules:
+            raise ValueError(f"Slot {module.slot} already contains a module")
         module.parent = self
         self.modules[module.slot] = module
     

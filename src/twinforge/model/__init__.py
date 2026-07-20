@@ -2,9 +2,10 @@ from .asset import Asset
 from .chassis import Chassis
 from .connection import Connection
 from .controller import Controller
-from .datatype import Datatype
+from .datatype import Datatype, DatatypeMember
 from .device import Device
-from .identity import Identity
+from .electronic_key import ElectronicKey, KeyingMode
+from .identity import Identity, VendorIdentity
 from .module import Module
 from .network import Network
 from .plant import Plant
@@ -12,7 +13,8 @@ from .program import Program
 from .rack import Rack
 from .revision import Revision
 from .route import Route
-from .routine import Routine
+from .routine import LadderRung, Routine
+from .source_extension import SourceExtension, SourceNode
 from .tag import Tag
 from .task import Task
 
@@ -22,8 +24,13 @@ __all__ = [
     "Connection",
     "Controller",
     "Datatype",
+    "DatatypeMember",
     "Device",
+    "ElectronicKey",
     "Identity",
+    "KeyingMode",
+    "LadderRung",
+    "VendorIdentity",
     "Module",
     "Network",
     "Plant",
@@ -32,6 +39,8 @@ __all__ = [
     "Revision",
     "Route",
     "Routine",
+    "SourceExtension",
+    "SourceNode",
     "Tag",
     "Task",
 ]

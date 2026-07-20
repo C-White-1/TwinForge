@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from .source_extension import SourceExtension
+
 
 @dataclass
 class Asset:
@@ -16,6 +18,8 @@ class Asset:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     parent: Any | None = field(default=None, repr=False)
+
+    source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
 
     def path(self) -> str:
         if self.parent is None:

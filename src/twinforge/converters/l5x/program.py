@@ -1,0 +1,263 @@
+from __future__ import annotations
+
+from twinforge.converters.diagnostics import (
+    ConversionDiagnostic,
+    DiagnosticSeverity,
+)
+from twinforge.model import LadderRung, Program, Routine
+from twinforge.parsers.l5x.capture import CapturedSection
+
+from .source_extension import captured_to_source_extension
+from .tag import convert_tag
+
+
+_KNOWN_LANGUAGES = {"RLL", "ST", "SFC", "FBD"}
+
+
+def convert_program(
+    section: CapturedSection,
+    *,
+    diagnostics: list[ConversionDiagnostic] | None = None,
+) -> Program:
+    """Convert one captured L5X Program and its routine shells."""
+
+    if section.tag != "Program":
+        raise ValueError(f"expected a Program section, got {section.tag!r}")
+
+    program = Program(
+        name=section.attributes.get("Name", ""),
+        test_edits=_optional_bool(section, "TestEdits", diagnostics),
+        disabled=_optional_bool(section, "Disabled", diagnostics),
+        use_as_folder=_optional_bool(section, "UseAsFolder", diagnostics),
+        permission_set=section.attributes.get("PermissionSet"),
+        source_extensions=[captured_to_source_extension(section)],
+    )
+
+    for routines in section.elements.get("Routines", []):
+        for routine_section in routines.elements.get("Routine", []):
+            routine = _convert_routine(routine_section, program.name, diagnostics)
+            if routine is None:
+                continue
+            if routine.name in program.routines:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.ERROR,
+                    "duplicate_routine_name",
+                    f"program {program.name!r} contains duplicate routine {routine.name!r}",
+                    program.name,
+                    "Name",
+                    routine.name,
+                )
+                continue
+            program.add_routine(routine)
+
+    for tags in section.elements.get("Tags", []):
+        for tag_section in tags.elements.get("Tag", []):
+            tag = convert_tag(tag_section, diagnostics=diagnostics)
+            if not tag.name:
+                continue
+            if tag.name in program.tags:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.ERROR,
+                    "duplicate_tag_name",
+                    f"program {program.name!r} contains duplicate tag {tag.name!r}",
+                    tag.name,
+                    "Name",
+                    tag.name,
+                )
+                continue
+            program.add_tag(tag)
+
+    main_routine_name = section.attributes.get("MainRoutineName")
+    program.main_routine = None
+    if main_routine_name:
+        main_routine = program.get_routine(main_routine_name)
+        if main_routine is None:
+            _emit(
+                diagnostics,
+                DiagnosticSeverity.ERROR,
+                "unresolved_main_routine",
+                f"program {program.name!r} references unknown main routine {main_routine_name!r}",
+                program.name,
+                "MainRoutineName",
+                main_routine_name,
+            )
+        else:
+            program.set_main_routine(main_routine)
+
+    return program
+
+
+def _convert_routine(
+    section: CapturedSection,
+    program_name: str,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> Routine | None:
+    name = section.attributes.get("Name")
+    if not name:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.ERROR,
+            "routine_missing_name",
+            f"program {program_name!r} contains a routine without a name",
+            program_name,
+        )
+        return None
+
+    language = section.attributes.get("Type")
+    if language is not None and language not in _KNOWN_LANGUAGES:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "unknown_routine_language",
+            f"routine {name!r} uses unknown language {language!r}",
+            name,
+            "Type",
+            language,
+        )
+
+    routine = Routine(
+        name=name,
+        language=language,
+        source_extensions=[captured_to_source_extension(section)],
+    )
+    if language == "RLL":
+        routine.ladder_rungs = _convert_rungs(section, name, diagnostics)
+    return routine
+
+
+def _convert_rungs(
+    section: CapturedSection,
+    routine_name: str,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> list[LadderRung]:
+    rungs: list[LadderRung] = []
+    numbers: set[int] = set()
+    for content in section.elements.get("RLLContent", []):
+        for rung_section in content.elements.get("Rung", []):
+            raw_number = rung_section.attributes.get("Number")
+            number = _optional_int(
+                raw_number,
+                "Number",
+                routine_name,
+                diagnostics,
+            )
+            if raw_number is None:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.ERROR,
+                    "rung_number_missing",
+                    f"routine {routine_name!r} contains a rung without Number",
+                    routine_name,
+                    "Number",
+                )
+            elif number is not None and number in numbers:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.ERROR,
+                    "duplicate_rung_number",
+                    f"routine {routine_name!r} contains duplicate rung number {number}",
+                    routine_name,
+                    "Number",
+                    raw_number,
+                )
+            elif number is not None:
+                numbers.add(number)
+
+            text = _child_text(rung_section, "Text")
+            if text is None:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "rung_text_missing",
+                    f"routine {routine_name!r} rung {raw_number!r} has no Text",
+                    routine_name,
+                    "Text",
+                )
+            rungs.append(
+                LadderRung(
+                    number=number,
+                    rung_type=rung_section.attributes.get("Type"),
+                    comment=_child_text(rung_section, "Comment"),
+                    text=text,
+                    source_extensions=[captured_to_source_extension(rung_section)],
+                )
+            )
+    return rungs
+
+
+def _child_text(section: CapturedSection, name: str) -> str | None:
+    children = section.elements.get(name, [])
+    if not children or children[0].text is None:
+        return None
+    return children[0].text.strip()
+
+
+def _optional_int(
+    value: str | None,
+    field: str,
+    object_name: str,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "invalid_integer",
+            f"{field} must be an integer, got {value!r}",
+            object_name,
+            field,
+            value,
+        )
+        return None
+
+
+def _optional_bool(
+    section: CapturedSection,
+    field: str,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> bool | None:
+    value = section.attributes.get(field)
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    if value is not None:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "invalid_boolean",
+            f"{field} must be 'true' or 'false', got {value!r}",
+            section.attributes.get("Name"),
+            field,
+            value,
+        )
+    return None
+
+
+def _emit(
+    diagnostics: list[ConversionDiagnostic] | None,
+    severity: DiagnosticSeverity,
+    code: str,
+    message: str,
+    object_name: str | None,
+    field: str | None = None,
+    raw_value: str | None = None,
+) -> None:
+    if diagnostics is None:
+        return
+    diagnostics.append(
+        ConversionDiagnostic(
+            severity=severity,
+            code=code,
+            message=message,
+            object_name=object_name,
+            field=field,
+            raw_value=raw_value,
+        )
+    )

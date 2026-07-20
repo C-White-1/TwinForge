@@ -1,5 +1,9 @@
 from .reference import ReferenceType
 from .spec import AttributeSpec, ElementSpec
+from .programs import PROGRAMS_ELEMENTS
+from .tags import TAGS_ELEMENTS
+from .tasks import TASKS_ELEMENTS
+from .datatypes import DATATYPES_ELEMENTS
 from .modules import MODULES_ELEMENTS
 
 CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
@@ -712,6 +716,7 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
     "DataTypes": ElementSpec(
         name="DataTypes",
         description="Container for controller data type definitions.",
+        elements=DATATYPES_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 2",
     ),
     "Modules": ElementSpec(
@@ -728,16 +733,19 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
     "Tags": ElementSpec(
         name="Tags",
         description="Container for controller-scoped tags.",
+        elements=TAGS_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 6",
     ),
     "Programs": ElementSpec(
         name="Programs",
         description="Container for controller programs.",
+        elements=PROGRAMS_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 7",
     ),
     "Tasks": ElementSpec(
         name="Tasks",
         description="Container for controller task definitions.",
+        elements=TASKS_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 14",
     ),
     "ParameterConnections": ElementSpec(

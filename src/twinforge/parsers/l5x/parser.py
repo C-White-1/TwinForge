@@ -5,6 +5,11 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from twinforge.converters.l5x import (
+    convert_controller,
+    element_to_source_extension,
+)
+from twinforge.converters import ConversionDiagnostic
 from twinforge.model import Plant
 from twinforge.parsers.l5x.capture import ReportMode, capture_section
 from twinforge.schema.l5x import (
@@ -14,6 +19,9 @@ from twinforge.schema.l5x import (
 
 
 class L5XParser:
+    def __init__(self) -> None:
+        self.diagnostics: list[ConversionDiagnostic] = []
+
     def parse(
         self,
         filename: str | Path,
@@ -22,6 +30,7 @@ class L5XParser:
         report_depth: int | None = 2,
     ) -> Plant:
 
+        self.diagnostics = []
         tree = ET.parse(filename)
         root = tree.getroot()
 
@@ -48,9 +57,13 @@ class L5XParser:
                 max_depth=report_depth,
             )
 
-        #
-        # TODO
-        #
-        # Convert CapturedSection into a Controller object.
-        #
-        return Plant(name="Imported L5X")
+        controller = convert_controller(
+            controller_section,
+            diagnostics=self.diagnostics,
+        )
+        plant = Plant(
+            name=root.attrib.get("TargetName", controller.name or Path(filename).stem),
+            source_extensions=[element_to_source_extension(root)],
+        )
+        plant.add_controller(controller)
+        return plant

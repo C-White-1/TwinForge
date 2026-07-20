@@ -7,6 +7,7 @@ from typing import Literal
 from twinforge.schema.l5x.spec import AttributeSpec, ElementSpec
 
 ReportMode = Literal["summary", "debug"]
+SUMMARY_TEXT_LIMIT = 160
 
 
 @dataclass
@@ -16,6 +17,8 @@ class CapturedSection:
     text: str | None = None
 
     tail: str | None = None
+
+    raw_attributes: dict[str, str] | None = None
 
     known_attributes: set[str] = field(default_factory=set)
 
@@ -32,6 +35,10 @@ class CapturedSection:
     extra_attributes: dict[str, str] = field(default_factory=dict)
 
     extra_elements: dict[str, list[ET.Element]] = field(default_factory=dict)
+
+    ordered_children: list["CapturedSection | ET.Element"] = field(
+        default_factory=list
+    )
 
     missing_elements: list[str] = field(default_factory=list)
 
@@ -78,6 +85,8 @@ class CapturedSection:
         child_indent = "  " * (_depth + 1)
 
         print(f"\n{indent}<{self.tag}>")
+
+        _print_text(self.text, mode, child_indent)
 
         present_attributes = []
         for name in sorted(known_attribute_names):
@@ -196,6 +205,7 @@ def capture_section(
         tag=element.tag,
         text=element.text,
         tail=element.tail,
+        raw_attributes=dict(element.attrib),
         known_attributes=set(known_attributes),
         attribute_specs=dict(known_attributes),
         known_elements=set(known_elements),
@@ -217,8 +227,10 @@ def capture_section(
                 child_spec.elements,
             )
             section.elements.setdefault(child.tag, []).append(child_section)
+            section.ordered_children.append(child_section)
         else:
             section.extra_elements.setdefault(child.tag, []).append(child)
+            section.ordered_children.append(child)
 
     present = set(section.elements)
 
@@ -267,5 +279,26 @@ def _print_group(
     if not lines and not always:
         return
     print(f"{indent}{heading}:")
+    for line in lines:
+        print(f"{indent}  {line}")
+
+
+def _print_text(text: str | None, mode: ReportMode, indent: str) -> None:
+    if text is None or not text.strip():
+        return
+
+    stripped = text.strip()
+    if mode == "summary":
+        compact = " ".join(stripped.split())
+        if len(compact) > SUMMARY_TEXT_LIMIT:
+            compact = compact[: SUMMARY_TEXT_LIMIT - 1].rstrip() + "…"
+        print(f"{indent}Text: {compact}")
+        return
+
+    lines = stripped.splitlines()
+    if len(lines) == 1:
+        print(f"{indent}Text: {lines[0]}")
+        return
+    print(f"{indent}Text:")
     for line in lines:
         print(f"{indent}  {line}")

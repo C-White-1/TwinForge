@@ -1,37 +1,30 @@
 import argparse
 import csv
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Iterable
 
-from twinforge.parsers.l5x.capture import CapturedSection, capture_section
-from twinforge.schema.l5x import CONTROLLER_ATTRIBUTES, CONTROLLER_ELEMENTS
-from twinforge.schema.l5x.modules import MODULE_ATTRIBUTES
+from twinforge.model import Controller, Module, Plant
+from twinforge.parsers import L5XParser
 
 
 CSV_FIELDS = ("Slot", "Type", "CatalogNumber", "Vendor")
 
 
 def module_rows(filename: str | Path) -> Iterable[dict[str, str]]:
-    root = ET.parse(filename).getroot()
-    controller = root.find("Controller")
-    if controller is None:
-        raise ValueError("L5X file does not contain a Controller element.")
+    plant = L5XParser().parse(filename, report_mode=None)
+    yield from plant_rows(plant)
 
-    captured = capture_section(
-        controller,
-        CONTROLLER_ATTRIBUTES,
-        CONTROLLER_ELEMENTS,
-    )
 
-    for modules in captured.elements.get("Modules", []):
-        for module in modules.elements.get("Module", []):
-            yield {
-                "Slot": _module_slot(module),
-                "Type": _module_type(module),
-                "CatalogNumber": module.attributes.get("CatalogNumber", ""),
-                "Vendor": _vendor(module.attributes.get("Vendor")),
-            }
+def plant_rows(plant: Plant) -> Iterable[dict[str, str]]:
+    for controller in plant.iter_controllers():
+        for chassis in controller.iter_chassis():
+            for chassis_module in chassis.iter_modules():
+                for module in _module_tree(chassis_module):
+                    yield _module_row(
+                        module,
+                        controller,
+                        is_root_slot=chassis_module.slot == 0,
+                    )
 
 
 def export_module_csv(source: str | Path, destination: str | Path) -> None:
@@ -42,46 +35,36 @@ def export_module_csv(source: str | Path, destination: str | Path) -> None:
         writer.writerows(module_rows(source))
 
 
-def _module_slot(module: CapturedSection) -> str:
-    addressed_ports = [
-        port
-        for ports in module.elements.get("Ports", [])
-        for port in ports.elements.get("Port", [])
-        if "Address" in port.attributes
-    ]
-    upstream = next(
-        (
-            port
-            for port in addressed_ports
-            if port.attributes.get("Upstream") == "true"
-        ),
-        None,
+def _module_row(
+    module: Module,
+    controller: Controller,
+    *,
+    is_root_slot: bool,
+) -> dict[str, str]:
+    is_controller = (
+        is_root_slot and module.catalog == controller.identity.product_name
     )
-    port = upstream or (addressed_ports[0] if addressed_ports else None)
-    return port.attributes["Address"] if port is not None else ""
+    return {
+        "Slot": str(module.slot) if module.slot is not None else (module.address or ""),
+        "Type": "Controller" if is_controller else _module_type(module),
+        "CatalogNumber": module.catalog,
+        "Vendor": str(module.identity.vendor) if module.identity.vendor else "",
+    }
 
 
-def _module_type(module: CapturedSection) -> str:
-    if module.attributes.get("ParentModule") == module.attributes.get("Name"):
-        return "Controller"
+def _module_tree(module: Module) -> Iterable[Module]:
+    yield module
+    for child in module.child_modules:
+        yield from _module_tree(child)
 
+
+def _module_type(module: Module) -> str:
     connection_types = {
-        connection.attributes["Type"]
-        for communications in module.elements.get("Communications", [])
-        for connections in communications.elements.get("Connections", [])
-        for connection in connections.elements.get("Connection", [])
-        if connection.attributes.get("Type")
+        connection.connection_type
+        for connection in module.connections
+        if connection.connection_type
     }
     return "/".join(sorted(connection_types))
-
-
-def _vendor(vendor_id: str | None) -> str:
-    if vendor_id is None:
-        return ""
-    for known_id, label in MODULE_ATTRIBUTES["Vendor"].value_labels:
-        if str(known_id) == vendor_id:
-            return label
-    return vendor_id
 
 
 def parse_args() -> argparse.Namespace:

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict
 
 from .asset import Asset
 from .connection import Connection
+from .electronic_key import ElectronicKey
 from .identity import Identity
 
 if TYPE_CHECKING:
@@ -19,17 +20,27 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class Module(Asset):
-    slot: int
-
     catalog: str
 
     identity: Identity
 
-    parent: Optional["Chassis"] = None
+    slot: int | None = None
+
+    address: str | None = None
+
+    electronic_key: ElectronicKey | None = None
+
+    inhibited: bool | None = None
+
+    major_fault_on_connection_loss: bool | None = None
+
+    parent: "Chassis | Module | None" = None
 
     io: Dict = field(default_factory=dict)
 
     connections: list["Connection"] = field(default_factory=list)
+
+    child_modules: list["Module"] = field(default_factory=list)
 
     # channels: list["Channel"] = field(default_factory=list)
 
@@ -38,6 +49,10 @@ class Module(Asset):
     def add_connection(self, connection: "Connection") -> None:
         connection.parent = self
         self.connections.append(connection)
+
+    def add_child_module(self, module: "Module") -> None:
+        module.parent = self
+        self.child_modules.append(module)
 
     # def add_channel(self, channel: "Channel") -> None:
     # channel.parent = self

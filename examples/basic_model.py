@@ -4,8 +4,10 @@ from twinforge.model import (
     Chassis,
     Module,
     Program,
+    Routine,
     Identity,
     Revision,
+    VendorIdentity,
 )
 
 plant = Plant(name="Demo Plant")
@@ -13,10 +15,14 @@ plant = Plant(name="Demo Plant")
 controller = Controller(
     name="JVBC",
     identity=Identity(
-        vendor="Rockwell Automation/Allen-Bradley",
+        vendor=VendorIdentity(
+            id=1,
+            name="Allen-Bradley / Rockwell Automation",
+        ),
         product_name="1756-L61/B",
         product_code=54,
-        product_type="Programmable Logic Controller",
+        product_type=14,
+        product_type_name="Programmable Logic Controller",
         revision=Revision(20, 55),
         serial="008b26cc",
     )
@@ -33,7 +39,7 @@ module = Module(
 chassis.add_module(module)
 controller.add_chassis(chassis)
 plant.add_controller(controller)
-program = Program(name = "MainProgram")
+program = Program(name="MainProgram")
 controller.add_program(program)
 routine = Routine(name="MainRoutine")
 program.add_routine(routine)

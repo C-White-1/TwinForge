@@ -7,8 +7,10 @@ from typing import TYPE_CHECKING
 from .asset import Asset
 from .chassis import Chassis
 from .identity import Identity
+from .datatype import Datatype
 
 if TYPE_CHECKING:
+    from .module import Module
     from .program import Program
     from .tag import Tag
     from .task import Task
@@ -27,6 +29,10 @@ class Controller(Asset):
     tasks: dict[str, Task] = field(default_factory=dict)
 
     tags: dict[str, Tag] = field(default_factory=dict)
+
+    datatypes: dict[str, Datatype] = field(default_factory=dict)
+
+    unplaced_modules: list[Module] = field(default_factory=list)
 
     parent: object | None = None
 
@@ -61,6 +67,16 @@ class Controller(Asset):
         tag.parent = self
         self.tags[tag.name] = tag
 
+    def add_datatype(self, datatype: Datatype) -> None:
+        if datatype.name in self.datatypes:
+            raise ValueError(f"Datatype '{datatype.name}' already exists")
+        datatype.parent = self
+        self.datatypes[datatype.name] = datatype
+
+    def add_unplaced_module(self, module: Module) -> None:
+        module.parent = None
+        self.unplaced_modules.append(module)
+
     # -------------------------
     # Lookup
     # -------------------------
@@ -75,6 +91,9 @@ class Controller(Asset):
 
     def get_tag(self, name: str) -> Tag | None:
         return self.tags.get(name)
+
+    def get_datatype(self, name: str) -> Datatype | None:
+        return self.datatypes.get(name)
 
     # -------------------------
     # Iteration

@@ -279,9 +279,21 @@ def test_debug_separates_optional_absent_fields(capsys):
 
 
 def test_parser_can_suppress_reporting(capsys):
-    L5XParser().parse(SAMPLE_L5X, report_mode=None)
+    plant = L5XParser().parse(SAMPLE_L5X, report_mode=None)
 
     assert capsys.readouterr().out == ""
+    assert plant.name == "booster_compressor"
+    assert len(plant.controllers) == 1
+    controller = plant.controllers[0]
+    assert controller.parent is plant
+    assert controller.name == "booster_compressor"
+    chassis = controller.get_chassis("Local Chassis")
+    assert chassis is not None
+    assert len(chassis.modules) == 7
+    assert chassis.get_module(2) is not None
+    assert chassis.get_module(2).catalog == "1756-IB16"
+    assert plant.source_extensions[0].root.name == "RSLogix5000Content"
+    assert plant.source_extensions[0].root.attributes["Owner"] == "PLC PRO"
 
 
 def test_summary_does_not_expand_empty_sections(capsys):
@@ -296,3 +308,46 @@ def test_summary_does_not_expand_empty_sections(capsys):
     output = capsys.readouterr().out
     assert "Empty: 1" in output
     assert "<Empty>" not in output
+
+
+def test_summary_prints_compact_truncated_element_text(capsys):
+    long_text = "first line\n" + ("x" * 200)
+    section = capture_section(
+        ET.fromstring(f"<Description><![CDATA[{long_text}]]></Description>"),
+        {},
+        {},
+    )
+
+    section.report(mode="summary")
+
+    output = capsys.readouterr().out
+    assert "Text: first line " in output
+    assert "\nxxxxxxxx" not in output
+    assert "…" in output
+    assert long_text not in output
+
+
+def test_debug_prints_complete_multiline_element_text(capsys):
+    section = capture_section(
+        ET.fromstring(
+            "<Description><![CDATA[Line one\nLine two\nLine three]]></Description>"
+        ),
+        {},
+        {},
+    )
+
+    section.report(mode="debug")
+
+    output = capsys.readouterr().out
+    assert "Text:\n" in output
+    assert "  Line one" in output
+    assert "  Line two" in output
+    assert "  Line three" in output
+
+
+def test_report_ignores_whitespace_only_element_text(capsys):
+    section = capture_section(ET.fromstring("<Container>  \n  </Container>"), {}, {})
+
+    section.report(mode="debug")
+
+    assert "Text:" not in capsys.readouterr().out
