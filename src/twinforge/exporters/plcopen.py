@@ -14,7 +14,6 @@ from twinforge.converters import (
 )
 from twinforge.model import Controller, LadderRung, Program, Tag, Task
 
-
 PLCOPEN_201_NAMESPACE = "http://www.plcopen.org/xml/tc6_0201"
 PLCOPEN_CODESYS_NAMESPACE = "http://www.plcopen.org/xml/tc6_0200"
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
@@ -1748,7 +1747,7 @@ class PLCopenExporter:
 
 def validate_plcopen_xml(xml: str | bytes, schema_path: str | Path) -> None:
     try:
-        from lxml import etree
+        from lxml.etree import etree
     except ImportError as error:
         raise PLCopenValidationUnavailable(
             "XSD validation requires the optional 'lxml' package"

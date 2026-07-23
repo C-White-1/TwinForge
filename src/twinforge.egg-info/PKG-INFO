@@ -5,3 +5,5 @@ Summary: ControlLogix and CIP discovery toolkit
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
 Requires-Dist: pycomm3>=1.2.16
+Provides-Extra: validation
+Requires-Dist: lxml>=6.1.1; extra == "validation"

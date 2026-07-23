@@ -1,1 +1,4 @@
 pycomm3>=1.2.16
+
+[validation]
+lxml>=6.1.1
