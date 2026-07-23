@@ -1,0 +1,214 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0200">
+  <fileHeader companyName="" productName="CODESYS" productVersion="CODESYS V3.5 SP22 Patch 2" creationDateTime="2026-07-23T18:26:45.620772" />
+  <contentHeader name="TwinForgeImportTest2.project" modificationDateTime="2026-07-23T18:11:10.4936387">
+    <coordinateInfo>
+      <fbd>
+        <scaling x="1" y="1" />
+      </fbd>
+      <ld>
+        <scaling x="1" y="1" />
+      </ld>
+      <sfc>
+        <scaling x="1" y="1" />
+      </sfc>
+    </coordinateInfo>
+    <addData>
+      <data name="http://www.3s-software.com/plcopenxml/projectinformation" handleUnknown="implementation">
+        <ProjectInformation />
+      </data>
+    </addData>
+  </contentHeader>
+  <types>
+    <dataTypes />
+    <pous />
+  </types>
+  <instances>
+    <configurations />
+  </instances>
+  <addData>
+    <data name="http://www.3s-software.com/plcopenxml/application" handleUnknown="implementation">
+      <resource name="Application">
+        <task name="MainTask" interval="PT0.02S" priority="1">
+          <pouInstance name="PLC_PRG" typeName="">
+            <documentation>
+              <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+            </documentation>
+          </pouInstance>
+          <addData>
+            <data name="http://www.3s-software.com/plcopenxml/tasksettings" handleUnknown="implementation">
+              <TaskSettings KindOfTask="Cyclic" Interval="t#20ms" IntervalUnit="ms" WithinSPSTimeSlicing="true">
+                <Watchdog Enabled="false" TimeUnit="ms" Sensitivity="1" />
+              </TaskSettings>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+              <ObjectId>c0409a74-f00b-49c4-955f-1fb3171ea1f6</ObjectId>
+            </data>
+          </addData>
+        </task>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+            <pou name="PLC_PRG" pouType="program">
+              <interface>
+                <localVars>
+                  <variable name="xStartBtn">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="xMotorOnOff">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                </localVars>
+              </interface>
+              <actions>
+                <action name="ReadInputs">
+                  <body>
+                    <LD>
+                      <!--ObjectVersion: LD2-->
+                      <leftPowerRail localId="0">
+                        <position x="0" y="0" />
+                        <connectionPointOut formalParameter="none" />
+                      </leftPowerRail>
+                      <comment localId="3" height="0" width="0">
+                        <position x="0" y="0" />
+                        <content>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+                        </content>
+                      </comment>
+                      <vendorElement localId="2">
+                        <position x="0" y="0" />
+                        <alternativeText>
+                          <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+                        </alternativeText>
+                        <addData>
+                          <data name="http://www.3s-software.com/plcopenxml/fbdelementtype" handleUnknown="implementation">
+                            <ElementType xmlns="">networktitle</ElementType>
+                          </data>
+                        </addData>
+                      </vendorElement>
+                      <contact localId="4">
+                        <position x="0" y="0" />
+                        <connectionPointIn>
+                          <connection refLocalId="0" />
+                        </connectionPointIn>
+                        <connectionPointOut />
+                        <variable>xStartBtn</variable>
+                      </contact>
+                      <coil localId="5">
+                        <position x="0" y="0" />
+                        <connectionPointIn>
+                          <connection refLocalId="4" />
+                        </connectionPointIn>
+                        <connectionPointOut />
+                        <variable>xMotorOnOff</variable>
+                      </coil>
+                      <rightPowerRail localId="2147483647">
+                        <position x="0" y="0" />
+                        <connectionPointIn />
+                      </rightPowerRail>
+                    </LD>
+                  </body>
+                  <addData>
+                    <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                      <ObjectId>c43e3c67-ce9f-441a-a9db-4f4e6aefbf23</ObjectId>
+                    </data>
+                  </addData>
+                </action>
+              </actions>
+              <body>
+                <LD>
+                  <!--ObjectVersion: LD2-->
+                  <leftPowerRail localId="0">
+                    <position x="0" y="0" />
+                    <connectionPointOut formalParameter="none" />
+                  </leftPowerRail>
+                  <comment localId="3" height="0" width="0">
+                    <position x="0" y="0" />
+                    <content>
+                      <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+                    </content>
+                  </comment>
+                  <vendorElement localId="2">
+                    <position x="0" y="0" />
+                    <alternativeText>
+                      <xhtml xmlns="http://www.w3.org/1999/xhtml" />
+                    </alternativeText>
+                    <addData>
+                      <data name="http://www.3s-software.com/plcopenxml/fbdelementtype" handleUnknown="implementation">
+                        <ElementType xmlns="">networktitle</ElementType>
+                      </data>
+                    </addData>
+                  </vendorElement>
+                  <block localId="4" typeName="ReadInputs">
+                    <position x="0" y="0" />
+                    <inputVariables>
+                      <variable formalParameter="EN">
+                        <connectionPointIn>
+                          <connection refLocalId="0" />
+                        </connectionPointIn>
+                      </variable>
+                    </inputVariables>
+                    <inOutVariables />
+                    <outputVariables>
+                      <variable formalParameter="ENO">
+                        <connectionPointOut />
+                      </variable>
+                    </outputVariables>
+                    <addData>
+                      <data name="http://www.3s-software.com/plcopenxml/fbdcalltype" handleUnknown="implementation">
+                        <CallType xmlns="">action</CallType>
+                      </data>
+                    </addData>
+                  </block>
+                  <rightPowerRail localId="2147483647">
+                    <position x="0" y="0" />
+                    <connectionPointIn />
+                  </rightPowerRail>
+                </LD>
+              </body>
+              <addData>
+                <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                  <ObjectId>4b26d11d-6d68-4892-b36d-a612d9595aae</ObjectId>
+                </data>
+              </addData>
+            </pou>
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/libraries" handleUnknown="implementation">
+            <Libraries>
+              <Library Name="#IoStandard" Namespace="IoStandard" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="true" DefaultResolution="IoStandard, 3.5.22.0 (System)" />
+              <Library Name="#3SLicense" Namespace="_3S_LICENSE" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="3SLicense, 0.0.0.0 (CODESYS)" ResolverGuid="97c3b452-d9fa-4ac2-9d0c-3d420aa6d95b" />
+              <Library Name="#CAA Device Diagnosis" Namespace="DED" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="CAA Device Diagnosis, 3.5.22.0 (CAA Technical Workgroup)" />
+              <Library Name="#Standard" Namespace="Standard" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="false" LinkAllContent="false" DefaultResolution="Standard, * (System)" />
+              <Library Name="#BreakpointLogging" Namespace="BPLog" HideWhenReferencedAsDependency="false" PublishSymbolsInContainer="false" SystemLibrary="true" LinkAllContent="false" DefaultResolution="Breakpoint Logging Functions, * (3S - Smart Software Solutions GmbH)" />
+              <PlaceholderRedirections>
+                <PlaceholderRedirection Placeholder="Standard" Redirection="Standard, 3.5.22.0 (System)" />
+              </PlaceholderRedirections>
+              <addData>
+                <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                  <ObjectId>1a3c997d-158b-40ec-a88d-2b7773743a22</ObjectId>
+                </data>
+              </addData>
+            </Libraries>
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>81c89e20-6dc5-4f49-b74e-fb405a410059</ObjectId>
+          </data>
+        </addData>
+      </resource>
+    </data>
+    <data name="http://www.3s-software.com/plcopenxml/projectstructure" handleUnknown="discard">
+      <ProjectStructure>
+        <Object Name="Application" ObjectId="81c89e20-6dc5-4f49-b74e-fb405a410059">
+          <Object Name="Library Manager" ObjectId="1a3c997d-158b-40ec-a88d-2b7773743a22" />
+          <Object Name="PLC_PRG" ObjectId="4b26d11d-6d68-4892-b36d-a612d9595aae">
+            <Object Name="ReadInputs" ObjectId="c43e3c67-ce9f-441a-a9db-4f4e6aefbf23" />
+          </Object>
+          <Object Name="MainTask" ObjectId="c0409a74-f00b-49c4-955f-1fb3171ea1f6" />
+        </Object>
+      </ProjectStructure>
+    </data>
+  </addData>
+</project>
