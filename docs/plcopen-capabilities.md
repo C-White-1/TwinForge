@@ -24,7 +24,7 @@ Its generated CODESYS document:
 - contains zero unsupported RLL rungs;
 - preserves five intentional `NOP()` rungs as no-operations.
 
-The automated suite currently contains 74 passing tests. The standard profile
+The automated suite currently contains 82 passing tests. The standard profile
 is also validated against the PLCopen XML 2.01 XSD. CODESYS-specific output
 uses the `tc6_0200` namespace and structures learned from native CODESYS
 exports.
@@ -40,6 +40,7 @@ representative Logix application rather than a broad compatibility corpus.
 | Modules and electronic keys | Parsed and preserved | Vendor identity, catalog number, slot/parent information and keying data are modelled. |
 | Data types | Parsed and preserved | Definitions and members are modelled; this does not imply PLCopen UDT export. |
 | Controller tags | Parsed and preserved | All source data representations remain available in source extensions. |
+| Module-channel engineering units | Parsed and preserved | Explicit units are keyed to their module direction and channel member. |
 | Program tags | Parsed and preserved | Parent and scope relationships are retained. |
 | Programs and routines | Parsed and preserved | RLL rung number, comment and source text are retained. |
 | Tasks | Parsed and preserved | Type, priority, rate and scheduled-program references are resolved where possible. |
@@ -75,6 +76,20 @@ Scalar variables using these IEC-compatible types are exported:
 
 Additional behaviour:
 
+- Decorated scalar `BOOL`, integer, `REAL`, `LREAL`, `STRING` and `WSTRING`
+  values are promoted into the vendor-neutral tag model with their source
+  lexical value, data type, radix and format provenance.
+- Promoted scalar values are emitted as PLCopen `initialValue/simpleValue`
+  declarations.
+- Engineering units declared on module channels are inherited by alias tags
+  such as `PT102_PV`. Numeric setpoints compared with those tags inherit the
+  same unit through RLL comparison evidence.
+- Unit provenance and confidence are retained in the model and emitted in
+  TwinForge PLCopen `addData`. Explicit module-channel evidence takes
+  precedence over derived comparison evidence and description-suffix
+  inference; conflicting evidence produces a diagnostic.
+- Boolean alarm/status tags remain dimensionless. The process value and its
+  numeric alarm thresholds carry the engineering unit instead.
 - Rockwell `TIMER` tags used by supported logic are emitted as
   `Standard.TON` instances in the CODESYS profile.
 - Alias tags become portable surrogate variables. Their original `AliasFor`
@@ -89,9 +104,14 @@ Current variable limitations:
 - arrays are not exported;
 - user-defined and other structured types are not exported as PLCopen data
   types;
-- general tag initial values are not yet exported;
+- array and structured initial values are preserved but not yet promoted or
+  exported recursively;
 - produced/consumed tag behaviour is not recreated;
 - physical module-channel bindings are not recreated.
+
+The values in an L5X are the values captured when that file was exported. They
+must be reported as **L5X exported values**, not assumed to be current live
+controller values.
 
 ## Executable RLL conversion
 
@@ -210,6 +230,49 @@ Before treating a conversion as successful:
 
 Do not infer runtime equivalence merely from a successful XML import or zero
 precompile errors.
+
+## Project coverage analysis
+
+TwinForge can measure practical conversion coverage for an individual L5X:
+
+```powershell
+.\.venv\Scripts\python.exe examples\analyze_rll_coverage.py `
+  path\to\project.L5X
+```
+
+An optional per-instruction CSV table can be written with:
+
+```powershell
+.\.venv\Scripts\python.exe examples\analyze_rll_coverage.py `
+  path\to\project.L5X `
+  --csv path\to\rll_coverage.csv
+```
+
+The report provides:
+
+- fully executable rungs divided by all RLL rungs;
+- executable instruction occurrences divided by all occurrences;
+- counts and occurrence coverage for every mnemonic used by the project;
+- whether each mnemonic is known by the PLCopen exporter;
+- program, routine, rung number, source text and reason for every structural
+  blocker.
+
+Instruction occurrence coverage and rung coverage answer different questions.
+A supported mnemonic appearing inside an otherwise unsupported rung is counted
+as a known mnemonic, but that occurrence is not counted as executable. This
+prevents a list of supported instruction names from overstating practical
+project coverage.
+
+The Booster Compressor baseline currently reports:
+
+```text
+Rungs: 134/134 executable (100.0%)
+Instruction occurrences: 474/474 executable (100.0%)
+Distinct mnemonics used: 21
+```
+
+This percentage applies only to that project. It is not the percentage of the
+entire Rockwell instruction catalogue.
 
 ## Command-line example
 

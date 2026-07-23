@@ -1,6 +1,7 @@
 """L5X conversion helpers."""
 
 from .controller import convert_controller
+from .engineering_unit import resolve_engineering_units
 from .datatype import convert_datatype, resolve_datatype_references
 from .module import convert_module
 from .program import convert_program
@@ -18,4 +19,5 @@ __all__ = [
     "convert_tag",
     "convert_task",
     "resolve_datatype_references",
+    "resolve_engineering_units",
 ]

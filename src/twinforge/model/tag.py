@@ -7,6 +7,8 @@ from typing import Any
 
 from .source_extension import SourceExtension
 from .datatype import Datatype
+from .engineering_unit import EngineeringUnitEvidence
+from .tag_value import TagValue
 
 
 @dataclass
@@ -22,6 +24,11 @@ class Tag:
     external_access: str | None = None
     permission_set: str | None = None
     description: str | None = None
+    initial_value: TagValue | None = None
+    engineering_unit: EngineeringUnitEvidence | None = None
+    engineering_unit_evidence: list[EngineeringUnitEvidence] = field(
+        default_factory=list
+    )
     source: object | None = None
     target: object | None = None
     protocol: str = ""

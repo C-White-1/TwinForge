@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
+
 from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Tag
+from twinforge.model import Tag, TagValue
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .source_extension import captured_to_source_extension
@@ -73,6 +75,7 @@ def convert_tag(
         external_access=section.attributes.get("ExternalAccess"),
         permission_set=section.attributes.get("PermissionSet"),
         description=_description(section),
+        initial_value=_initial_value(section, diagnostics),
         source_extensions=[captured_to_source_extension(section)],
     )
 
@@ -82,6 +85,83 @@ def _description(section: CapturedSection) -> str | None:
     if not descriptions or descriptions[0].text is None:
         return None
     return descriptions[0].text.strip()
+
+
+def _initial_value(
+    section: CapturedSection,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> TagValue | None:
+    for data in section.elements.get("Data", []):
+        if data.attributes.get("Format") != "Decorated":
+            continue
+        for child in data.ordered_children:
+            if not isinstance(child, ET.Element) or child.tag != "DataValue":
+                continue
+            lexical_value = child.attrib.get("Value")
+            data_type = child.attrib.get("DataType") or section.attributes.get(
+                "DataType"
+            )
+            if lexical_value is None or data_type is None:
+                return None
+            try:
+                value = _parse_scalar_value(data_type, lexical_value)
+            except ValueError:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "invalid_scalar_tag_value",
+                    (
+                        f"tag {section.attributes.get('Name', '')!r} has an "
+                        f"invalid {data_type} decorated value"
+                    ),
+                    section.attributes.get("Name"),
+                    "Data",
+                    lexical_value,
+                )
+                return None
+            if value is None:
+                return None
+            return TagValue(
+                value=value,
+                data_type=data_type.upper(),
+                lexical_value=lexical_value,
+                radix=child.attrib.get("Radix")
+                or section.attributes.get("Radix"),
+            )
+    return None
+
+
+def _parse_scalar_value(
+    data_type: str, lexical_value: str
+) -> bool | int | float | str | None:
+    normalized_type = data_type.upper()
+    if normalized_type == "BOOL":
+        normalized_value = lexical_value.strip().lower()
+        if normalized_value in {"1", "true"}:
+            return True
+        if normalized_value in {"0", "false"}:
+            return False
+        raise ValueError(lexical_value)
+    if normalized_type in {
+        "SINT",
+        "INT",
+        "DINT",
+        "LINT",
+        "USINT",
+        "UINT",
+        "UDINT",
+        "ULINT",
+    }:
+        value = lexical_value.strip()
+        if "#" in value:
+            base_text, digits = value.split("#", 1)
+            return int(digits.replace("_", ""), int(base_text))
+        return int(value.replace("_", ""), 0)
+    if normalized_type in {"REAL", "LREAL"}:
+        return float(lexical_value)
+    if normalized_type in {"STRING", "WSTRING"}:
+        return lexical_value
+    return None
 
 
 def _optional_bool(

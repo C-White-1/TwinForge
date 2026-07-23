@@ -10,6 +10,7 @@ from twinforge.model import Chassis, Controller, Identity, Module, Revision
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .module import convert_module
+from .engineering_unit import resolve_engineering_units
 from .datatype import convert_datatype, resolve_datatype_references
 from .program import convert_program
 from .source_extension import captured_to_source_extension
@@ -176,6 +177,7 @@ def convert_controller(
             controller.add_task(task)
 
     resolve_datatype_references(controller)
+    resolve_engineering_units(controller, diagnostics=diagnostics)
 
     return controller
 

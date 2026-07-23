@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Dict
 from .asset import Asset
 from .connection import Connection
 from .electronic_key import ElectronicKey
+from .engineering_unit import EngineeringUnitEvidence
 from .identity import Identity
 
 if TYPE_CHECKING:
@@ -41,6 +42,10 @@ class Module(Asset):
     connections: list["Connection"] = field(default_factory=list)
 
     child_modules: list["Module"] = field(default_factory=list)
+
+    engineering_units: dict[str, EngineeringUnitEvidence] = field(
+        default_factory=dict
+    )
 
     # channels: list["Channel"] = field(default_factory=list)
 

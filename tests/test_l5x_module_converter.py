@@ -2,7 +2,11 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 
 from twinforge.converters.l5x import convert_module
-from twinforge.model import KeyingMode
+from twinforge.model import (
+    EngineeringUnitConfidence,
+    EngineeringUnitSource,
+    KeyingMode,
+)
 from twinforge.parsers.l5x.capture import capture_section
 from twinforge.schema.l5x.modules import MODULE_ATTRIBUTES, MODULE_ELEMENTS
 
@@ -49,6 +53,22 @@ def test_converts_sample_module_identity_slot_flags_and_ekey():
     assert module.electronic_key.identity is None
     assert module.source_extensions[0].root.attributes["Vendor"] == "1"
     assert module.identity.source_extensions[0].root.name == "Module"
+
+
+def test_converts_module_channel_engineering_units():
+    root = ET.parse(SAMPLE_L5X).getroot()
+    element = root.find("./Controller/Modules/Module[@Name='AI_Slot4']")
+    assert element is not None
+
+    module = convert_module(
+        capture_section(element, MODULE_ATTRIBUTES, MODULE_ELEMENTS)
+    )
+
+    channel = module.engineering_units["i.ch2data"]
+    assert channel.symbol == "barg"
+    assert channel.source is EngineeringUnitSource.MODULE_CHANNEL
+    assert channel.confidence is EngineeringUnitConfidence.EXPLICIT
+    assert channel.source_operand == "Local:4:I.CH2DATA"
 
 
 def test_converts_custom_ekey_as_a_separate_identity():

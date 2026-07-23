@@ -1,6 +1,7 @@
 from .plcopen import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
+    PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS,
     PLCopenExporter,
     PLCopenExportResult,
     PLCopenProfile,
@@ -12,6 +13,7 @@ from .plcopen import (
 __all__ = [
     "PLCOPEN_201_NAMESPACE",
     "PLCOPEN_CODESYS_NAMESPACE",
+    "PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS",
     "PLCopenExporter",
     "PLCopenExportResult",
     "PLCopenProfile",

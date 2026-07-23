@@ -22,6 +22,9 @@ CODESYS_NAMESPACE = "http://www.3s-software.com/plcopenxml"
 TWINFORGE_RLL_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-rll"
 TWINFORGE_ALIAS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-alias"
 TWINFORGE_ONS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-ons"
+TWINFORGE_ENGINEERING_UNIT_EXTENSION = (
+    "https://twinforge.dev/plcopenxml/engineering-unit"
+)
 
 _PRIMITIVE_TYPES = {
     "BOOL",
@@ -68,6 +71,31 @@ _VALUE_BLOCK_TYPES = {
     "MUL": "MUL",
     "DIV": "DIV",
 }
+PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS = frozenset(
+    {
+        "XIC",
+        "XIO",
+        "OTE",
+        "OTL",
+        "OTU",
+        "EQU",
+        "NEQ",
+        "GRT",
+        "GEQ",
+        "LES",
+        "LEQ",
+        "TON",
+        "RES",
+        "MOV",
+        "ADD",
+        "SUB",
+        "MUL",
+        "DIV",
+        "ONS",
+        "JSR",
+        "NOP",
+    }
+)
 _CODESYS_ID_NAMESPACE = uuid.UUID("012486d2-49b8-5be4-aeca-4a70ed56cfa8")
 
 
@@ -484,11 +512,20 @@ class PLCopenExporter:
                 )
             else:
                 ET.SubElement(type_element, _q(ns, self._tag_export_type(tag)))
+            if tag.initial_value is not None:
+                initial_value = ET.SubElement(
+                    variable, _q(ns, "initialValue")
+                )
+                ET.SubElement(
+                    initial_value,
+                    _q(ns, "simpleValue"),
+                    {"value": _plcopen_scalar_value(tag)},
+                )
             source_operand = tag.alias_for or tag.metadata.get(
                 "plcopen_source_operand"
             )
             if source_operand:
-                add_data = ET.SubElement(variable, _q(ns, "addData"))
+                add_data = _variable_add_data(variable, ns)
                 data = ET.SubElement(
                     add_data,
                     _q(ns, "data"),
@@ -501,9 +538,7 @@ class PLCopenExporter:
                 alias_for.text = source_operand
             ons_storage = tag.metadata.get("rockwell_ons_storage")
             if ons_storage:
-                add_data = variable.find(_q(ns, "addData"))
-                if add_data is None:
-                    add_data = ET.SubElement(variable, _q(ns, "addData"))
+                add_data = _variable_add_data(variable, ns)
                 data = ET.SubElement(
                     add_data,
                     _q(ns, "data"),
@@ -516,6 +551,47 @@ class PLCopenExporter:
                     data, "StorageOperand", {"xmlns": ""}
                 )
                 storage.text = str(ons_storage)
+            if tag.engineering_unit is not None:
+                add_data = _variable_add_data(variable, ns)
+                data = ET.SubElement(
+                    add_data,
+                    _q(ns, "data"),
+                    {
+                        "name": TWINFORGE_ENGINEERING_UNIT_EXTENSION,
+                        "handleUnknown": "preserve",
+                    },
+                )
+                unit = ET.SubElement(
+                    data,
+                    "EngineeringUnit",
+                    {
+                        "xmlns": "",
+                        "Symbol": tag.engineering_unit.symbol,
+                        "Source": tag.engineering_unit.source.value,
+                        "Confidence": tag.engineering_unit.confidence.value,
+                    },
+                )
+                if tag.engineering_unit.source_operand:
+                    unit.set(
+                        "SourceOperand",
+                        tag.engineering_unit.source_operand,
+                    )
+                if tag.engineering_unit.inherited_from:
+                    unit.set(
+                        "InheritedFrom",
+                        tag.engineering_unit.inherited_from,
+                    )
+                for evidence in tag.engineering_unit_evidence:
+                    attributes = {
+                        "Symbol": evidence.symbol,
+                        "Source": evidence.source.value,
+                        "Confidence": evidence.confidence.value,
+                    }
+                    if evidence.source_operand:
+                        attributes["SourceOperand"] = evidence.source_operand
+                    if evidence.inherited_from:
+                        attributes["InheritedFrom"] = evidence.inherited_from
+                    ET.SubElement(unit, "Evidence", attributes)
             if tag.description:
                 documentation = ET.SubElement(variable, _q(ns, "documentation"))
                 xhtml = ET.SubElement(documentation, _q(XHTML_NAMESPACE, "xhtml"))
@@ -571,6 +647,21 @@ class PLCopenExporter:
             self._diagnostic(
                 "unsupported_rll_rung",
                 "rung was emitted as a non-executable comment because it contains unsupported RLL",
+                program_name,
+                raw_value=raw,
+            )
+            self._comment(ld, f"Unsupported Rockwell RLL: {raw}", raw_rll=raw)
+            return
+        timer_operands = [
+            _split_arguments(operand)[0] if opcode == "TON" else operand
+            for opcode, operand in parsed.outputs
+            if opcode in {"TON", "RES"}
+        ]
+        if any(operand not in self._timers for operand in timer_operands):
+            raw = rung.text or ""
+            self._diagnostic(
+                "unsupported_timer_operand",
+                "TON or RES references a tag that is not an exported TIMER",
                 program_name,
                 raw_value=raw,
             )
@@ -1822,6 +1913,15 @@ def _milliseconds_time_literal(milliseconds: int) -> str:
     return f"TIME#{milliseconds}ms"
 
 
+def _plcopen_scalar_value(tag: Tag) -> str:
+    initial_value = tag.initial_value
+    if initial_value is None:
+        raise ValueError(f"tag {tag.name!r} has no initial value")
+    if initial_value.data_type == "BOOL":
+        return "TRUE" if initial_value.value else "FALSE"
+    return initial_value.lexical_value
+
+
 def _timer_member_integer(tag: Tag, member_name: str) -> int | None:
     for extension in tag.source_extensions:
         if extension.format.lower() != "l5x":
@@ -1850,6 +1950,13 @@ def _codesys_task_kind(task_type: str | None) -> str:
     if task_type and task_type.lower() == "event":
         return "Event"
     return "Cyclic"
+
+
+def _variable_add_data(variable: ET.Element, namespace: str) -> ET.Element:
+    add_data = variable.find(_q(namespace, "addData"))
+    if add_data is None:
+        add_data = ET.SubElement(variable, _q(namespace, "addData"))
+    return add_data
 
 
 def _q(namespace: str, name: str) -> str:

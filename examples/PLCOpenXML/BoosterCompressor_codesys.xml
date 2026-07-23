@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <project xmlns="http://www.plcopen.org/xml/tc6_0200" xmlns:html="http://www.w3.org/1999/xhtml">
-  <fileHeader companyName="TwinForge" productName="TwinForge" productVersion="0.1.0" creationDateTime="2026-07-23T19:23:58.779827+00:00" />
+  <fileHeader companyName="TwinForge" productName="TwinForge" productVersion="0.1.0" creationDateTime="2026-07-23T22:04:36.214256+00:00" />
   <contentHeader name="booster_compressor">
     <coordinateInfo>
       <fbd>
@@ -59,6 +59,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="Alm_Fire">
             <type>
@@ -94,6 +97,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control to Aut</html:xhtml>
             </documentation>
@@ -102,6 +108,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Enable</html:xhtml>
             </documentation>
@@ -110,6 +119,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Flow</html:xhtml>
             </documentation>
@@ -118,6 +130,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="1.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Ki</html:xhtml>
             </documentation>
@@ -126,6 +141,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="5.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Kp</html:xhtml>
             </documentation>
@@ -134,6 +152,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Low Margine Alarm</html:xhtml>
             </documentation>
@@ -142,6 +163,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="15.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="ASC_SurgeMargin" InheritedFrom="ASC_SurgeMargin">
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="ASC_SurgeMargin" InheritedFrom="ASC_SurgeMargin" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Anti Surge Control Magin SP</html:xhtml>
             </documentation>
@@ -150,6 +181,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Pressure Ratio</html:xhtml>
             </documentation>
@@ -158,6 +192,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_RecycleMinRun" InheritedFrom="CFG_RecycleMinRun">
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_RecycleMinRun" InheritedFrom="CFG_RecycleMinRun" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Anti Surge Control Recycle Cmd</html:xhtml>
             </documentation>
@@ -166,6 +210,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Surge Index</html:xhtml>
             </documentation>
@@ -174,6 +221,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>Anti Surge Control Surge Limit</html:xhtml>
             </documentation>
@@ -182,6 +232,18 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SurgeMarginTrip" InheritedFrom="CFG_SurgeMarginTrip">
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SurgeMarginTrip" InheritedFrom="CFG_SurgeMarginTrip" />
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SurgeMarginAlm" InheritedFrom="CFG_SurgeMarginAlm" />
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="ASC_MarginSP" InheritedFrom="ASC_MarginSP" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Anti Surge Control Surge Margin</html:xhtml>
             </documentation>
@@ -223,6 +285,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="35.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT301_PV" InheritedFrom="TT301_PV">
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_FanOffTemp" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT301_PV" InheritedFrom="TT301_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Cooler Fan Off Temp (C)</html:xhtml>
             </documentation>
@@ -231,6 +304,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="45.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT301_PV" InheritedFrom="TT301_PV">
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_FanOnTemp" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT301_PV" InheritedFrom="TT301_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Cooler Fan On Temp (C)</html:xhtml>
             </documentation>
@@ -239,6 +323,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="2.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_LO_Press_Min" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Min Lube Oil Pressure (barg)</html:xhtml>
             </documentation>
@@ -247,6 +342,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="120000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PostLubeTime">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PostLubeTime" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Post-Lube Time Normal (ms)</html:xhtml>
             </documentation>
@@ -255,6 +360,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="300000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PostLubeTripTime">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PostLubeTripTime" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Post-Lube Time After Trip (ms)</html:xhtml>
             </documentation>
@@ -263,6 +378,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="5000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PrelubeTime">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PrelubeTime" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Prelube Time Required (ms)</html:xhtml>
             </documentation>
@@ -271,6 +396,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="60000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PrelubeTimeout">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PrelubeTimeout" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Prelube Timeout (ms)</html:xhtml>
             </documentation>
@@ -279,6 +414,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="100.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT102_PV" InheritedFrom="PT102_PV">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PT102_H" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT102_PV" InheritedFrom="PT102_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Discharge Press High Alarm (barg)</html:xhtml>
             </documentation>
@@ -287,6 +433,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="120.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT102_PV" InheritedFrom="PT102_PV">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PT102_HH" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT102_PV" InheritedFrom="PT102_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Discharge Press HH Trip (barg)</html:xhtml>
             </documentation>
@@ -295,6 +452,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="2.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PT201_L" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Lube Oil Press Low Alarm (barg)</html:xhtml>
             </documentation>
@@ -303,6 +471,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="1.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_PT201_LL" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="PT201_PV" InheritedFrom="PT201_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Lube Oil Press LL Trip (barg)</html:xhtml>
             </documentation>
@@ -311,6 +490,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="10.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_RecycleMinRun">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_RecycleMinRun" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Min Recycle While Running (%)</html:xhtml>
             </documentation>
@@ -319,6 +508,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="50.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_RecycleShutdown">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_RecycleShutdown" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Recycle for Shutdown (%)</html:xhtml>
             </documentation>
@@ -327,6 +526,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="100.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedMax">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedMax" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>VFD Max Speed (%)</html:xhtml>
             </documentation>
@@ -335,6 +544,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="30.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedMin">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedMin" />
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="PID_Out" InheritedFrom="PID_Out" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>VFD Min Speed (%)</html:xhtml>
             </documentation>
@@ -343,6 +563,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="30.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedStart">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SpeedStart" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>VFD Start Speed (%)</html:xhtml>
             </documentation>
@@ -351,6 +581,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="15.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SurgeMarginAlm">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SurgeMarginAlm" />
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="ASC_SurgeMargin" InheritedFrom="ASC_SurgeMargin" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Surge Margin Alarm (%)</html:xhtml>
             </documentation>
@@ -359,6 +600,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="10.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SurgeMarginTrip">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_SurgeMarginTrip" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Surge Margin Trip (%)</html:xhtml>
             </documentation>
@@ -367,6 +618,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="2000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_TripDelay">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_TripDelay" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Process Trip Delay (ms)</html:xhtml>
             </documentation>
@@ -375,6 +636,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="160.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT102_PV" InheritedFrom="TT102_PV">
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_TT102_H" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT102_PV" InheritedFrom="TT102_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Discharge Temp High Alarm (C)</html:xhtml>
             </documentation>
@@ -383,6 +655,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="180.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT102_PV" InheritedFrom="TT102_PV">
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_TT102_HH" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="TT102_PV" InheritedFrom="TT102_PV" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Discharge Temp HH Trip (C)</html:xhtml>
             </documentation>
@@ -391,6 +674,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="30000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_ValveTimeout">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_ValveTimeout" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Valve Travel Timeout (ms)</html:xhtml>
             </documentation>
@@ -399,6 +692,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="10000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_VFDStartTimeout">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_VFDStartTimeout" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>VFD Start Timeout (ms)</html:xhtml>
             </documentation>
@@ -407,6 +710,16 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="60000" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_WarmupTime">
+                  <Evidence Symbol="ms" Source="tag_description" Confidence="inferred" InheritedFrom="CFG_WarmupTime" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>Warmup Time (ms)</html:xhtml>
             </documentation>
@@ -415,21 +728,40 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="CmdStart">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="CmdStop">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="CV101_Cmd">
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CV101_Cmd">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="CV101_Cmd" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>CV-101 Recycle Valve Command (%)</html:xhtml>
             </documentation>
@@ -485,6 +817,12 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:6:I.Ch0Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="m3/h" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH0DATA">
+                  <Evidence Symbol="m3/h" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH0DATA" />
+                  <Evidence Symbol="m3/h" Source="tag_description" Confidence="inferred" InheritedFrom="FT101_PV" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>FT-101 Compressor Flow (m3/h)</html:xhtml>
@@ -494,6 +832,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Reset Cmd from HMI</html:xhtml>
             </documentation>
@@ -502,6 +843,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Silence Horn Cmd from HMI</html:xhtml>
             </documentation>
@@ -510,11 +854,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="80.0" />
+            </initialValue>
           </variable>
           <variable name="HMI_Start">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Start Cmd from HMI</html:xhtml>
             </documentation>
@@ -523,6 +873,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Stop Cmd from HMI</html:xhtml>
             </documentation>
@@ -531,6 +884,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>LO Pressure OK</html:xhtml>
             </documentation>
@@ -572,6 +928,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Local Mode</html:xhtml>
             </documentation>
@@ -580,6 +939,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Remote Mode</html:xhtml>
             </documentation>
@@ -588,26 +950,41 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="ONS_Start">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="ONS_Trip">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="PermOK">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="Perm_BDV">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Permissive BDV-101 Blowdown Valve</html:xhtml>
             </documentation>
@@ -626,6 +1003,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="Perm_LO_Lvl">
             <type>
@@ -641,16 +1021,25 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="Perm_VFD">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="PID_Auto">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Mode - Auto</html:xhtml>
             </documentation>
@@ -659,6 +1048,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Enable Cmd</html:xhtml>
             </documentation>
@@ -667,6 +1059,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Error</html:xhtml>
             </documentation>
@@ -675,6 +1070,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Interlock</html:xhtml>
             </documentation>
@@ -683,6 +1081,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.5" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Ki</html:xhtml>
             </documentation>
@@ -691,6 +1092,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="2.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID Kp</html:xhtml>
             </documentation>
@@ -699,6 +1103,17 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SpeedMax" InheritedFrom="CFG_SpeedMax">
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SpeedMax" InheritedFrom="CFG_SpeedMax" />
+                  <Evidence Symbol="%" Source="rll_comparison" Confidence="inferred" SourceOperand="CFG_SpeedMin" InheritedFrom="CFG_SpeedMin" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>PID CV</html:xhtml>
             </documentation>
@@ -707,6 +1122,9 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
             <documentation>
               <html:xhtml>PID PV</html:xhtml>
             </documentation>
@@ -715,6 +1133,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="80.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="PID_SP">
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="PID_SP" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>PID Discharge Press SP (barg)</html:xhtml>
             </documentation>
@@ -740,6 +1168,12 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:4:I.Ch0Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH0DATA">
+                  <Evidence Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH0DATA" />
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="PT101_PV" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>PT-101 Suction Pressure (barg)</html:xhtml>
@@ -762,6 +1196,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PT-102 Discharge Pressure High-High Alarm</html:xhtml>
             </documentation>
@@ -770,6 +1207,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PT-102 Discharge Pressure High Alarm</html:xhtml>
             </documentation>
@@ -781,6 +1221,14 @@
             <addData>
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:4:I.Ch2Data</AliasFor>
+              </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH2DATA">
+                  <Evidence Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH2DATA" />
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="PT102_PV" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_PT102_HH" InheritedFrom="CFG_PT102_HH" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_PT102_H" InheritedFrom="CFG_PT102_H" />
+                </EngineeringUnit>
               </data>
             </addData>
             <documentation>
@@ -804,6 +1252,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PT-201 Lube Oil Pressure Low-Low Alarm</html:xhtml>
             </documentation>
@@ -812,6 +1263,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>PT-201 Lube Oil Pressure Low Alarm</html:xhtml>
             </documentation>
@@ -824,6 +1278,15 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:6:I.Ch1Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH1DATA">
+                  <Evidence Symbol="barg" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH1DATA" />
+                  <Evidence Symbol="barg" Source="tag_description" Confidence="inferred" InheritedFrom="PT201_PV" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_PT201_LL" InheritedFrom="CFG_PT201_LL" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_PT201_L" InheritedFrom="CFG_PT201_L" />
+                  <Evidence Symbol="barg" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_LO_Press_Min" InheritedFrom="CFG_LO_Press_Min" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>PT-201 Lube Oil Pressure (barg)</html:xhtml>
@@ -833,21 +1296,33 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
           </variable>
           <variable name="ScanTime">
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.1" />
+            </initialValue>
           </variable>
           <variable name="StartCount">
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="0" />
+            </initialValue>
           </variable>
           <variable name="State">
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="0" />
+            </initialValue>
             <documentation>
               <html:xhtml>State: 0=Stop 10=Prelube 20=Valves 30=VFDStart 40=Warmup 50=Run 60=Stop 90=Trip 95=ESD</html:xhtml>
             </documentation>
@@ -856,6 +1331,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>ESD Status (1=ESD, 0=Healthy)</html:xhtml>
             </documentation>
@@ -890,6 +1368,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Compressor Starting</html:xhtml>
             </documentation>
@@ -898,6 +1379,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Compressor Stopped</html:xhtml>
             </documentation>
@@ -906,6 +1390,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Compressor Stopping</html:xhtml>
             </documentation>
@@ -914,6 +1401,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Compressor Tripped</html:xhtml>
             </documentation>
@@ -972,6 +1462,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Trip Active</html:xhtml>
             </documentation>
@@ -980,6 +1473,9 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="0" />
+            </initialValue>
             <documentation>
               <html:xhtml>1=ESD 2=Fire 3=Vib 4=VFD 5=LO_P 6=DischT 7=DischP 8=Surge 9=Comms</html:xhtml>
             </documentation>
@@ -988,16 +1484,25 @@
             <type>
               <DINT />
             </type>
+            <initialValue>
+              <simpleValue value="0" />
+            </initialValue>
           </variable>
           <variable name="TripLatch">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
           </variable>
           <variable name="Trip_Comms">
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Trip VFD Communication Fault</html:xhtml>
             </documentation>
@@ -1006,6 +1511,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Discharge Pressure Trip</html:xhtml>
             </documentation>
@@ -1014,6 +1522,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Discharge Temperatue Trip</html:xhtml>
             </documentation>
@@ -1032,6 +1543,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Fire Alarm Trip</html:xhtml>
             </documentation>
@@ -1040,6 +1554,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Lube Oil Trip</html:xhtml>
             </documentation>
@@ -1048,6 +1565,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Surge Trip</html:xhtml>
             </documentation>
@@ -1056,6 +1576,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Trip VFD Fault</html:xhtml>
             </documentation>
@@ -1091,6 +1614,12 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:4:I.Ch1Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH1DATA">
+                  <Evidence Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH1DATA" />
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="TT101_PV" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>TT-101 Suction Temperature (C)</html:xhtml>
@@ -1113,6 +1642,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>TT-102 Discharge Temperature HH Alarm</html:xhtml>
             </documentation>
@@ -1121,6 +1653,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>TT-102 Discharge Temperature High Alarm</html:xhtml>
             </documentation>
@@ -1132,6 +1667,14 @@
             <addData>
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:4:I.Ch3Data</AliasFor>
+              </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH3DATA">
+                  <Evidence Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:4:I.CH3DATA" />
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="TT102_PV" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_TT102_HH" InheritedFrom="CFG_TT102_HH" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_TT102_H" InheritedFrom="CFG_TT102_H" />
+                </EngineeringUnit>
               </data>
             </addData>
             <documentation>
@@ -1146,6 +1689,12 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:6:I.Ch2Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH2DATA">
+                  <Evidence Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH2DATA" />
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="TT201_PV" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>TT-201 Lube Oil Temperature (C)</html:xhtml>
@@ -1159,6 +1708,14 @@
               <data name="https://twinforge.dev/plcopenxml/rockwell-alias" handleUnknown="preserve">
                 <AliasFor xmlns="">Local:6:I.Ch3Data</AliasFor>
               </data>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH3DATA">
+                  <Evidence Symbol="C" Source="l5x_module_channel" Confidence="explicit" SourceOperand="Local:6:I.CH3DATA" />
+                  <Evidence Symbol="C" Source="tag_description" Confidence="inferred" InheritedFrom="TT301_PV" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_FanOnTemp" InheritedFrom="CFG_FanOnTemp" />
+                  <Evidence Symbol="C" Source="rll_comparison" Confidence="derived" SourceOperand="CFG_FanOffTemp" InheritedFrom="CFG_FanOffTemp" />
+                </EngineeringUnit>
+              </data>
             </addData>
             <documentation>
               <html:xhtml>TT-301 Cooler Outlet Temp (C)</html:xhtml>
@@ -1168,6 +1725,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Both Suction Valves Open</html:xhtml>
             </documentation>
@@ -1255,6 +1815,16 @@
             <type>
               <REAL />
             </type>
+            <initialValue>
+              <simpleValue value="0.0" />
+            </initialValue>
+            <addData>
+              <data name="https://twinforge.dev/plcopenxml/engineering-unit" handleUnknown="preserve">
+                <EngineeringUnit xmlns="" Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="VFD_SpeedCmd">
+                  <Evidence Symbol="%" Source="tag_description" Confidence="inferred" InheritedFrom="VFD_SpeedCmd" />
+                </EngineeringUnit>
+              </data>
+            </addData>
             <documentation>
               <html:xhtml>VFD Speed Command (%)</html:xhtml>
             </documentation>
@@ -1299,6 +1869,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Fault XV101 Suction Vavle</html:xhtml>
             </documentation>
@@ -1353,6 +1926,9 @@
             <type>
               <BOOL />
             </type>
+            <initialValue>
+              <simpleValue value="FALSE" />
+            </initialValue>
             <documentation>
               <html:xhtml>Fault XV101 Suction Vavle</html:xhtml>
             </documentation>

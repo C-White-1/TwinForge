@@ -441,6 +441,45 @@ def test_codesys_profile_exports_logix_ton_instances_and_presets() -> None:
         ns,
     ) is not None
     assert root.find(
+        ".//p:variable[@name='CFG_PT102_HH']/p:initialValue/"
+        "p:simpleValue[@value='120.0']",
+        ns,
+    ) is not None
+    assert root.find(
+        ".//p:variable[@name='CFG_TripDelay']/p:initialValue/"
+        "p:simpleValue[@value='2000']",
+        ns,
+    ) is not None
+    process_unit = root.find(
+        ".//p:variable[@name='PT102_PV']/p:addData/"
+        "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']/"
+        "EngineeringUnit",
+        ns,
+    )
+    assert process_unit is not None
+    assert process_unit.attrib == {
+        "Symbol": "barg",
+        "Source": "l5x_module_channel",
+        "Confidence": "explicit",
+        "SourceOperand": "Local:4:I.CH2DATA",
+    }
+    threshold_unit = root.find(
+        ".//p:variable[@name='CFG_PT102_HH']/p:addData/"
+        "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']/"
+        "EngineeringUnit",
+        ns,
+    )
+    assert threshold_unit is not None
+    assert threshold_unit.attrib["Symbol"] == "barg"
+    assert threshold_unit.attrib["Source"] == "rll_comparison"
+    assert threshold_unit.attrib["Confidence"] == "derived"
+    assert threshold_unit.attrib["InheritedFrom"] == "PT102_PV"
+    assert root.find(
+        ".//p:variable[@name='PT102_HH_Alm']/p:addData/"
+        "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']",
+        ns,
+    ) is None
+    assert root.find(
         ".//p:ProjectStructure/p:Object[@Name='Application']/"
         "p:Object[@Name='Library Manager']",
         ns,

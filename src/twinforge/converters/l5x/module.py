@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
+
 from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
@@ -7,6 +9,9 @@ from twinforge.converters.diagnostics import (
 from twinforge.model import (
     Connection,
     ElectronicKey,
+    EngineeringUnitConfidence,
+    EngineeringUnitEvidence,
+    EngineeringUnitSource,
     Identity,
     KeyingMode,
     Module,
@@ -60,11 +65,87 @@ def convert_module(
             section,
             diagnostics,
         ),
+        engineering_units=_engineering_units(
+            section, resolved_slot, diagnostics
+        ),
         source_extensions=[captured_to_source_extension(section)],
     )
     for connection in _connections(section):
         module.add_connection(connection)
     return module
+
+
+def _engineering_units(
+    module: CapturedSection,
+    slot: int | None,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> dict[str, EngineeringUnitEvidence]:
+    units: dict[str, EngineeringUnitEvidence] = {}
+    for communications in module.elements.get("Communications", []):
+        for connections in communications.elements.get("Connections", []):
+            for connection in connections.elements.get("Connection", []):
+                for element_name, direction in (
+                    ("InputTag", "I"),
+                    ("OutputTag", "O"),
+                ):
+                    for tag_data in connection.elements.get(
+                        element_name, []
+                    ):
+                        for child in tag_data.ordered_children:
+                            if (
+                                not isinstance(child, ET.Element)
+                                or child.tag != "EngineeringUnits"
+                            ):
+                                continue
+                            for unit in child:
+                                if unit.tag != "EngineeringUnit":
+                                    continue
+                                operand = unit.attrib.get("Operand")
+                                symbol = (unit.text or "").strip()
+                                if not operand or not symbol:
+                                    continue
+                                key = _unit_key(direction, operand)
+                                source_operand = (
+                                    f"Local:{slot}:{direction}"
+                                    f"{operand}"
+                                    if slot is not None
+                                    else operand
+                                )
+                                evidence = EngineeringUnitEvidence(
+                                    symbol=symbol,
+                                    source=(
+                                        EngineeringUnitSource.MODULE_CHANNEL
+                                    ),
+                                    confidence=(
+                                        EngineeringUnitConfidence.EXPLICIT
+                                    ),
+                                    source_operand=source_operand,
+                                )
+                                previous = units.get(key)
+                                if (
+                                    previous is not None
+                                    and previous.symbol.casefold()
+                                    != symbol.casefold()
+                                ):
+                                    _emit(
+                                        diagnostics,
+                                        DiagnosticSeverity.WARNING,
+                                        "conflicting_module_engineering_unit",
+                                        (
+                                            f"module {module.attributes.get('Name', '')!r} "
+                                            f"has conflicting units for {operand}"
+                                        ),
+                                        module,
+                                        "EngineeringUnit",
+                                        f"{previous.symbol}, {symbol}",
+                                    )
+                                    continue
+                                units[key] = evidence
+    return units
+
+
+def _unit_key(direction: str, operand: str) -> str:
+    return f"{direction}.{operand.lstrip('.')}".casefold()
 
 
 def _electronic_key(
