@@ -124,9 +124,7 @@ class _ParsedBooleanRung:
     @property
     def instructions(self) -> tuple[tuple[str, str], ...]:
         branch_instructions = tuple(
-            instruction
-            for branch in self.branches
-            for instruction in branch
+            instruction for branch in self.branches for instruction in branch
         )
         return branch_instructions + self.tail_conditions + self.outputs
 
@@ -276,9 +274,14 @@ class PLCopenExporter:
         application = ET.SubElement(
             add_data,
             _q(ns, "data"),
-            {"name": f"{CODESYS_NAMESPACE}/application", "handleUnknown": "implementation"},
+            {
+                "name": f"{CODESYS_NAMESPACE}/application",
+                "handleUnknown": "implementation",
+            },
         )
-        resource = ET.SubElement(application, _q(ns, "resource"), {"name": "Application"})
+        resource = ET.SubElement(
+            application, _q(ns, "resource"), {"name": "Application"}
+        )
         for task in controller.iter_tasks():
             self._task(resource, task, codesys=True)
         global_variables = self._variables(
@@ -302,7 +305,9 @@ class PLCopenExporter:
         if self._timers or self._oneshots:
             self._codesys_standard_library(resource_add_data)
         self._append_object_id_data(resource_add_data, application_id)
-        self._codesys_project_structure(add_data, controller, global_variables is not None)
+        self._codesys_project_structure(
+            add_data, controller, global_variables is not None
+        )
 
     def _task(self, parent: ET.Element, task: Task, *, codesys: bool = False) -> None:
         ns = self.profile.namespace
@@ -328,9 +333,7 @@ class PLCopenExporter:
                 {"name": program.name, "typeName": "" if codesys else program.name},
             )
             if codesys:
-                documentation = ET.SubElement(
-                    instance, _q(ns, "documentation")
-                )
+                documentation = ET.SubElement(instance, _q(ns, "documentation"))
                 ET.SubElement(documentation, _q(XHTML_NAMESPACE, "xhtml"))
         if codesys:
             add_data = ET.SubElement(task_element, _q(ns, "addData"))
@@ -381,7 +384,11 @@ class PLCopenExporter:
         )
         routine = program.main_routine
         if routine is None:
-            self._diagnostic("program_without_main_routine", "program has no main routine", program.name)
+            self._diagnostic(
+                "program_without_main_routine",
+                "program has no main routine",
+                program.name,
+            )
             return
         action_routines = [
             candidate
@@ -492,7 +499,9 @@ class PLCopenExporter:
         )
         for tag in supported:
             derived_type = tag.metadata.get("plcopen_derived_type")
-            variable = ET.SubElement(variable_list, _q(ns, "variable"), {"name": tag.name})
+            variable = ET.SubElement(
+                variable_list, _q(ns, "variable"), {"name": tag.name}
+            )
             type_element = ET.SubElement(variable, _q(ns, "type"))
             if derived_type is not None:
                 ET.SubElement(
@@ -502,27 +511,19 @@ class PLCopenExporter:
                 )
             elif self._tag_export_type(tag) == "TIMER":
                 timer_type = (
-                    "Standard.TON"
-                    if self.profile is PLCopenProfile.CODESYS
-                    else "TON"
+                    "Standard.TON" if self.profile is PLCopenProfile.CODESYS else "TON"
                 )
-                ET.SubElement(
-                    type_element, _q(ns, "derived"), {"name": timer_type}
-                )
+                ET.SubElement(type_element, _q(ns, "derived"), {"name": timer_type})
             else:
                 ET.SubElement(type_element, _q(ns, self._tag_export_type(tag)))
             if tag.initial_value is not None:
-                initial_value = ET.SubElement(
-                    variable, _q(ns, "initialValue")
-                )
+                initial_value = ET.SubElement(variable, _q(ns, "initialValue"))
                 ET.SubElement(
                     initial_value,
                     _q(ns, "simpleValue"),
                     {"value": _plcopen_scalar_value(tag)},
                 )
-            source_operand = tag.alias_for or tag.metadata.get(
-                "plcopen_source_operand"
-            )
+            source_operand = tag.alias_for or tag.metadata.get("plcopen_source_operand")
             if source_operand:
                 add_data = _variable_add_data(variable, ns)
                 data = ET.SubElement(
@@ -546,9 +547,7 @@ class PLCopenExporter:
                         "handleUnknown": "preserve",
                     },
                 )
-                storage = ET.SubElement(
-                    data, "StorageOperand", {"xmlns": ""}
-                )
+                storage = ET.SubElement(data, "StorageOperand", {"xmlns": ""})
                 storage.text = str(ons_storage)
             if tag.engineering_unit is not None:
                 add_data = _variable_add_data(variable, ns)
@@ -636,9 +635,7 @@ class PLCopenExporter:
                 )
                 self._comment(ld, f"Unresolved Rockwell RLL: {raw}", raw_rll=raw)
                 return
-            self._action_call(
-                ld, jsr_target, comment=rung.comment, codesys=codesys
-            )
+            self._action_call(ld, jsr_target, comment=rung.comment, codesys=codesys)
             return
         parsed = _parse_supported_rung(rung.text)
         if parsed is None:
@@ -700,9 +697,7 @@ class PLCopenExporter:
                 temp_name = self._comparison_temps[id(rung)][comparison_index]
                 comparison_index += 1
                 condition_ids = [
-                    self._comparison(
-                        ld, opcode, operand, condition_ids, temp_name
-                    )
+                    self._comparison(ld, opcode, operand, condition_ids, temp_name)
                 ]
         execution_ids = condition_ids
         execution_from_block = False
@@ -826,9 +821,7 @@ class PLCopenExporter:
         )
         self._position(block)
         inputs = ET.SubElement(block, _q(ns, "inputVariables"))
-        enable = ET.SubElement(
-            inputs, _q(ns, "variable"), {"formalParameter": "EN"}
-        )
+        enable = ET.SubElement(inputs, _q(ns, "variable"), {"formalParameter": "EN"})
         enable_point = ET.SubElement(enable, _q(ns, "connectionPointIn"))
         for condition_id in condition_ids:
             self._condition_connection(enable_point, condition_id)
@@ -846,13 +839,9 @@ class PLCopenExporter:
             )
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
-        result = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": ""}
-        )
+        result = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": ""})
         result_point = ET.SubElement(result, _q(ns, "connectionPointOut"))
         expression = ET.SubElement(result_point, _q(ns, "expression"))
         expression.text = result_name
@@ -929,9 +918,7 @@ class PLCopenExporter:
                 self._condition_connection(point, reference)
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
         for parameter, name in (
             ("Q", timer.done_name),
@@ -1009,16 +996,12 @@ class PLCopenExporter:
                     point,
                     reference,
                     formal_parameter=(
-                        "ENO"
-                        if parameter == "EN" and input_from_block
-                        else None
+                        "ENO" if parameter == "EN" and input_from_block else None
                     ),
                 )
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
         for parameter, name in (
             ("Q", timer.done_name),
@@ -1101,13 +1084,9 @@ class PLCopenExporter:
             self._condition_connection(point, reference)
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
-        pulse = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "Q"}
-        )
+        pulse = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "Q"})
         pulse_point = ET.SubElement(pulse, _q(ns, "connectionPointOut"))
         pulse_expression = ET.SubElement(pulse_point, _q(ns, "expression"))
         pulse_expression.text = oneshot.pulse_name
@@ -1188,9 +1167,7 @@ class PLCopenExporter:
         )
         self._position(block)
         inputs = ET.SubElement(block, _q(ns, "inputVariables"))
-        enable = ET.SubElement(
-            inputs, _q(ns, "variable"), {"formalParameter": "EN"}
-        )
+        enable = ET.SubElement(inputs, _q(ns, "variable"), {"formalParameter": "EN"})
         enable_point = ET.SubElement(enable, _q(ns, "connectionPointIn"))
         for condition_id in condition_ids:
             self._condition_connection(
@@ -1206,13 +1183,9 @@ class PLCopenExporter:
             self._condition_connection(point, source_id)
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
-        result = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": ""}
-        )
+        result = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": ""})
         result_point = ET.SubElement(result, _q(ns, "connectionPointOut"))
         expression = ET.SubElement(result_point, _q(ns, "expression"))
         expression.text = self._portable_operand(destination)
@@ -1257,16 +1230,12 @@ class PLCopenExporter:
         )
         self._position(block)
         inputs = ET.SubElement(block, _q(ns, "inputVariables"))
-        enable = ET.SubElement(
-            inputs, _q(ns, "variable"), {"formalParameter": "EN"}
-        )
+        enable = ET.SubElement(inputs, _q(ns, "variable"), {"formalParameter": "EN"})
         point_in = ET.SubElement(enable, _q(ns, "connectionPointIn"))
         ET.SubElement(point_in, _q(ns, "connection"), {"refLocalId": str(rail_id)})
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        enabled = ET.SubElement(
-            outputs, _q(ns, "variable"), {"formalParameter": "ENO"}
-        )
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
         if codesys:
             add_data = ET.SubElement(block, _q(ns, "addData"))
@@ -1286,7 +1255,9 @@ class PLCopenExporter:
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
 
-    def _comment(self, ld: ET.Element, text: str, *, raw_rll: str | None = None) -> None:
+    def _comment(
+        self, ld: ET.Element, text: str, *, raw_rll: str | None = None
+    ) -> None:
         ns = self.profile.namespace
         comment = ET.SubElement(
             ld,
@@ -1308,15 +1279,15 @@ class PLCopenExporter:
             source.text = raw_rll
 
     def _position(self, parent: ET.Element) -> None:
-        ET.SubElement(parent, _q(self.profile.namespace, "position"), {"x": "0", "y": "0"})
+        ET.SubElement(
+            parent, _q(self.profile.namespace, "position"), {"x": "0", "y": "0"}
+        )
 
     def _append_object_id(self, parent: ET.Element, object_id: str) -> None:
         add_data = ET.SubElement(parent, _q(self.profile.namespace, "addData"))
         self._append_object_id_data(add_data, object_id)
 
-    def _append_object_id_data(
-        self, add_data: ET.Element, object_id: str
-    ) -> None:
+    def _append_object_id_data(self, add_data: ET.Element, object_id: str) -> None:
         ns = self.profile.namespace
         data = ET.SubElement(
             add_data,
@@ -1356,9 +1327,7 @@ class PLCopenExporter:
                 _q(ns, "Object"),
                 {
                     "Name": "Library Manager",
-                    "ObjectId": self._codesys_id(
-                        "Application/Library Manager"
-                    ),
+                    "ObjectId": self._codesys_id("Application/Library Manager"),
                 },
             )
         for program in controller.iter_programs():
@@ -1367,9 +1336,7 @@ class PLCopenExporter:
                 _q(ns, "Object"),
                 {
                     "Name": program.name,
-                    "ObjectId": self._codesys_id(
-                        f"Application/program/{program.name}"
-                    ),
+                    "ObjectId": self._codesys_id(f"Application/program/{program.name}"),
                 },
             )
             for routine in program.iter_routines():
@@ -1391,9 +1358,7 @@ class PLCopenExporter:
                 _q(ns, "Object"),
                 {
                     "Name": task.name,
-                    "ObjectId": self._codesys_id(
-                        f"Application/task/{task.name}"
-                    ),
+                    "ObjectId": self._codesys_id(f"Application/task/{task.name}"),
                 },
             )
         if has_global_variables:
@@ -1402,9 +1367,7 @@ class PLCopenExporter:
                 _q(ns, "Object"),
                 {
                     "Name": "ControllerTags",
-                    "ObjectId": self._codesys_id(
-                        "Application/ControllerTags"
-                    ),
+                    "ObjectId": self._codesys_id("Application/ControllerTags"),
                 },
             )
 
@@ -1432,9 +1395,7 @@ class PLCopenExporter:
                 "DefaultResolution": "Standard, * (System)",
             },
         )
-        redirections = ET.SubElement(
-            libraries, _q(ns, "PlaceholderRedirections")
-        )
+        redirections = ET.SubElement(libraries, _q(ns, "PlaceholderRedirections"))
         ET.SubElement(
             redirections,
             _q(ns, "PlaceholderRedirection"),
@@ -1449,9 +1410,7 @@ class PLCopenExporter:
 
     def _codesys_id(self, path: str) -> str:
         if path not in self._codesys_ids:
-            self._codesys_ids[path] = str(
-                uuid.uuid5(_CODESYS_ID_NAMESPACE, path)
-            )
+            self._codesys_ids[path] = str(uuid.uuid5(_CODESYS_ID_NAMESPACE, path))
         return self._codesys_ids[path]
 
     def _prepare_operands(self, controller: Controller) -> None:
@@ -1459,9 +1418,7 @@ class PLCopenExporter:
         for program in controller.iter_programs():
             tags.extend(program.tags.values())
         names = {tag.name for tag in tags}
-        aliases_by_target = {
-            tag.alias_for: tag.name for tag in tags if tag.alias_for
-        }
+        aliases_by_target = {tag.alias_for: tag.name for tag in tags if tag.alias_for}
         for program in controller.iter_programs():
             tags_by_name = dict(controller.tags)
             tags_by_name.update(program.tags)
@@ -1493,9 +1450,7 @@ class PLCopenExporter:
                             temp_name = _unique_portable_name(base, names)
                             names.add(temp_name)
                             temp_names.append(temp_name)
-                            self._comparison_tags.setdefault(
-                                program.name, []
-                            ).append(
+                            self._comparison_tags.setdefault(program.name, []).append(
                                 Tag(
                                     name=temp_name,
                                     data_type="BOOL",
@@ -1509,7 +1464,8 @@ class PLCopenExporter:
                     for opcode, operand_text in parsed.instructions:
                         operands = (
                             _split_arguments(operand_text)
-                            if opcode in {
+                            if opcode
+                            in {
                                 *_COMPARISON_TYPES,
                                 *_VALUE_BLOCK_TYPES,
                             }
@@ -1527,10 +1483,9 @@ class PLCopenExporter:
                             }
                             if is_boolean:
                                 self._boolean_operands.add(operand)
-                            if (
-                                _IEC_OPERAND.fullmatch(operand)
-                                or _NUMERIC_LITERAL.fullmatch(operand)
-                            ):
+                            if _IEC_OPERAND.fullmatch(
+                                operand
+                            ) or _NUMERIC_LITERAL.fullmatch(operand):
                                 continue
                             portable = aliases_by_target.get(operand)
                             if portable is None:
@@ -1628,9 +1583,7 @@ class PLCopenExporter:
                     )
                     generated: list[str] = []
                     for suffix in ("FB", "IN", "Pulse", "Executed"):
-                        name = _unique_portable_name(
-                            f"{base}_{suffix}", names
-                        )
+                        name = _unique_portable_name(f"{base}_{suffix}", names)
                         names.add(name)
                         generated.append(name)
                     tags = self._oneshot_tags.setdefault(program.name, [])
@@ -1658,8 +1611,7 @@ class PLCopenExporter:
                                 name=name,
                                 data_type="BOOL",
                                 description=(
-                                    f"TwinForge ONS {description} for "
-                                    f"{storage_operand}"
+                                    f"TwinForge ONS {description} for {storage_operand}"
                                 ),
                             )
                         )
@@ -1678,10 +1630,7 @@ class PLCopenExporter:
             tag = tags_by_name.get(root_name)
             if tag is None:
                 continue
-            if (
-                self._tag_export_type(tag) == "TIMER"
-                and operand == f"{root_name}.ACC"
-            ):
+            if self._tag_export_type(tag) == "TIMER" and operand == f"{root_name}.ACC":
                 continue
             if self._tag_export_type(tag) not in _PRIMITIVE_TYPES:
                 return True
@@ -1694,17 +1643,11 @@ class PLCopenExporter:
         for operand in operands:
             if operand.endswith(".ACC"):
                 timer = self._timers.get(operand[:-4])
-                converted.append(
-                    timer.elapsed_name if timer is not None else operand
-                )
+                converted.append(timer.elapsed_name if timer is not None else operand)
             elif _NUMERIC_LITERAL.fullmatch(operand):
-                converted.append(
-                    _milliseconds_time_literal(int(float(operand)))
-                )
+                converted.append(_milliseconds_time_literal(int(float(operand))))
             else:
-                converted.append(
-                    f"DINT_TO_TIME({self._portable_operand(operand)})"
-                )
+                converted.append(f"DINT_TO_TIME({self._portable_operand(operand)})")
         return converted
 
     def _tag_export_type(self, tag: Tag) -> str:
@@ -1747,7 +1690,7 @@ class PLCopenExporter:
 
 def validate_plcopen_xml(xml: str | bytes, schema_path: str | Path) -> None:
     try:
-        from lxml.etree import etree
+        import lxml.etree as etree
     except ImportError as error:
         raise PLCopenValidationUnavailable(
             "XSD validation requires the optional 'lxml' package"
@@ -1778,9 +1721,7 @@ def _parse_supported_rung(text: str | None) -> _ParsedBooleanRung | None:
         parsed_branches: list[tuple[tuple[str, str], ...]] = []
         for part in branch_parts:
             branch = _parse_instruction_sequence(part)
-            if not branch or any(
-                opcode not in {"XIC", "XIO"} for opcode, _ in branch
-            ):
+            if not branch or any(opcode not in {"XIC", "XIO"} for opcode, _ in branch):
                 return None
             parsed_branches.append(tuple(branch))
         branches = tuple(parsed_branches)
