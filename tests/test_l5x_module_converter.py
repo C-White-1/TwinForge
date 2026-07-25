@@ -5,6 +5,8 @@ from twinforge.converters.l5x import convert_module
 from twinforge.model import (
     EngineeringUnitConfidence,
     EngineeringUnitSource,
+    IODirection,
+    IOSignalType,
     KeyingMode,
 )
 from twinforge.parsers.l5x.capture import capture_section
@@ -69,6 +71,32 @@ def test_converts_module_channel_engineering_units():
     assert channel.source is EngineeringUnitSource.MODULE_CHANNEL
     assert channel.confidence is EngineeringUnitConfidence.EXPLICIT
     assert channel.source_operand == "Local:4:I.CH2DATA"
+    engineering_range = module.engineering_ranges["i.ch2data"]
+    assert engineering_range.lower == 0.0
+    assert engineering_range.upper == 150.0
+    assert engineering_range.source_operand == "Local:4:C.Ch2Config"
+    assert module.capability is not None
+    assert module.capability.signal_type is IOSignalType.ANALOG
+    assert module.capability.direction is IODirection.INPUT
+    assert module.capability.nominal_channel_count == 8
+    assert module.capability.configured_channel_count == 4
+    assert module.capability.unavailable_by_configuration_count == 4
+
+
+def test_decodes_digital_module_nominal_capacity_from_catalog_convention():
+    root = ET.parse(SAMPLE_L5X).getroot()
+    element = root.find("./Controller/Modules/Module[@Name='DI_Slot2']")
+    assert element is not None
+
+    module = convert_module(
+        capture_section(element, MODULE_ATTRIBUTES, MODULE_ELEMENTS)
+    )
+
+    assert module.capability is not None
+    assert module.capability.signal_type is IOSignalType.DIGITAL
+    assert module.capability.direction is IODirection.INPUT
+    assert module.capability.nominal_channel_count == 16
+    assert module.capability.configured_channel_count == 16
 
 
 def test_converts_custom_ekey_as_a_separate_identity():

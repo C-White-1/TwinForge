@@ -23,3 +23,11 @@ class EngineeringUnitEvidence:
     confidence: EngineeringUnitConfidence
     source_operand: str | None = None
     inherited_from: str | None = None
+
+
+@dataclass(frozen=True)
+class EngineeringRangeEvidence:
+    lower: float
+    upper: float
+    confidence: EngineeringUnitConfidence
+    source_operand: str | None = None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 
 from twinforge.converters.diagnostics import (
@@ -9,15 +10,19 @@ from twinforge.converters.diagnostics import (
 from twinforge.model import (
     Connection,
     ElectronicKey,
+    EngineeringRangeEvidence,
     EngineeringUnitConfidence,
     EngineeringUnitEvidence,
     EngineeringUnitSource,
     Identity,
+    IODirection,
+    IOSignalType,
     KeyingMode,
-    Module,
+    ModuleCapability,
     Revision,
     VendorIdentity,
 )
+from twinforge.model.module import Module
 from twinforge.parsers.l5x.capture import CapturedSection
 from twinforge.schema.l5x.modules import EKEY_ATTRIBUTES, MODULE_ATTRIBUTES
 from twinforge.schema.l5x.spec import AttributeSpec
@@ -48,6 +53,10 @@ def convert_module(
     resolved_slot = _numeric_slot(address) if slot is None else slot
     identity = _identity(section, MODULE_ATTRIBUTES, diagnostics)
     identity.source_extensions.append(captured_to_source_extension(section))
+    engineering_units = _engineering_units(
+        section, resolved_slot, diagnostics
+    )
+    engineering_ranges = _engineering_ranges(section, resolved_slot)
 
     module = Module(
         name=section.attributes.get("Name", ""),
@@ -65,8 +74,12 @@ def convert_module(
             section,
             diagnostics,
         ),
-        engineering_units=_engineering_units(
-            section, resolved_slot, diagnostics
+        engineering_units=engineering_units,
+        engineering_ranges=engineering_ranges,
+        capability=_module_capability(
+            section,
+            identity,
+            engineering_ranges,
         ),
         source_extensions=[captured_to_source_extension(section)],
     )
@@ -148,6 +161,115 @@ def _unit_key(direction: str, operand: str) -> str:
     return f"{direction}.{operand.lstrip('.')}".casefold()
 
 
+def _engineering_ranges(
+    module: CapturedSection,
+    slot: int | None,
+) -> dict[str, EngineeringRangeEvidence]:
+    ranges: dict[str, EngineeringRangeEvidence] = {}
+    for communications in module.elements.get("Communications", []):
+        for config_tag in communications.elements.get("ConfigTag", []):
+            for data in config_tag.ordered_children:
+                if (
+                    not isinstance(data, ET.Element)
+                    or data.tag != "Data"
+                    or data.attrib.get("Format") != "Decorated"
+                ):
+                    continue
+                structure = data.find("Structure")
+                if structure is None:
+                    continue
+                for channel in structure.findall("StructureMember"):
+                    match = re.fullmatch(
+                        r"Ch(?P<number>\d+)Config",
+                        channel.attrib.get("Name", ""),
+                        re.IGNORECASE,
+                    )
+                    if match is None:
+                        continue
+                    values: dict[str, str] = {}
+                    for member in channel.findall("DataValueMember"):
+                        name = member.attrib.get("Name")
+                        value = member.attrib.get("Value")
+                        if name is not None and value is not None:
+                            values[name] = value
+                    lower_value = values.get("LowEngineering")
+                    upper_value = values.get("HighEngineering")
+                    if lower_value is None or upper_value is None:
+                        continue
+                    try:
+                        lower = float(lower_value)
+                        upper = float(upper_value)
+                    except ValueError:
+                        continue
+                    number = match.group("number")
+                    source = (
+                        f"Local:{slot}:C.Ch{number}Config"
+                        if slot is not None
+                        else f"Ch{number}Config"
+                    )
+                    evidence = EngineeringRangeEvidence(
+                        lower=lower,
+                        upper=upper,
+                        confidence=EngineeringUnitConfidence.EXPLICIT,
+                        source_operand=source,
+                    )
+                    for direction in ("I", "O"):
+                        ranges[
+                            _unit_key(direction, f"Ch{number}Data")
+                        ] = evidence
+    return ranges
+
+
+def _module_capability(
+    module: CapturedSection,
+    identity: Identity,
+    engineering_ranges: dict[str, EngineeringRangeEvidence],
+) -> ModuleCapability | None:
+    vendor = identity.vendor
+    if vendor is None or vendor.id != 1:
+        return None
+    catalog = module.attributes.get("CatalogNumber", "")
+    match = re.fullmatch(
+        r"1756-(?P<direction>[IO])(?P<signal>[BF])"
+        r"(?P<count>\d+)[A-Z0-9]*",
+        catalog,
+        re.IGNORECASE,
+    )
+    if match is None:
+        return None
+    direction = (
+        IODirection.INPUT
+        if match.group("direction").upper() == "I"
+        else IODirection.OUTPUT
+    )
+    signal_type = (
+        IOSignalType.DIGITAL
+        if match.group("signal").upper() == "B"
+        else IOSignalType.ANALOG
+    )
+    nominal_count = int(match.group("count"))
+    if signal_type is IOSignalType.DIGITAL:
+        configured_count = nominal_count
+    else:
+        prefix = "i." if direction is IODirection.INPUT else "o."
+        configured_count = len(
+            {
+                key
+                for key in engineering_ranges
+                if key.startswith(prefix)
+            }
+        )
+        if configured_count == 0:
+            configured_count = None
+    return ModuleCapability(
+        signal_type=signal_type,
+        direction=direction,
+        nominal_channel_count=nominal_count,
+        configured_channel_count=configured_count,
+        source="rockwell_1756_catalog_convention+l5x_configuration",
+    )
+
+
 def _electronic_key(
     module: CapturedSection,
     diagnostics: list[ConversionDiagnostic] | None,
@@ -158,7 +280,7 @@ def _electronic_key(
 
     section = sections[0]
     state = section.attributes.get("State")
-    mode = _KEYING_MODES.get(state)
+    mode = _KEYING_MODES.get(state) if state is not None else None
     unknown_mode = state if state is not None and mode is None else None
     if unknown_mode is not None:
         _emit(

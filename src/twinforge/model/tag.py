@@ -7,7 +7,10 @@ from typing import Any
 
 from .source_extension import SourceExtension
 from .datatype import Datatype
-from .engineering_unit import EngineeringUnitEvidence
+from .engineering_unit import (
+    EngineeringRangeEvidence,
+    EngineeringUnitEvidence,
+)
 from .tag_value import TagValue
 
 
@@ -29,6 +32,7 @@ class Tag:
     engineering_unit_evidence: list[EngineeringUnitEvidence] = field(
         default_factory=list
     )
+    engineering_range: EngineeringRangeEvidence | None = None
     source: object | None = None
     target: object | None = None
     protocol: str = ""

@@ -6,12 +6,14 @@ from .datatype import Datatype, DatatypeMember
 from .device import Device
 from .electronic_key import ElectronicKey, KeyingMode
 from .engineering_unit import (
+    EngineeringRangeEvidence,
     EngineeringUnitConfidence,
     EngineeringUnitEvidence,
     EngineeringUnitSource,
 )
 from .identity import Identity, VendorIdentity
 from .module import Module
+from .module_capability import IODirection, IOSignalType, ModuleCapability
 from .network import Network
 from .plant import Plant
 from .program import Program
@@ -33,14 +35,18 @@ __all__ = [
     "DatatypeMember",
     "Device",
     "ElectronicKey",
+    "EngineeringRangeEvidence",
     "EngineeringUnitConfidence",
     "EngineeringUnitEvidence",
     "EngineeringUnitSource",
     "Identity",
+    "IODirection",
+    "IOSignalType",
     "KeyingMode",
     "LadderRung",
     "VendorIdentity",
     "Module",
+    "ModuleCapability",
     "Network",
     "Plant",
     "Program",

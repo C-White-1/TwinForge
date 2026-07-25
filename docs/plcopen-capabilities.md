@@ -24,7 +24,7 @@ Its generated CODESYS document:
 - contains zero unsupported RLL rungs;
 - preserves five intentional `NOP()` rungs as no-operations.
 
-The automated suite currently contains 82 passing tests. The standard profile
+The automated suite currently contains 90 passing tests. The standard profile
 is also validated against the PLCopen XML 2.01 XSD. CODESYS-specific output
 uses the `tc6_0200` namespace and structures learned from native CODESYS
 exports.

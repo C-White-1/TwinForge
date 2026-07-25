@@ -8,6 +8,7 @@ from twinforge.converters.diagnostics import (
 )
 from twinforge.model import (
     Controller,
+    EngineeringRangeEvidence,
     EngineeringUnitConfidence,
     EngineeringUnitEvidence,
     EngineeringUnitSource,
@@ -59,6 +60,9 @@ def resolve_engineering_units(
             )
             if evidence is not None:
                 _add_evidence(tag, evidence, diagnostics)
+            tag.engineering_range = _alias_range(
+                tag.alias_for, modules_by_slot, modules_by_name
+            )
         description_evidence = _description_evidence(tag)
         if description_evidence is not None:
             _add_evidence(tag, description_evidence, diagnostics)
@@ -137,6 +141,30 @@ def _description_evidence(tag: Tag) -> EngineeringUnitEvidence | None:
         source=EngineeringUnitSource.TAG_DESCRIPTION,
         confidence=EngineeringUnitConfidence.INFERRED,
         inherited_from=tag.name,
+    )
+
+
+def _alias_range(
+    operand: str,
+    modules_by_slot: dict[int, Module],
+    modules_by_name: dict[str, Module],
+) -> EngineeringRangeEvidence | None:
+    local = _LOCAL_ALIAS.fullmatch(operand)
+    if local is not None:
+        module = modules_by_slot.get(int(local.group("slot")))
+        if module is None:
+            return None
+        return module.engineering_ranges.get(
+            _unit_key(local.group("direction"), local.group("member"))
+        )
+    named = _NAMED_MODULE_ALIAS.fullmatch(operand)
+    if named is None:
+        return None
+    module = modules_by_name.get(named.group("module").casefold())
+    if module is None:
+        return None
+    return module.engineering_ranges.get(
+        _unit_key(named.group("direction"), named.group("member"))
     )
 
 

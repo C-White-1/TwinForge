@@ -1,3 +1,14 @@
+from .automationml import (
+    AUTOMATIONML_VERSION,
+    CAEX_NAMESPACE,
+    CAEX_SCHEMA_VERSION,
+    AutomationMLExporter,
+    AutomationMLExportResult,
+    AutomationMLValidationError,
+    AutomationMLValidationUnavailable,
+    validate_automationml_references,
+    validate_automationml_xml,
+)
 from .plcopen import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
@@ -11,6 +22,15 @@ from .plcopen import (
 )
 
 __all__ = [
+    "AUTOMATIONML_VERSION",
+    "CAEX_NAMESPACE",
+    "CAEX_SCHEMA_VERSION",
+    "AutomationMLExporter",
+    "AutomationMLExportResult",
+    "AutomationMLValidationError",
+    "AutomationMLValidationUnavailable",
+    "validate_automationml_references",
+    "validate_automationml_xml",
     "PLCOPEN_201_NAMESPACE",
     "PLCOPEN_CODESYS_NAMESPACE",
     "PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS",

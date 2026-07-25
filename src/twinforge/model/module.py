@@ -6,8 +6,12 @@ from typing import TYPE_CHECKING, Dict
 from .asset import Asset
 from .connection import Connection
 from .electronic_key import ElectronicKey
-from .engineering_unit import EngineeringUnitEvidence
+from .engineering_unit import (
+    EngineeringRangeEvidence,
+    EngineeringUnitEvidence,
+)
 from .identity import Identity
+from .module_capability import ModuleCapability
 
 if TYPE_CHECKING:
     from .chassis import Chassis
@@ -46,6 +50,10 @@ class Module(Asset):
     engineering_units: dict[str, EngineeringUnitEvidence] = field(
         default_factory=dict
     )
+    engineering_ranges: dict[str, EngineeringRangeEvidence] = field(
+        default_factory=dict
+    )
+    capability: ModuleCapability | None = None
 
     # channels: list["Channel"] = field(default_factory=list)
 

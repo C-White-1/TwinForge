@@ -91,6 +91,9 @@ def test_parser_resolves_tag_engineering_units_and_provenance():
         is EngineeringUnitConfidence.EXPLICIT
     )
     assert process_value.engineering_unit.source_operand == "Local:4:I.CH2DATA"
+    assert process_value.engineering_range is not None
+    assert process_value.engineering_range.lower == 0.0
+    assert process_value.engineering_range.upper == 150.0
 
     high_high = controller.tags["CFG_PT102_HH"]
     assert high_high.engineering_unit is not None
