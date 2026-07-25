@@ -39,6 +39,7 @@ def test_parser_converts_sample_program_and_routine_shells():
     first_rung = program.main_routine.ladder_rungs[0]
     assert first_rung.number == 0
     assert first_rung.rung_type == "N"
+    assert first_rung.comment is not None
     assert "BOOSTER GAS COMPRESSOR STATION" in first_rung.comment
     assert first_rung.text == "JSR(R00_AnalogAlarms,0);"
     assert first_rung.source_extensions[0].root.name == "Rung"

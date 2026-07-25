@@ -1,7 +1,7 @@
 import argparse
 import csv
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable, TypedDict, cast
 
 from twinforge.model import Controller, Module, Plant
 from twinforge.parsers import L5XParser
@@ -10,12 +10,21 @@ from twinforge.parsers import L5XParser
 CSV_FIELDS = ("Slot", "Type", "CatalogNumber", "Vendor")
 
 
-def module_rows(filename: str | Path) -> Iterable[dict[str, str]]:
+class ModuleRow(TypedDict):
+    """One stable row in the module inventory CSV contract."""
+
+    Slot: str
+    Type: str
+    CatalogNumber: str
+    Vendor: str
+
+
+def module_rows(filename: str | Path) -> Iterable[ModuleRow]:
     plant = L5XParser().parse(filename, report_mode=None)
     yield from plant_rows(plant)
 
 
-def plant_rows(plant: Plant) -> Iterable[dict[str, str]]:
+def plant_rows(plant: Plant) -> Iterable[ModuleRow]:
     for controller in plant.iter_controllers():
         for chassis in controller.iter_chassis():
             for chassis_module in chassis.iter_modules():
@@ -32,7 +41,9 @@ def export_module_csv(source: str | Path, destination: str | Path) -> None:
     with destination.open("w", newline="", encoding="utf-8-sig") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=CSV_FIELDS)
         writer.writeheader()
-        writer.writerows(module_rows(source))
+        # ``csv.DictWriter`` infers literal field-name keys that TypedDict
+        # cannot currently express covariantly in its ``writerows`` stub.
+        writer.writerows(cast(Any, module_rows(source)))
 
 
 def _module_row(
@@ -40,7 +51,7 @@ def _module_row(
     controller: Controller,
     *,
     is_root_slot: bool,
-) -> dict[str, str]:
+) -> ModuleRow:
     is_controller = (
         is_root_slot and module.catalog == controller.identity.product_name
     )

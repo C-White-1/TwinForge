@@ -37,6 +37,7 @@ def test_module_and_custom_key_keep_separate_identities():
     )
     assert module.electronic_key is not None
     assert module.electronic_key.identity is key_identity
+    assert module.electronic_key.identity is not None
     assert module.electronic_key.identity.vendor == VendorIdentity(37)
 
 

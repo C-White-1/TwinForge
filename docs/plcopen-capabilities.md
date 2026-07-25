@@ -24,10 +24,16 @@ Its generated CODESYS document:
 - contains zero unsupported RLL rungs;
 - preserves five intentional `NOP()` rungs as no-operations.
 
-The automated suite currently contains 90 passing tests. The standard profile
+The automated suite currently contains 94 passing tests. The standard profile
 is also validated against the PLCopen XML 2.01 XSD. CODESYS-specific output
 uses the `tc6_0200` namespace and structures learned from native CODESYS
 exports.
+
+The exporter keeps target-neutral RLL parsing, XML/value helpers and XSD
+validation separate from target adapters. CODESYS application metadata,
+libraries, object IDs, task settings and call annotations live in the
+dedicated `plcopen_codesys` adapter. This boundary is intended to allow a
+future OpenPLC adapter without inheriting CODESYS project conventions.
 
 This is strong evidence for the tested feature set, but it is still one
 representative Logix application rather than a broad compatibility corpus.

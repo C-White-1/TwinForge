@@ -38,11 +38,13 @@ def test_converts_sample_controller_and_local_chassis():
     chassis = controller.get_chassis("Local Chassis")
     assert chassis is not None
     assert len(chassis.modules) == 7
-    assert chassis.get_module(0) is not None
-    assert chassis.get_module(0).name == "Local"
-    assert chassis.get_module(2) is not None
-    assert chassis.get_module(2).name == "DI_Slot2"
-    assert chassis.get_module(2).parent is chassis
+    local_module = chassis.get_module(0)
+    digital_input = chassis.get_module(2)
+    assert local_module is not None
+    assert local_module.name == "Local"
+    assert digital_input is not None
+    assert digital_input.name == "DI_Slot2"
+    assert digital_input.parent is chassis
     assert controller.source_extensions[0].root.name == "Controller"
 
 

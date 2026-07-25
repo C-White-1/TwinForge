@@ -15,6 +15,18 @@ SAMPLE_L5X = Path(__file__).parent / "data/basic/BoosterCompressor_20260128.L5X"
 FIXED_TIME = datetime(2026, 7, 25, tzinfo=timezone.utc)
 
 
+def _find(
+    parent: ET.Element,
+    path: str,
+    namespaces: dict[str, str],
+) -> ET.Element:
+    """Find a required XML element and narrow its optional return type."""
+
+    element = parent.find(path, namespaces)
+    assert element is not None, f"missing XML element: {path}"
+    return element
+
+
 def _export():
     controller = L5XParser().parse(
         SAMPLE_L5X, report_mode=None
@@ -44,17 +56,20 @@ def test_exports_native_editor_compatible_caex_hierarchy():
         "c:InternalElement[@Name='booster_compressor']",
         ns,
     ) is not None
-    assert root.find(
+    assert _find(
+        root,
         ".//c:InternalElement[@Name='AI_Slot4']/"
         "c:Attribute[@Name='Slot']/c:Value",
         ns,
     ).text == "4"
-    assert root.find(
+    assert _find(
+        root,
         ".//c:InternalElement[@Name='Local']/"
         "c:Attribute[@Name='AssetType']/c:Value",
         ns,
     ).text == "Controller"
-    assert root.find(
+    assert _find(
+        root,
         ".//c:InternalElement[@Name='AI_Slot4']/"
         "c:Attribute[@Name='AssetType']/c:Value",
         ns,
@@ -66,16 +81,20 @@ def test_links_process_signals_to_module_channels_with_units():
     ns = {"c": CAEX_NAMESPACE}
     signal = root.find(".//c:InternalElement[@Name='PT102_PV']", ns)
     assert signal is not None
-    assert signal.find(
+    assert _find(
+        signal,
         "c:Attribute[@Name='EngineeringUnit']/c:Value", ns
     ).text == "barg"
-    assert signal.find(
+    assert _find(
+        signal,
         "c:Attribute[@Name='LowerRangeValue']/c:Value", ns
     ).text == "0"
-    assert signal.find(
+    assert _find(
+        signal,
         "c:Attribute[@Name='UpperRangeValue']/c:Value", ns
     ).text == "150"
     signal_interface = signal.find("c:ExternalInterface[@Name='Signal']", ns)
+    assert signal_interface is not None
     module_interface = root.find(
         ".//c:InternalElement[@Name='AI_Slot4']/"
         "c:ExternalInterface[@Name='i.ch2data']",
@@ -94,7 +113,8 @@ def test_links_process_signals_to_module_channels_with_units():
 
     digital = root.find(".//c:InternalElement[@Name='XV101_Open']", ns)
     assert digital is not None
-    assert digital.find(
+    assert _find(
+        digital,
         "c:Attribute[@Name='AssetType']/c:Value", ns
     ).text == "DigitalSignal"
     digital_interface = root.find(
@@ -103,7 +123,8 @@ def test_links_process_signals_to_module_channels_with_units():
         ns,
     )
     assert digital_interface is not None
-    digital_module = root.find(
+    digital_module = _find(
+        root,
         ".//c:InternalElement[@Name='DI_Slot2']", ns
     )
     interface_names = [
@@ -128,7 +149,8 @@ def test_links_process_signals_to_module_channels_with_units():
     assert digital_attributes["i.data.8.AssignmentStatus"] == "Spare"
     assert digital_attributes["i.data.10.AssignmentStatus"] == "Spare"
     assert digital_attributes["i.data.0.AssignmentStatus"] == "Assigned"
-    assert digital_module.find(
+    assert _find(
+        digital_module,
         "c:Attribute[@Name='NominalChannelCount']/c:Value", ns
     ).text == "16"
     assert root.find(
@@ -161,7 +183,8 @@ def test_exports_semantic_libraries_roles_and_plcopen_interface():
         "@AutomationMLInterfaceClassLib/AutomationMLBaseInterface/"
         "Communication/SignalInterface"
     )
-    controller = root.find(
+    controller = _find(
+        root,
         ".//c:InternalElement[@Name='booster_compressor']", ns
     )
     assert controller.find(
@@ -179,7 +202,11 @@ def test_exports_semantic_libraries_roles_and_plcopen_interface():
     assert plcopen.findtext(
         "c:Attribute[@Name='refURI']/c:Value", namespaces=ns
     ) == "../PLCOpenXML/BoosterCompressor_codesys.xml"
-    pt102 = root.find(".//c:InternalElement[@Name='PT102_PV']", ns)
+    pt102 = _find(
+        root,
+        ".//c:InternalElement[@Name='PT102_PV']",
+        ns,
+    )
     assert pt102.find(
         "c:RoleRequirements"
         "[@RefBaseRoleClassPath='TwinForgeRoleClassLib/"
@@ -204,23 +231,28 @@ def test_exports_vendor_neutral_and_catalog_system_unit_classes():
         "[@RefBaseClassPath='TwinForgeSystemUnitClassLib/IOModule']",
         ns,
     ) is not None
-    analog_module = root.find(
+    analog_module = _find(
+        root,
         ".//c:InternalElement[@Name='AI_Slot4']", ns
     )
-    assert analog_module.find(
+    assert _find(
+        analog_module,
         "c:Attribute[@Name='NominalChannelCount']/c:Value", ns
     ).text == "8"
-    assert analog_module.find(
+    assert _find(
+        analog_module,
         "c:Attribute[@Name='ConfiguredChannelCount']/c:Value", ns
     ).text == "4"
-    assert analog_module.find(
+    assert _find(
+        analog_module,
         "c:Attribute[@Name='UnavailableByConfigurationCount']/c:Value",
         ns,
     ).text == "4"
     assert analog_module.find(
         "c:ExternalInterface[@Name='i.ch4data']", ns
     ) is None
-    analog_output = root.find(
+    analog_output = _find(
+        root,
         ".//c:InternalElement[@Name='AO_Slot5']", ns
     )
     assert analog_output.find(
@@ -229,11 +261,13 @@ def test_exports_vendor_neutral_and_catalog_system_unit_classes():
     assert analog_output.find(
         "c:ExternalInterface[@Name='i.ch0data']", ns
     ) is None
-    assert analog_output.find(
+    assert _find(
+        analog_output,
         "c:Attribute[@Name='o.ch0data.EngineeringUnit']/c:Value",
         ns,
     ).text == "%"
-    assert analog_output.find(
+    assert _find(
+        analog_output,
         "c:Attribute[@Name='o.ch0data.AssignmentStatus']/c:Value",
         ns,
     ).text == "Assigned"
@@ -241,7 +275,8 @@ def test_exports_vendor_neutral_and_catalog_system_unit_classes():
         "c:Attribute[@Name='o.ch0data.LogicReferences']/c:Value",
         ns,
     ) is not None
-    assert analog_output.find(
+    assert _find(
+        analog_output,
         "c:Attribute[@Name='o.ch2data.AssignmentStatus']/c:Value",
         ns,
     ).text == "Spare"

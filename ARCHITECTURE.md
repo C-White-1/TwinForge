@@ -31,6 +31,16 @@ PLCopen XML | AutomationML | reports
 | `exporters` | PLCopen XML and AutomationML generation and validation |
 | `cip`, `discovery` | Future/live controller and network acquisition |
 
+PLCopen export is divided into target-neutral types, RLL parsing, XML/value
+helpers and validation, plus target adapters. CODESYS project structure and
+extensions are isolated in `exporters.plcopen_codesys`; a future OpenPLC
+adapter should consume the same neutral conversion and emission services.
+
+AutomationML export is divided into instance-hierarchy construction,
+class-library generation, signal/I/O generation, deterministic identity, CAEX
+XSD validation and semantic-reference validation. `AutomationMLExporter`
+remains the serialization and filesystem façade.
+
 ## Invariants
 
 - Unknown source data is preserved.

@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import re
-import uuid
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
 from pathlib import Path
 
 from twinforge.converters import (
@@ -14,10 +12,49 @@ from twinforge.converters import (
 )
 from twinforge.model import Controller, LadderRung, Program, Tag, Task
 
-PLCOPEN_201_NAMESPACE = "http://www.plcopen.org/xml/tc6_0201"
-PLCOPEN_CODESYS_NAMESPACE = "http://www.plcopen.org/xml/tc6_0200"
+from .plcopen_codesys import CodesysProfileSupport
+from .plcopen_rll import (
+    COMPARISON_TYPES as _COMPARISON_TYPES,
+    SUPPORTED_RLL_INSTRUCTIONS as PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS,
+    VALUE_BLOCK_TYPES as _VALUE_BLOCK_TYPES,
+    parse_jsr as _parse_jsr,
+    parse_supported_rung as _parse_supported_rung,
+    split_arguments as _split_arguments,
+)
+from .plcopen_types import (
+    PLCOPEN_201_NAMESPACE,
+    PLCOPEN_CODESYS_NAMESPACE,
+    PLCopenExportResult,
+    PLCopenProfile,
+)
+from .plcopen_validation import (
+    PLCopenValidationError,
+    PLCopenValidationUnavailable,
+    validate_plcopen_xml,
+)
+from .plcopen_xml import (
+    milliseconds_duration as _milliseconds_duration,
+    milliseconds_time_literal as _milliseconds_time_literal,
+    plcopen_scalar_value as _plcopen_scalar_value,
+    qualified_name as _q,
+    timer_member_integer as _timer_member_integer,
+    unique_portable_name as _unique_portable_name,
+    variable_add_data as _variable_add_data,
+)
+
+__all__ = [
+    "PLCOPEN_201_NAMESPACE",
+    "PLCOPEN_CODESYS_NAMESPACE",
+    "PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS",
+    "PLCopenExporter",
+    "PLCopenExportResult",
+    "PLCopenProfile",
+    "PLCopenValidationError",
+    "PLCopenValidationUnavailable",
+    "validate_plcopen_xml",
+]
+
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
-CODESYS_NAMESPACE = "http://www.3s-software.com/plcopenxml"
 TWINFORGE_RLL_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-rll"
 TWINFORGE_ALIAS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-alias"
 TWINFORGE_ONS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-ons"
@@ -48,87 +85,9 @@ _PRIMITIVE_TYPES = {
     "TIME_OF_DAY",
     "DATE_AND_TIME",
 }
-_RLL_INSTRUCTION = re.compile(
-    r"\s*(XIC|XIO|OTE|OTL|OTU|EQU|NEQ|GRT|GEQ|LES|LEQ|TON|RES|MOV|ADD|SUB|MUL|DIV|ONS)\s*\(([^()]*)\)"
-)
-_JSR_INSTRUCTION = re.compile(r"\s*JSR\s*\(\s*([^,()]+)\s*,\s*0\s*\)\s*;\s*")
 _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
 _IEC_OPERAND = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*")
 _NUMERIC_LITERAL = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)")
-_COMPARISON_TYPES = {
-    "EQU": "EQ",
-    "NEQ": "NE",
-    "GRT": "GT",
-    "GEQ": "GE",
-    "LES": "LT",
-    "LEQ": "LE",
-}
-_VALUE_BLOCK_TYPES = {
-    "MOV": "MOVE",
-    "ADD": "ADD",
-    "SUB": "SUB",
-    "MUL": "MUL",
-    "DIV": "DIV",
-}
-PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS = frozenset(
-    {
-        "XIC",
-        "XIO",
-        "OTE",
-        "OTL",
-        "OTU",
-        "EQU",
-        "NEQ",
-        "GRT",
-        "GEQ",
-        "LES",
-        "LEQ",
-        "TON",
-        "RES",
-        "MOV",
-        "ADD",
-        "SUB",
-        "MUL",
-        "DIV",
-        "ONS",
-        "JSR",
-        "NOP",
-    }
-)
-_CODESYS_ID_NAMESPACE = uuid.UUID("012486d2-49b8-5be4-aeca-4a70ed56cfa8")
-
-
-class PLCopenProfile(str, Enum):
-    STANDARD_201 = "standard_201"
-    CODESYS = "codesys"
-
-    @property
-    def namespace(self) -> str:
-        if self is PLCopenProfile.CODESYS:
-            return PLCOPEN_CODESYS_NAMESPACE
-        return PLCOPEN_201_NAMESPACE
-
-
-@dataclass
-class PLCopenExportResult:
-    xml: str
-    diagnostics: list[ConversionDiagnostic] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class _ParsedBooleanRung:
-    branches: tuple[tuple[tuple[str, str], ...], ...]
-    tail_conditions: tuple[tuple[str, str], ...]
-    outputs: tuple[tuple[str, str], ...]
-
-    @property
-    def instructions(self) -> tuple[tuple[str, str], ...]:
-        branch_instructions = tuple(
-            instruction for branch in self.branches for instruction in branch
-        )
-        return branch_instructions + self.tail_conditions + self.outputs
-
-
 @dataclass(frozen=True)
 class _TimerExport:
     preset_ms: int
@@ -146,20 +105,12 @@ class _OneShotExport:
     executed_name: str
 
 
-class PLCopenValidationError(ValueError):
-    pass
-
-
-class PLCopenValidationUnavailable(RuntimeError):
-    pass
-
-
 class PLCopenExporter:
     def __init__(self, profile: PLCopenProfile | str = PLCopenProfile.STANDARD_201):
         self.profile = PLCopenProfile(profile)
         self.diagnostics: list[ConversionDiagnostic] = []
         self._next_local_id = 1
-        self._codesys_ids: dict[str, str] = {}
+        self._codesys = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
         self._operand_names: dict[str, str] = {}
         self._boolean_operands: set[str] = set()
         self._generated_tags: list[Tag] = []
@@ -179,7 +130,7 @@ class PLCopenExporter:
     ) -> ET.Element:
         self.diagnostics = []
         self._next_local_id = 1
-        self._codesys_ids = {}
+        self._codesys.reset()
         self._operand_names = {}
         self._boolean_operands = set()
         self._generated_tags = []
@@ -268,45 +219,29 @@ class PLCopenExporter:
         )
 
     def _codesys_application(self, root: ET.Element, controller: Controller) -> None:
-        ns = self.profile.namespace
-        application_id = self._codesys_id("Application")
-        add_data = ET.SubElement(root, _q(ns, "addData"))
-        application = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/application",
-                "handleUnknown": "implementation",
-            },
-        )
-        resource = ET.SubElement(
-            application, _q(ns, "resource"), {"name": "Application"}
-        )
-        for task in controller.iter_tasks():
-            self._task(resource, task, codesys=True)
-        global_variables = self._variables(
-            resource,
-            "globalVars",
-            [*controller.tags.values(), *self._generated_tags],
-            attributes={"name": "ControllerTags"},
-        )
-        if global_variables is not None:
-            self._append_object_id(
-                global_variables, self._codesys_id("Application/ControllerTags")
-            )
-        resource_add_data = ET.SubElement(resource, _q(ns, "addData"))
-        for program in controller.iter_programs():
-            wrapper = ET.SubElement(
-                resource_add_data,
-                _q(ns, "data"),
-                {"name": f"{CODESYS_NAMESPACE}/pou", "handleUnknown": "implementation"},
-            )
-            self._program(wrapper, program, codesys=True)
-        if self._timers or self._oneshots:
-            self._codesys_standard_library(resource_add_data)
-        self._append_object_id_data(resource_add_data, application_id)
-        self._codesys_project_structure(
-            add_data, controller, global_variables is not None
+        """Delegate CODESYS project wrapping to the target adapter."""
+
+        self._codesys.emit_application(
+            root,
+            controller,
+            self._generated_tags,
+            needs_standard_library=bool(self._timers or self._oneshots),
+            emit_task=lambda parent, task: self._task(
+                parent,
+                task,
+                codesys=True,
+            ),
+            emit_variables=lambda parent, tags: self._variables(
+                parent,
+                "globalVars",
+                list(tags),
+                attributes={"name": "ControllerTags"},
+            ),
+            emit_program=lambda parent, program: self._program(
+                parent,
+                program,
+                codesys=True,
+            ),
         )
 
     def _task(self, parent: ET.Element, task: Task, *, codesys: bool = False) -> None:
@@ -336,34 +271,7 @@ class PLCopenExporter:
                 documentation = ET.SubElement(instance, _q(ns, "documentation"))
                 ET.SubElement(documentation, _q(XHTML_NAMESPACE, "xhtml"))
         if codesys:
-            add_data = ET.SubElement(task_element, _q(ns, "addData"))
-            data = ET.SubElement(
-                add_data,
-                _q(ns, "data"),
-                {
-                    "name": f"{CODESYS_NAMESPACE}/tasksettings",
-                    "handleUnknown": "implementation",
-                },
-            )
-            settings = {
-                "KindOfTask": _codesys_task_kind(task.task_type),
-                "WithinSPSTimeSlicing": "true",
-            }
-            if task.rate is not None:
-                settings.update({"Interval": f"t#{task.rate}ms", "IntervalUnit": "ms"})
-            task_settings = ET.SubElement(data, "TaskSettings", settings)
-            ET.SubElement(
-                task_settings,
-                "Watchdog",
-                {
-                    "Enabled": "false",
-                    "TimeUnit": "ms",
-                    "Sensitivity": "1",
-                },
-            )
-            self._append_object_id_data(
-                add_data, self._codesys_id(f"Application/task/{task.name}")
-            )
+            self._codesys.append_task_settings(task_element, task)
 
     def _program(
         self, parent: ET.Element, program: Program, *, codesys: bool = False
@@ -410,9 +318,9 @@ class PLCopenExporter:
                     codesys=codesys,
                 )
                 if codesys:
-                    self._append_object_id(
+                    self._codesys.append_object_id(
                         action,
-                        self._codesys_id(
+                        self._codesys.object_id(
                             f"Application/program/{program.name}/action/{action_routine.name}"
                         ),
                     )
@@ -424,8 +332,11 @@ class PLCopenExporter:
             codesys=codesys,
         )
         if codesys:
-            self._append_object_id(
-                pou, self._codesys_id(f"Application/program/{program.name}")
+            self._codesys.append_object_id(
+                pou,
+                self._codesys.object_id(
+                    f"Application/program/{program.name}"
+                ),
             )
 
     def _routine_body(
@@ -511,7 +422,9 @@ class PLCopenExporter:
                 )
             elif self._tag_export_type(tag) == "TIMER":
                 timer_type = (
-                    "Standard.TON" if self.profile is PLCopenProfile.CODESYS else "TON"
+                    self._codesys.library_type("TON")
+                    if self.profile is PLCopenProfile.CODESYS
+                    else "TON"
                 )
                 ET.SubElement(type_element, _q(ns, "derived"), {"name": timer_type})
             else:
@@ -930,17 +843,8 @@ class PLCopenExporter:
             point = ET.SubElement(variable, _q(ns, "connectionPointOut"))
             expression = ET.SubElement(point, _q(ns, "expression"))
             expression.text = name
-        add_data = ET.SubElement(block, _q(ns, "addData"))
-        data = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/fbdcalltype",
-                "handleUnknown": "implementation",
-            },
-        )
-        call_type = ET.SubElement(data, "CallType", {"xmlns": ""})
-        call_type.text = "functionblock"
+        if self.profile is PLCopenProfile.CODESYS:
+            self._codesys.append_call_type(block)
         return self._coil(
             ld,
             "OTE",
@@ -1013,17 +917,8 @@ class PLCopenExporter:
             point = ET.SubElement(variable, _q(ns, "connectionPointOut"))
             expression = ET.SubElement(point, _q(ns, "expression"))
             expression.text = name
-        add_data = ET.SubElement(block, _q(ns, "addData"))
-        data = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/fbdcalltype",
-                "handleUnknown": "implementation",
-            },
-        )
-        call_type = ET.SubElement(data, "CallType", {"xmlns": ""})
-        call_type.text = "functionblock"
+        if self.profile is PLCopenProfile.CODESYS:
+            self._codesys.append_call_type(block)
         return block_id
 
     def _oneshot_block(
@@ -1090,17 +985,8 @@ class PLCopenExporter:
         pulse_point = ET.SubElement(pulse, _q(ns, "connectionPointOut"))
         pulse_expression = ET.SubElement(pulse_point, _q(ns, "expression"))
         pulse_expression.text = oneshot.pulse_name
-        add_data = ET.SubElement(block, _q(ns, "addData"))
-        data = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/fbdcalltype",
-                "handleUnknown": "implementation",
-            },
-        )
-        call_type = ET.SubElement(data, "CallType", {"xmlns": ""})
-        call_type.text = "functionblock"
+        if self.profile is PLCopenProfile.CODESYS:
+            self._codesys.append_call_type(block)
         self._coil(
             ld,
             "OTE",
@@ -1238,17 +1124,7 @@ class PLCopenExporter:
         enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
         ET.SubElement(enabled, _q(ns, "connectionPointOut"))
         if codesys:
-            add_data = ET.SubElement(block, _q(ns, "addData"))
-            data = ET.SubElement(
-                add_data,
-                _q(ns, "data"),
-                {
-                    "name": f"{CODESYS_NAMESPACE}/fbdcalltype",
-                    "handleUnknown": "implementation",
-                },
-            )
-            call_type = ET.SubElement(data, "CallType", {"xmlns": ""})
-            call_type.text = "action"
+            self._codesys.append_call_type(block, "action")
         right = ET.SubElement(
             ld, _q(ns, "rightPowerRail"), {"localId": str(self._id())}
         )
@@ -1282,136 +1158,6 @@ class PLCopenExporter:
         ET.SubElement(
             parent, _q(self.profile.namespace, "position"), {"x": "0", "y": "0"}
         )
-
-    def _append_object_id(self, parent: ET.Element, object_id: str) -> None:
-        add_data = ET.SubElement(parent, _q(self.profile.namespace, "addData"))
-        self._append_object_id_data(add_data, object_id)
-
-    def _append_object_id_data(self, add_data: ET.Element, object_id: str) -> None:
-        ns = self.profile.namespace
-        data = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/objectid",
-                "handleUnknown": "discard",
-            },
-        )
-        value = ET.SubElement(data, _q(ns, "ObjectId"))
-        value.text = object_id
-
-    def _codesys_project_structure(
-        self,
-        add_data: ET.Element,
-        controller: Controller,
-        has_global_variables: bool,
-    ) -> None:
-        ns = self.profile.namespace
-        data = ET.SubElement(
-            add_data,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/projectstructure",
-                "handleUnknown": "discard",
-            },
-        )
-        structure = ET.SubElement(data, _q(ns, "ProjectStructure"))
-        application = ET.SubElement(
-            structure,
-            _q(ns, "Object"),
-            {"Name": "Application", "ObjectId": self._codesys_id("Application")},
-        )
-        if self._timers or self._oneshots:
-            ET.SubElement(
-                application,
-                _q(ns, "Object"),
-                {
-                    "Name": "Library Manager",
-                    "ObjectId": self._codesys_id("Application/Library Manager"),
-                },
-            )
-        for program in controller.iter_programs():
-            program_object = ET.SubElement(
-                application,
-                _q(ns, "Object"),
-                {
-                    "Name": program.name,
-                    "ObjectId": self._codesys_id(f"Application/program/{program.name}"),
-                },
-            )
-            for routine in program.iter_routines():
-                if routine is program.main_routine:
-                    continue
-                ET.SubElement(
-                    program_object,
-                    _q(ns, "Object"),
-                    {
-                        "Name": routine.name,
-                        "ObjectId": self._codesys_id(
-                            f"Application/program/{program.name}/action/{routine.name}"
-                        ),
-                    },
-                )
-        for task in controller.iter_tasks():
-            ET.SubElement(
-                application,
-                _q(ns, "Object"),
-                {
-                    "Name": task.name,
-                    "ObjectId": self._codesys_id(f"Application/task/{task.name}"),
-                },
-            )
-        if has_global_variables:
-            ET.SubElement(
-                application,
-                _q(ns, "Object"),
-                {
-                    "Name": "ControllerTags",
-                    "ObjectId": self._codesys_id("Application/ControllerTags"),
-                },
-            )
-
-    def _codesys_standard_library(self, parent: ET.Element) -> None:
-        ns = self.profile.namespace
-        data = ET.SubElement(
-            parent,
-            _q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/libraries",
-                "handleUnknown": "implementation",
-            },
-        )
-        libraries = ET.SubElement(data, _q(ns, "Libraries"))
-        ET.SubElement(
-            libraries,
-            _q(ns, "Library"),
-            {
-                "Name": "#Standard",
-                "Namespace": "Standard",
-                "HideWhenReferencedAsDependency": "false",
-                "PublishSymbolsInContainer": "false",
-                "SystemLibrary": "false",
-                "LinkAllContent": "false",
-                "DefaultResolution": "Standard, * (System)",
-            },
-        )
-        redirections = ET.SubElement(libraries, _q(ns, "PlaceholderRedirections"))
-        ET.SubElement(
-            redirections,
-            _q(ns, "PlaceholderRedirection"),
-            {
-                "Placeholder": "Standard",
-                "Redirection": "Standard, 3.5.22.0 (System)",
-            },
-        )
-        self._append_object_id(
-            libraries, self._codesys_id("Application/Library Manager")
-        )
-
-    def _codesys_id(self, path: str) -> str:
-        if path not in self._codesys_ids:
-            self._codesys_ids[path] = str(uuid.uuid5(_CODESYS_ID_NAMESPACE, path))
-        return self._codesys_ids[path]
 
     def _prepare_operands(self, controller: Controller) -> None:
         tags = list(controller.tags.values())
@@ -1596,7 +1342,11 @@ class PLCopenExporter:
                                 f"ONS storage operand {storage_operand}"
                             ),
                             metadata={
-                                "plcopen_derived_type": "Standard.R_TRIG",
+                                "plcopen_derived_type": (
+                                    self._codesys.library_type("R_TRIG")
+                                    if self.profile is PLCopenProfile.CODESYS
+                                    else "R_TRIG"
+                                ),
                                 "rockwell_ons_storage": storage_operand,
                             },
                         )
@@ -1686,218 +1436,3 @@ class PLCopenExporter:
                 raw_value=raw_value,
             )
         )
-
-
-def validate_plcopen_xml(xml: str | bytes, schema_path: str | Path) -> None:
-    try:
-        import lxml.etree as etree
-    except ImportError as error:
-        raise PLCopenValidationUnavailable(
-            "XSD validation requires the optional 'lxml' package"
-        ) from error
-    schema = etree.XMLSchema(etree.parse(str(schema_path)))
-    document = etree.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml)
-    if not schema.validate(document):
-        messages = "; ".join(entry.message for entry in schema.error_log)
-        raise PLCopenValidationError(messages)
-
-
-def _parse_supported_rung(text: str | None) -> _ParsedBooleanRung | None:
-    if not text:
-        return None
-    source = text.strip()
-    if not source.endswith(";"):
-        return None
-    source = source[:-1].strip()
-    branches: tuple[tuple[tuple[str, str], ...], ...] = ()
-    if source.startswith("["):
-        closing = _branch_closing_index(source)
-        if closing is None:
-            return None
-        branch_text = source[1:closing]
-        branch_parts = _split_branch_paths(branch_text)
-        if len(branch_parts) < 2:
-            return None
-        parsed_branches: list[tuple[tuple[str, str], ...]] = []
-        for part in branch_parts:
-            branch = _parse_instruction_sequence(part)
-            if not branch or any(opcode not in {"XIC", "XIO"} for opcode, _ in branch):
-                return None
-            parsed_branches.append(tuple(branch))
-        branches = tuple(parsed_branches)
-        source = source[closing + 1 :].strip()
-
-    instructions = _parse_instruction_sequence(source)
-    if not instructions:
-        return None
-    tail_conditions: list[tuple[str, str]] = []
-    outputs: list[tuple[str, str]] = []
-    output_seen = False
-    for opcode, operand in instructions:
-        if opcode in {"XIC", "XIO"} and output_seen:
-            return None
-        if opcode in {
-            "OTE",
-            "OTL",
-            "OTU",
-            "TON",
-            "RES",
-            *_VALUE_BLOCK_TYPES,
-        }:
-            output_seen = True
-            outputs.append((opcode, operand))
-        else:
-            tail_conditions.append((opcode, operand))
-    if not outputs:
-        return None
-    return _ParsedBooleanRung(
-        branches=branches,
-        tail_conditions=tuple(tail_conditions),
-        outputs=tuple(outputs),
-    )
-
-
-def _parse_instruction_sequence(text: str) -> list[tuple[str, str]] | None:
-    position = 0
-    instructions: list[tuple[str, str]] = []
-    while position < len(text):
-        match = _RLL_INSTRUCTION.match(text, position)
-        if match is None:
-            return None
-        operand = match.group(2).strip()
-        if not operand:
-            return None
-        opcode = match.group(1)
-        if opcode in _COMPARISON_TYPES and len(_split_arguments(operand)) != 2:
-            return None
-        if opcode == "TON" and len(_split_arguments(operand)) != 3:
-            return None
-        if opcode == "RES" and "," in operand:
-            return None
-        if opcode == "ONS" and "," in operand:
-            return None
-        if opcode == "MOV" and len(_split_arguments(operand)) != 2:
-            return None
-        if (
-            opcode in {"ADD", "SUB", "MUL", "DIV"}
-            and len(_split_arguments(operand)) != 3
-        ):
-            return None
-        instructions.append((opcode, operand))
-        position = match.end()
-    return instructions
-
-
-def _branch_closing_index(text: str) -> int | None:
-    parenthesis_depth = 0
-    for index, character in enumerate(text[1:], start=1):
-        if character == "(":
-            parenthesis_depth += 1
-        elif character == ")":
-            parenthesis_depth -= 1
-        elif character == "[" and parenthesis_depth == 0:
-            return None
-        elif character == "]" and parenthesis_depth == 0:
-            return index
-    return None
-
-
-def _split_branch_paths(text: str) -> list[str]:
-    paths: list[str] = []
-    start = 0
-    parenthesis_depth = 0
-    for index, character in enumerate(text):
-        if character == "(":
-            parenthesis_depth += 1
-        elif character == ")":
-            parenthesis_depth -= 1
-        elif character == "," and parenthesis_depth == 0:
-            paths.append(text[start:index].strip())
-            start = index + 1
-    paths.append(text[start:].strip())
-    return paths
-
-
-def _split_arguments(text: str) -> list[str]:
-    arguments = [argument.strip() for argument in text.split(",")]
-    return arguments if all(arguments) else []
-
-
-def _parse_jsr(text: str | None) -> str | None:
-    if not text:
-        return None
-    match = _JSR_INSTRUCTION.fullmatch(text)
-    if match is None:
-        return None
-    return match.group(1).strip()
-
-
-def _unique_portable_name(operand: str, existing_names: set[str]) -> str:
-    base = "TF_" + re.sub(r"\W+", "_", operand).strip("_")
-    if not base or base == "TF_":
-        base = "TF_Operand"
-    candidate = base
-    suffix = 2
-    while candidate in existing_names:
-        candidate = f"{base}_{suffix}"
-        suffix += 1
-    return candidate
-
-
-def _milliseconds_duration(milliseconds: int) -> str:
-    seconds = milliseconds / 1000
-    return f"PT{seconds:g}S"
-
-
-def _milliseconds_time_literal(milliseconds: int) -> str:
-    return f"TIME#{milliseconds}ms"
-
-
-def _plcopen_scalar_value(tag: Tag) -> str:
-    initial_value = tag.initial_value
-    if initial_value is None:
-        raise ValueError(f"tag {tag.name!r} has no initial value")
-    if initial_value.data_type == "BOOL":
-        return "TRUE" if initial_value.value else "FALSE"
-    return initial_value.lexical_value
-
-
-def _timer_member_integer(tag: Tag, member_name: str) -> int | None:
-    for extension in tag.source_extensions:
-        if extension.format.lower() != "l5x":
-            continue
-        for data in extension.root.children:
-            if data.name != "Data" or data.attributes.get("Format") != "Decorated":
-                continue
-            for structure in data.children:
-                if structure.name != "Structure":
-                    continue
-                for member in structure.children:
-                    if (
-                        member.name == "DataValueMember"
-                        and member.attributes.get("Name") == member_name
-                    ):
-                        try:
-                            return int(member.attributes["Value"])
-                        except (KeyError, ValueError):
-                            return None
-    return None
-
-
-def _codesys_task_kind(task_type: str | None) -> str:
-    if task_type and task_type.lower() == "continuous":
-        return "Freewheeling"
-    if task_type and task_type.lower() == "event":
-        return "Event"
-    return "Cyclic"
-
-
-def _variable_add_data(variable: ET.Element, namespace: str) -> ET.Element:
-    add_data = variable.find(_q(namespace, "addData"))
-    if add_data is None:
-        add_data = ET.SubElement(variable, _q(namespace, "addData"))
-    return add_data
-
-
-def _q(namespace: str, name: str) -> str:
-    return f"{{{namespace}}}{name}"

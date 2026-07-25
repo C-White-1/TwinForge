@@ -2,12 +2,15 @@
 L5X parser package.
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .capture import (
     CapturedSection,
     capture_section,
 )
+
+if TYPE_CHECKING:
+    from .parser import L5XParser
 
 __all__ = [
     "L5XParser",

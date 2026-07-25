@@ -39,7 +39,9 @@ def test_sample_program_and_routines_are_captured_recursively():
     assert "RLLContent" in routines[0].elements
     rungs = routines[0].elements["RLLContent"][0].elements["Rung"]
     assert rungs[0].attributes == {"Number": "0", "Type": "N"}
-    assert "JSR(R00_AnalogAlarms,0);" in rungs[0].elements["Text"][0].text
+    rung_text = rungs[0].elements["Text"][0].text
+    assert rung_text is not None
+    assert "JSR(R00_AnalogAlarms,0);" in rung_text
 
 
 def test_program_source_extension_preserves_routine_logic_content():
@@ -60,4 +62,6 @@ def test_program_source_extension_preserves_routine_logic_content():
     assert main_routine.attributes == {"Name": "MainRoutine", "Type": "RLL"}
     assert rll_content.name == "RLLContent"
     assert rll_content.children[0].name == "Rung"
-    assert "JSR(R00_AnalogAlarms,0);" in rll_content.children[0].children[1].text
+    source_text = rll_content.children[0].children[1].text
+    assert source_text is not None
+    assert "JSR(R00_AnalogAlarms,0);" in source_text

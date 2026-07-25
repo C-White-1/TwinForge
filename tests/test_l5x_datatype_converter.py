@@ -67,7 +67,9 @@ def test_parser_converts_datatypes_and_resolves_tag_and_member_references(tmp_pa
     assert motor_type.members[0].source_extensions[0].root.attributes["Future"] == "keep"
 
     controller_tag = controller.get_tag("Motor")
-    program_tag = controller.get_program("Main").get_tag("Alarm")
+    program = controller.get_program("Main")
+    assert program is not None
+    program_tag = program.get_tag("Alarm")
     assert controller_tag is not None
     assert program_tag is not None
     assert controller_tag.data_type_definition is motor_type

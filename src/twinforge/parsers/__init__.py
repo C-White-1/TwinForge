@@ -1,6 +1,9 @@
 """Importers and file parsers."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .l5x.parser import L5XParser
 
 __all__ = [
     "L5XParser",

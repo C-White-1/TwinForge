@@ -69,6 +69,7 @@ def test_parser_converts_all_sample_controller_tags():
         "L5K",
         "Decorated",
     ]
+    assert data_nodes[0].text is not None
     assert data_nodes[0].text.strip() == "0"
     assert data_nodes[1].children[0].attributes["Value"] == "0"
     assert parser.diagnostics == []

@@ -113,6 +113,7 @@ def test_controller_security_primary_action_sets_are_nested_sections():
         "PermissionSet": "Guest",
         "IsPermissionSet": "true",
     }
+    assert action_set.text is not None
     assert "encoded_permissions" in action_set.text
 
 
@@ -290,8 +291,9 @@ def test_parser_can_suppress_reporting(capsys):
     chassis = controller.get_chassis("Local Chassis")
     assert chassis is not None
     assert len(chassis.modules) == 7
-    assert chassis.get_module(2) is not None
-    assert chassis.get_module(2).catalog == "1756-IB16"
+    module = chassis.get_module(2)
+    assert module is not None
+    assert module.catalog == "1756-IB16"
     assert plant.source_extensions[0].root.name == "RSLogix5000Content"
     assert plant.source_extensions[0].root.attributes["Owner"] == "PLC PRO"
 

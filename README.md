@@ -14,13 +14,16 @@ tests/data/basic/BoosterCompressor_20260128.L5X
 
 Current results:
 
-- 90 automated tests pass;
+- 94 automated tests pass;
 - all 134 RLL rungs and 474 instruction occurrences in the fixture convert;
 - generated CODESYS PLCopen XML imports and precompiles with zero errors;
 - standard PLCopen XML validates against the PLCopen 2.01 XSD;
 - generated AutomationML loads in AutomationML Editor;
 - AutomationML validates against the CAEX 3.0 XSD; and
-- local and external AutomationML class, link and document references resolve.
+- local and external AutomationML class, link and document references resolve;
+  and
+- Pyright reports zero errors and warnings for the maintained package, tests
+  and examples.
 
 These results establish the tested boundary for this fixture. They are not a
 claim of universal L5X or IEC 61131-3 compatibility.
@@ -78,6 +81,17 @@ Run tests:
 ```powershell
 uv run pytest
 ```
+
+Run static type checking:
+
+```powershell
+uv run pyright
+```
+
+Pyright uses `standard` mode for `src/twinforge`, `tests`, and maintained
+examples. Historical `src/test*.py` experiments and the legacy
+`examples/build_twin.py` live-discovery sketch are excluded until their
+underlying APIs are implemented.
 
 Generate PLCopen XML:
 

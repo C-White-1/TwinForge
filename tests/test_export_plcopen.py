@@ -24,6 +24,26 @@ FIXED_TIME = datetime(2026, 7, 23, tzinfo=timezone.utc)
 SAMPLE_L5X = Path(__file__).parent / "data/basic/BoosterCompressor_20260128.L5X"
 
 
+def _find(
+    parent: ET.Element,
+    path: str,
+    namespaces: dict[str, str],
+) -> ET.Element:
+    """Find a required XML element and narrow its optional return type."""
+
+    element = parent.find(path, namespaces)
+    assert element is not None, f"missing XML element: {path}"
+    return element
+
+
+def _main_routine(program: Program) -> Routine:
+    """Return the required main routine used by exporter test fixtures."""
+
+    routine = program.main_routine
+    assert routine is not None
+    return routine
+
+
 def _controller() -> Controller:
     controller = Controller(name="TestPLC", identity=Identity())
     controller.add_tag(Tag(name="gEnable", data_type="BOOL", description="Enable"))
@@ -84,7 +104,11 @@ def test_standard_profile_exports_program_variables_task_and_ld() -> None:
     )
     assert task is not None
     assert task.attrib["interval"] == "PT0.02S"
-    assert task.find("p:pouInstance[@name='PLC_PRG']", ns).attrib["typeName"] == "PLC_PRG"
+    assert _find(
+        task,
+        "p:pouInstance[@name='PLC_PRG']",
+        ns,
+    ).attrib["typeName"] == "PLC_PRG"
 
     contact = root.find(".//p:contact[p:variable='gEnable']", ns)
     negated_contact = root.find(".//p:contact[p:variable='Stop']", ns)
@@ -95,13 +119,24 @@ def test_standard_profile_exports_program_variables_task_and_ld() -> None:
     assert result.diagnostics == []
 
 
+def test_standard_profile_does_not_emit_codesys_extensions() -> None:
+    """Target-neutral output must not inherit CODESYS project conventions."""
+
+    result = _export(PLCopenProfile.STANDARD_201)
+
+    assert "www.3s-software.com" not in result.xml
+    assert "ProjectStructure" not in result.xml
+    assert "TaskSettings" not in result.xml
+    assert "Standard." not in result.xml
+
+
 def test_codesys_profile_wraps_application_content_in_add_data() -> None:
     result = _export(PLCopenProfile.CODESYS)
     ns = {"p": PLCOPEN_CODESYS_NAMESPACE}
     root = ET.fromstring(result.xml)
 
     assert root.find("p:types/p:pous", ns) is not None
-    assert list(root.find("p:types/p:pous", ns)) == []
+    assert list(_find(root, "p:types/p:pous", ns)) == []
     application = root.find(
         "p:addData/p:data[@name='http://www.3s-software.com/plcopenxml/application']",
         ns,
@@ -136,7 +171,7 @@ def test_codesys_profile_wraps_application_content_in_add_data() -> None:
 def test_codesys_profile_exports_routines_as_actions_and_jsr_as_action_call() -> None:
     controller = _controller()
     program = controller.programs["PLC_PRG"]
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(number=0, text="JSR(ReadInputs,0);")
     ]
     action_routine = Routine(name="ReadInputs", language="RLL")
@@ -191,7 +226,7 @@ def test_codesys_profile_exports_routines_as_actions_and_jsr_as_action_call() ->
 
 def test_unresolved_jsr_is_preserved_and_diagnosed() -> None:
     controller = _controller()
-    controller.programs["PLC_PRG"].main_routine.ladder_rungs = [
+    _main_routine(controller.programs["PLC_PRG"]).ladder_rungs = [
         LadderRung(number=0, text="JSR(MissingRoutine,0);")
     ]
     result = PLCopenExporter(PLCopenProfile.CODESYS).export(
@@ -206,7 +241,7 @@ def test_unresolved_jsr_is_preserved_and_diagnosed() -> None:
 
 def test_unsupported_rung_is_preserved_as_non_executable_text() -> None:
     controller = _controller()
-    controller.programs["PLC_PRG"].main_routine.ladder_rungs = [
+    _main_routine(controller.programs["PLC_PRG"]).ladder_rungs = [
         LadderRung(number=0, text="CPT(Destination,Value);")
     ]
     result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
@@ -220,7 +255,7 @@ def test_aliases_are_portable_and_unsupported_types_are_diagnosed() -> None:
     controller = _controller()
     controller.add_tag(Tag(name="Motor", data_type="MOTOR_UDT"))
     controller.add_tag(Tag(name="Alias", alias_for="Local:1:I.Data.0"))
-    controller.programs["PLC_PRG"].main_routine.ladder_rungs = [
+    _main_routine(controller.programs["PLC_PRG"]).ladder_rungs = [
         LadderRung(number=0, text="XIC(Local:1:I.Data.0)OTE(xRunning);")
     ]
     result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
@@ -237,7 +272,7 @@ def test_aliases_are_portable_and_unsupported_types_are_diagnosed() -> None:
 
 def test_raw_logix_operand_gets_deterministic_portable_variable() -> None:
     controller = _controller()
-    controller.programs["PLC_PRG"].main_routine.ladder_rungs = [
+    _main_routine(controller.programs["PLC_PRG"]).ladder_rungs = [
         LadderRung(number=0, text="XIC(Local:2:I.Data.7)OTE(xRunning);")
     ]
     result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
@@ -254,7 +289,7 @@ def test_otl_and_otu_export_as_set_and_reset_coils() -> None:
     controller = _controller()
     program = controller.programs["PLC_PRG"]
     program.add_tag(Tag(name="Latch", data_type="BOOL"))
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(number=0, text="XIC(gEnable)OTL(Latch);"),
         LadderRung(number=1, text="XIO(gEnable)OTU(Latch);"),
     ]
@@ -278,7 +313,7 @@ def test_multiple_output_coils_share_condition_instead_of_chaining() -> None:
     program = controller.programs["PLC_PRG"]
     program.add_tag(Tag(name="First", data_type="BOOL"))
     program.add_tag(Tag(name="Second", data_type="BOOL"))
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(number=0, text="XIC(gEnable)OTU(First)OTU(Second);")
     ]
     result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
@@ -292,10 +327,12 @@ def test_multiple_output_coils_share_condition_instead_of_chaining() -> None:
     assert first is not None
     assert second is not None
     expected = contact.attrib["localId"]
-    assert first.find(
+    assert _find(
+        first,
         "p:connectionPointIn/p:connection", ns
     ).attrib["refLocalId"] == expected
-    assert second.find(
+    assert _find(
+        second,
         "p:connectionPointIn/p:connection", ns
     ).attrib["refLocalId"] == expected
 
@@ -305,7 +342,7 @@ def test_parallel_paths_merge_before_serial_tail_and_outputs() -> None:
     program = controller.programs["PLC_PRG"]
     for name in ("Start", "Remote", "Stop", "Permissive", "Run", "Latched"):
         program.add_tag(Tag(name=name, data_type="BOOL"))
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(
             number=0,
             text=(
@@ -317,26 +354,28 @@ def test_parallel_paths_merge_before_serial_tail_and_outputs() -> None:
     result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
     ns = {"p": PLCOPEN_201_NAMESPACE}
     root = ET.fromstring(result.xml)
-    rail = root.find(".//p:leftPowerRail", ns)
-    start = root.find(".//p:contact[p:variable='Start']", ns)
-    remote = root.find(".//p:contact[p:variable='Remote']", ns)
-    stop = root.find(".//p:contact[p:variable='Stop']", ns)
-    permissive = root.find(".//p:contact[p:variable='Permissive']", ns)
-    run = root.find(".//p:coil[p:variable='Run']", ns)
-    latched = root.find(".//p:coil[p:variable='Latched']", ns)
-
-    assert all(
-        element is not None
-        for element in (rail, start, remote, stop, permissive, run, latched)
+    rail = _find(root, ".//p:leftPowerRail", ns)
+    start = _find(root, ".//p:contact[p:variable='Start']", ns)
+    remote = _find(root, ".//p:contact[p:variable='Remote']", ns)
+    stop = _find(root, ".//p:contact[p:variable='Stop']", ns)
+    permissive = _find(
+        root,
+        ".//p:contact[p:variable='Permissive']",
+        ns,
     )
+    run = _find(root, ".//p:coil[p:variable='Run']", ns)
+    latched = _find(root, ".//p:coil[p:variable='Latched']", ns)
     rail_id = rail.attrib["localId"]
-    assert start.find(
+    assert _find(
+        start,
         "p:connectionPointIn/p:connection", ns
     ).attrib["refLocalId"] == rail_id
-    assert remote.find(
+    assert _find(
+        remote,
         "p:connectionPointIn/p:connection", ns
     ).attrib["refLocalId"] == rail_id
-    assert stop.find(
+    assert _find(
+        stop,
         "p:connectionPointIn/p:connection", ns
     ).attrib["refLocalId"] == remote.attrib["localId"]
     merge_refs = {
@@ -347,7 +386,8 @@ def test_parallel_paths_merge_before_serial_tail_and_outputs() -> None:
     }
     assert merge_refs == {start.attrib["localId"], stop.attrib["localId"]}
     for coil in (run, latched):
-        assert coil.find(
+        assert _find(
+            coil,
             "p:connectionPointIn/p:connection", ns
         ).attrib["refLocalId"] == permissive.attrib["localId"]
 
@@ -359,7 +399,7 @@ def test_comparison_operator_drives_downstream_ladder_condition() -> None:
     program.add_tag(Tag(name="Limit", data_type="REAL"))
     program.add_tag(Tag(name="Enable", data_type="BOOL"))
     program.add_tag(Tag(name="Alarm", data_type="BOOL"))
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(
             number=0,
             text="GRT(Pressure,Limit)XIC(Enable)OTE(Alarm);",
@@ -404,12 +444,14 @@ def test_comparison_operator_drives_downstream_ladder_condition() -> None:
     connection = result_contact.find(
         "p:connectionPointIn/p:connection", ns
     )
+    assert connection is not None
     rail = root.find(".//p:leftPowerRail", ns)
     assert rail is not None
     assert connection.attrib == {"refLocalId": rail.attrib["localId"]}
     enable_connection = enable_contact.find(
         "p:connectionPointIn/p:connection", ns
     )
+    assert enable_connection is not None
     assert enable_connection.attrib == {
         "refLocalId": result_contact.attrib["localId"]
     }
@@ -492,7 +534,8 @@ def test_codesys_profile_exports_logix_ton_instances_and_presets() -> None:
         variable.attrib["formalParameter"]
         for variable in prelube.findall("p:outputVariables/p:variable", ns)
     ] == ["ENO", "Q", "ET"]
-    preset_reference = prelube.find(
+    preset_reference = _find(
+        prelube,
         "p:inputVariables/p:variable[@formalParameter='PT']/"
         "p:connectionPointIn/p:connection",
         ns,
@@ -519,7 +562,7 @@ def test_codesys_profile_exports_standalone_res_as_false_ton_call() -> None:
     controller = _controller()
     controller.add_tag(Tag(name="ResettableTimer", data_type="TIMER"))
     program = controller.programs["PLC_PRG"]
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(number=0, text="XIC(gEnable)RES(ResettableTimer);")
     ]
 
@@ -531,7 +574,8 @@ def test_codesys_profile_exports_standalone_res_as_false_ton_call() -> None:
     block = root.find(".//p:block[@instanceName='ResettableTimer']", ns)
 
     assert block is not None
-    input_reference = block.find(
+    input_reference = _find(
+        block,
         "p:inputVariables/p:variable[@formalParameter='IN']/"
         "p:connectionPointIn/p:connection",
         ns,
@@ -545,7 +589,7 @@ def test_codesys_profile_exports_standalone_res_as_false_ton_call() -> None:
 def test_value_blocks_preserve_left_to_right_execution_order() -> None:
     controller = _controller()
     program = controller.programs["PLC_PRG"]
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(
             number=0,
             text=(
@@ -564,17 +608,12 @@ def test_value_blocks_preserve_left_to_right_execution_order() -> None:
     )
     ns = {"p": PLCOPEN_CODESYS_NAMESPACE}
     root = ET.fromstring(result.xml)
-    move = root.find(".//p:block[@typeName='MOVE']", ns)
-    add = root.find(".//p:block[@typeName='ADD']", ns)
-    subtract = root.find(".//p:block[@typeName='SUB']", ns)
-    multiply = root.find(".//p:block[@typeName='MUL']", ns)
-    divide = root.find(".//p:block[@typeName='DIV']", ns)
-    coil = root.find(".//p:coil[p:variable='xRunning']", ns)
-
-    assert all(
-        element is not None
-        for element in (move, add, subtract, multiply, divide, coil)
-    )
+    move = _find(root, ".//p:block[@typeName='MOVE']", ns)
+    add = _find(root, ".//p:block[@typeName='ADD']", ns)
+    subtract = _find(root, ".//p:block[@typeName='SUB']", ns)
+    multiply = _find(root, ".//p:block[@typeName='MUL']", ns)
+    divide = _find(root, ".//p:block[@typeName='DIV']", ns)
+    coil = _find(root, ".//p:coil[p:variable='xRunning']", ns)
     assert [
         variable.attrib["formalParameter"]
         for variable in move.findall("p:inputVariables/p:variable", ns)
@@ -588,6 +627,7 @@ def test_value_blocks_preserve_left_to_right_execution_order() -> None:
         "p:connectionPointIn/p:connection",
         ns,
     )
+    assert add_enable is not None
     assert add_enable.attrib == {
         "refLocalId": move.attrib["localId"],
         "formalParameter": "ENO",
@@ -599,6 +639,7 @@ def test_value_blocks_preserve_left_to_right_execution_order() -> None:
             "p:connectionPointIn/p:connection",
             ns,
         )
+        assert enable_connection is not None
         assert enable_connection.attrib == {
             "refLocalId": preceding.attrib["localId"],
             "formalParameter": "ENO",
@@ -607,6 +648,7 @@ def test_value_blocks_preserve_left_to_right_execution_order() -> None:
     coil_connection = coil.find(
         "p:connectionPointIn/p:connection", ns
     )
+    assert coil_connection is not None
     assert coil_connection.attrib == {
         "refLocalId": divide.attrib["localId"],
         "formalParameter": "ENO",
@@ -617,7 +659,7 @@ def test_ons_uses_native_r_trig_and_nop_is_intentional() -> None:
     controller = _controller()
     controller.add_tag(Tag(name="OneShotStorage", data_type="BOOL"))
     program = controller.programs["PLC_PRG"]
-    program.main_routine.ladder_rungs = [
+    _main_routine(program).ladder_rungs = [
         LadderRung(
             number=0,
             text="XIC(gEnable)ONS(OneShotStorage)ADD(gCount,1,gCount);",

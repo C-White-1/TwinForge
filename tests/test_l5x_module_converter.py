@@ -1,15 +1,19 @@
 from pathlib import Path
+from collections.abc import Mapping
 import xml.etree.ElementTree as ET
 
 from twinforge.converters.l5x import convert_module
 from twinforge.model import (
     EngineeringUnitConfidence,
     EngineeringUnitSource,
+    EngineeringRangeEvidence,
+    Identity,
     IODirection,
     IOSignalType,
     KeyingMode,
+    ModuleCapability,
 )
-from twinforge.parsers.l5x.capture import capture_section
+from twinforge.parsers.l5x.capture import CapturedSection, capture_section
 from twinforge.schema.l5x.modules import MODULE_ATTRIBUTES, MODULE_ELEMENTS
 
 
@@ -162,3 +166,37 @@ def test_non_numeric_address_is_preserved_without_inventing_a_slot():
     assert module.slot is None
     assert module.address == "192.0.2.10"
     assert convert_module(section, slot=3).slot == 3
+
+
+def test_accepts_an_injected_module_capability_provider():
+    """Vendor knowledge can be extended without changing module orchestration."""
+
+    class ExampleCapabilityProvider:
+        def infer(
+            self,
+            module: CapturedSection,
+            identity: Identity,
+            engineering_ranges: Mapping[str, EngineeringRangeEvidence],
+        ) -> ModuleCapability:
+            assert module.attributes["CatalogNumber"] == "XYZ"
+            return ModuleCapability(
+                signal_type=IOSignalType.DIGITAL,
+                direction=IODirection.INPUT,
+                nominal_channel_count=4,
+                configured_channel_count=3,
+                source="test_provider",
+            )
+
+    section = _capture_module(
+        '<Module Name="ThirdParty" CatalogNumber="XYZ" Vendor="37" />'
+    )
+
+    module = convert_module(
+        section,
+        capability_providers=(ExampleCapabilityProvider(),),
+    )
+
+    assert module.capability is not None
+    assert module.capability.nominal_channel_count == 4
+    assert module.capability.configured_channel_count == 3
+    assert module.capability.source == "test_provider"

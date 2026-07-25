@@ -72,6 +72,13 @@ Validation has two layers:
 2. TwinForge resolves local/external class paths, unique IDs, internal-link
    endpoints and PLCopen document references.
 
+These layers are implemented independently. CAEX XSD validation does not
+perform filesystem or class-reference resolution, while semantic validation
+does not substitute for schema validation. Hierarchy construction,
+class-library generation, signal/I/O generation and deterministic identity are
+also separate exporter components behind the stable `AutomationMLExporter`
+façade.
+
 The generated file has also loaded successfully in AutomationML Editor.
 
 ## Editor review checklist

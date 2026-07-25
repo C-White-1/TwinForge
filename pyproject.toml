@@ -24,8 +24,27 @@ package-dir = {"" = "src"}
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pyright]
+include = [
+    "src/twinforge",
+    "tests",
+    "examples",
+]
+exclude = [
+    "src/test*.py",
+    # Legacy live-discovery example for an API that is not implemented yet.
+    "examples/build_twin.py",
+    "reference",
+]
+pythonVersion = "3.10"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = "none"
+
 [dependency-groups]
 dev = [
+    "pyright>=1.1.411",
     "pytest>=8.4.1",
     "ruff>=0.15.20",
 ]
