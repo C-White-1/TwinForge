@@ -28,7 +28,7 @@ jobs:
         run: uv python install 3.10
 
       - name: Install dependencies
-        run: uv sync --locked
+        run: uv sync --locked --extra validation
 
       - name: Lint
         run: uv run ruff check src tests examples
