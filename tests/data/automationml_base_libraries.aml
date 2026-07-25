@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Minimal synthetic AutomationML base-library fixture for semantic tests.
+This is not a copy of the official AutomationML base-library document.
+-->
+<CAEXFile xmlns="http://www.dke.de/CAEX"
+          SchemaVersion="3.0"
+          FileName="automationml_base_libraries.aml">
+  <InterfaceClassLib Name="AutomationMLInterfaceClassLib">
+    <InterfaceClass Name="AutomationMLBaseInterface">
+      <InterfaceClass Name="Communication">
+        <InterfaceClass Name="SignalInterface" />
+      </InterfaceClass>
+      <InterfaceClass Name="ExternalDataConnector">
+        <InterfaceClass Name="PLCopenXMLInterface" />
+      </InterfaceClass>
+    </InterfaceClass>
+  </InterfaceClassLib>
+  <RoleClassLib Name="AutomationMLBaseRoleClassLib">
+    <RoleClass Name="AutomationMLBaseRole">
+      <RoleClass Name="Resource" />
+    </RoleClass>
+  </RoleClassLib>
+  <AttributeTypeLib Name="AutomationMLBaseAttributeTypeLib">
+    <AttributeType Name="Direction" AttributeDataType="xs:string" />
+    <AttributeType Name="refURI" AttributeDataType="xs:string" />
+  </AttributeTypeLib>
+</CAEXFile>

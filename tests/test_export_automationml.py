@@ -27,7 +27,12 @@ def _find(
     return element
 
 
-def _export():
+def _export(
+    base_library_path: str = (
+        "../../reference/AutomationML/"
+        "AutomationML2.10BaseLibraries.aml"
+    ),
+):
     controller = L5XParser().parse(
         SAMPLE_L5X, report_mode=None
     ).controllers[0]
@@ -35,10 +40,7 @@ def _export():
         controller,
         project_name="Booster Compressor",
         plcopen_path="../PLCOpenXML/BoosterCompressor_codesys.xml",
-        base_library_path=(
-            "../../reference/AutomationML/"
-            "AutomationML2.10BaseLibraries.aml"
-        ),
+        base_library_path=base_library_path,
         last_writing_time=FIXED_TIME,
     )
 
@@ -323,7 +325,11 @@ def test_generated_document_validates_against_local_caex_schema():
 
 
 def test_generated_document_resolves_all_local_and_external_references():
-    result = _export()
+    # Use a tracked, minimal fixture here so the semantic validator is tested
+    # in clean clones without redistributing the official reference library.
+    result = _export(
+        "../../tests/data/automationml_base_libraries.aml"
+    )
     destination = (
         Path(__file__).parents[1]
         / "examples/AutomationML/BoosterCompressor.aml"
