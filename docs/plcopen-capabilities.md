@@ -296,5 +296,5 @@ For standard PLCopen XML:
   path\to\project.L5X `
   path\to\project_plcopen.xml `
   --profile standard_201 `
-  --xsd reference\PLCopenXML\tc6_xml_v201.xsd
+  --xsd reference\PLCopenXML\standard\tc6_xml_v201.xsd
 ```

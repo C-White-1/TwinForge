@@ -31,7 +31,6 @@ include = [
     "examples",
 ]
 exclude = [
-    "src/test*.py",
     # Legacy live-discovery example for an API that is not implemented yet.
     "examples/build_twin.py",
     "reference",

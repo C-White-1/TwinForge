@@ -89,9 +89,8 @@ uv run pyright
 ```
 
 Pyright uses `standard` mode for `src/twinforge`, `tests`, and maintained
-examples. Historical `src/test*.py` experiments and the legacy
-`examples/build_twin.py` live-discovery sketch are excluded until their
-underlying APIs are implemented.
+examples. The legacy `examples/build_twin.py` live-discovery sketch is excluded
+until its underlying API is implemented.
 
 Generate PLCopen XML:
 
