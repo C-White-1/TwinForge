@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Reduced from the observed RTC_PulseGen Studio 5000 v35 export. -->
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="RTC_PulseGen" TargetType="AddOnInstructionDefinition"
+ ContainsContext="true">
+  <Controller Use="Context" Name="RtcFixture">
+    <DataTypes Use="Context"/>
+    <AddOnInstructionDefinitions Use="Context">
+      <AddOnInstructionDefinition Use="Target" Name="RTC_PulseGen"
+       Revision="1.0" Vendor="Jeremy Medders"
+       ExecutePrescan="true" ExecutePostscan="false"
+       ExecuteEnableInFalse="false">
+        <Parameters>
+          <Parameter Name="EnableIn" DataType="BOOL" Usage="Input"/>
+          <Parameter Name="EnableOut" DataType="BOOL" Usage="Output"/>
+          <Parameter Name="Inp_Enable" DataType="BOOL" Usage="Input">
+            <DefaultData Format="Decorated">
+              <DataValue DataType="BOOL" Value="0"/>
+            </DefaultData>
+          </Parameter>
+          <Parameter Name="Inp_Interval" DataType="DINT" Usage="Input">
+            <DefaultData Format="Decorated">
+              <DataValue DataType="DINT" Value="1000"/>
+            </DefaultData>
+          </Parameter>
+          <Parameter Name="Sts_Enabled" DataType="BOOL" Usage="Output"/>
+          <Parameter Name="Out" DataType="BOOL" Usage="Output"/>
+        </Parameters>
+        <LocalTags>
+          <LocalTag Name="OSR" DataType="BOOL"/>
+          <LocalTag Name="TStart" DataType="LINT"/>
+          <LocalTag Name="TNow" DataType="LINT"/>
+        </LocalTags>
+        <Routines>
+          <Routine Name="Logic" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[GSV(WallClockTime, , CurrentValue, TNow);]]></Line>
+              <Line Number="1"><![CDATA[IF (Inp_Enable & NOT OSR OR Out) THEN]]></Line>
+              <Line Number="2"><![CDATA[    TStart := TNow;]]></Line>
+              <Line Number="3"><![CDATA[END_IF;]]></Line>
+              <Line Number="4"><![CDATA[OSR := Inp_Enable;]]></Line>
+              <Line Number="5"><![CDATA[Sts_Enabled := Inp_Enable;]]></Line>
+              <Line Number="6"><![CDATA[Out := Inp_Enable & (TNow - TStart >= Inp_Interval * 1000);]]></Line>
+            </STContent>
+          </Routine>
+          <Routine Name="Prescan" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[OSR := 0;]]></Line>
+              <Line Number="1"><![CDATA[Out := 0;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+  </Controller>
+</RSLogix5000Content>

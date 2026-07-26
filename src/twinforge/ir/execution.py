@@ -14,6 +14,7 @@ from .model import (
     IRIfBranch,
     IRReference,
     IRReusableUnit,
+    IRRoutineRole,
     IRUnitKind,
 )
 
@@ -35,7 +36,19 @@ def apply_aoi_execution_semantics(unit: IRReusableUnit) -> IRReusableUnit:
     )
     diagnostics = list(unit.diagnostics)
     diagnostics.extend(_unmapped_lifecycle_diagnostics(unit))
-    if enable_in is None or enable_out is None or not unit.routines:
+    primary_index = next(
+        (
+            index
+            for index, routine in enumerate(unit.routines)
+            if routine.role is IRRoutineRole.PRIMARY
+        ),
+        None,
+    )
+    if (
+        enable_in is None
+        or enable_out is None
+        or primary_index is None
+    ):
         diagnostics.append(
             IRDiagnostic(
                 "aoi_enable_interface_unavailable",
@@ -46,7 +59,15 @@ def apply_aoi_execution_semantics(unit: IRReusableUnit) -> IRReusableUnit:
         )
         return replace(unit, diagnostics=tuple(diagnostics))
 
-    primary = unit.routines[0]
+    primary = unit.routines[primary_index]
+    enable_in_false = next(
+        (
+            routine
+            for routine in unit.routines
+            if routine.role is IRRoutineRole.ENABLE_IN_FALSE
+        ),
+        None,
+    )
     span = primary.statements[0].span if primary.statements else SourceSpan(0, 0)
     propagation = IRAssignment(
         span=span,
@@ -74,7 +95,14 @@ def apply_aoi_execution_semantics(unit: IRReusableUnit) -> IRReusableUnit:
                 statements=primary.statements,
             ),
         ),
-        else_statements=(),
+        else_statements=(
+            enable_in_false.statements
+            if (
+                unit.lifecycle.enable_in_false_enabled
+                and enable_in_false is not None
+            )
+            else ()
+        ),
     )
     transformed_primary = replace(
         primary,
@@ -100,10 +128,23 @@ def apply_aoi_execution_semantics(unit: IRReusableUnit) -> IRReusableUnit:
             ),
         )
     )
+    if (
+        unit.lifecycle.enable_in_false_enabled
+        and enable_in_false is not None
+    ):
+        diagnostics.append(
+            IRDiagnostic(
+                "enable_in_false_mapped",
+                "mapped enabled EnableInFalse logic to the false branch",
+                span,
+            )
+        )
+    routines = list(unit.routines)
+    routines[primary_index] = transformed_primary
     return replace(
         unit,
         kind=IRUnitKind.FUNCTION_BLOCK,
-        routines=(transformed_primary, *unit.routines[1:]),
+        routines=tuple(routines),
         diagnostics=tuple(diagnostics),
     )
 
@@ -130,15 +171,27 @@ def _unmapped_lifecycle_diagnostics(
     modes = (
         ("prescan", lifecycle.prescan_enabled),
         ("postscan", lifecycle.postscan_enabled),
-        ("enable_in_false", lifecycle.enable_in_false_enabled),
     )
-    return [
+    diagnostics = [
         IRDiagnostic(
             f"{name}_mapping_required",
-            f"enabled AOI {name.replace('_', ' ')} behavior requires "
-            "captured ScanModeRoutine mapping",
+            f"enabled AOI {name.replace('_', ' ')} behavior is captured "
+            "but requires an explicit target lifecycle mapping",
             SourceSpan(0, 0),
         )
         for name, enabled in modes
         if enabled
     ]
+    if lifecycle.enable_in_false_enabled and not any(
+        routine.role is IRRoutineRole.ENABLE_IN_FALSE
+        for routine in unit.routines
+    ):
+        diagnostics.append(
+            IRDiagnostic(
+                "enable_in_false_mapping_required",
+                "enabled AOI enable in false behavior requires a "
+                "captured EnableInFalse ScanModeRoutine",
+                SourceSpan(0, 0),
+            )
+        )
+    return diagnostics

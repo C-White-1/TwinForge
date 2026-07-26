@@ -187,6 +187,19 @@ AOI_ELEMENTS = {
     "Routines": ElementSpec(
         name="Routines", elements=ROUTINES_ELEMENTS
     ),
+    "ScanModeRoutine": ElementSpec(
+        name="ScanModeRoutine",
+        description=(
+            "Optional container for Prescan, Postscan, or "
+            "EnableInFalse routines."
+        ),
+        elements=ROUTINES_ELEMENTS,
+        repeatable=True,
+        manual_ref=(
+            "1756-RM014D-EN-P September 2025, "
+            "L5X AddOnInstructionDefinition structure."
+        ),
+    ),
     "AdditionalHelpText": ElementSpec(
         name="AdditionalHelpText", content_type="cdata"
     ),

@@ -113,3 +113,85 @@ def test_enabled_unmapped_lifecycle_mode_blocks_complete_export():
         for item in result.diagnostics
     )
     assert not result.complete
+
+
+def test_maps_enable_in_false_but_keeps_prescan_as_target_requirement():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "scan_mode_routines.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["LifecycleAOI"]
+    analysis = analyze_structured_text_semantics(controller)
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in analysis.routines
+            if finding.owner == "AOI:LifecycleAOI"
+        },
+    )
+
+    transformed = apply_aoi_execution_semantics(unit)
+    result = emit_codesys_st_unit(transformed)
+
+    assert """\
+EnableOut := EnableIn;
+IF EnableIn THEN
+    Value := (Value + 1);
+ELSE
+    Value := 0;
+END_IF;
+""" in result.text
+    assert "Value := -1;" not in result.text
+    assert any(
+        item.code == "enable_in_false_mapped"
+        for item in result.diagnostics
+    )
+    assert any(
+        item.code == "prescan_mapping_required"
+        for item in result.diagnostics
+    )
+    assert not any(
+        item.code == "postscan_mapping_required"
+        for item in result.diagnostics
+    )
+    assert not any(
+        item.code == "enable_in_false_mapping_required"
+        for item in result.diagnostics
+    )
+    assert not result.complete
+
+
+def test_prescan_under_routines_is_not_emitted_as_cyclic_logic():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "lifecycle_in_routines.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["LifecycleInRoutines"]
+    analysis = analyze_structured_text_semantics(controller)
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in analysis.routines
+            if finding.owner == "AOI:LifecycleInRoutines"
+        },
+    )
+
+    result = emit_codesys_st_unit(
+        apply_aoi_execution_semantics(unit)
+    )
+
+    assert "Out := OSR;" in result.text
+    assert "OSR := 0;" not in result.text
+    assert any(
+        item.code == "prescan_mapping_required"
+        for item in result.diagnostics
+    )
+    assert not any(
+        item.code == "multiple_routines_require_lifecycle_mapping"
+        for item in result.diagnostics
+    )
+    assert not result.complete

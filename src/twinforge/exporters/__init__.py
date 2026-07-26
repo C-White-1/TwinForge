@@ -20,6 +20,8 @@ from .codesys_plcopen_ir import (
     CodesysIRPLCopenExporter,
     CodesysPLCopenIRResult,
     CodesysProjectIntegration,
+    codesys_parameter_initial_value,
+    codesys_program_variable_name,
 )
 from .iec_st import (
     IECRequirement,
@@ -56,6 +58,8 @@ __all__ = [
     "CodesysPLCopenIRResult",
     "CodesysArgumentBinding",
     "CodesysProjectIntegration",
+    "codesys_parameter_initial_value",
+    "codesys_program_variable_name",
     "IECRequirement",
     "IECSTDialect",
     "IECSTDiagnostic",

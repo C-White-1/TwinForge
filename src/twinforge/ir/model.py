@@ -24,6 +24,18 @@ class IRDirection(str, Enum):
     UNKNOWN = "unknown"
 
 
+class IRRoutineRole(str, Enum):
+    """Execution role of one reusable-unit routine."""
+
+    PRIMARY = "primary"
+    AUXILIARY = "auxiliary"
+    PRESCAN = "prescan"
+    POSTSCAN = "postscan"
+    ENABLE_IN_FALSE = "enable_in_false"
+    UNKNOWN_LIFECYCLE = "unknown_lifecycle"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True)
 class IRLifecycle:
     """Captured reusable-unit lifecycle activation evidence."""
@@ -138,6 +150,14 @@ class IRCallStatement(IRStatement):
 
 
 @dataclass(frozen=True, kw_only=True)
+class IRWallClockRead(IRStatement):
+    """Read a wall-clock timestamp into a destination in a declared unit."""
+
+    destination: IRExpression
+    timestamp_unit: str = "microseconds"
+
+
+@dataclass(frozen=True, kw_only=True)
 class IRIfBranch:
     """Condition and body of one IF or ELSIF branch."""
 
@@ -196,6 +216,8 @@ class IRParameter:
     required: bool | None = None
     visible: bool | None = None
     system_defined: bool = False
+    default_value: bool | int | float | str | None = None
+    default_lexical_value: str | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +238,7 @@ class IRRoutine:
     source: str
     statements: tuple[IRStatement, ...]
     diagnostics: tuple[IRDiagnostic, ...] = ()
+    role: IRRoutineRole = IRRoutineRole.UNKNOWN
 
 
 @dataclass(frozen=True)

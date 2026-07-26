@@ -109,7 +109,7 @@ def analyze_structured_text(
         findings.extend(
             _routine_findings(
                 f"AOI:{instruction.name}",
-                instruction.routines.values(),
+                instruction.iter_routines(),
             )
         )
     for program in sorted(

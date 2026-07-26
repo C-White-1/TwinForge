@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from collections.abc import Iterator
 from typing import Any
 
 from .routine import Routine
@@ -59,6 +60,7 @@ class AddOnInstruction:
         default_factory=dict
     )
     routines: dict[str, Routine] = field(default_factory=dict)
+    scan_mode_routines: dict[str, Routine] = field(default_factory=dict)
     local_tags: dict[str, Tag] = field(default_factory=dict)
     dependencies: list[AddOnInstructionDependency] = field(
         default_factory=list
@@ -80,6 +82,22 @@ class AddOnInstruction:
             raise ValueError(f"Routine '{routine.name}' already exists")
         routine.parent = self
         self.routines[routine.name] = routine
+
+    def add_scan_mode_routine(self, routine: Routine) -> None:
+        """Retain one lifecycle routine separately from primary logic."""
+
+        if routine.name in self.scan_mode_routines:
+            raise ValueError(
+                f"Scan mode routine '{routine.name}' already exists"
+            )
+        routine.parent = self
+        self.scan_mode_routines[routine.name] = routine
+
+    def iter_routines(self) -> Iterator[Routine]:
+        """Yield primary and scan-mode routines in captured order."""
+
+        yield from self.routines.values()
+        yield from self.scan_mode_routines.values()
 
     def add_local_tag(self, tag: Tag) -> None:
         if tag.name in self.local_tags:

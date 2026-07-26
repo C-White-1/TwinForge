@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Specification-derived fixture for 1756-RM014D-EN-P.
+     It is not represented as a Studio 5000 export. -->
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="LifecycleAOI" TargetType="AddOnInstructionDefinition"
+ ContainsContext="true">
+  <Controller Use="Context" Name="LifecycleFixture">
+    <DataTypes Use="Context"/>
+    <AddOnInstructionDefinitions Use="Context">
+      <AddOnInstructionDefinition Use="Target" Name="LifecycleAOI"
+       Revision="1.0" Vendor="TwinForgeFixture"
+       ExecutePrescan="true" ExecutePostscan="false"
+       ExecuteEnableInFalse="true">
+        <Parameters>
+          <Parameter Name="EnableIn" TagType="Base" DataType="BOOL"
+           Usage="Input" Required="false" Visible="false"/>
+          <Parameter Name="EnableOut" TagType="Base" DataType="BOOL"
+           Usage="Output" Required="false" Visible="false"/>
+          <Parameter Name="Value" TagType="Base" DataType="DINT"
+           Usage="Output" Required="true" Visible="true"/>
+        </Parameters>
+        <LocalTags/>
+        <Routines>
+          <Routine Name="Logic" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Value := Value + 1;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+        <ScanModeRoutine>
+          <Routine Name="Prescan" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Value := 0;]]></Line>
+            </STContent>
+          </Routine>
+          <Routine Name="Postscan" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Value := -1;]]></Line>
+            </STContent>
+          </Routine>
+          <Routine Name="EnableInFalse" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Value := 0;]]></Line>
+            </STContent>
+          </Routine>
+        </ScanModeRoutine>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+  </Controller>
+</RSLogix5000Content>

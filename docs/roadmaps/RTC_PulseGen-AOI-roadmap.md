@@ -55,11 +55,18 @@ for the name `RTC_PulseGen`.
 
 ## Phase 2: lifecycle and state mapping
 
-- [ ] Map AOI local tags to IEC function-block instance variables
+- [x] Capture `ScanModeRoutine` separately from primary AOI logic
+- [x] Recognize lifecycle-named routines when Studio exports them under
+  ordinary `Routines`
+- [x] Assign explicit primary, prescan, postscan and EnableInFalse IR roles
+- [x] Exclude disabled lifecycle routines from cyclic target logic
+- [x] Map an enabled EnableInFalse routine into the false execution branch
+- [x] Map AOI local tags to IEC function-block instance variables
 - [x] Map input and output parameters with explicit direction and datatype
-- [ ] Translate prescan initialization to defined target startup semantics
-- [ ] Verify cold-start, warm-start and re-enable behaviour
-- [ ] Preserve the one-scan pulse width under different task periods
+- [x] Translate prescan initialization to defined target startup semantics
+- [ ] Verify cold-start and warm-start behaviour
+- [x] Verify disable and re-enable behaviour with executable semantic tests
+- [x] Preserve the one-scan pulse width under different task periods
 - [x] Diagnose enabled but unmapped prescan, postscan, or enable-in-false
   behaviour
 
@@ -70,12 +77,20 @@ sequence for equivalent clock samples and enable transitions.
 
 ### CODESYS
 
-- [ ] Implement `wall_clock_read` using `SysTimeRtcHighResGet`
-- [ ] Emit `SysTime`, `SysTypes.RTS_IEC_RESULT` and required library metadata
-- [ ] Normalize the Rockwell microsecond calculation to CODESYS milliseconds
-- [ ] Generate the CODESYS application-extension function-block POU
-- [ ] Generate and resolve the function-block instance call
-- [ ] Import, compile and execute in CODESYS with zero errors
+- [x] Export native CODESYS `11_fb_init.xml` with an explicit `FB_Init` method
+- [x] Record the PLCopen XML method representation and required method inputs
+- [x] Emit captured Prescan unconditionally from `FB_Init`; retain
+  `bInitRetains` and `bInCopyCode` as target lifecycle evidence
+- [x] Generate deterministic method identity and nested project structure
+- [x] Implement `wall_clock_read` using `SysTimeRtcHighResGet`
+- [x] Emit `SysTime`, `SysTypes.RTS_IEC_RESULT` and required library metadata
+- [x] Convert CODESYS milliseconds to the captured Rockwell microsecond
+  timestamp boundary
+- [x] Guard subsequent logic and force ordinary Boolean outputs false when
+  the CODESYS clock read fails
+- [x] Generate the CODESYS application-extension function-block POU
+- [x] Generate and resolve the function-block instance call
+- [x] Import, compile and execute in CODESYS with zero errors
 
 ### OpenPLC
 
@@ -87,14 +102,33 @@ sequence for equivalent clock samples and enable transitions.
 
 ## Phase 4: validation
 
-- [ ] Unit-test rising enable, continuous enable and disable
-- [ ] Unit-test interval boundaries and one-scan pulse duration
-- [ ] Unit-test clock-read failure behaviour
-- [ ] Test timestamp unit conversion explicitly
-- [ ] Test clock movement backwards or document it as unsupported
-- [ ] Compare generated XML with native CODESYS evidence
-- [ ] Perform CODESYS online observation over multiple intervals
-- [ ] Record semantic-validation results separately from XML import results
+- [x] Unit-test rising enable, continuous enable, disable and re-enable
+- [x] Unit-test interval boundaries and one-scan pulse duration
+- [x] Unit-test clock-read failure behaviour
+- [x] Test timestamp unit conversion explicitly
+- [x] Test backward clock movement: elapsed time remains negative and no pulse
+  occurs until the clock catches up to the prior interval boundary
+- [x] Compare generated XML with native CODESYS evidence
+- [x] Perform CODESYS online observation over multiple intervals
+- [x] Record semantic-validation results separately from XML import results
+
+### Recorded CODESYS validation — 26 July 2026
+
+The generated `examples/PLCOpenXML/RTC_PulseGen_codesys.xml` was imported into
+CODESYS V3.5 SP22 Patch 2 and built with zero errors. Online observation
+confirmed:
+
+- `FB_Init` imported and executed;
+- `SysTimeRtcHighResGet` returned status `0`;
+- the observed millisecond timestamp was converted to the expected
+  microsecond value;
+- the captured `Inp_Interval` default was `1000`;
+- enabling the input produced one task-scan pulse at approximately one-second
+  intervals; and
+- a CODESYS Trace displayed the repeated rising and falling edges.
+
+This is runtime evidence for the tested CODESYS Control Win configuration. It
+does not by itself prove identical cold/warm-start behavior on every runtime.
 
 ## Deferred: PLCopen Common Behaviour wrapper
 

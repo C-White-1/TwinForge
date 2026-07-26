@@ -46,8 +46,15 @@ wall-clock adapter:
 
 `SysTimeRtcHighResGet` supplies UTC milliseconds since the Unix epoch. A
 Rockwell `GSV(WallClockTime, ..., CurrentValue, ...)` value is expressed in
-microseconds, so equivalent elapsed-time logic must normalize units rather
-than copy the original multiplication unchanged.
+microseconds, so equivalent elapsed-time logic must normalize the timestamp
+boundary rather than feed milliseconds into microsecond arithmetic.
+
+TwinForge performs that normalization at the runtime boundary: it converts
+the CODESYS millisecond timestamp to the microseconds expected by the
+captured Rockwell logic. Consequently, the original interval arithmetic
+remains auditable and unchanged. The CODESYS status result guards all
+subsequent statements in the execution path; a failed read forces ordinary
+Boolean outputs false rather than using a stale timestamp.
 
 The subsequent native `09_rtc_pulse.xml` experiment establishes the complete
 stateful function-block pattern:
@@ -65,6 +72,24 @@ This is sufficient target evidence for a CODESYS wall-clock and pulse-generator
 adapter. TwinForge must still introduce a general AOI-to-IEC Structured Text
 transformation boundary before emitting this pattern; it should not special
 case an AOI named `RTC_PulseGen`.
+
+### CODESYS function-block initialization evidence
+
+The native `11_fb_init.xml` experiment establishes the representation of an
+explicit CODESYS `FB_Init` method:
+
+- the method is a CODESYS application-extension `Method` nested inside the
+  owning function block's `addData`;
+- it declares a `BOOL` return type and the mandatory `BOOL` inputs
+  `bInitRetains` and `bInCopyCode`;
+- its Structured Text body is stored under `body/ST/xhtml`;
+- it has its own object ID and is nested beneath its function block in
+  `ProjectStructure`.
+
+TwinForge uses this target-specific representation for enabled captured AOI
+Prescan routines. The source Prescan body is emitted before
+`FB_Init := TRUE;`. Runtime equivalence across CODESYS initialization modes
+remains a semantic validation task rather than an XML-format assumption.
 
 For the currently implemented L5X conversion and CODESYS compatibility
 boundary, see [L5X to PLCopen XML capability matrix](../plcopen-capabilities.md).

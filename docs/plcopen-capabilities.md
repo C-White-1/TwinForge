@@ -212,14 +212,34 @@ The following are examples, not an exhaustive list:
 - `TOF`, `RTO`, counters and sequencers;
 - `CPT`, `COP`, `CPS`, `FLL`, `LIM`, `MEQ` and many bit/word instructions;
 - PID/PIDE, MSG, motion, safety and redundancy-specific execution semantics;
-- Add-On Instruction definitions and calls;
-- structured-text, function-block and SFC routine bodies;
+- arbitrary Add-On Instruction definitions and calls outside the executable
+  IR subset;
+- arbitrary structured-text, function-block and SFC routine bodies;
 - arrays, indirect addressing and full UDT/AOI data conversion;
 - physical I/O and produced/consumed tag bindings;
 - exact cross-vendor equivalence for every Logix scan or fault behaviour.
 
 Some unlisted instructions may already be safely captured and preserved by the
 L5X pipeline even though they are not executable in PLCopen output.
+
+### Executable Structured Text AOI subset
+
+The separate executable-IR path can currently convert tested Structured Text
+AOIs that use its supported expressions and statements. Evidence-backed
+CODESYS mappings include:
+
+- function-block interface and instance-local state;
+- AOI enable propagation and execution guarding;
+- enabled Prescan through `FB_Init`;
+- `SIZE` through CODESYS array bounds;
+- `GSV(WallClockTime, ..., CurrentValue, ...)` through
+  `SysTimeRtcHighResGet`;
+- target timestamp-unit conversion and clock-failure guarding; and
+- integrated `PLC_PRG` and `MainTask` generation.
+
+Successful conversions currently include `Str_Capacity` and `RTC_PulseGen`.
+This is a tested subset, not a claim that arbitrary Structured Text or AOIs
+are portable.
 
 ## Compatibility expectations for another L5X file
 

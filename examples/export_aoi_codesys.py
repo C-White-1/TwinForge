@@ -10,6 +10,8 @@ from twinforge.exporters import (
     CodesysArgumentBinding,
     CodesysIRPLCopenExporter,
     CodesysProjectIntegration,
+    codesys_parameter_initial_value,
+    codesys_program_variable_name,
 )
 from twinforge.ir import (
     IRNormalizationPolicy,
@@ -80,20 +82,17 @@ def main() -> int:
         destination=args.destination,
         project_name=f"{instruction.name}_TwinForge",
         integration=CodesysProjectIntegration(
-            instance_name="fbStrCapacity",
-            bindings=(
+            instance_name=f"fb{_identifier(instruction.name)}",
+            bindings=tuple(
                 CodesysArgumentBinding(
-                    "EnableIn",
-                    "xEnable",
-                    initial_value="TRUE",
-                ),
-                CodesysArgumentBinding("EnableOut", "xEnableOut"),
-                CodesysArgumentBinding(
-                    "Ref_Data",
-                    "aData",
-                    dimensions="10",
-                ),
-                CodesysArgumentBinding("Val", "diCapacity"),
+                    parameter.name,
+                    codesys_program_variable_name(parameter),
+                    dimensions=(
+                        "10" if parameter.generic_dimensions else None
+                    ),
+                    initial_value=codesys_parameter_initial_value(parameter),
+                )
+                for parameter in executable.parameters
             ),
         ),
     )
@@ -105,6 +104,15 @@ def main() -> int:
         values = ", ".join(item.value for item in result.requirements)
         print(f"Unresolved target requirements: {values}")
     return 0 if result.complete else 1
+
+
+def _identifier(value: str) -> str:
+    """Return a conservative IEC identifier fragment."""
+
+    return "".join(
+        character if character.isalnum() or character == "_" else "_"
+        for character in value
+    ).strip("_") or "Instruction"
 
 
 if __name__ == "__main__":

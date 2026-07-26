@@ -11,6 +11,7 @@ from twinforge.exporters import (
 )
 from twinforge.ir import (
     IRNormalizationPolicy,
+    apply_aoi_execution_semantics,
     lower_add_on_instruction,
     normalize_reusable_unit,
 )
@@ -53,6 +54,44 @@ def _export():
         project_name="StrCapacity",
         creation_time=FIXED_TIME,
     )
+
+
+def _lifecycle_unit():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "lifecycle_in_routines.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["LifecycleInRoutines"]
+    report = analyze_structured_text_semantics(controller)
+    lowered = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:LifecycleInRoutines"
+        },
+    )
+    return apply_aoi_execution_semantics(lowered)
+
+
+def _rtc_unit():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "rtc_pulse.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["RTC_PulseGen"]
+    report = analyze_structured_text_semantics(controller)
+    lowered = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:RTC_PulseGen"
+        },
+    )
+    return apply_aoi_execution_semantics(lowered)
 
 
 def test_exports_codesys_function_block_with_st_body():
@@ -196,3 +235,99 @@ fbStrCapacity(
         "p:Object[@Name='MainTask']",
         NS,
     ) is not None
+
+
+def test_maps_enabled_prescan_to_native_codesys_fb_init_method():
+    result = CodesysIRPLCopenExporter().export(
+        _lifecycle_unit(),
+        project_name="Lifecycle",
+        creation_time=FIXED_TIME,
+    )
+    root = ET.fromstring(result.xml)
+    method = root.find(
+        ".//p:pou[@name='LifecycleInRoutines']/p:addData/"
+        "p:data[@name='http://www.3s-software.com/plcopenxml/method']/"
+        "p:Method[@name='FB_Init']",
+        NS,
+    )
+
+    assert method is not None
+    assert method.find("p:interface/p:returnType/p:BOOL", NS) is not None
+    assert method.find(
+        "p:interface/p:inputVars/"
+        "p:variable[@name='bInitRetains']/p:type/p:BOOL",
+        NS,
+    ) is not None
+    assert method.find(
+        "p:interface/p:inputVars/"
+        "p:variable[@name='bInCopyCode']/p:type/p:BOOL",
+        NS,
+    ) is not None
+    assert method.findtext(
+        "p:body/p:ST/x:xhtml",
+        namespaces=NS,
+    ) == "OSR := 0;\nOut := 0;\nFB_Init := TRUE;"
+    assert root.find(
+        ".//p:ProjectStructure/p:Object[@Name='Application']/"
+        "p:Object[@Name='LifecycleInRoutines']/"
+        "p:Object[@Name='FB_Init']",
+        NS,
+    ) is not None
+    assert not any(
+        item.code == "prescan_mapping_required"
+        for item in result.diagnostics
+    )
+    assert any(
+        item.code == "codesys_prescan_mapped_to_fb_init"
+        for item in result.diagnostics
+    )
+    assert result.complete
+
+
+def test_maps_wall_clock_read_and_emits_native_codesys_libraries():
+    result = CodesysIRPLCopenExporter().export(
+        _rtc_unit(),
+        project_name="RtcPulse",
+        creation_time=FIXED_TIME,
+    )
+    root = ET.fromstring(result.xml)
+    pou = root.find(".//p:pou[@name='RTC_PulseGen']", NS)
+
+    assert pou is not None
+    assert pou.find(
+        "p:interface/p:localVars/"
+        "p:variable[@name='tfWallClockMilliseconds']/"
+        "p:type/p:derived[@name='SysTime']",
+        NS,
+    ) is not None
+    assert pou.find(
+        "p:interface/p:localVars/"
+        "p:variable[@name='tfWallClockResult']/"
+        "p:type/p:derived[@name='SysTypes.RTS_IEC_RESULT']",
+        NS,
+    ) is not None
+    body = pou.findtext("p:body/p:ST/x:xhtml", namespaces=NS)
+    assert body is not None
+    assert (
+        "tfWallClockResult := "
+        "SysTimeRtcHighResGet(tfWallClockMilliseconds);" in body
+    )
+    assert (
+        "TNow := ULINT_TO_LINT("
+        "tfWallClockMilliseconds * ULINT#1000);" in body
+    )
+    assert "Inp_Interval * 1000" in body
+    assert "IF (tfWallClockResult = 0) THEN" in body
+    assert "ELSE\n        Sts_Enabled := FALSE;\n        Out := FALSE;" in body
+    libraries = {
+        item.attrib["Namespace"]
+        for item in root.findall(".//p:Libraries/p:Library", NS)
+    }
+    assert {"SysTimeRtc", "SysTime", "SysTypes"} <= libraries
+    assert root.find(
+        ".//p:ProjectStructure/p:Object[@Name='Application']/"
+        "p:Object[@Name='Library Manager']",
+        NS,
+    ) is not None
+    assert result.requirements == ()
+    assert result.complete

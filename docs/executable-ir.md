@@ -114,10 +114,79 @@ The transformation is auditable and idempotent. It records
 `default_enable_out_synthesized`, `main_routine_guarded_by_enable_in`, and
 `aoi_enable_semantics_applied`.
 
-Rockwell represents optional lifecycle logic with `ScanModeRoutine` content.
-TwinForge currently preserves that XML in source extensions, but first-class
-capture and role mapping are still required before an enabled Prescan,
-Postscan, or EnableInFalse routine can be emitted.
+Rockwell represents optional lifecycle logic with a separate
+`ScanModeRoutine` container. TwinForge captures those routines separately from
+primary logic and lowers the documented names to explicit IR roles:
+
+| Captured name | IR role |
+| --- | --- |
+| `Prescan` | `prescan` |
+| `Postscan` | `postscan` |
+| `EnableInFalse` | `enable_in_false` |
+
+Unknown scan-mode names remain `unknown_lifecycle` and block complete
+emission. An enabled EnableInFalse routine is mapped into the normal
+enable-guard's false branch. Disabled lifecycle routines remain retained in
+IR but are excluded from emitted normal logic.
+
+Prescan and Postscan require target startup/shutdown semantics and therefore
+remain explicit blocking requirements when enabled. Their source is never
+concatenated into the cyclic function-block body.
+
+Observed Studio 5000 v35 exports can also place a lifecycle-named routine,
+such as `Prescan`, inside the ordinary `<Routines>` container. TwinForge
+retains that captured container placement but assigns the execution role from
+the documented routine name. It emits an informational
+`lifecycle_routine_in_routines_container` diagnostic so the source-layout
+variation remains visible.
+
+For CODESYS, an explicit `FB_Init` method is the leading Prescan adapter
+candidate. CODESYS calls this hook during function-block initialization and
+requires the `bInitRetains` and `bInCopyCode` inputs. Its online-change
+behavior is not identical to a Rockwell prescan event.
+
+The native `11_fb_init.xml` evidence confirms that CODESYS nests an
+`FB_Init` `Method` inside the function block's application-extension
+`addData`. TwinForge now emits enabled captured Prescan logic there, followed
+by `FB_Init := TRUE;`, and includes the mandatory Boolean inputs
+`bInitRetains` and `bInCopyCode`. It deliberately does not condition the
+source Prescan logic on either target input because the Rockwell source
+contains no corresponding condition.
+
+This is an explicit CODESYS adapter, not a neutral IR assumption. Cold-start,
+warm-start, online-change, and Program-to-Run equivalence still require
+runtime tests. Declaration initializers are not used as a general substitute
+for arbitrary Prescan logic. See the official CODESYS documentation for
+[`FB_Init`, `FB_Reinit`, and `FB_Exit`](https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_method_fb_init_fb_reinit.html).
+
+Wall-clock reads are also explicit neutral IR statements. The operation
+records the destination and timestamp unit; it does not retain a generic
+opaque `GSV` call. For the observed Rockwell
+`GSV(WallClockTime, ..., CurrentValue, ...)` service, that unit is
+microseconds.
+
+The CODESYS adapter maps the operation to `SysTimeRtcHighResGet`, adds
+target-only `SysTime` and `SysTypes.RTS_IEC_RESULT` state, and converts the
+returned UTC milliseconds to microseconds. This preserves the source
+arithmetic rather than rewriting unrelated expressions. Logic following the
+read is guarded by the result code. On failure, ordinary Boolean output
+parameters are forced false so stale time is not presented as a valid pulse.
+The required `SysTimeRtc`, `SysTime`, and `SysTypes` libraries are emitted
+only when the mapped capability is present.
+
+Scalar AOI parameter defaults remain typed evidence in executable IR. When
+the example exporter integrates a function-block instance into `PLC_PRG`, it
+copies those defaults to the corresponding program-local variables. Generated
+binding names use IEC-style datatype prefixes (`x`, `di`, `li`, and so on),
+so a binding never relies on case alone to differ from its parameter. For
+example, `Inp_Interval` is bound to `diInp_Interval`, initialized to the
+captured value `1000`.
+
+The capture tests use `tests/data/aoi/scan_mode_routines.L5X`, a fixture
+derived from the structure documented in Rockwell publication
+1756-RM014D-EN-P. It is labelled as specification-derived and is not presented
+as a Studio 5000 export. A native exported fixture should replace or supplement
+it when available.
 
 ## Target-independent rules
 

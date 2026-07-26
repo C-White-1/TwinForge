@@ -51,12 +51,14 @@ from .model import (
     IRReference,
     IRReusableUnit,
     IRRoutine,
+    IRRoutineRole,
     IRStatement,
     IRUnary,
     IRUnitKind,
     IRUnsupportedExpression,
     IRUnsupportedStatement,
     IRVariable,
+    IRWallClockRead,
     IRWhile,
 )
 
@@ -65,6 +67,7 @@ def lower_structured_text(
     semantics: StructuredTextSemantics,
     *,
     routine_name: str = "",
+    role: IRRoutineRole = IRRoutineRole.UNKNOWN,
 ) -> IRRoutine:
     """Lower one resolved ST document without target-specific decisions."""
 
@@ -84,6 +87,7 @@ def lower_structured_text(
         source=semantics.document.source,
         statements=statements,
         diagnostics=tuple(diagnostics),
+        role=role,
     )
 
 
@@ -95,6 +99,7 @@ def lower_add_on_instruction(
 
     diagnostics: list[IRDiagnostic] = []
     routines: list[IRRoutine] = []
+    primary_assigned = False
     for routine in instruction.routines.values():
         semantics = routine_semantics.get(routine.name)
         if semantics is None:
@@ -106,10 +111,56 @@ def lower_add_on_instruction(
                 )
             )
             continue
+        lifecycle_role = _named_lifecycle_role(routine.name)
+        if lifecycle_role is not None:
+            role = lifecycle_role
+            diagnostics.append(
+                IRDiagnostic(
+                    "lifecycle_routine_in_routines_container",
+                    f"routine {routine.name!r} has a documented lifecycle "
+                    "name despite being captured under Routines",
+                    SourceSpan(0, 0),
+                )
+            )
+        elif not primary_assigned:
+            role = IRRoutineRole.PRIMARY
+            primary_assigned = True
+        else:
+            role = IRRoutineRole.AUXILIARY
         routines.append(
             lower_structured_text(
                 semantics,
                 routine_name=routine.name,
+                role=role,
+            )
+        )
+    for routine in instruction.scan_mode_routines.values():
+        semantics = routine_semantics.get(routine.name)
+        role = _scan_mode_role(routine.name)
+        if semantics is None:
+            diagnostics.append(
+                IRDiagnostic(
+                    "missing_routine_semantics",
+                    f"scan-mode routine {routine.name!r} has no "
+                    "semantic analysis",
+                    SourceSpan(0, 0),
+                )
+            )
+            continue
+        if role is IRRoutineRole.UNKNOWN_LIFECYCLE:
+            diagnostics.append(
+                IRDiagnostic(
+                    "unknown_scan_mode_routine",
+                    f"scan-mode routine {routine.name!r} has no "
+                    "documented lifecycle role",
+                    SourceSpan(0, 0),
+                )
+            )
+        routines.append(
+            lower_structured_text(
+                semantics,
+                routine_name=routine.name,
+                role=role,
             )
         )
     kind = (
@@ -139,6 +190,16 @@ def lower_add_on_instruction(
                 visible=parameter.visible,
                 system_defined=parameter.name.casefold()
                 in {"enablein", "enableout"},
+                default_value=(
+                    parameter.default_value.value
+                    if parameter.default_value is not None
+                    else None
+                ),
+                default_lexical_value=(
+                    parameter.default_value.lexical_value
+                    if parameter.default_value is not None
+                    else None
+                ),
             )
             for parameter in instruction.parameters.values()
         ),
@@ -346,7 +407,20 @@ class _StructuredTextLowerer:
         expression: CallExpression,
     ) -> IRStatement | None:
         call = self.calls.get(_key(expression))
-        if call is None or call.kind is not CallKind.ARRAY_DIMENSION_QUERY:
+        if call is None:
+            return None
+        if (
+            call.kind is CallKind.CONTROLLER_OBJECT_READ
+            and _is_wall_clock_read(expression)
+        ):
+            return IRWallClockRead(
+                span=expression.span,
+                destination=self.expression(
+                    expression.arguments[3].value
+                ),
+                timestamp_unit="microseconds",
+            )
+        if call.kind is not CallKind.ARRAY_DIMENSION_QUERY:
             return None
         if len(expression.arguments) != 3:
             return self._unsupported_statement(
@@ -408,6 +482,21 @@ def _key(expression: Expression) -> tuple[int, int]:
     return expression.span.start, expression.span.end
 
 
+def _is_wall_clock_read(expression: CallExpression) -> bool:
+    """Recognize the documented GSV WallClockTime CurrentValue service."""
+
+    if len(expression.arguments) != 4:
+        return False
+    object_class = expression.arguments[0].value
+    attribute = expression.arguments[2].value
+    return (
+        isinstance(object_class, NameExpression)
+        and object_class.name.casefold() == "wallclocktime"
+        and isinstance(attribute, NameExpression)
+        and attribute.name.casefold() == "currentvalue"
+    )
+
+
 def _direction(value: str | None) -> IRDirection:
     normalized = (value or "").casefold()
     if normalized == "input":
@@ -417,6 +506,20 @@ def _direction(value: str | None) -> IRDirection:
     if normalized == "inout":
         return IRDirection.INOUT
     return IRDirection.UNKNOWN
+
+
+def _scan_mode_role(name: str) -> IRRoutineRole:
+    return _named_lifecycle_role(name) or IRRoutineRole.UNKNOWN_LIFECYCLE
+
+
+def _named_lifecycle_role(name: str) -> IRRoutineRole | None:
+    """Resolve lifecycle roles independently of their source XML container."""
+
+    return {
+        "prescan": IRRoutineRole.PRESCAN,
+        "postscan": IRRoutineRole.POSTSCAN,
+        "enableinfalse": IRRoutineRole.ENABLE_IN_FALSE,
+    }.get(name.casefold())
 
 
 def _interface_diagnostics(

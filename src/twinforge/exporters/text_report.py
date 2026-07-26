@@ -239,6 +239,11 @@ class TextReportExporter:
                 )
             for routine in instruction.routines.values():
                 lines.extend(_routine_lines(routine, indent="  "))
+            for routine in instruction.scan_mode_routines.values():
+                lines.extend(
+                    ["", f"  Scan mode routine: {routine.name}"]
+                )
+                lines.extend(_routine_lines(routine, indent="    "))
         return "\n".join(lines).rstrip() + "\n"
 
     def _modules(self, controller: Controller) -> str:

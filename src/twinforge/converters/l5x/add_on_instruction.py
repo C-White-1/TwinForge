@@ -87,6 +87,15 @@ def convert_add_on_instruction(
             )
             if routine is not None:
                 instruction.add_routine(routine)
+    for scan_modes in section.elements.get("ScanModeRoutine", []):
+        for routine_section in scan_modes.elements.get("Routine", []):
+            routine = convert_routine(
+                routine_section,
+                instruction.name,
+                diagnostics,
+            )
+            if routine is not None:
+                instruction.add_scan_mode_routine(routine)
     for local_tags in section.elements.get("LocalTags", []):
         for tag_section in local_tags.elements.get("LocalTag", []):
             tag = _convert_local_tag(tag_section, diagnostics)

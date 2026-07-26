@@ -8,6 +8,9 @@ SAMPLE = Path(__file__).parent / "data/aoi/Str_Capacity_AOI.L5X"
 DEPENDENCY_SAMPLE = (
     Path(__file__).parent / "data/aoi/dependencies_and_locals.L5X"
 )
+SCAN_MODE_SAMPLE = (
+    Path(__file__).parent / "data/aoi/scan_mode_routines.L5X"
+)
 
 
 def test_converts_structured_text_add_on_instruction() -> None:
@@ -81,3 +84,33 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
         dependency.target is not None
         for dependency in instruction.dependencies
     )
+
+
+def test_captures_scan_mode_routines_separately_from_primary_logic():
+    parser = L5XParser()
+    controller = parser.parse(
+        SCAN_MODE_SAMPLE,
+        report_mode=None,
+    ).controllers[0]
+
+    assert parser.diagnostics == []
+    instruction = controller.add_on_instructions["LifecycleAOI"]
+    assert list(instruction.routines) == ["Logic"]
+    assert list(instruction.scan_mode_routines) == [
+        "Prescan",
+        "Postscan",
+        "EnableInFalse",
+    ]
+    assert instruction.execute_prescan is True
+    assert instruction.execute_postscan is False
+    assert instruction.execute_enable_in_false is True
+    assert (
+        instruction.scan_mode_routines["Postscan"].structured_text
+        == "Value := -1;"
+    )
+    assert [item.name for item in instruction.iter_routines()] == [
+        "Logic",
+        "Prescan",
+        "Postscan",
+        "EnableInFalse",
+    ]

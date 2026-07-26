@@ -353,7 +353,7 @@ def analyze_structured_text_semantics(
         findings.extend(
             _findings(
                 f"AOI:{instruction.name}",
-                instruction.routines.values(),
+                instruction.iter_routines(),
                 context,
             )
         )

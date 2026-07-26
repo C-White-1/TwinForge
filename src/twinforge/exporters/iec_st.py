@@ -24,10 +24,12 @@ from twinforge.ir import (
     IRReference,
     IRReusableUnit,
     IRRoutine,
+    IRRoutineRole,
     IRStatement,
     IRUnary,
     IRUnsupportedExpression,
     IRUnsupportedStatement,
+    IRWallClockRead,
     IRWhile,
 )
 from twinforge.structured_text import SourceSpan
@@ -40,6 +42,7 @@ class IECRequirement(str, Enum):
     DYNAMIC_BIT_ACCESS = "dynamic_bit_access"
     GENERIC_ARRAY_INTERFACE = "generic_array_interface"
     SOURCE_OPERATION_ADAPTER = "source_operation_adapter"
+    WALL_CLOCK_READ = "wall_clock_read"
 
 
 class IECSTDialect(Protocol):
@@ -57,6 +60,15 @@ class IECSTDialect(Protocol):
         direction: IRDirection,
     ) -> bool:
         """Return whether ``ARRAY[*]`` is valid for this direction."""
+
+        ...
+
+    def render_wall_clock_read(
+        self,
+        destination: str,
+        timestamp_unit: str,
+    ) -> list[str] | None:
+        """Render a wall-clock read, or return ``None`` if unsupported."""
 
         ...
 
@@ -92,6 +104,7 @@ class IECSTEmission:
             "postscan_mapping_required",
             "enable_in_false_mapping_required",
             "aoi_enable_interface_unavailable",
+            "unknown_scan_mode_routine",
         }
         return not any(item.code in blocking for item in self.diagnostics)
 
@@ -135,11 +148,22 @@ def emit_iec_st_unit(
     if unit.variables:
         lines.append("END_VAR")
 
-    for index, routine in enumerate(unit.routines):
-        if len(unit.routines) > 1:
+    executable_routines = tuple(
+        routine
+        for routine in unit.routines
+        if routine.role
+        not in {
+            IRRoutineRole.PRESCAN,
+            IRRoutineRole.POSTSCAN,
+            IRRoutineRole.ENABLE_IN_FALSE,
+            IRRoutineRole.UNKNOWN_LIFECYCLE,
+        }
+    )
+    for index, routine in enumerate(executable_routines):
+        if len(executable_routines) > 1:
             lines.append(f"(* Routine: {routine.name} *)")
         lines.extend(emitter.statements(routine.statements, indent=0))
-        if index < len(unit.routines) - 1:
+        if index < len(executable_routines) - 1:
             lines.append("")
     lines.append("END_FUNCTION_BLOCK")
 
@@ -156,7 +180,7 @@ def emit_iec_st_unit(
                 SourceSpan(0, 0),
             )
         )
-    if len(unit.routines) > 1:
+    if len(executable_routines) > 1:
         diagnostics.append(
             IECSTDiagnostic(
                 "multiple_routines_require_lifecycle_mapping",
@@ -285,6 +309,20 @@ class _IECEmitter:
             ]
         if isinstance(statement, IRCallStatement):
             return [f"{prefix}{self.expression(statement.call)};"]
+        if isinstance(statement, IRWallClockRead):
+            destination = self.expression(statement.destination)
+            rendered = (
+                self.dialect.render_wall_clock_read(
+                    destination,
+                    statement.timestamp_unit,
+                )
+                if self.dialect is not None
+                else None
+            )
+            if rendered is None:
+                self.requirements.add(IECRequirement.WALL_CLOCK_READ)
+                return [f"{prefix}TF_WallClockRead({destination});"]
+            return [f"{prefix}{line}" for line in rendered]
         if isinstance(statement, IRIf):
             lines: list[str] = []
             for index, branch in enumerate(statement.branches):

@@ -9,9 +9,11 @@ from twinforge.ir import (
     IRLiteral,
     IRLifecycle,
     IRReference,
+    IRRoutineRole,
     IRUnitKind,
     IRUnsupportedStatement,
     IRWhile,
+    IRWallClockRead,
     lower_add_on_instruction,
     lower_structured_text,
 )
@@ -135,3 +137,87 @@ def test_unsupported_source_remains_explicit_in_ir():
         item.code == "unsupported_statement"
         for item in routine.diagnostics
     )
+
+
+def test_scan_mode_routines_lower_with_explicit_lifecycle_roles():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "scan_mode_routines.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["LifecycleAOI"]
+    report = analyze_structured_text_semantics(controller)
+
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:LifecycleAOI"
+        },
+    )
+
+    assert [(item.name, item.role) for item in unit.routines] == [
+        ("Logic", IRRoutineRole.PRIMARY),
+        ("Prescan", IRRoutineRole.PRESCAN),
+        ("Postscan", IRRoutineRole.POSTSCAN),
+        ("EnableInFalse", IRRoutineRole.ENABLE_IN_FALSE),
+    ]
+
+
+def test_lifecycle_name_is_resolved_when_studio_exports_it_under_routines():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "lifecycle_in_routines.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["LifecycleInRoutines"]
+    report = analyze_structured_text_semantics(controller)
+
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:LifecycleInRoutines"
+        },
+    )
+
+    assert instruction.scan_mode_routines == {}
+    assert [(item.name, item.role) for item in unit.routines] == [
+        ("Logic", IRRoutineRole.PRIMARY),
+        ("Prescan", IRRoutineRole.PRESCAN),
+    ]
+    assert any(
+        item.code == "lifecycle_routine_in_routines_container"
+        for item in unit.diagnostics
+    )
+
+
+def test_wall_clock_gsv_lowers_to_unit_aware_neutral_operation():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "rtc_pulse.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["RTC_PulseGen"]
+    report = analyze_structured_text_semantics(controller)
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:RTC_PulseGen"
+        },
+    )
+
+    statement = unit.routines[0].statements[0]
+    assert isinstance(statement, IRWallClockRead)
+    assert isinstance(statement.destination, IRReference)
+    assert statement.destination.name == "TNow"
+    assert statement.timestamp_unit == "microseconds"
+    interval = next(
+        item for item in unit.parameters if item.name == "Inp_Interval"
+    )
+    assert interval.default_value == 1000
+    assert interval.default_lexical_value == "1000"

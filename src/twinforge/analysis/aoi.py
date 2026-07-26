@@ -160,7 +160,7 @@ def _analyze_instruction(
     }
     calls: set[str] = set()
     unanalyzed: list[str] = []
-    for routine in instruction.routines.values():
+    for routine in instruction.iter_routines():
         if (routine.language or "").lower() in {"st", "structuredtext"}:
             calls.update(extract_structured_text_calls(routine.structured_text))
         else:
@@ -314,7 +314,7 @@ def _gsv_objects(
 ) -> tuple[str, ...]:
     objects = {
         match.group(1).strip()
-        for routine in instruction.routines.values()
+        for routine in instruction.iter_routines()
         if (routine.language or "").lower() in {"st", "structuredtext"}
         for match in _GSV_OBJECT.finditer(
             _without_st_comments(routine.structured_text)
