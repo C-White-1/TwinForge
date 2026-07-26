@@ -14,7 +14,7 @@ tests/data/basic/BoosterCompressor_20260128.L5X
 
 Current results:
 
-- 94 automated tests pass;
+- 153 automated tests pass;
 - all 134 RLL rungs and 474 instruction occurrences in the fixture convert;
 - generated CODESYS PLCopen XML imports and precompiles with zero errors;
 - standard PLCopen XML validates against the PLCopen 2.01 XSD;
@@ -115,8 +115,7 @@ The report exporter consumes the vendor-neutral model rather than parsing L5X
 directly. Reports therefore include promoted scalar values, engineering units,
 ranges, resolved task/program relationships and preserved RLL source text.
 AOI reports include parameters, typed defaults and numbered Structured Text
-source lines. Executable PLCopen conversion of Structured Text is not yet
-implemented.
+source lines.
 
 Assess captured AOIs before selecting an IEC 61131-3 conversion strategy:
 
@@ -142,6 +141,22 @@ uv run python examples\analyze_structured_text.py `
   --output reports\Str_Capacity_AOI\structured_text_analysis.txt
 ```
 
+Export a supported Structured Text AOI through executable IR to a CODESYS
+PLCopen XML function block:
+
+```powershell
+uv run python examples\export_aoi_codesys.py `
+  tests\data\aoi\Str_Capacity_AOI.L5X `
+  examples\PLCOpenXML\Str_Capacity_codesys.xml
+```
+
+This path applies the explicit `promote_written_inputs` normalization policy
+and reports both its audit diagnostics and any unresolved target requirement.
+The current evidence-backed target mappings cover CODESYS variable-length
+`VAR_IN_OUT` arrays and Rockwell `SIZE` array-dimension semantics. The example
+also emits an explicit ten-element test binding, `PLC_PRG`, its function-block
+call, and a 20 ms cyclic `MainTask`.
+
 Generate and validate AutomationML:
 
 ```powershell
@@ -164,6 +179,7 @@ schemas must be obtained from their official publishers and supplied locally.
 - [PLCopen capability matrix](docs/plcopen-capabilities.md)
 - [AOI portability and runtime contracts](docs/aoi-portability.md)
 - [Structured Text front end](docs/structured-text.md)
+- [Executable intermediate representation](docs/executable-ir.md)
 - [AutomationML capability and validation](docs/automationml-proof-of-concept.md)
 - [PLCopen reference handling](docs/standards/plcopen.md)
 - [AutomationML reference handling](docs/standards/automationml.md)

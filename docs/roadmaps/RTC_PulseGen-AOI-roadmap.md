@@ -42,13 +42,13 @@ recorded in `docs/standards/plcopen.md`.
 
 - [x] Parse supported ST statements into a lossless intermediate
   representation while retaining the original text
-- [ ] Represent assignments, conditionals, Boolean expressions, arithmetic,
+- [x] Represent assignments, conditionals, Boolean expressions, arithmetic,
   member access and instruction calls
 - [x] Preserve unsupported expressions with diagnostics rather than
   discarding them
 - [ ] Add datatype and numeric-unit transformation rules
-- [ ] Resolve AOI parameter, local-tag and nested-AOI references
-- [ ] Emit target-neutral IEC Structured Text
+- [x] Resolve AOI parameter, local-tag and nested-AOI references
+- [x] Emit target-neutral IEC Structured Text
 
 Completion criterion: `RTC_PulseGen` logic can be transformed without checking
 for the name `RTC_PulseGen`.
@@ -56,11 +56,12 @@ for the name `RTC_PulseGen`.
 ## Phase 2: lifecycle and state mapping
 
 - [ ] Map AOI local tags to IEC function-block instance variables
-- [ ] Map input and output parameters with explicit direction and datatype
+- [x] Map input and output parameters with explicit direction and datatype
 - [ ] Translate prescan initialization to defined target startup semantics
 - [ ] Verify cold-start, warm-start and re-enable behaviour
 - [ ] Preserve the one-scan pulse width under different task periods
-- [ ] Diagnose unsupported postscan or enable-in-false behaviour
+- [x] Diagnose enabled but unmapped prescan, postscan, or enable-in-false
+  behaviour
 
 Completion criterion: executable tests demonstrate the same observable pulse
 sequence for equivalent clock samples and enable transitions.

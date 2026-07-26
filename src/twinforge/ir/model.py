@@ -1,0 +1,232 @@
+"""Typed, vendor-neutral executable intermediate representation."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+from twinforge.structured_text import SourceSpan
+
+
+class IRUnitKind(str, Enum):
+    """Portable implementation shape for a reusable logic unit."""
+
+    FUNCTION = "function"
+    FUNCTION_BLOCK = "function_block"
+
+
+class IRDirection(str, Enum):
+    """Data-flow direction of a reusable-unit parameter."""
+
+    INPUT = "input"
+    OUTPUT = "output"
+    INOUT = "inout"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class IRLifecycle:
+    """Captured reusable-unit lifecycle activation evidence."""
+
+    prescan_enabled: bool | None = None
+    postscan_enabled: bool | None = None
+    enable_in_false_enabled: bool | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRExpression:
+    """Base typed expression."""
+
+    span: SourceSpan
+    data_type: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRUnsupportedExpression(IRExpression):
+    """Expression retained when safe lowering is unavailable."""
+
+    source: str
+    reason: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRReference(IRExpression):
+    """Resolved data reference."""
+
+    name: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRLiteral(IRExpression):
+    """Source literal retained in lexical form."""
+
+    lexical_value: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRUnary(IRExpression):
+    """Portable unary expression."""
+
+    operator: str
+    operand: IRExpression
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRBinary(IRExpression):
+    """Portable binary expression."""
+
+    left: IRExpression
+    operator: str
+    right: IRExpression
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRMember(IRExpression):
+    """Validated structure-member access."""
+
+    target: IRExpression
+    member: str
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRIndex(IRExpression):
+    """Validated array or dynamic-bit access."""
+
+    target: IRExpression
+    indices: tuple[IRExpression, ...]
+    source_operator: str = "[]"
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRCall(IRExpression):
+    """Classified call that remains an expression in the neutral IR."""
+
+    operation: str
+    arguments: tuple[IRExpression, ...]
+    adapter_required: bool = False
+    source_vendor: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRArrayDimension(IRExpression):
+    """Query one zero-based dimension of an array."""
+
+    array: IRExpression
+    dimension: IRExpression
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRStatement:
+    """Base executable statement."""
+
+    span: SourceSpan
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRAssignment(IRStatement):
+    """Assignment between lowered expressions."""
+
+    target: IRExpression
+    value: IRExpression
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRCallStatement(IRStatement):
+    """Call executed for effects."""
+
+    call: IRCall
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRIfBranch:
+    """Condition and body of one IF or ELSIF branch."""
+
+    span: SourceSpan
+    condition: IRExpression
+    statements: tuple[IRStatement, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRIf(IRStatement):
+    """Conditional statement."""
+
+    branches: tuple[IRIfBranch, ...]
+    else_statements: tuple[IRStatement, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRWhile(IRStatement):
+    """Pre-tested loop."""
+
+    condition: IRExpression
+    statements: tuple[IRStatement, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRExit(IRStatement):
+    """Exit from the innermost loop."""
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRUnsupportedStatement(IRStatement):
+    """Statement retained when safe lowering is unavailable."""
+
+    source: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class IRDiagnostic:
+    """Lowering issue linked to the original source span."""
+
+    code: str
+    message: str
+    span: SourceSpan
+
+
+@dataclass(frozen=True)
+class IRParameter:
+    """Reusable-unit parameter with its captured interface evidence."""
+
+    name: str
+    direction: IRDirection
+    data_type: str | None = None
+    dimensions: str | None = None
+    generic_dimensions: bool = False
+    required: bool | None = None
+    visible: bool | None = None
+    system_defined: bool = False
+
+
+@dataclass(frozen=True)
+class IRVariable:
+    """Retained instance variable."""
+
+    name: str
+    data_type: str | None = None
+    dimensions: str | None = None
+
+
+@dataclass(frozen=True)
+class IRRoutine:
+    """One lowered routine and its untouched source."""
+
+    name: str
+    source_language: str | None
+    source: str
+    statements: tuple[IRStatement, ...]
+    diagnostics: tuple[IRDiagnostic, ...] = ()
+
+
+@dataclass(frozen=True)
+class IRReusableUnit:
+    """Vendor-neutral executable form of a reusable instruction."""
+
+    name: str
+    kind: IRUnitKind
+    parameters: tuple[IRParameter, ...]
+    variables: tuple[IRVariable, ...]
+    routines: tuple[IRRoutine, ...]
+    source_vendor: str | None = None
+    lifecycle: IRLifecycle = IRLifecycle()
+    diagnostics: tuple[IRDiagnostic, ...] = ()

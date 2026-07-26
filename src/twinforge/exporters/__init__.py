@@ -10,6 +10,25 @@ from .automationml import (
     validate_automationml_references,
     validate_automationml_xml,
 )
+from .codesys_st import (
+    CodesysSTDialect,
+    emit_codesys_st_routine,
+    emit_codesys_st_unit,
+)
+from .codesys_plcopen_ir import (
+    CodesysArgumentBinding,
+    CodesysIRPLCopenExporter,
+    CodesysPLCopenIRResult,
+    CodesysProjectIntegration,
+)
+from .iec_st import (
+    IECRequirement,
+    IECSTDialect,
+    IECSTDiagnostic,
+    IECSTEmission,
+    emit_iec_st_routine,
+    emit_iec_st_unit,
+)
 from .plcopen import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
@@ -32,8 +51,21 @@ __all__ = [
     "AutomationMLExportResult",
     "AutomationMLValidationError",
     "AutomationMLValidationUnavailable",
+    "CodesysSTDialect",
+    "CodesysIRPLCopenExporter",
+    "CodesysPLCopenIRResult",
+    "CodesysArgumentBinding",
+    "CodesysProjectIntegration",
+    "IECRequirement",
+    "IECSTDialect",
+    "IECSTDiagnostic",
+    "IECSTEmission",
     "validate_automationml_references",
     "validate_automationml_xml",
+    "emit_iec_st_routine",
+    "emit_iec_st_unit",
+    "emit_codesys_st_routine",
+    "emit_codesys_st_unit",
     "PLCOPEN_201_NAMESPACE",
     "PLCOPEN_CODESYS_NAMESPACE",
     "PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS",
