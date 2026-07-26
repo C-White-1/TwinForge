@@ -1,0 +1,10 @@
+
+        <RSLogix5000Content TargetType="Program" TargetName="ProgramA">
+          <Controller Use="Context" Name="PLC_A">
+            <Programs Use="Context">
+              <Program Use="Target" Name="ProgramA"
+               TestEdits="false" Disabled="false" UseAsFolder="false" />
+            </Programs>
+          </Controller>
+        </RSLogix5000Content>
+        

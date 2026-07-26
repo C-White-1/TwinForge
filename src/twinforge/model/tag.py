@@ -14,6 +14,26 @@ from .engineering_unit import (
 from .tag_value import TagValue
 
 
+@dataclass(frozen=True)
+class MessageTagConfiguration:
+    """Typed Logix MESSAGE configuration with original lexical evidence."""
+
+    message_type: str | None = None
+    requested_length: int | None = None
+    connected_flag: int | None = None
+    connection_path: str | None = None
+    communication_type_code: int | None = None
+    service_code: int | None = None
+    object_type: int | None = None
+    target_object: int | None = None
+    attribute_number: int | None = None
+    local_index: int | None = None
+    local_element: str | None = None
+    destination_tag: str | None = None
+    large_packet_usage: bool | None = None
+    raw_attributes: dict[str, str] = field(default_factory=dict)
+
+
 @dataclass
 class Tag:
     name: str = ""
@@ -28,6 +48,7 @@ class Tag:
     permission_set: str | None = None
     description: str | None = None
     initial_value: TagValue | None = None
+    message_configuration: MessageTagConfiguration | None = None
     engineering_unit: EngineeringUnitEvidence | None = None
     engineering_unit_evidence: list[EngineeringUnitEvidence] = field(
         default_factory=list

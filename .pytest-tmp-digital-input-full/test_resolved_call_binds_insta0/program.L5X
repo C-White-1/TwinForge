@@ -1,0 +1,42 @@
+
+        <RSLogix5000Content TargetType="Program" TargetName="Drive">
+          <Controller Use="Context" Name="PLC">
+            <Programs Use="Context">
+              <Program Use="Target" Name="Drive">
+                <Tags>
+                  <Tag Name="Instance" TagType="Base" DataType="Dvc_PF525"/>
+                  <Tag Name="Cmd" TagType="Base" DataType="BOOL"/>
+                  <Tag Name="ReadMsg" TagType="Base" DataType="MESSAGE">
+                    <Data Format="Message">
+                      <MessageParameters MessageType="CIP Generic"
+                       RequestedLength="32" ConnectionPath="DriveModule"
+                       ServiceCode="16#0032" ObjectType="16#0093"
+                       TargetObject="0" AttributeNumber="16#0000"
+                       LocalElement="MsgData" DestinationTag="MsgData"
+                       LargePacketUsage="false"/>
+                    </Data>
+                  </Tag>
+                  <Tag Name="MsgData" TagType="Base" DataType="DINT"/>
+                </Tags>
+                <Routines>
+                  <Routine Name="Main" Type="RLL">
+                    <RLLContent>
+                      <Rung Number="3" Type="N">
+                        <Text><![CDATA[
+                          Dvc_PF525(
+                            Instance,DriveModule,DriveModule:I.Data,Cmd,
+                            ReadMsg,MsgData,SysDevices
+                          );
+                        ]]></Text>
+                      </Rung>
+                    </RLLContent>
+                  </Routine>
+                </Routines>
+              </Program>
+            </Programs>
+            <Tags>
+              <Tag Name="SysDevices" TagType="Base" DataType="ST_Class"/>
+            </Tags>
+          </Controller>
+        </RSLogix5000Content>
+        

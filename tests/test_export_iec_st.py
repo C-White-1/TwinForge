@@ -133,3 +133,29 @@ def test_multiple_routines_require_lifecycle_mapping():
         for item in result.diagnostics
     )
     assert not result.complete
+
+
+def test_controller_object_services_remain_explicit_target_requirement():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "controller_object_services.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["ModuleServices"]
+    report = analyze_structured_text_semantics(controller)
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:ModuleServices"
+        },
+    )
+
+    result = emit_iec_st_unit(unit)
+
+    assert "read Module/Ref_Module/Mode -> Value" in result.text
+    assert "write Module/Ref_Module/Mode <- ModeSet" in result.text
+    assert result.requirements == (
+        IECRequirement.CONTROLLER_OBJECT_ACCESS,
+    )

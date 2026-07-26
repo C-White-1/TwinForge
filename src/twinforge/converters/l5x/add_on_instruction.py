@@ -114,6 +114,7 @@ def convert_add_on_instruction(
                 )
                 continue
             instruction.add_local_tag(tag)
+    _resolve_parameter_alias_types(instruction)
     for dependencies in section.elements.get("Dependencies", []):
         for dependency in dependencies.elements.get("Dependency", []):
             instruction.dependencies.append(
@@ -230,3 +231,47 @@ def _child_text(section: CapturedSection, name: str) -> str | None:
     if not children or children[0].text is None:
         return None
     return children[0].text.strip()
+
+
+def _resolve_parameter_alias_types(
+    instruction: AddOnInstruction,
+) -> None:
+    """Resolve safe AOI alias datatypes without replacing source evidence."""
+
+    integer_types = {
+        "BOOL",
+        "BYTE",
+        "SINT",
+        "INT",
+        "DINT",
+        "LINT",
+        "USINT",
+        "UINT",
+        "UDINT",
+        "ULINT",
+        "WORD",
+        "DWORD",
+        "LWORD",
+    }
+    targets = {
+        item.name.casefold(): item.effective_data_type
+        for item in instruction.parameters.values()
+    }
+    targets.update(
+        {
+            item.name.casefold(): item.data_type
+            for item in instruction.local_tags.values()
+        }
+    )
+    for parameter in instruction.parameters.values():
+        if parameter.data_type is not None or parameter.alias_for is None:
+            continue
+        root, separator, selector = parameter.alias_for.partition(".")
+        target_type = targets.get(root.casefold())
+        if target_type is None:
+            continue
+        if separator and selector.isdigit():
+            if target_type.upper() in integer_types:
+                parameter.resolved_data_type = "BOOL"
+        elif not separator:
+            parameter.resolved_data_type = target_type

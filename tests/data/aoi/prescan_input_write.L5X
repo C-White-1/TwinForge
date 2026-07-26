@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="PrescanInputWrite" TargetType="AddOnInstructionDefinition"
+ ContainsContext="true">
+  <Controller Use="Context" Name="LifecycleFixture">
+    <DataTypes Use="Context"/>
+    <AddOnInstructionDefinitions Use="Context">
+      <AddOnInstructionDefinition Use="Target" Name="PrescanInputWrite"
+       ExecutePrescan="true" ExecutePostscan="false"
+       ExecuteEnableInFalse="false">
+        <Parameters>
+          <Parameter Name="EnableIn" DataType="BOOL" Usage="Input"/>
+          <Parameter Name="EnableOut" DataType="BOOL" Usage="Output"/>
+          <Parameter Name="Command" DataType="BOOL" Usage="Input"/>
+          <Parameter Name="State" DataType="BOOL" Usage="Output"/>
+        </Parameters>
+        <LocalTags/>
+        <Routines>
+          <Routine Name="Logic" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[State := Command;]]></Line>
+            </STContent>
+          </Routine>
+          <Routine Name="Prescan" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Command := 0;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+  </Controller>
+</RSLogix5000Content>

@@ -220,3 +220,34 @@ def test_alias_and_base_require_their_identity_fields():
 
     assert alias_diagnostics[0].code == "alias_target_missing"
     assert base_diagnostics[0].code == "base_tag_data_type_missing"
+
+
+def test_message_tag_configuration_is_typed_and_lossless():
+    tag = convert_tag(
+        _tag(
+            """
+            <Tag Name="WriteMsg" TagType="Base" DataType="MESSAGE">
+              <Data Format="Message">
+                <MessageParameters MessageType="CIP Generic"
+                 RequestedLength="2" ConnectedFlag="2"
+                 ConnectionPath="Drive" CommTypeCode="0"
+                 ServiceCode="16#0010" ObjectType="16#0093"
+                 TargetObject="34" AttributeNumber="16#000a"
+                 LocalIndex="0" LocalElement="MsgData[64]"
+                 LargePacketUsage="false"/>
+              </Data>
+            </Tag>
+            """
+        )
+    )
+
+    configuration = tag.message_configuration
+    assert configuration is not None
+    assert configuration.message_type == "CIP Generic"
+    assert configuration.service_code == 0x10
+    assert configuration.object_type == 0x93
+    assert configuration.target_object == 34
+    assert configuration.attribute_number == 0x0A
+    assert configuration.local_element == "MsgData[64]"
+    assert configuration.large_packet_usage is False
+    assert configuration.raw_attributes["ServiceCode"] == "16#0010"

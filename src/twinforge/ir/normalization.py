@@ -18,6 +18,7 @@ from .model import (
     IRReusableUnit,
     IRStatement,
     IRUnitKind,
+    IRRoutineRole,
     IRWhile,
 )
 
@@ -102,6 +103,13 @@ def _written_inputs(unit: IRReusableUnit):
     }
     written = {}
     for routine in unit.routines:
+        if routine.role in {
+            IRRoutineRole.PRESCAN,
+            IRRoutineRole.POSTSCAN,
+            IRRoutineRole.ENABLE_IN_FALSE,
+            IRRoutineRole.UNKNOWN_LIFECYCLE,
+        }:
+            continue
         for statement in _walk_statements(routine.statements):
             if not isinstance(statement, IRAssignment):
                 continue

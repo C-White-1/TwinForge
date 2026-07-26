@@ -4,6 +4,9 @@ from twinforge.analysis import analyze_structured_text_semantics
 from twinforge.ir import (
     IRArrayDimension,
     IRAssignment,
+    IRControllerObjectRead,
+    IRControllerObjectIntent,
+    IRControllerObjectWrite,
     IRDirection,
     IRIf,
     IRLiteral,
@@ -221,3 +224,42 @@ def test_wall_clock_gsv_lowers_to_unit_aware_neutral_operation():
     )
     assert interval.default_value == 1000
     assert interval.default_lexical_value == "1000"
+
+
+def test_module_gsv_and_ssv_lower_to_structured_controller_services():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "controller_object_services.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["ModuleServices"]
+    report = analyze_structured_text_semantics(controller)
+    unit = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:ModuleServices"
+        },
+    )
+
+    read, write = unit.routines[0].statements
+    assert isinstance(read, IRControllerObjectRead)
+    assert (
+        read.object_class,
+        read.instance,
+        read.attribute,
+    ) == ("Module", "Ref_Module", "Mode")
+    assert isinstance(read.destination, IRReference)
+    assert read.destination.name == "Value"
+    assert read.intent is IRControllerObjectIntent.OPERATING_MODE
+    assert isinstance(write, IRControllerObjectWrite)
+    assert (
+        write.object_class,
+        write.instance,
+        write.attribute,
+    ) == ("Module", "Ref_Module", "Mode")
+    assert isinstance(write.value, IRReference)
+    assert write.value.name == "ModeSet"
+    assert write.intent is IRControllerObjectIntent.SET_INHIBITED
+    assert unit.routines[0].diagnostics == ()

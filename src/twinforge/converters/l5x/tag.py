@@ -6,7 +6,7 @@ from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Tag, TagValue
+from twinforge.model import MessageTagConfiguration, Tag, TagValue
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .source_extension import captured_to_source_extension
@@ -76,8 +76,59 @@ def convert_tag(
         permission_set=section.attributes.get("PermissionSet"),
         description=_description(section),
         initial_value=_initial_value(section, diagnostics),
+        message_configuration=_message_configuration(section),
         source_extensions=[captured_to_source_extension(section)],
     )
+
+
+def _message_configuration(
+    section: CapturedSection,
+) -> MessageTagConfiguration | None:
+    for data in section.elements.get("Data", []):
+        if data.attributes.get("Format") != "Message":
+            continue
+        parameters = data.elements.get("MessageParameters", [])
+        if not parameters:
+            continue
+        attributes = parameters[0].attributes
+        return MessageTagConfiguration(
+            message_type=attributes.get("MessageType"),
+            requested_length=_logix_int(attributes.get("RequestedLength")),
+            connected_flag=_logix_int(attributes.get("ConnectedFlag")),
+            connection_path=attributes.get("ConnectionPath"),
+            communication_type_code=_logix_int(
+                attributes.get("CommTypeCode")
+            ),
+            service_code=_logix_int(attributes.get("ServiceCode")),
+            object_type=_logix_int(attributes.get("ObjectType")),
+            target_object=_logix_int(attributes.get("TargetObject")),
+            attribute_number=_logix_int(attributes.get("AttributeNumber")),
+            local_index=_logix_int(attributes.get("LocalIndex")),
+            local_element=attributes.get("LocalElement"),
+            destination_tag=attributes.get("DestinationTag"),
+            large_packet_usage=_lexical_bool(
+                attributes.get("LargePacketUsage")
+            ),
+            raw_attributes=dict(attributes),
+        )
+    return None
+
+
+def _logix_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    if "#" in value:
+        radix, digits = value.split("#", 1)
+        return int(digits.replace("_", ""), int(radix))
+    return int(value, 0)
+
+
+def _lexical_bool(value: str | None) -> bool | None:
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    return None
 
 
 def _description(section: CapturedSection) -> str | None:

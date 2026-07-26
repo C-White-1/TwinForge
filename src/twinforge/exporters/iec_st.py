@@ -13,6 +13,8 @@ from twinforge.ir import (
     IRBinary,
     IRCall,
     IRCallStatement,
+    IRControllerObjectRead,
+    IRControllerObjectWrite,
     IRDirection,
     IRExit,
     IRExpression,
@@ -43,6 +45,7 @@ class IECRequirement(str, Enum):
     GENERIC_ARRAY_INTERFACE = "generic_array_interface"
     SOURCE_OPERATION_ADAPTER = "source_operation_adapter"
     WALL_CLOCK_READ = "wall_clock_read"
+    CONTROLLER_OBJECT_ACCESS = "controller_object_access"
 
 
 class IECSTDialect(Protocol):
@@ -323,6 +326,26 @@ class _IECEmitter:
                 self.requirements.add(IECRequirement.WALL_CLOCK_READ)
                 return [f"{prefix}TF_WallClockRead({destination});"]
             return [f"{prefix}{line}" for line in rendered]
+        if isinstance(statement, IRControllerObjectRead):
+            self.requirements.add(IECRequirement.CONTROLLER_OBJECT_ACCESS)
+            destination = self.expression(statement.destination)
+            return [
+                f"{prefix}(* TwinForge target adapter required: read "
+                f"{_comment_text(statement.object_class)}/"
+                f"{_comment_text(statement.instance)}/"
+                f"{_comment_text(statement.attribute)} -> "
+                f"{_comment_text(destination)} *)"
+            ]
+        if isinstance(statement, IRControllerObjectWrite):
+            self.requirements.add(IECRequirement.CONTROLLER_OBJECT_ACCESS)
+            value = self.expression(statement.value)
+            return [
+                f"{prefix}(* TwinForge target adapter required: write "
+                f"{_comment_text(statement.object_class)}/"
+                f"{_comment_text(statement.instance)}/"
+                f"{_comment_text(statement.attribute)} <- "
+                f"{_comment_text(value)} *)"
+            ]
         if isinstance(statement, IRIf):
             lines: list[str] = []
             for index, branch in enumerate(statement.branches):

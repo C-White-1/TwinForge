@@ -1,0 +1,21 @@
+
+        <RSLogix5000Content TargetType="Module" TargetName="DriveModule">
+          <Controller Use="Context" Name="PLC">
+            <Modules Use="Context">
+              <Module Use="Target" Name="DriveModule"
+               CatalogNumber="ETHERNET-MODULE" Vendor="1"
+               ProductType="0" ProductCode="1" Major="1" Minor="1"
+               ParentModule="Local" ParentModPortId="1"
+               Inhibited="false" MajorFault="false">
+                <Communications>
+                  <Connections>
+                    <Connection Name="Standard" Type="Output" RPI="10000"
+                     InputCxnPoint="1" OutputCxnPoint="2"
+                     InputSize="8" OutputSize="4" Unicast="true"/>
+                  </Connections>
+                </Communications>
+              </Module>
+            </Modules>
+          </Controller>
+        </RSLogix5000Content>
+        

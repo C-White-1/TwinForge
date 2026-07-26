@@ -1,0 +1,16 @@
+CONTROLLER SUMMARY
+================================================================================
+Name                : booster_compressor
+Product             : 1756-L82E
+Vendor              : Allen-Bradley / Rockwell Automation
+Product type        : 14
+Product code        : 165
+Revision            : 34.11
+Serial              : 
+Chassis             : 1
+Modules             : 7
+Controller tags     : 154
+Datatypes           : 0
+Add-On Instructions : 0
+Programs            : 1
+Tasks               : 1

@@ -1,0 +1,45 @@
+
+        <RSLogix5000Content TargetType="AddOnInstructionDefinition"
+         TargetName="Dvc_PF525">
+          <Controller Use="Context" Name="PLC">
+            <AddOnInstructionDefinitions Use="Context">
+              <AddOnInstructionDefinition Use="Target" Name="Dvc_PF525">
+                <Description><![CDATA[PowerFlex 525]]></Description>
+                <Parameters>
+                  <Parameter Name="EnableIn" DataType="BOOL" Usage="Input"
+                   Required="false" Visible="false"/>
+                  <Parameter Name="Ref_Module" DataType="MODULE" Usage="InOut"
+                   Required="true" Visible="true"/>
+                  <Parameter Name="Ref_IO" DataType="DINT" Usage="InOut"
+                   Required="true" Visible="true"/>
+                  <Parameter Name="Command" DataType="BOOL" Usage="Input"
+                   Required="true" Visible="true"/>
+                  <Parameter Name="Status" DataType="BOOL" Usage="Output"
+                   Required="false" Visible="true"/>
+                  <Parameter Name="Ref_ReadMsg" DataType="MESSAGE"
+                   Usage="InOut" Required="true" Visible="true"/>
+                  <Parameter Name="Ref_MsgData" DataType="DINT"
+                   Usage="InOut" Required="true" Visible="true"/>
+                  <Parameter Name="Ref_Class" DataType="ST_Class"
+                   Usage="InOut" Required="true" Visible="true"/>
+                </Parameters>
+                <Routines>
+                  <Routine Name="Logic" Type="ST">
+                    <STContent>
+                      <Line Number="0"><![CDATA[
+                        Ref_MsgData[0] := 38; // P038 [VoltageClass]
+                      ]]></Line>
+                      <Line Number="1"><![CDATA[
+                        WriteInstance := 34;
+                      ]]></Line>
+                      <Line Number="2"><![CDATA[
+                        WriteInstance := 0;
+                      ]]></Line>
+                    </STContent>
+                  </Routine>
+                </Routines>
+              </AddOnInstructionDefinition>
+            </AddOnInstructionDefinitions>
+          </Controller>
+        </RSLogix5000Content>
+        

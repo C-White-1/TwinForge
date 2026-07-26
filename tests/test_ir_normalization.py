@@ -92,3 +92,36 @@ END_VAR
         "unit_promoted_to_function_block",
     }
     assert result.complete
+
+
+def test_prescan_only_input_write_does_not_change_cyclic_interface():
+    controller = next(
+        L5XParser()
+        .parse(DATA / "prescan_input_write.L5X", report_mode=None)
+        .iter_controllers()
+    )
+    instruction = controller.add_on_instructions["PrescanInputWrite"]
+    report = analyze_structured_text_semantics(controller)
+    source = lower_add_on_instruction(
+        instruction,
+        {
+            finding.routine: finding.semantics
+            for finding in report.routines
+            if finding.owner == "AOI:PrescanInputWrite"
+        },
+    )
+
+    result = normalize_reusable_unit(
+        source,
+        IRNormalizationPolicy.PROMOTE_WRITTEN_INPUTS,
+    )
+
+    command = next(
+        item for item in result.unit.parameters if item.name == "Command"
+    )
+    assert command.direction is IRDirection.INPUT
+    assert result.changes == ()
+    assert not any(
+        item.code == "write_to_input_parameter"
+        for item in result.unit.diagnostics
+    )

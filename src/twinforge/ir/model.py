@@ -36,6 +36,18 @@ class IRRoutineRole(str, Enum):
     UNKNOWN = "unknown"
 
 
+class IRControllerObjectIntent(str, Enum):
+    """Vendor-neutral meaning of a controller-managed object operation."""
+
+    INSTANCE_IDENTITY = "instance_identity"
+    CONNECTION_STATUS = "connection_status"
+    FAULT_CODE = "fault_code"
+    FAULT_INFORMATION = "fault_information"
+    OPERATING_MODE = "operating_mode"
+    SET_INHIBITED = "set_inhibited"
+    SOURCE_SPECIFIC = "source_specific"
+
+
 @dataclass(frozen=True)
 class IRLifecycle:
     """Captured reusable-unit lifecycle activation evidence."""
@@ -155,6 +167,34 @@ class IRWallClockRead(IRStatement):
 
     destination: IRExpression
     timestamp_unit: str = "microseconds"
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRControllerObjectRead(IRStatement):
+    """Read a named attribute from a controller-managed object."""
+
+    object_class: str
+    instance: str
+    attribute: str
+    destination: IRExpression
+    intent: IRControllerObjectIntent = (
+        IRControllerObjectIntent.SOURCE_SPECIFIC
+    )
+    source_vendor: str | None = None
+
+
+@dataclass(frozen=True, kw_only=True)
+class IRControllerObjectWrite(IRStatement):
+    """Write a named attribute on a controller-managed object."""
+
+    object_class: str
+    instance: str
+    attribute: str
+    value: IRExpression
+    intent: IRControllerObjectIntent = (
+        IRControllerObjectIntent.SOURCE_SPECIFIC
+    )
+    source_vendor: str | None = None
 
 
 @dataclass(frozen=True, kw_only=True)

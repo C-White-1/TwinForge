@@ -25,6 +25,13 @@ if TYPE_CHECKING:
 
 @dataclass(kw_only=True)
 class Module(Asset):
+    """A controller-side module or communication representation.
+
+    ``identity`` belongs to the module record captured from the controller
+    project. It does not automatically identify a physical device represented
+    by a generic communication module such as ``ETHERNET-MODULE``.
+    """
+
     catalog: str
 
     identity: Identity
@@ -58,6 +65,12 @@ class Module(Asset):
     # channels: list["Channel"] = field(default_factory=list)
 
     # assemblies: list["Assembly"] = field(default_factory=list)
+
+    @property
+    def controller_representation_identity(self) -> Identity:
+        """Return identity evidence scoped to the controller module record."""
+
+        return self.identity
 
     def add_connection(self, connection: "Connection") -> None:
         connection.parent = self

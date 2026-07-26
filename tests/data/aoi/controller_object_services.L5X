@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="ModuleServices" TargetType="AddOnInstructionDefinition"
+ ContainsContext="true">
+  <Controller Use="Context" Name="ServiceFixture">
+    <DataTypes Use="Context"/>
+    <AddOnInstructionDefinitions Use="Context">
+      <AddOnInstructionDefinition Use="Target" Name="ModuleServices"
+       ExecutePrescan="false" ExecutePostscan="false"
+       ExecuteEnableInFalse="false">
+        <Parameters>
+          <Parameter Name="Ref_Module" DataType="MODULE" Usage="InOut"/>
+          <Parameter Name="Value" DataType="DINT" Usage="Output"/>
+        </Parameters>
+        <LocalTags>
+          <LocalTag Name="ModeSet" DataType="DINT"/>
+        </LocalTags>
+        <Routines>
+          <Routine Name="Logic" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[GSV(Module, Ref_Module, Mode, Value);]]></Line>
+              <Line Number="1"><![CDATA[SSV(Module, Ref_Module, Mode, ModeSet);]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+  </Controller>
+</RSLogix5000Content>

@@ -52,6 +52,10 @@ def test_converts_sample_module_identity_slot_flags_and_ekey():
     assert len(module.connections) == 1
     assert module.connections[0].name == "StandardInput"
     assert module.connections[0].connection_type == "Input"
+    assert module.connections[0].requested_packet_interval_microseconds == 20000
+    assert module.connections[0].input_connection_point is None
+    assert module.connections[0].input_size_bytes is None
+    assert module.connections[0].unicast is None
     assert module.connections[0].parent is module
     assert module.connections[0].source_extensions[0].root.name == "Connection"
     assert module.electronic_key is not None
@@ -166,6 +170,34 @@ def test_non_numeric_address_is_preserved_without_inventing_a_slot():
     assert module.slot is None
     assert module.address == "192.0.2.10"
     assert convert_module(section, slot=3).slot == 3
+
+
+def test_converts_explicit_cyclic_connection_profile():
+    section = _capture_module(
+        """
+        <Module Name="Remote" CatalogNumber="ETHERNET-MODULE">
+            <Ports>
+                <Port Id="2" Address="192.168.1.80" Upstream="true" />
+            </Ports>
+            <Communications>
+                <Connections>
+                    <Connection Name="Standard" RPI="10000" Type="Output"
+                                InputCxnPoint="1" OutputCxnPoint="2"
+                                InputSize="8" OutputSize="4" Unicast="true" />
+                </Connections>
+            </Communications>
+        </Module>
+        """
+    )
+
+    connection = convert_module(section).connections[0]
+
+    assert connection.requested_packet_interval_microseconds == 10_000
+    assert connection.input_connection_point == 1
+    assert connection.output_connection_point == 2
+    assert connection.input_size_bytes == 8
+    assert connection.output_size_bytes == 4
+    assert connection.unicast is True
 
 
 def test_accepts_an_injected_module_capability_provider():

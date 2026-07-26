@@ -69,6 +69,9 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
     assert parser.diagnostics == []
     instruction = controller.add_on_instructions["MainAOI"]
     assert instruction.parameters["Status"].alias_for == "State.0"
+    assert instruction.parameters["Status"].data_type is None
+    assert instruction.parameters["Status"].resolved_data_type == "BOOL"
+    assert instruction.parameters["Status"].effective_data_type == "BOOL"
     state = instruction.local_tags["State"]
     assert state.data_type == "DINT"
     assert state.initial_value is not None

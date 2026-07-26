@@ -18,6 +18,7 @@ class AddOnInstructionParameter:
 
     name: str
     data_type: str | None = None
+    resolved_data_type: str | None = None
     usage: str | None = None
     dimensions: str | None = None
     radix: str | None = None
@@ -31,6 +32,12 @@ class AddOnInstructionParameter:
     source_extensions: list[SourceExtension] = field(
         default_factory=list, repr=False
     )
+
+    @property
+    def effective_data_type(self) -> str | None:
+        """Return documented or safely resolved datatype evidence."""
+
+        return self.data_type or self.resolved_data_type
 
 
 @dataclass

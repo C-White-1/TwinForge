@@ -1,0 +1,13 @@
+MODULE AND I/O INVENTORY
+================================================================================
+Count: 7
+
+Slot/address | Name     | Catalog    | Vendor                              | Signal  | Direction | Nominal | Configured | Keying
+-------------+----------+------------+-------------------------------------+---------+-----------+---------+------------+------------------
+0            | Local    | 1756-L82E  | Allen-Bradley / Rockwell Automation |         |           |         |            | disabled
+1            | DI_Slot1 | 1756-IB16  | Allen-Bradley / Rockwell Automation | Digital | Input     | 16      | 16         | compatible_module
+2            | DI_Slot2 | 1756-IB16  | Allen-Bradley / Rockwell Automation | Digital | Input     | 16      | 16         | compatible_module
+3            | DO_Slot3 | 1756-OB16E | Allen-Bradley / Rockwell Automation | Digital | Output    | 16      | 16         | compatible_module
+4            | AI_Slot4 | 1756-IF8   | Allen-Bradley / Rockwell Automation | Analog  | Input     | 8       | 4          | compatible_module
+5            | AO_Slot5 | 1756-OF8   | Allen-Bradley / Rockwell Automation | Analog  | Output    | 8       | 8          | compatible_module
+6            | AI_Slot6 | 1756-IF8   | Allen-Bradley / Rockwell Automation | Analog  | Input     | 8       | 4          | compatible_module

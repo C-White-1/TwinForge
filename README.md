@@ -14,7 +14,7 @@ tests/data/basic/BoosterCompressor_20260128.L5X
 
 Current results:
 
-- 166 automated tests pass;
+- 192 automated tests pass;
 - all 134 RLL rungs and 474 instruction occurrences in the fixture convert;
 - generated CODESYS PLCopen XML imports and precompiles with zero errors;
 - standard PLCopen XML validates against the PLCopen 2.01 XSD;

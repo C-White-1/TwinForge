@@ -67,9 +67,41 @@ TAG_DATA_ATTRIBUTES: dict[str, AttributeSpec] = {
         name="Format",
         description="Serialization format of the enclosed tag data.",
         required=True,
-        valid_values=("L5K", "Decorated", "String", "Alarm"),
+        valid_values=("L5K", "Decorated", "String", "Alarm", "Message"),
         manual_ref="1756-RM014D-EN-P September 2025, Tag data structure.",
     ),
+}
+
+MESSAGE_PARAMETER_ATTRIBUTES: dict[str, AttributeSpec] = {
+    name: AttributeSpec(
+        name=name,
+        description=f"Logix MESSAGE configuration field {name}.",
+        manual_ref="1756-RM014D-EN-P September 2025, MESSAGE tag data.",
+    )
+    for name in (
+        "MessageType",
+        "RequestedLength",
+        "ConnectedFlag",
+        "ConnectionPath",
+        "CommTypeCode",
+        "ServiceCode",
+        "ObjectType",
+        "TargetObject",
+        "AttributeNumber",
+        "LocalIndex",
+        "LocalElement",
+        "DestinationTag",
+        "LargePacketUsage",
+    )
+}
+
+TAG_DATA_ELEMENTS: dict[str, ElementSpec] = {
+    "MessageParameters": ElementSpec(
+        name="MessageParameters",
+        description="Configuration of a Logix MESSAGE tag.",
+        attributes=MESSAGE_PARAMETER_ATTRIBUTES,
+        manual_ref="1756-RM014D-EN-P September 2025, MESSAGE tag data.",
+    )
 }
 
 
@@ -84,6 +116,7 @@ TAG_ELEMENTS: dict[str, ElementSpec] = {
         name="Data",
         description="One serialized representation of the tag value.",
         attributes=TAG_DATA_ATTRIBUTES,
+        elements=TAG_DATA_ELEMENTS,
         repeatable=True,
         content_type="mixed",
         manual_ref="1756-RM014D-EN-P September 2025, Tag structure.",

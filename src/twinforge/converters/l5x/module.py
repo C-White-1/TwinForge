@@ -15,7 +15,7 @@ from twinforge.model.module import Module
 from twinforge.parsers.l5x.capture import CapturedSection
 from twinforge.schema.l5x.modules import MODULE_ATTRIBUTES
 
-from .conversion_value import optional_bool
+from .conversion_value import optional_bool, optional_int
 from .module_capability import (
     DEFAULT_CAPABILITY_PROVIDERS,
     ModuleCapabilityProvider,
@@ -87,12 +87,15 @@ def convert_module(
         ),
         source_extensions=[captured_to_source_extension(section)],
     )
-    for connection in _convert_connections(section):
+    for connection in _convert_connections(section, diagnostics):
         module.add_connection(connection)
     return module
 
 
-def _convert_connections(module: CapturedSection) -> list[Connection]:
+def _convert_connections(
+    module: CapturedSection,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> list[Connection]:
     """Convert captured connection records and retain their source XML."""
 
     return [
@@ -100,6 +103,42 @@ def _convert_connections(module: CapturedSection) -> list[Connection]:
             name=connection.attributes.get("Name", ""),
             protocol="EtherNet/IP",
             connection_type=connection.attributes.get("Type"),
+            requested_packet_interval_microseconds=optional_int(
+                connection.attributes.get("RPI"),
+                "RPI",
+                connection,
+                diagnostics,
+            ),
+            input_connection_point=optional_int(
+                connection.attributes.get("InputCxnPoint"),
+                "InputCxnPoint",
+                connection,
+                diagnostics,
+            ),
+            output_connection_point=optional_int(
+                connection.attributes.get("OutputCxnPoint"),
+                "OutputCxnPoint",
+                connection,
+                diagnostics,
+            ),
+            input_size_bytes=optional_int(
+                connection.attributes.get("InputSize"),
+                "InputSize",
+                connection,
+                diagnostics,
+            ),
+            output_size_bytes=optional_int(
+                connection.attributes.get("OutputSize"),
+                "OutputSize",
+                connection,
+                diagnostics,
+            ),
+            unicast=optional_bool(
+                connection.attributes.get("Unicast"),
+                "Unicast",
+                connection,
+                diagnostics,
+            ),
             source_extensions=[captured_to_source_extension(connection)],
         )
         for communications in module.elements.get("Communications", [])

@@ -37,6 +37,11 @@ from .structured_text_semantics import (
     StructuredTextSemanticReport,
     analyze_structured_text_semantics,
 )
+from .software_calls import extract_program_calls
+from .literal_assignments import (
+    LiteralAssignmentEvidence,
+    extract_literal_assignments,
+)
 
 __all__ = [
     "AOIPortability",
@@ -66,4 +71,7 @@ __all__ = [
     "extract_structured_text_calls",
     "evaluate_runtime_compatibility",
     "extract_rll_mnemonics",
+    "extract_program_calls",
+    "extract_literal_assignments",
+    "LiteralAssignmentEvidence",
 ]

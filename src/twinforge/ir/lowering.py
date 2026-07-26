@@ -37,6 +37,9 @@ from .model import (
     IRBinary,
     IRCall,
     IRCallStatement,
+    IRControllerObjectRead,
+    IRControllerObjectIntent,
+    IRControllerObjectWrite,
     IRDiagnostic,
     IRDirection,
     IRExit,
@@ -180,7 +183,7 @@ def lower_add_on_instruction(
             IRParameter(
                 name=parameter.name,
                 direction=_direction(parameter.usage),
-                data_type=parameter.data_type,
+                data_type=parameter.effective_data_type,
                 dimensions=parameter.dimensions,
                 generic_dimensions=(
                     parameter.dimensions is not None
@@ -420,6 +423,42 @@ class _StructuredTextLowerer:
                 ),
                 timestamp_unit="microseconds",
             )
+        if call.kind is CallKind.CONTROLLER_OBJECT_READ:
+            object_class = self._argument_source(expression, 0)
+            attribute = self._argument_source(expression, 2)
+            return IRControllerObjectRead(
+                span=expression.span,
+                object_class=object_class,
+                instance=self._argument_source(expression, 1),
+                attribute=attribute,
+                destination=self.expression(
+                    expression.arguments[3].value
+                ),
+                intent=_controller_object_intent(
+                    call.vendor,
+                    object_class,
+                    attribute,
+                    write=False,
+                ),
+                source_vendor=call.vendor,
+            )
+        if call.kind is CallKind.CONTROLLER_OBJECT_WRITE:
+            object_class = self._argument_source(expression, 0)
+            attribute = self._argument_source(expression, 2)
+            return IRControllerObjectWrite(
+                span=expression.span,
+                object_class=object_class,
+                instance=self._argument_source(expression, 1),
+                attribute=attribute,
+                value=self.expression(expression.arguments[3].value),
+                intent=_controller_object_intent(
+                    call.vendor,
+                    object_class,
+                    attribute,
+                    write=True,
+                ),
+                source_vendor=call.vendor,
+            )
         if call.kind is not CallKind.ARRAY_DIMENSION_QUERY:
             return None
         if len(expression.arguments) != 3:
@@ -440,6 +479,14 @@ class _StructuredTextLowerer:
                 dimension=self.expression(dimension),
             ),
         )
+
+    def _argument_source(
+        self,
+        expression: CallExpression,
+        index: int,
+    ) -> str:
+        argument = expression.arguments[index].value
+        return self.source[argument.span.start : argument.span.end].strip()
 
     def _data_type(self, expression: Expression) -> str | None:
         item = self.types.get(_key(expression))
@@ -497,6 +544,36 @@ def _is_wall_clock_read(expression: CallExpression) -> bool:
     )
 
 
+def _controller_object_intent(
+    vendor: str | None,
+    object_class: str,
+    attribute: str,
+    *,
+    write: bool,
+) -> IRControllerObjectIntent:
+    """Classify known source services without discarding their raw names."""
+
+    if (
+        (vendor or "").casefold() != "rockwell automation"
+        or object_class.casefold() != "module"
+    ):
+        return IRControllerObjectIntent.SOURCE_SPECIFIC
+    if write and attribute.casefold() == "mode":
+        return IRControllerObjectIntent.SET_INHIBITED
+    if write:
+        return IRControllerObjectIntent.SOURCE_SPECIFIC
+    return {
+        "instance": IRControllerObjectIntent.INSTANCE_IDENTITY,
+        "entrystatus": IRControllerObjectIntent.CONNECTION_STATUS,
+        "faultcode": IRControllerObjectIntent.FAULT_CODE,
+        "faultinfo": IRControllerObjectIntent.FAULT_INFORMATION,
+        "mode": IRControllerObjectIntent.OPERATING_MODE,
+    }.get(
+        attribute.casefold(),
+        IRControllerObjectIntent.SOURCE_SPECIFIC,
+    )
+
+
 def _direction(value: str | None) -> IRDirection:
     normalized = (value or "").casefold()
     if normalized == "input":
@@ -534,6 +611,13 @@ def _interface_diagnostics(
     diagnostics: list[IRDiagnostic] = []
     reported: set[str] = set()
     for routine in routines:
+        if routine.role in {
+            IRRoutineRole.PRESCAN,
+            IRRoutineRole.POSTSCAN,
+            IRRoutineRole.ENABLE_IN_FALSE,
+            IRRoutineRole.UNKNOWN_LIFECYCLE,
+        }:
+            continue
         for statement in _walk_statements(routine.statements):
             if not isinstance(statement, IRAssignment):
                 continue

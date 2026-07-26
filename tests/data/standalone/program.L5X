@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="DriveProgram" TargetType="Program">
+  <Controller Use="Context" Name="Example">
+    <Programs Use="Context">
+      <Program Use="Target" Name="DriveProgram" TestEdits="false"
+       MainRoutineName="Main" Disabled="false" UseAsFolder="false">
+        <Tags>
+          <Tag Name="Dvc" TagType="Base" DataType="Dvc_PF525"
+           Constant="false" ExternalAccess="Read/Write"/>
+        </Tags>
+        <Routines>
+          <Routine Name="Main" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[Dvc_PF525(Dvc);]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+      </Program>
+      <Program Use="Reference" Name="Dependency"/>
+    </Programs>
+  </Controller>
+</RSLogix5000Content>

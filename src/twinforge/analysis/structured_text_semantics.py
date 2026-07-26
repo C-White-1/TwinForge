@@ -417,7 +417,7 @@ def _aoi_symbols(
         SemanticSymbol(
             item.name,
             SymbolKind.PARAMETER,
-            item.data_type,
+            item.effective_data_type,
             f"AOI:{instruction.name}",
             item.dimensions,
         )

@@ -6,9 +6,20 @@ from .add_on_instruction import (
 from .asset import Asset
 from .chassis import Chassis
 from .connection import Connection
+from .communication_interface import (
+    CommunicationInterface,
+    CommunicationService,
+)
 from .controller import Controller
 from .datatype import Datatype, DatatypeMember
-from .device import Device
+from .device import Device, DeviceType
+from .device_parameter import (
+    DeviceParameterDefinition,
+    DeviceParameterField,
+    DeviceParameterFlag,
+    DeviceParameterOption,
+)
+from .device_module_binding import DeviceModuleBinding, DeviceModuleRole
 from .electronic_key import ElectronicKey, KeyingMode
 from .engineering_unit import (
     EngineeringRangeEvidence,
@@ -20,6 +31,7 @@ from .identity import Identity, VendorIdentity
 from .module import Module
 from .module_capability import IODirection, IOSignalType, ModuleCapability
 from .network import Network
+from .observed_parameter import ObservedParameterAccess
 from .plant import Plant
 from .program import Program
 from .rack import Rack
@@ -27,7 +39,25 @@ from .revision import Revision
 from .route import Route
 from .routine import LadderRung, Routine, StructuredTextLine
 from .source_extension import SourceExtension, SourceNode
-from .tag import Tag
+from .software_component import (
+    SoftwareBinding,
+    SoftwareBindingRole,
+    SoftwareComponent,
+    SoftwareComponentKind,
+)
+from .software_call import (
+    ModuleDataDirection,
+    ResolvedSoftwareCall,
+    SoftwareCallArgument,
+    SoftwareCallArgumentBinding,
+    SoftwareCallBindingRole,
+    SoftwareCallLanguage,
+    SoftwareCallSite,
+    SoftwareModuleAssembly,
+    SoftwareParameterFlow,
+    SoftwareTagScope,
+)
+from .tag import MessageTagConfiguration, Tag
 from .tag_value import ScalarTagValue, TagValue
 from .task import Task
 
@@ -38,10 +68,19 @@ __all__ = [
     "Asset",
     "Chassis",
     "Connection",
+    "CommunicationInterface",
+    "CommunicationService",
     "Controller",
     "Datatype",
     "DatatypeMember",
     "Device",
+    "DeviceParameterDefinition",
+    "DeviceParameterField",
+    "DeviceParameterFlag",
+    "DeviceParameterOption",
+    "DeviceModuleBinding",
+    "DeviceModuleRole",
+    "DeviceType",
     "ElectronicKey",
     "EngineeringRangeEvidence",
     "EngineeringUnitConfidence",
@@ -54,8 +93,11 @@ __all__ = [
     "LadderRung",
     "VendorIdentity",
     "Module",
+    "ModuleDataDirection",
     "ModuleCapability",
+    "MessageTagConfiguration",
     "Network",
+    "ObservedParameterAccess",
     "Plant",
     "Program",
     "Rack",
@@ -65,6 +107,19 @@ __all__ = [
     "StructuredTextLine",
     "SourceExtension",
     "SourceNode",
+    "SoftwareBinding",
+    "SoftwareBindingRole",
+    "SoftwareCallArgument",
+    "SoftwareCallArgumentBinding",
+    "SoftwareCallBindingRole",
+    "SoftwareCallLanguage",
+    "SoftwareCallSite",
+    "SoftwareModuleAssembly",
+    "SoftwareParameterFlow",
+    "SoftwareTagScope",
+    "SoftwareComponent",
+    "SoftwareComponentKind",
+    "ResolvedSoftwareCall",
     "Tag",
     "TagValue",
     "ScalarTagValue",

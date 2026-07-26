@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="DriveModule" TargetType="Module">
+  <Controller Use="Context" Name="Example">
+    <Modules Use="Context">
+      <Module Use="Target" Name="DriveModule"
+       CatalogNumber="ETHERNET-MODULE" Vendor="1" ProductType="0"
+       ProductCode="18" Major="1" Minor="1" ParentModule="Local"
+       ParentModPortId="5" Inhibited="false" MajorFault="false">
+        <EKey State="Disabled"/>
+        <Ports>
+          <Port Id="2" Address="192.168.1.80" Type="Ethernet"
+           Upstream="true"/>
+        </Ports>
+        <Communications PrimCxnInputSize="8" PrimCxnOutputSize="4">
+          <Connections>
+            <Connection Name="Standard" RPI="10000" Type="Output"
+             InputCxnPoint="1" OutputCxnPoint="2" InputSize="8"
+             OutputSize="4" Unicast="true"/>
+          </Connections>
+        </Communications>
+      </Module>
+      <Module Use="Reference" Name="Local"/>
+    </Modules>
+  </Controller>
+</RSLogix5000Content>
