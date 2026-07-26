@@ -1,6 +1,0 @@
-
-        <RSLogix5000Content TargetType="Module" TargetName="Duplicate">
-          <Module Use="Target" Name="One"/>
-          <Module Use="Target" Name="Two"/>
-        </RSLogix5000Content>
-        

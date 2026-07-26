@@ -1,5 +1,0 @@
-
-        <RSLogix5000Content TargetType="Controller" TargetName="PLC01">
-          <Controller Use="Target" Name="PLC01" />
-        </RSLogix5000Content>
-        
