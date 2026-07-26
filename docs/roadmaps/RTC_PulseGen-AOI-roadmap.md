@@ -40,11 +40,11 @@ recorded in `docs/standards/plcopen.md`.
 
 ## Phase 1: general Structured Text transformation
 
-- [ ] Parse supported ST statements into a lossless intermediate
+- [x] Parse supported ST statements into a lossless intermediate
   representation while retaining the original text
 - [ ] Represent assignments, conditionals, Boolean expressions, arithmetic,
   member access and instruction calls
-- [ ] Preserve unsupported expressions with diagnostics rather than
+- [x] Preserve unsupported expressions with diagnostics rather than
   discarding them
 - [ ] Add datatype and numeric-unit transformation rules
 - [ ] Resolve AOI parameter, local-tag and nested-AOI references

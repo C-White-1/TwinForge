@@ -1,0 +1,149 @@
+Structured Text analysis: DEVPAC
+Routines: 24
+Statements: 1503
+Unsupported statements: 0
+All source preserved: yes
+
+Routine: AOI:Dvc_DiscreteIn/Logic
+  Statements: 9
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Dvc_PF525/Logic
+  Statements: 1054
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Dvc_PF525/Prescan
+  Statements: 2
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Math_Epsilon/Logic
+  Statements: 4
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Msg_SetParams/Logic
+  Statements: 4
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Msg_SetPathToModule/Logic
+  Statements: 5
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_CmdSrc/Logic
+  Statements: 114
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_CmdSrc/Prescan
+  Statements: 1
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_Gate/Logic
+  Statements: 20
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_Interlock/Logic
+  Statements: 46
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_Interlock/Prescan
+  Statements: 5
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_Permissive/Logic
+  Statements: 12
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Op_Permissive/Prescan
+  Statements: 5
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:RTC_PulseGen/Logic
+  Statements: 6
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:RTC_PulseGen/Prescan
+  Statements: 2
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Str_Clear/Logic
+  Statements: 6
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Str_Size/Logic
+  Statements: 2
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Alarm/Logic
+  Statements: 109
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Alarm/Prescan
+  Statements: 1
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Dvc/Logic
+  Statements: 27
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Dvc/Prescan
+  Statements: 1
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Module/Logic
+  Statements: 23
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: AOI:Sys_Module/Prescan
+  Statements: 8
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0
+
+Routine: Program:Dev_PF525/Config
+  Statements: 37
+  Unsupported statements: 0
+  Source preserved: yes
+  Diagnostics: 0

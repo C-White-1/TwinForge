@@ -1,0 +1,379 @@
+Structured Text semantics: DEVPAC
+Routines: 24
+Resolved references: 2853
+Unresolved references: 0
+Unknown calls: 0
+Resolved member/index accesses: 2980
+Unverified member/index accesses: 0
+Invalid member/index accesses: 0
+Typed expressions: 8167
+Invalid mapped signatures: 0
+Incompatible assignments: 0
+Incompatible bound arguments: 0
+Assignment compatibility: exact=863, implicit=207, unknown=141, incompatible=0
+Bound argument compatibility: exact=47, implicit=0, unknown=0, incompatible=0
+
+Routine: AOI:Dvc_DiscreteIn/Logic
+  Resolved references: 17
+  Unresolved references: 0
+  Calls: 2
+  Resolved accesses: 7
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 21
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Sys_Dvc(4 args): user_defined_instruction -> Sys_Dvc
+    - Op_Gate(1 args): user_defined_instruction -> Op_Gate
+
+Routine: AOI:Dvc_PF525/Logic
+  Resolved references: 1945
+  Unresolved references: 0
+  Calls: 33
+  Resolved accesses: 2747
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 6497
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Sys_Dvc(4 args): user_defined_instruction -> Sys_Dvc
+    - Sys_Module(2 args): user_defined_instruction -> Sys_Module
+    - Op_CmdSrc(1 args): user_defined_instruction -> Op_CmdSrc
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - TONR(1 args): retentive_timer -> retentive_timer, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - RTC_PulseGen(1 args): user_defined_instruction -> RTC_PulseGen
+    - Msg_SetParams(6 args): user_defined_instruction -> Msg_SetParams
+    - Msg_SetPathToModule(3 args): user_defined_instruction -> Msg_SetPathToModule
+    - MSG(1 args): explicit_message -> explicit_message, vendor=Rockwell Automation
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - SWPB(3 args): byte_swap -> byte_swap, vendor=Rockwell Automation
+    - Math_Epsilon(1 args): user_defined_instruction -> Math_Epsilon
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - ABS(1 args): absolute_value -> absolute_value
+    - Msg_SetParams(6 args): user_defined_instruction -> Msg_SetParams
+    - Msg_SetPathToModule(3 args): user_defined_instruction -> Msg_SetPathToModule
+    - MSG(1 args): explicit_message -> explicit_message, vendor=Rockwell Automation
+
+Routine: AOI:Dvc_PF525/Prescan
+  Resolved references: 2
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 3
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Math_Epsilon/Logic
+  Resolved references: 6
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 15
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Msg_SetParams/Logic
+  Resolved references: 8
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 4
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 12
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Msg_SetPathToModule/Logic
+  Resolved references: 10
+  Unresolved references: 0
+  Calls: 4
+  Resolved accesses: 16
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 32
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+
+Routine: AOI:Op_CmdSrc/Logic
+  Resolved references: 253
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 1
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 308
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+
+Routine: AOI:Op_CmdSrc/Prescan
+  Resolved references: 1
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 2
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Op_Gate/Logic
+  Resolved references: 54
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 16
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 151
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - TONR(1 args): retentive_timer -> retentive_timer, vendor=Rockwell Automation
+
+Routine: AOI:Op_Interlock/Logic
+  Resolved references: 99
+  Unresolved references: 0
+  Calls: 4
+  Resolved accesses: 11
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 189
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Str_Size(2 args): user_defined_instruction -> Str_Size
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - Str_Clear(3 args): user_defined_instruction -> Str_Clear
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+
+Routine: AOI:Op_Interlock/Prescan
+  Resolved references: 5
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 10
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Op_Permissive/Logic
+  Resolved references: 29
+  Unresolved references: 0
+  Calls: 2
+  Resolved accesses: 4
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 50
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Str_Size(2 args): user_defined_instruction -> Str_Size
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+
+Routine: AOI:Op_Permissive/Prescan
+  Resolved references: 5
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 10
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:RTC_PulseGen/Logic
+  Resolved references: 15
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 25
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+
+Routine: AOI:RTC_PulseGen/Prescan
+  Resolved references: 2
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 4
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Str_Clear/Logic
+  Resolved references: 10
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 1
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 18
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+
+Routine: AOI:Str_Size/Logic
+  Resolved references: 4
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 19
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+
+Routine: AOI:Sys_Alarm/Logic
+  Resolved references: 236
+  Unresolved references: 0
+  Calls: 12
+  Resolved accesses: 95
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 469
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Str_Size(2 args): user_defined_instruction -> Str_Size
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - RTC_PulseGen(1 args): user_defined_instruction -> RTC_PulseGen
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - TONR(1 args): retentive_timer -> retentive_timer, vendor=Rockwell Automation
+    - TONR(1 args): retentive_timer -> retentive_timer, vendor=Rockwell Automation
+    - Str_Clear(3 args): user_defined_instruction -> Str_Clear
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+
+Routine: AOI:Sys_Alarm/Prescan
+  Resolved references: 1
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 2
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Sys_Dvc/Logic
+  Resolved references: 58
+  Unresolved references: 0
+  Calls: 6
+  Resolved accesses: 38
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 134
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - Str_Size(2 args): user_defined_instruction -> Str_Size
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+
+Routine: AOI:Sys_Dvc/Prescan
+  Resolved references: 1
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 2
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Sys_Module/Logic
+  Resolved references: 43
+  Unresolved references: 0
+  Calls: 7
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 73
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - SSV(4 args): controller_object_write -> controller_object_write, vendor=Rockwell Automation
+    - SSV(4 args): controller_object_write -> controller_object_write, vendor=Rockwell Automation
+
+Routine: AOI:Sys_Module/Prescan
+  Resolved references: 8
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 16
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: Program:Dev_PF525/Config
+  Resolved references: 41
+  Unresolved references: 0
+  Calls: 2
+  Resolved accesses: 40
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 105
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation

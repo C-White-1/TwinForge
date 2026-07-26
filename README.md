@@ -134,6 +134,14 @@ hooks, dependencies, referenced data types, Structured Text calls and known
 Rockwell services. A portable-candidate result is not proof of semantic
 equivalence on another runtime.
 
+Measure lossless Structured Text syntax coverage:
+
+```powershell
+uv run python examples\analyze_structured_text.py `
+  tests\data\aoi\Str_Capacity_AOI.L5X `
+  --output reports\Str_Capacity_AOI\structured_text_analysis.txt
+```
+
 Generate and validate AutomationML:
 
 ```powershell
@@ -155,6 +163,7 @@ schemas must be obtained from their official publishers and supplied locally.
 - [Roadmap](ROADMAP.md)
 - [PLCopen capability matrix](docs/plcopen-capabilities.md)
 - [AOI portability and runtime contracts](docs/aoi-portability.md)
+- [Structured Text front end](docs/structured-text.md)
 - [AutomationML capability and validation](docs/automationml-proof-of-concept.md)
 - [PLCopen reference handling](docs/standards/plcopen.md)
 - [AutomationML reference handling](docs/standards/automationml.md)

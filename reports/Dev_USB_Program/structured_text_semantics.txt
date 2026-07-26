@@ -1,0 +1,130 @@
+Structured Text semantics: DEVPAC
+Routines: 8
+Resolved references: 126
+Unresolved references: 0
+Unknown calls: 0
+Resolved member/index accesses: 49
+Unverified member/index accesses: 0
+Invalid member/index accesses: 0
+Typed expressions: 272
+Invalid mapped signatures: 0
+Incompatible assignments: 0
+Incompatible bound arguments: 0
+Assignment compatibility: exact=21, implicit=13, unknown=11, incompatible=0
+Bound argument compatibility: exact=12, implicit=0, unknown=0, incompatible=0
+
+Routine: AOI:Msg_SetParams/Logic
+  Resolved references: 8
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 4
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 12
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Msg_SetPathToModule/Logic
+  Resolved references: 17
+  Unresolved references: 0
+  Calls: 5
+  Resolved accesses: 30
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 65
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
+
+Routine: AOI:Msg_ZeroBuffer/Logic
+  Resolved references: 9
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 1
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 17
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - SIZE(3 args): array_dimension_query -> array_dimension_query, vendor=Rockwell Automation
+
+Routine: AOI:RTC_PulseGen/Logic
+  Resolved references: 15
+  Unresolved references: 0
+  Calls: 1
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 25
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+
+Routine: AOI:RTC_PulseGen/Prescan
+  Resolved references: 2
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 4
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Sys_Module/Logic
+  Resolved references: 43
+  Unresolved references: 0
+  Calls: 7
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 73
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - GSV(4 args): controller_object_read -> controller_object_read, vendor=Rockwell Automation
+    - SSV(4 args): controller_object_write -> controller_object_write, vendor=Rockwell Automation
+    - SSV(4 args): controller_object_write -> controller_object_write, vendor=Rockwell Automation
+
+Routine: AOI:Sys_Module/Prescan
+  Resolved references: 8
+  Unresolved references: 0
+  Calls: 0
+  Resolved accesses: 0
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 16
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+
+Routine: AOI:Sys_USB/Logic
+  Resolved references: 24
+  Unresolved references: 0
+  Calls: 6
+  Resolved accesses: 14
+  Unverified accesses: 0
+  Invalid accesses: 0
+  Typed expressions: 60
+  Incompatible assignments: 0
+  Incompatible bound arguments: 0
+  Diagnostics: 0
+    - RTC_PulseGen(1 args): user_defined_instruction -> RTC_PulseGen
+    - Msg_SetParams(6 args): user_defined_instruction -> Msg_SetParams
+    - Msg_SetPathToModule(3 args): user_defined_instruction -> Msg_SetPathToModule
+    - MSG(1 args): explicit_message -> explicit_message, vendor=Rockwell Automation
+    - Msg_ZeroBuffer(2 args): user_defined_instruction -> Msg_ZeroBuffer
+    - COP(3 args): memory_copy -> memory_copy, vendor=Rockwell Automation
