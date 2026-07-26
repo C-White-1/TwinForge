@@ -645,6 +645,81 @@ _PARAMETERS = {
         maximum="Drive Rated Power × 2",
         resolution="0.01 kW",
     ),
+    19: _basic_display_parameter(
+        number=19,
+        name="Elapsed Run Time",
+        description=(
+            "Reports accumulated time during which the drive has been "
+            "outputting power."
+        ),
+        engineering_unit="h",
+        minimum="0",
+        maximum="65535 × 10",
+        resolution="10 h",
+    ),
+    20: _basic_display_parameter(
+        number=20,
+        name="Average Power",
+        description=(
+            "Reports average motor power since the energy meters were last "
+            "reset."
+        ),
+        engineering_unit="kW",
+        minimum="0.00",
+        maximum="Drive Rated Power × 2",
+        resolution="0.01 kW",
+    ),
+    21: _basic_display_parameter(
+        number=21,
+        name="Elapsed kWh",
+        description=(
+            "Reports accumulated output energy; at 100.0 kWh it resets and "
+            "increments b022 Elapsed MWh."
+        ),
+        engineering_unit="kWh",
+        minimum="0.0",
+        maximum="100.0",
+        resolution="0.1 kWh",
+    ),
+    22: _basic_display_parameter(
+        number=22,
+        name="Elapsed MWh",
+        description="Reports accumulated drive output energy in megawatt-hours.",
+        engineering_unit="MWh",
+        minimum="0.0",
+        maximum="6553.5",
+        resolution="0.1 MWh",
+    ),
+    27: _basic_display_parameter(
+        number=27,
+        name="Drive Temp",
+        description=(
+            "Reports the present operating temperature of the drive heatsink."
+        ),
+        engineering_unit="°C",
+        minimum="0",
+        maximum="120",
+        resolution="1 °C",
+    ),
+    28: _basic_display_parameter(
+        number=28,
+        name="Control Temp",
+        description=(
+            "Reports the present operating temperature of the drive control."
+        ),
+        engineering_unit="°C",
+        minimum="0",
+        maximum="120",
+        resolution="1 °C",
+    ),
+    29: _basic_display_parameter(
+        number=29,
+        name="Control SW Version",
+        description="Reports the current drive firmware revision.",
+        minimum="0.000",
+        maximum="65.535",
+        resolution="0.001",
+    ),
     31: _parameter(
         number=31,
         code="P031",

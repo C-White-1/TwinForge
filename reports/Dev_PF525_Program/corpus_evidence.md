@@ -91,13 +91,13 @@ Observed parameter inventory:
 | 15 | b015 | Output RPM | Basic Display | yes | no | 12 |
 | 16 | b016 | Output Speed | Basic Display | yes | no | 13 |
 | 17 | b017 | Output Power | Basic Display | yes | no | 14 |
-| 19 | b019 | ElapsedRuntime | Basic Display | yes | no | 1 |
-| 20 | b020 | AveragePower | Basic Display | yes | no | 2 |
-| 21 | b021 | ElapsedkWh | Basic Display | yes | no | 3 |
-| 22 | b022 | ElapsedMWh | Basic Display | yes | no | 4 |
-| 27 | b027 | DriveTemp | Basic Display | yes | no | 15 |
-| 28 | b028 | ControlTemp | Basic Display | yes | no | 16 |
-| 29 | b029 | ControlSWVer | Basic Display | yes | no | 9 |
+| 19 | b019 | Elapsed Run Time | Basic Display | yes | no | 1 |
+| 20 | b020 | Average Power | Basic Display | yes | no | 2 |
+| 21 | b021 | Elapsed kWh | Basic Display | yes | no | 3 |
+| 22 | b022 | Elapsed MWh | Basic Display | yes | no | 4 |
+| 27 | b027 | Drive Temp | Basic Display | yes | no | 15 |
+| 28 | b028 | Control Temp | Basic Display | yes | no | 16 |
+| 29 | b029 | Control SW Version | Basic Display | yes | no | 9 |
 | 31 | P031 | Motor NP Volts | Basic Program | yes | yes | 10 |
 | 32 | P032 | Motor NP Hertz | Basic Program | yes | yes | 11 |
 | 33 | P033 | Motor OL Current | Basic Program | yes | yes | 12 |
@@ -259,6 +259,13 @@ Curated parameter semantics:
 | b015 | Reports output frequency converted to rotational speed using P035 Motor NP Poles. | 0 to 24000 | rpm | — | 1 rpm | Read only | no |
 | b016 | Reports output frequency as a percentage of P044 Maximum Freq. | 0.0 to 100.0 | % | — | 0.1% | Read only | no |
 | b017 | Reports output power at motor terminals T1, T2, and T3. | 0.00 to Drive Rated Power × 2 | kW | — | 0.01 kW | Read only | no |
+| b019 | Reports accumulated time during which the drive has been outputting power. | 0 to 65535 × 10 | h | — | 10 h | Read only | no |
+| b020 | Reports average motor power since the energy meters were last reset. | 0.00 to Drive Rated Power × 2 | kW | — | 0.01 kW | Read only | no |
+| b021 | Reports accumulated output energy; at 100.0 kWh it resets and increments b022 Elapsed MWh. | 0.0 to 100.0 | kWh | — | 0.1 kWh | Read only | no |
+| b022 | Reports accumulated drive output energy in megawatt-hours. | 0.0 to 6553.5 | MWh | — | 0.1 MWh | Read only | no |
+| b027 | Reports the present operating temperature of the drive heatsink. | 0 to 120 | °C | — | 1 °C | Read only | no |
+| b028 | Reports the present operating temperature of the drive control. | 0 to 120 | °C | — | 1 °C | Read only | no |
+| b029 | Reports the current drive firmware revision. | 0.000 to 65.535 | — | — | 0.001 | Read only | no |
 | P031 | Sets the motor nameplate rated voltage. | 10 (230 V drives), 20 (460 V drives), or 25 (600 V drives) to Drive Rated Volts | V | Drive Rated Volts | 1 V | Read/write | yes |
 | P032 | Sets the motor nameplate rated frequency. | 15 to 500 | Hz | 60 | 1 Hz | Read/write | yes |
 | P033 | Sets the motor nameplate overload current used to determine motor overload conditions. | 0.0 to Drive Rated Amps × 2 | A | Drive Rated Amps | 0.1 A | Read/write | no |

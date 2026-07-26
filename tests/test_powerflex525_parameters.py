@@ -467,3 +467,41 @@ def test_covers_output_speed_and_power(
     assert definition.name == name
     assert definition.engineering_unit == unit
     assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "resolution"),
+    [
+        (19, "Elapsed Run Time", "h", "10 h"),
+        (20, "Average Power", "kW", "0.01 kW"),
+        (21, "Elapsed kWh", "kWh", "0.1 kWh"),
+        (22, "Elapsed MWh", "MWh", "0.1 MWh"),
+        (27, "Drive Temp", "°C", "1 °C"),
+        (28, "Control Temp", "°C", "1 °C"),
+    ],
+)
+def test_covers_runtime_energy_and_temperature(
+    number: int,
+    name: str,
+    unit: str,
+    resolution: str,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.engineering_unit == unit
+    assert definition.resolution == resolution
+    assert definition.read_only
+
+
+def test_covers_control_software_version():
+    definition = PowerFlex525ParameterCatalogue().definition(29)
+
+    assert definition is not None
+    assert definition.name == "Control SW Version"
+    assert definition.minimum == "0.000"
+    assert definition.maximum == "65.535"
+    assert definition.resolution == "0.001"
+    assert definition.engineering_unit is None
+    assert definition.read_only
