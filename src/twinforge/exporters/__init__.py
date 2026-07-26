@@ -1,3 +1,4 @@
+from .aoi_plantuml import AOIPlantUMLExporter
 from .automationml import (
     AUTOMATIONML_VERSION,
     CAEX_NAMESPACE,
@@ -20,8 +21,10 @@ from .plcopen import (
     PLCopenValidationUnavailable,
     validate_plcopen_xml,
 )
+from .text_report import TextReportBundle, TextReportExporter
 
 __all__ = [
+    "AOIPlantUMLExporter",
     "AUTOMATIONML_VERSION",
     "CAEX_NAMESPACE",
     "CAEX_SCHEMA_VERSION",
@@ -40,4 +43,6 @@ __all__ = [
     "PLCopenValidationError",
     "PLCopenValidationUnavailable",
     "validate_plcopen_xml",
+    "TextReportBundle",
+    "TextReportExporter",
 ]

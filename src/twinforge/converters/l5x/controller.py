@@ -10,6 +10,7 @@ from twinforge.model import Chassis, Controller, Identity, Module, Revision
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .module import convert_module
+from .add_on_instruction import convert_add_on_instruction
 from .engineering_unit import resolve_engineering_units
 from .datatype import convert_datatype, resolve_datatype_references
 from .program import convert_program
@@ -60,12 +61,19 @@ def convert_controller(
         )
         if root_module.slot is None:
             controller.add_unplaced_module(root_module)
-            _topology_diagnostic(
-                diagnostics,
-                "root_without_slot",
-                f"root module {root_name!r} does not have a numeric slot",
-                root_name,
-            )
+            if sections_by_name[root_name].attributes.get("Use") not in {
+                "Context",
+                "Reference",
+            }:
+                _topology_diagnostic(
+                    diagnostics,
+                    "root_without_slot",
+                    (
+                        f"root module {root_name!r} does not have "
+                        "a numeric slot"
+                    ),
+                    root_name,
+                )
             continue
         controller.add_chassis(chassis)
         chassis.add_module(root_module)
@@ -129,6 +137,32 @@ def convert_controller(
                 continue
             controller.add_datatype(datatype)
 
+    for definitions in section.elements.get(
+        "AddOnInstructionDefinitions", []
+    ):
+        for definition_section in definitions.elements.get(
+            "AddOnInstructionDefinition", []
+        ):
+            instruction = convert_add_on_instruction(
+                definition_section, diagnostics=diagnostics
+            )
+            if not instruction.name:
+                continue
+            if instruction.name in controller.add_on_instructions:
+                _topology_diagnostic(
+                    diagnostics,
+                    "duplicate_aoi_name",
+                    (
+                        "duplicate Add-On Instruction name "
+                        f"{instruction.name!r}"
+                    ),
+                    instruction.name,
+                )
+                continue
+            controller.add_add_on_instruction(instruction)
+
+    _resolve_aoi_dependencies(controller, diagnostics)
+
     for programs in section.elements.get("Programs", []):
         for program_section in programs.elements.get("Program", []):
             program = convert_program(program_section, diagnostics=diagnostics)
@@ -180,6 +214,33 @@ def convert_controller(
     resolve_engineering_units(controller, diagnostics=diagnostics)
 
     return controller
+
+
+def _resolve_aoi_dependencies(
+    controller: Controller,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> None:
+    targets = {
+        "DataType": controller.datatypes,
+        "AddOnInstructionDefinition": controller.add_on_instructions,
+    }
+    for instruction in controller.add_on_instructions.values():
+        for dependency in instruction.dependencies:
+            candidates = targets.get(dependency.dependency_type)
+            if candidates is None:
+                continue
+            dependency.target = candidates.get(dependency.name)
+            if dependency.target is None:
+                _topology_diagnostic(
+                    diagnostics,
+                    "unresolved_aoi_dependency",
+                    (
+                        f"AOI {instruction.name!r} references unknown "
+                        f"{dependency.dependency_type} "
+                        f"{dependency.name!r}"
+                    ),
+                    instruction.name,
+                )
 
 
 def _index_module_sections(

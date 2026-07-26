@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content TargetName="AOIContext" TargetType="Program">
+  <Controller Use="Context" Name="TestController">
+    <DataTypes>
+      <DataType Name="ExampleData" Family="NoFamily" Class="User">
+        <Members>
+          <Member Name="Value" DataType="DINT" Dimension="0"
+           Radix="Decimal" Hidden="false" ExternalAccess="Read/Write"/>
+        </Members>
+      </DataType>
+    </DataTypes>
+    <Modules>
+      <Module Use="Reference" Name="Local" ParentModule="Local"/>
+    </Modules>
+    <AddOnInstructionDefinitions>
+      <AddOnInstructionDefinition Name="Helper" Revision="1.0"
+       ExecutePrescan="false" ExecutePostscan="false"
+       ExecuteEnableInFalse="false">
+        <Parameters/>
+        <LocalTags/>
+        <Routines/>
+      </AddOnInstructionDefinition>
+      <AddOnInstructionDefinition Name="MainAOI" Revision="1.0"
+       ExecutePrescan="false" ExecutePostscan="false"
+       ExecuteEnableInFalse="false">
+        <Parameters>
+          <Parameter Name="Status" TagType="Alias" Usage="Output"
+           AliasFor="State.0" Required="false" Visible="true"/>
+        </Parameters>
+        <LocalTags>
+          <LocalTag Name="State" DataType="DINT" Radix="Decimal"
+           ExternalAccess="None">
+            <DefaultData Format="Decorated">
+              <DataValue DataType="DINT" Value="0"/>
+            </DefaultData>
+          </LocalTag>
+        </LocalTags>
+        <Routines>
+          <Routine Name="Logic" Type="ST">
+            <STContent>
+              <Line Number="0"><![CDATA[State := State + 1;]]></Line>
+            </STContent>
+          </Routine>
+        </Routines>
+        <Dependencies>
+          <Dependency Type="DataType" Name="ExampleData"/>
+          <Dependency Type="AddOnInstructionDefinition" Name="Helper"/>
+        </Dependencies>
+      </AddOnInstructionDefinition>
+    </AddOnInstructionDefinitions>
+  </Controller>
+</RSLogix5000Content>

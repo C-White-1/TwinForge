@@ -1,0 +1,21 @@
+AOI portability analysis: DEVPAC
+
+Disposition is evidence-based and does not prove semantic equivalence.
+
+Instruction: Str_Capacity
+  Disposition: portable_candidate
+  Recommended IEC POU: function
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: no
+  Lifecycle hooks: none
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, SINT
+  Structured Text calls: SIZE
+  Rockwell services: none
+  Rockwell data types: none
+  Runtime capabilities: none
+  Unanalyzed routines: none
+  Reasons: no known Rockwell-only dependency was detected

@@ -1,3 +1,8 @@
+from .add_on_instruction import (
+    AddOnInstruction,
+    AddOnInstructionDependency,
+    AddOnInstructionParameter,
+)
 from .asset import Asset
 from .chassis import Chassis
 from .connection import Connection
@@ -20,13 +25,16 @@ from .program import Program
 from .rack import Rack
 from .revision import Revision
 from .route import Route
-from .routine import LadderRung, Routine
+from .routine import LadderRung, Routine, StructuredTextLine
 from .source_extension import SourceExtension, SourceNode
 from .tag import Tag
 from .tag_value import ScalarTagValue, TagValue
 from .task import Task
 
 __all__ = [
+    "AddOnInstruction",
+    "AddOnInstructionDependency",
+    "AddOnInstructionParameter",
     "Asset",
     "Chassis",
     "Connection",
@@ -54,6 +62,7 @@ __all__ = [
     "Revision",
     "Route",
     "Routine",
+    "StructuredTextLine",
     "SourceExtension",
     "SourceNode",
     "Tag",

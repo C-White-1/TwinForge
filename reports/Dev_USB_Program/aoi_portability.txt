@@ -1,0 +1,111 @@
+AOI portability analysis: DEVPAC
+
+Disposition is evidence-based and does not prove semantic equivalence.
+
+Instruction: Msg_SetParams
+  Disposition: adapter_required
+  Recommended IEC POU: function
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: no
+  Lifecycle hooks: none
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, MESSAGE
+  Structured Text calls: none
+  Rockwell services: none
+  Rockwell data types: MESSAGE
+  Runtime capabilities: explicit_messaging [data_type:MESSAGE]
+  Unanalyzed routines: none
+  Reasons: Rockwell-specific data types require a target adapter
+
+Instruction: Msg_SetPathToModule
+  Disposition: adapter_required
+  Recommended IEC POU: function_block
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: yes
+  Lifecycle hooks: none
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, INT, MESSAGE, MODULE
+  Structured Text calls: COP, GSV, SIZE
+  Rockwell services: GSV
+  Rockwell data types: MESSAGE, MODULE
+  Runtime capabilities: controller_object_read [service:GSV(Module)], explicit_messaging [data_type:MESSAGE], module_reference [data_type:MODULE]
+  Unanalyzed routines: none
+  Reasons: Rockwell controller services require a target adapter, Rockwell-specific data types require a target adapter
+
+Instruction: Msg_ZeroBuffer
+  Disposition: portable_candidate
+  Recommended IEC POU: function_block
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: yes
+  Lifecycle hooks: none
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, SINT
+  Structured Text calls: SIZE
+  Rockwell services: none
+  Rockwell data types: none
+  Runtime capabilities: none
+  Unanalyzed routines: none
+  Reasons: no known Rockwell-only dependency was detected
+
+Instruction: RTC_PulseGen
+  Disposition: adapter_required
+  Recommended IEC POU: function_block
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: yes
+  Lifecycle hooks: prescan
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, LINT
+  Structured Text calls: GSV
+  Rockwell services: GSV
+  Rockwell data types: none
+  Runtime capabilities: prescan_hook [lifecycle:prescan], wall_clock_read [service:GSV(WallClockTime)]
+  Unanalyzed routines: none
+  Reasons: Rockwell controller services require a target adapter, AOI lifecycle hooks require target-runtime integration
+
+Instruction: Sys_Module
+  Disposition: adapter_required
+  Recommended IEC POU: function_block
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: yes
+  Lifecycle hooks: prescan
+  Dependencies: none
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, MODULE
+  Structured Text calls: GSV, NOT, SSV
+  Rockwell services: GSV, SSV
+  Rockwell data types: MODULE
+  Runtime capabilities: controller_object_read [service:GSV(Module)], controller_object_write [service:SSV], module_reference [data_type:MODULE], prescan_hook [lifecycle:prescan]
+  Unanalyzed routines: none
+  Reasons: Rockwell controller services require a target adapter, Rockwell-specific data types require a target adapter, AOI lifecycle hooks require target-runtime integration
+
+Instruction: Sys_USB
+  Disposition: adapter_required
+  Recommended IEC POU: function_block
+  PLCopen behaviour: none (none)
+  Common Behaviour wrapper: no
+  Missing behaviour parameters: none
+  Retained local state: yes
+  Lifecycle hooks: none
+  Dependencies: AddOnInstructionDefinition:Msg_SetParams, AddOnInstructionDefinition:Msg_SetPathToModule, AddOnInstructionDefinition:Msg_ZeroBuffer, AddOnInstructionDefinition:RTC_PulseGen, AddOnInstructionDefinition:Sys_Module, DataType:ST_Sys_USB
+  Unresolved dependencies: none
+  Referenced data types: BOOL, DINT, MESSAGE, MODULE, Msg_SetParams, Msg_SetPathToModule, Msg_ZeroBuffer, RTC_PulseGen, SINT, ST_Sys_USB, Sys_Module
+  Structured Text calls: COP, MSG, Msg_SetParams, Msg_SetPathToModule, Msg_ZeroBuffer, RTC_PulseGen
+  Rockwell services: MSG
+  Rockwell data types: MESSAGE, MODULE
+  Runtime capabilities: explicit_messaging [data_type:MESSAGE; service:MSG], module_reference [data_type:MODULE]
+  Unanalyzed routines: none
+  Reasons: Rockwell controller services require a target adapter, Rockwell-specific data types require a target adapter

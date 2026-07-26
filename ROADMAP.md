@@ -11,6 +11,9 @@ from intended work.
 - [x] Electronic-key, connection and module-parent conversion
 - [x] Datatypes, controller tags, program tags and scalar exported values
 - [x] Programs, routines, RLL rungs, tasks and scheduled-program references
+- [x] Add-On Instruction parameters, local tags, dependencies and Structured
+  Text source capture
+- [x] AOI portability, runtime-capability and PLCopen Common Behaviour analysis
 - [x] Engineering-unit and analogue-range evidence with provenance
 - [x] Project-specific RLL conversion coverage reports
 - [x] PLCopen XML 2.01 and CODESYS-targeted export
@@ -47,6 +50,13 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] Additional comparison, bit, file and data-handling instructions
 - [ ] Structured Text, Function Block Diagram and SFC bodies
 - [ ] UDT, array and AOI representation
+- [ ] General AOI-to-IEC Structured Text transformation and target-runtime
+  adapter boundary
+- [ ] Convert `RTC_PulseGen` using the general AOI pipeline and the CODESYS
+  high-resolution wall-clock adapter; see the
+  [RTC_PulseGen AOI roadmap](docs/roadmaps/RTC_PulseGen-AOI-roadmap.md)
+- [ ] Add optional PLCopen Common Behaviour wrappers after underlying AOI
+  translation is semantically validated
 - [ ] Produced/consumed and physical I/O binding strategies
 
 ### Automatic engineering documents

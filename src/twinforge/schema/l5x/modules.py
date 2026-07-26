@@ -1,6 +1,12 @@
 from .spec import AttributeSpec, ElementSpec
 
 MODULE_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "Use": AttributeSpec(
+        name="Use",
+        description="Context or target role in a component export.",
+        valid_values=("Context", "Reference", "Target"),
+        l5x_only=True,
+    ),
     "Name": AttributeSpec(
         name="Name",
         description=(

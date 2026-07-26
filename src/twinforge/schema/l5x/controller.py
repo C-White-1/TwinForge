@@ -5,6 +5,7 @@ from .tags import TAGS_ELEMENTS
 from .tasks import TASKS_ELEMENTS
 from .datatypes import DATATYPES_ELEMENTS
 from .modules import MODULES_ELEMENTS
+from .add_on_instructions import ADD_ON_INSTRUCTION_ELEMENTS
 
 CONTROLLER_ATTRIBUTES: dict[str, AttributeSpec] = {
     "Use": AttributeSpec(
@@ -728,6 +729,7 @@ CONTROLLER_ELEMENTS: dict[str, ElementSpec] = {
     "AddOnInstructionDefinitions": ElementSpec(
         name="AddOnInstructionDefinitions",
         description="Container for Add-On Instruction definitions.",
+        elements=ADD_ON_INSTRUCTION_ELEMENTS,
         manual_ref="1756-RM014D-EN-P, Chapter 5",
     ),
     "Tags": ElementSpec(

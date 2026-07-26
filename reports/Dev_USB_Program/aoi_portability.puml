@@ -1,0 +1,59 @@
+@startuml DEVPAC_AOI_Portability
+title "DEVPAC AOI portability"
+left to right direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+legend right
+  |= Colour |= Meaning |
+  |<#D5F5E3>| Portable candidate |
+  |<#FCF3CF>| Target adapter required |
+  |<#F5B7B1>| Manual review |
+endlegend
+
+package "Add-On Instructions" {
+  component "Msg_SetParams\nfunction\nadapter_required\nPLCopen CBM: none/none" as aoi_6933cd188f98 #FCF3CF
+  component "Msg_SetPathToModule\nfunction_block\nadapter_required\nPLCopen CBM: none/none" as aoi_e2e736fe3281 #FCF3CF
+  component "Msg_ZeroBuffer\nfunction_block\nportable_candidate\nPLCopen CBM: none/none" as aoi_7299a056dcde #D5F5E3
+  component "RTC_PulseGen\nfunction_block\nadapter_required\nPLCopen CBM: none/none" as aoi_1c744e902a5f #FCF3CF
+  component "Sys_Module\nfunction_block\nadapter_required\nPLCopen CBM: none/none" as aoi_c94f0cefa052 #FCF3CF
+  component "Sys_USB\nfunction_block\nadapter_required\nPLCopen CBM: none/none" as aoi_e8ea1a80570d #FCF3CF
+}
+
+package "Referenced data types" {
+  artifact "ST_Sys_USB" as datatype_7a8aa82c6e07
+}
+
+package "Target runtime adapter boundary" {
+  interface "Controller Object Read" as capability_bf9662044e91
+  interface "Controller Object Write" as capability_2545747222d4
+  interface "Explicit Messaging" as capability_76e0bfb1bab5
+  interface "Module Reference" as capability_4a9472facfb9
+  interface "Prescan Hook" as capability_bf731e9dec16
+  interface "Wall Clock Read" as capability_28e3d5587749
+}
+
+aoi_6933cd188f98 --> capability_76e0bfb1bab5 : data_type:MESSAGE
+aoi_e2e736fe3281 --> capability_bf9662044e91 : service:GSV(Module)
+aoi_e2e736fe3281 --> capability_76e0bfb1bab5 : data_type:MESSAGE
+aoi_e2e736fe3281 --> capability_4a9472facfb9 : data_type:MODULE
+aoi_1c744e902a5f --> capability_bf731e9dec16 : lifecycle:prescan
+aoi_1c744e902a5f --> capability_28e3d5587749 : service:GSV(WallClockTime)
+aoi_c94f0cefa052 --> capability_bf9662044e91 : service:GSV(Module)
+aoi_c94f0cefa052 --> capability_2545747222d4 : service:SSV
+aoi_c94f0cefa052 --> capability_4a9472facfb9 : data_type:MODULE
+aoi_c94f0cefa052 --> capability_bf731e9dec16 : lifecycle:prescan
+aoi_e8ea1a80570d --> aoi_6933cd188f98 : uses
+aoi_e8ea1a80570d --> aoi_e2e736fe3281 : uses
+aoi_e8ea1a80570d --> aoi_7299a056dcde : uses
+aoi_e8ea1a80570d --> aoi_1c744e902a5f : uses
+aoi_e8ea1a80570d --> aoi_c94f0cefa052 : uses
+aoi_e8ea1a80570d ..> datatype_7a8aa82c6e07 : datatype
+aoi_e8ea1a80570d --> capability_76e0bfb1bab5 : data_type:MESSAGE\nservice:MSG
+aoi_e8ea1a80570d --> capability_4a9472facfb9 : data_type:MODULE
+
+note bottom
+  Adapter boundaries are inferred from captured evidence.
+  They do not prove target-runtime semantic equivalence.
+end note
+@enduml

@@ -104,7 +104,7 @@ def _initial_value(
             if lexical_value is None or data_type is None:
                 return None
             try:
-                value = _parse_scalar_value(data_type, lexical_value)
+                value = parse_scalar_value(data_type, lexical_value)
             except ValueError:
                 _emit(
                     diagnostics,
@@ -131,7 +131,7 @@ def _initial_value(
     return None
 
 
-def _parse_scalar_value(
+def parse_scalar_value(
     data_type: str, lexical_value: str
 ) -> bool | int | float | str | None:
     normalized_type = data_type.upper()

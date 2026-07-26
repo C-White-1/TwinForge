@@ -53,6 +53,7 @@ Exporters consume the model and never parse L5X directly.
 - Controller, module and electronic-key identity
 - Chassis, slots, module connections and parent relationships
 - Datatypes, controller/program tags and scalar exported values
+- Add-On Instructions, parameters, typed defaults and Structured Text source
 - Programs, routines, RLL rungs, tasks and scheduled-program references
 - Module engineering units and configured analogue ranges
 - Nominal, configured, assigned, unavailable and spare I/O evidence
@@ -60,6 +61,7 @@ Exporters consume the model and never parse L5X directly.
 - PLCopen XML 2.01 and CODESYS-targeted output
 - AutomationML 2.1 / CAEX 3.0 hierarchy, semantic libraries and links
 - Vendor-neutral and Rockwell catalog SystemUnitClasses
+- Model-driven controller, tag, datatype, module, task and program reports
 
 ## Quick start
 
@@ -101,6 +103,37 @@ uv run python examples\export_plcopen.py `
   --profile codesys
 ```
 
+Generate human-readable engineering reports:
+
+```powershell
+uv run python examples\export_reports.py `
+  tests\data\basic\BoosterCompressor_20260128.L5X `
+  reports\BoosterCompressor
+```
+
+The report exporter consumes the vendor-neutral model rather than parsing L5X
+directly. Reports therefore include promoted scalar values, engineering units,
+ranges, resolved task/program relationships and preserved RLL source text.
+AOI reports include parameters, typed defaults and numbered Structured Text
+source lines. Executable PLCopen conversion of Structured Text is not yet
+implemented.
+
+Assess captured AOIs before selecting an IEC 61131-3 conversion strategy:
+
+```powershell
+uv run python examples\analyze_aoi_portability.py `
+  tests\data\aoi\Str_Capacity_AOI.L5X `
+  --output reports\Str_Capacity_AOI\aoi_portability.txt `
+  --puml reports\Str_Capacity_AOI\aoi_portability.puml
+```
+
+The analyzer recommends a function or function block and classifies each AOI
+as a portable candidate, adapter required, or manual review. Its conclusions
+are conservative and evidence-based: they identify retained state, lifecycle
+hooks, dependencies, referenced data types, Structured Text calls and known
+Rockwell services. A portable-candidate result is not proof of semantic
+equivalence on another runtime.
+
 Generate and validate AutomationML:
 
 ```powershell
@@ -121,6 +154,7 @@ schemas must be obtained from their official publishers and supplied locally.
 - [Domain model](MODEL.md)
 - [Roadmap](ROADMAP.md)
 - [PLCopen capability matrix](docs/plcopen-capabilities.md)
+- [AOI portability and runtime contracts](docs/aoi-portability.md)
 - [AutomationML capability and validation](docs/automationml-proof-of-concept.md)
 - [PLCopen reference handling](docs/standards/plcopen.md)
 - [AutomationML reference handling](docs/standards/automationml.md)

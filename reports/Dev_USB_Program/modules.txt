@@ -1,0 +1,7 @@
+MODULE AND I/O INVENTORY
+================================================================================
+Count: 1
+
+Slot/address | Name  | Catalog | Vendor | Signal | Direction | Nominal | Configured | Keying
+-------------+-------+---------+--------+--------+-----------+---------+------------+-------
+             | Local |         |        |        |           |         |            |

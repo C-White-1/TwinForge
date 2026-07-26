@@ -100,11 +100,37 @@ RLL_CONTENT_ELEMENTS: dict[str, ElementSpec] = {
     ),
 }
 
+ST_LINE_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "Number": AttributeSpec(
+        name="Number",
+        required=True,
+        datatype=int,
+        description="Routine-local Structured Text line number.",
+    )
+}
+
+ST_CONTENT_ELEMENTS: dict[str, ElementSpec] = {
+    "Line": ElementSpec(
+        name="Line",
+        attributes=ST_LINE_ATTRIBUTES,
+        content_type="cdata",
+        repeatable=True,
+        description="One source line in a Structured Text routine.",
+    )
+}
+
 ROUTINE_ELEMENTS: dict[str, ElementSpec] = {
     "RLLContent": ElementSpec(
         name="RLLContent", description="Relay ladder logic content of an RLL routine.",
         elements=RLL_CONTENT_ELEMENTS,
         manual_ref="1756-RM014D-EN-P September 2025, RLL routine structure.",
+    ),
+    "STContent": ElementSpec(
+        name="STContent",
+        description="Structured Text source content.",
+        elements=ST_CONTENT_ELEMENTS,
+        repeatable=True,
+        manual_ref="1756-RM014D-EN-P September 2025, routine structure.",
     ),
 }
 

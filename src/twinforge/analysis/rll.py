@@ -4,11 +4,6 @@ import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
-from twinforge.exporters import (
-    PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS,
-    PLCopenExporter,
-    PLCopenProfile,
-)
 from twinforge.model import Controller
 
 
@@ -72,6 +67,13 @@ class RLLCoverageReport:
 
 def analyze_rll_coverage(controller: Controller) -> RLLCoverageReport:
     """Measure executable PLCopen coverage for one converted L5X controller."""
+
+    # Deferred to keep analysis independent from exporter package initialization.
+    from twinforge.exporters import (
+        PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS,
+        PLCopenExporter,
+        PLCopenProfile,
+    )
 
     export = PLCopenExporter(PLCopenProfile.CODESYS).export(controller)
     blocked_text = defaultdict(Counter)

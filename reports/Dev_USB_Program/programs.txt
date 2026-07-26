@@ -1,0 +1,15 @@
+PROGRAMS AND ROUTINES
+================================================================================
+Programs: 1
+
+Program: Dev_USB
+  Main routine: Main
+  Disabled: False
+  Local tags: 3
+  Routines: 1
+
+  Routine: Main [RLL]
+    Rung 0 [N]
+      Logic: NOP();
+    Rung 1 [N]
+      Logic: Sys_USB(USB,Local,MsgAttrAll,MsgResp);

@@ -1,0 +1,30 @@
+DATATYPES
+================================================================================
+Count: 1
+
+ST_Sys_USB [family=NoFamily, class=User]
+  Description: 0x33A
+  Member           | Data type | Dimension | Radix   | Description
+  -----------------+-----------+-----------+---------+---------------------------------------------------------------------------------
+  LogicalAddress   | USINT     | 0         | Decimal | Attribute 1.
+  State            | USINT     | 0         | Decimal | Attribute 2. 0: Initializing, 1: Fault, 2: Initialized, 3: Configured, 4: Ready.
+  Suspended        | USINT     | 0         | Decimal | Attribute 3.
+  Disabled         | USINT     | 0         | Decimal | Attribute 4.
+  BusSpeed         | USINT     | 0         | Decimal | Attribute 5. 0: Low, 1: Full, 2: High.
+  OTGSupport       | USINT     | 0         | Decimal | Attribute 6.
+  Mode             | USINT     | 0         | Decimal | Attribute 7. 0: Slave, 1: Host.
+  IFCounterLength  | USINT     | 0         | Decimal | Attribute 8.
+  IFRxGood         | UDINT     | 0         | Decimal | Attribute 9.
+  IFRxBad          | UDINT     | 0         | Decimal | Attribute 9.
+  IFRxDropped      | UDINT     | 0         | Decimal | Attribute 9.
+  IFTxGood         | UDINT     | 0         | Decimal | Attribute 9.
+  IFTxRetry        | UDINT     | 0         | Decimal | Attribute 9.
+  IFTxDropped      | UDINT     | 0         | Decimal | Attribute 9.
+  MCType           | UINT      | 0         | Decimal | Attribute 10.
+  MCLength         | UINT      | 0         | Decimal | Attribute 10.
+  MCRxBytes        | UDINT     | 0         | Decimal | Attribute 10.
+  MCRxDroppedBytes | UDINT     | 0         | Decimal | Attribute 10.
+  MCTxBytes        | UDINT     | 0         | Decimal | Attribute 10.
+  MCTxDroppedBytes | UDINT     | 0         | Decimal | Attribute 10.
+  FIFOOverflows    | UDINT     | 0         | Decimal | Attribute 10.
+  FIFOUnderruns    | UDINT     | 0         | Decimal | Attribute 10.

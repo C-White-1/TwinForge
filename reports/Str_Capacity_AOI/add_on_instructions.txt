@@ -1,0 +1,28 @@
+ADD-ON INSTRUCTIONS
+================================================================================
+Count: 1
+
+Instruction: Str_Capacity
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : 
+  Execute prescan       : False
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name      | Usage  | Data type | Dimensions | Required | Visible | Constant | Default | Description
+    ----------+--------+-----------+------------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn  | Input  | BOOL      |            | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut | Output | BOOL      |            | False    | False   |          |         | Enable Output - System Defined Parameter
+    Ref_Data  | InOut  | SINT      | 1          | True     | True    | True     |         |
+    Val       | Input  | DINT      |            | False    | True    |          | 0       |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	Str_Capacity
+    3: */
+    4: 
+    5: SIZE(Ref_Data, 0, Val);
+    6:

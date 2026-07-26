@@ -1,0 +1,83 @@
+from pathlib import Path
+
+from twinforge.exporters import TextReportExporter
+from twinforge.parsers import L5XParser
+
+
+SAMPLE = Path(__file__).parent / "data/aoi/Str_Capacity_AOI.L5X"
+DEPENDENCY_SAMPLE = (
+    Path(__file__).parent / "data/aoi/dependencies_and_locals.L5X"
+)
+
+
+def test_converts_structured_text_add_on_instruction() -> None:
+    parser = L5XParser()
+    controller = parser.parse(SAMPLE, report_mode=None).controllers[0]
+
+    assert parser.diagnostics == []
+    instruction = controller.add_on_instructions["Str_Capacity"]
+    assert instruction.revision == "1.0"
+    assert instruction.vendor == "Jeremy Medders"
+    assert instruction.execute_prescan is False
+    assert instruction.execute_postscan is False
+    assert instruction.execute_enable_in_false is False
+
+    ref_data = instruction.parameters["Ref_Data"]
+    assert ref_data.usage == "InOut"
+    assert ref_data.data_type == "SINT"
+    assert ref_data.dimensions == "1"
+    assert ref_data.required is True
+    assert ref_data.constant is True
+
+    value = instruction.parameters["Val"]
+    assert value.default_value is not None
+    assert value.default_value.value == 0
+    assert value.default_value.data_type == "DINT"
+
+    routine = instruction.routines["Logic"]
+    assert routine.language == "ST"
+    assert [line.number for line in routine.structured_text_lines] == list(
+        range(7)
+    )
+    assert routine.structured_text_lines[2].text == "\tStr_Capacity"
+    assert "SIZE(Ref_Data, 0, Val);" in routine.structured_text
+
+
+def test_reports_aoi_parameters_and_structured_text() -> None:
+    controller = L5XParser().parse(
+        SAMPLE, report_mode=None
+    ).controllers[0]
+
+    report = TextReportExporter().export(controller).files[
+        "add_on_instructions.txt"
+    ]
+    assert "Instruction: Str_Capacity" in report
+    assert "Ref_Data" in report
+    assert "InOut" in report
+    assert "SIZE(Ref_Data, 0, Val);" in report
+
+
+def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
+    parser = L5XParser()
+    controller = parser.parse(
+        DEPENDENCY_SAMPLE, report_mode=None
+    ).controllers[0]
+
+    assert parser.diagnostics == []
+    instruction = controller.add_on_instructions["MainAOI"]
+    assert instruction.parameters["Status"].alias_for == "State.0"
+    state = instruction.local_tags["State"]
+    assert state.data_type == "DINT"
+    assert state.initial_value is not None
+    assert state.initial_value.value == 0
+    assert [
+        (dependency.dependency_type, dependency.name)
+        for dependency in instruction.dependencies
+    ] == [
+        ("DataType", "ExampleData"),
+        ("AddOnInstructionDefinition", "Helper"),
+    ]
+    assert all(
+        dependency.target is not None
+        for dependency in instruction.dependencies
+    )

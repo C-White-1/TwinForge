@@ -1,0 +1,364 @@
+ADD-ON INSTRUCTIONS
+================================================================================
+Count: 6
+
+Instruction: Msg_SetParams
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : 
+  Execute prescan       : False
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name          | Usage  | Data type | Dimensions | Alias for | Required | Visible | Constant | Default | Description
+    --------------+--------+-----------+------------+-----------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn      | Input  | BOOL      |            |           | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut     | Output | BOOL      |            |           | False    | False   |          |         | Enable Output - System Defined Parameter
+    Inp_Class     | Input  | DINT      |            |           | True     | True    |          | 0       |
+    Inp_Instance  | Input  | DINT      |            |           | True     | True    |          | 0       |
+    Inp_Attribute | Input  | DINT      |            |           | True     | True    |          | 0       |
+    Inp_ReqLen    | Input  | DINT      |            |           | True     | True    |          | 0       |
+    Ref_Msg       | InOut  | MESSAGE   |            |           | True     | True    |          |         |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	AO_Msg_SetParams
+    3: */
+    4: 
+    5: Ref_Msg.Class := Inp_Class;
+    6: Ref_Msg.Instance := Inp_Instance;
+    7: Ref_Msg.Attribute := Inp_Attribute;
+    8: Ref_Msg.REQ_LEN := Inp_ReqLen;
+    9: 
+
+Instruction: Msg_SetPathToModule
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : Sets a message path to that of a module.
+  Execute prescan       : False
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name       | Usage  | Data type | Dimensions | Alias for | Required | Visible | Constant | Default | Description
+    -----------+--------+-----------+------------+-----------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn   | Input  | BOOL      |            |           | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut  | Output | BOOL      |            |           | False    | False   |          |         | Enable Output - System Defined Parameter
+    Ref_Module | InOut  | MODULE    |            |           | True     | True    |          |         |
+    Ref_Msg    | InOut  | MESSAGE   |            |           | True     | True    |          |         |
+
+  Local tags:
+    Name | Data type | Dimensions | Default | External access | Description
+    -----+-----------+------------+---------+-----------------+------------
+    tINT | INT       |            | 0       | None            |
+    Size | DINT      |            | 0       | None            |
+    Inst | DINT      |            | 0       | None            |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	Msg_SetPathToModule
+    3: */
+    4: 
+    5: GSV(Module, Ref_Module, INSTANCE, Inst);
+    6: 
+    7: if (Inst <> 1) then
+    8: 	SIZE(Ref_Msg.Path.DATA, 0, Size);
+    9: 	GSV(Module, Ref_Module, Path, Ref_Msg.Path.DATA[0]);
+    10: 	COP(Ref_Msg.Path.DATA[0], tINT, 1);
+    11: 	Ref_Msg.Path.LEN := tINT;
+    12: 	COP(Ref_Msg.Path.DATA[2], Ref_Msg.Path.DATA[0], Size);
+    13: else
+    14: 	Ref_Msg.Path.LEN := 2;
+    15: 	Ref_Msg.Path.DATA[0] := 1;
+    16: 	Ref_Msg.Path.DATA[1] := 0;
+    17: 	Ref_Msg.Path.DATA[2] := 0;
+    18: 	Ref_Msg.Path.DATA[3] := 0;
+    19: end_if;
+    20: 
+
+Instruction: Msg_ZeroBuffer
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : Clears a message response buffer.
+  Execute prescan       : False
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name       | Usage  | Data type | Dimensions | Alias for | Required | Visible | Constant | Default | Description
+    -----------+--------+-----------+------------+-----------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn   | Input  | BOOL      |            |           | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut  | Output | BOOL      |            |           | False    | False   |          |         | Enable Output - System Defined Parameter
+    Ref_Buffer | InOut  | SINT      | 1          |           | True     | True    | False    |         |
+
+  Local tags:
+    Name | Data type | Dimensions | Default | External access | Description
+    -----+-----------+------------+---------+-----------------+------------
+    Size | DINT      |            | 0       | None            |
+    i    | DINT      |            | 0       | None            |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	Msg_ZeroBuffer
+    3: */
+    4: 
+    5: SIZE(Ref_Buffer, 0, Size);
+    6: i := 0;
+    7: 	
+    8: while (i < Size) do
+    9: 	Ref_Buffer[i] := 0;
+    10: 	i := i + 1;
+    11: end_while;
+    12: 
+
+Instruction: RTC_PulseGen
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : Generates precision pulses on configurable intervals.
+  Execute prescan       : True
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name         | Usage  | Data type | Dimensions | Alias for | Required | Visible | Constant | Default | Description
+    -------------+--------+-----------+------------+-----------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn     | Input  | BOOL      |            |           | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut    | Output | BOOL      |            |           | False    | False   |          |         | Enable Output - System Defined Parameter
+    Inp_Enable   | Input  | BOOL      |            |           | False    | True    |          | 0       |
+    Inp_Interval | Input  | DINT      |            |           | False    | True    |          | 1000    | Pulse interval (milliseconds).
+    Sts_Enabled  | Output | BOOL      |            |           | False    | True    |          | 0       |
+    Out          | Output | BOOL      |            |           | False    | True    |          | 0       | Pulsed output.
+
+  Local tags:
+    Name   | Data type | Dimensions | Default | External access | Description
+    -------+-----------+------------+---------+-----------------+------------
+    OSR    | BOOL      |            | 0       | None            |
+    TStart | LINT      |            | 0       | None            |
+    TNow   | LINT      |            | 0       | None            |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	AO_RTC_PulseGen
+    3: 	
+    4: 	Generates precision pulses on configurable intervals.
+    5: */
+    6: 
+    7: GSV(WallClockTime, , CurrentValue, TNow);
+    8: 
+    9: if (Inp_Enable & NOT OSR OR Out) then
+    10: 	TStart := TNow;
+    11: end_if;
+    12: OSR := Inp_Enable;
+    13: 
+    14: Sts_Enabled := Inp_Enable;
+    15: Out := Inp_Enable & (TNow - TStart >= Inp_Interval * 1000);
+    16: 
+
+  Routine: Prescan [ST]
+    0: 
+    1: /*
+    2: 	AO_RTC_PulseGen
+    3: */
+    4: 
+    5: OSR := 0;
+    6: Out := 0;
+    7: 
+
+Instruction: Sys_Module
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : Provides detailed module diagnostics and inhibit ability.
+  Execute prescan       : True
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name                 | Usage  | Data type | Dimensions | Alias for | Required | Visible | Constant | Default      | Description
+    ---------------------+--------+-----------+------------+-----------+----------+---------+----------+--------------+--------------------------------------------------------------------------------------------------------
+    EnableIn             | Input  | BOOL      |            |           | False    | False   |          |              | Enable Input - System Defined Parameter
+    EnableOut            | Output | BOOL      |            |           | False    | False   |          |              | Enable Output - System Defined Parameter
+    Ref_Module           | InOut  | MODULE    |            |           | True     | True    |          |              | Name of the module in the I/O tree.
+    Inp_Inhibit          | Input  | BOOL      |            |           | False    | True    |          | 0            | Command to inhibit the module.
+    Inp_Uninhibit        | Input  | BOOL      |            |           | False    | True    |          | 0            | Command to uninhibit the module.
+    Val_EntryStatus      | Output | DINT      |            |           | False    | True    |          | 16#0000_0000 | Specifies the current state of the specified map entry.
+    Val_FaultCode        | Output | DINT      |            |           | False    | True    |          | 0            | A number that identifies a module fault, if one occurs.
+    Val_FaultInfo        | Output | DINT      |            |           | False    | True    |          | 0            | Provides specific information about the Module object fault code.
+    Val_Instance         | Output | DINT      |            |           | False    | True    |          | 0            | Provides the instance number of this module object.
+    Val_Mode             | Output | DINT      |            |           | False    | True    |          | 0            | Specifies the current mode of the Module object.
+    Sts_Standby          | Output |           |            | Status.0  | False    | True    |          |              | The controller is powering up.
+    Sts_Faulted          | Output |           |            | Status.1  | False    | True    |          |              | Indicates whether any of the Module object’s connections to the associated module have failed.
+    Sts_Validating       | Output |           |            | Status.2  | False    | True    |          |              | The Module object is verifying Module object integrity prior to establishing connections to the module.
+    Sts_Connecting       | Output |           |            | Status.3  | False    | True    |          |              | The Module object is initiating connections to the module.
+    Sts_Connected        | Output |           |            | Status.4  | False    | True    |          |              | All connections to the module are established and data is transferring.
+    Sts_ShuttingDown     | Output |           |            | Status.5  | False    | True    |          |              | The Module object is in the process of shutting down all connections to the module.
+    Sts_Inhibited        | Output |           |            | Status.6  | False    | True    |          |              | The Module object is inhibited (the inhibit bit in the Mode attribute is set).
+    Sts_Waiting          | Output |           |            | Status.7  | False    | True    |          |              | The parent object upon which this Module object depends is not running.
+    Sts_FirmwareUpdating | Output |           |            | Status.9  | False    | True    |          |              | Firmware supervisor is attempting to flash the module.
+    Sts_Configuring      | Output |           |            | Status.10 | False    | True    |          |              | Controller is downloading configuration to the module.
+    Sts_Disconnected     | Output |           |            | Status.11 | False    | True    |          |              |
+
+  Local tags:
+    Name    | Data type | Dimensions | Default | External access | Description
+    --------+-----------+------------+---------+-----------------+------------
+    ModeSet | DINT      |            | 0       | None            |
+    OSR     | BOOL      |            | 0       | None            |
+    ESts    | DINT      |            | 0       | None            |
+    Status  | DINT      |            | 0       | Read Only       |
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	AO_Sys_Module
+    3: */
+    4: 
+    5: GSV(Module, Ref_Module, INSTANCE, Val_Instance);
+    6: GSV(Module, Ref_Module, EntryStatus, Val_EntryStatus);
+    7: GSV(Module, Ref_Module, FaultCode, Val_FaultCode);
+    8: GSV(Module, Ref_Module, FaultInfo, Val_FaultInfo);
+    9: GSV(Module, Ref_Module, Mode, Val_Mode);
+    10: 
+    11: if (Inp_Inhibit & NOT OSR) then
+    12: 	ModeSet := Val_Mode OR 16#0004;
+    13: 	SSV(Module, Ref_Module, Mode, ModeSet);
+    14: elsif (Inp_Uninhibit & NOT OSR) then
+    15: 	ModeSet := Val_Mode AND 16#FFFB;
+    16: 	SSV(Module, Ref_Module, Mode, ModeSet);
+    17: end_if;
+    18: OSR := Inp_Inhibit OR Inp_Uninhibit;
+    19: 
+    20: /*
+    21: 	Entry Status Map
+    22: 	• 0x0000: Standby
+    23: 	• 0x1000: Faulted
+    24: 	• 0x2000: Validating
+    25: 	• 0x3000: Connecting
+    26: 	• 0x4000: Running
+    27: 	• 0x5000: Shutting Down
+    28: 	• 0x6000: Inhibited
+    29: 	• 0x7000: Waiting
+    30: 	• 0x9000: Firmware Updating
+    31: 	• 0xA000: Configuring
+    32: */
+    33: ESts := Val_EntryStatus & 16#F000;
+    34: 
+    35: Sts_Standby := (ESts = 16#0000);
+    36: Sts_Faulted := (ESts = 16#1000);
+    37: Sts_Validating := (ESts = 16#2000);
+    38: Sts_Connecting := (ESts = 16#3000);
+    39: Sts_Connected := (ESts = 16#4000);
+    40: Sts_ShuttingDown := (ESts = 16#5000);
+    41: Sts_Inhibited := (ESts = 16#6000);
+    42: Sts_Waiting := (ESts = 16#7000);
+    43: Sts_FirmwareUpdating := (ESts = 16#9000);
+    44: Sts_Configuring := (ESts = 16#A000);
+    45: Sts_Disconnected := NOT (Sts_Inhibited OR Sts_Connected);
+    46: 
+
+  Routine: Prescan [ST]
+    0: 
+    1: /*
+    2: 	AO_Sys_Module
+    3: */
+    4: 
+    5: Inp_Inhibit := 0;
+    6: Inp_Uninhibit := 0;
+    7: 
+    8: Status := 0;
+    9: 
+    10: Val_Instance := 0;
+    11: Val_EntryStatus := 0;
+    12: Val_FaultCode := 0;
+    13: Val_FaultInfo := 0;
+    14: Val_Mode := 0;
+    15: 
+
+Instruction: Sys_USB
+  Revision              : 1.0
+  Vendor                : Jeremy Medders
+  Description           : Monitors the USB port of a given module for activity.
+  Execute prescan       : False
+  Execute postscan      : False
+  Execute EnableInFalse : False
+
+  Parameters:
+    Name                 | Usage  | Data type | Dimensions | Alias for              | Required | Visible | Constant | Default | Description
+    ---------------------+--------+-----------+------------+------------------------+----------+---------+----------+---------+-----------------------------------------
+    EnableIn             | Input  | BOOL      |            |                        | False    | False   |          |         | Enable Input - System Defined Parameter
+    EnableOut            | Output | BOOL      |            |                        | False    | False   |          |         | Enable Output - System Defined Parameter
+    Ref_Module           | InOut  | MODULE    |            |                        | True     | True    |          |         |
+    Ref_Msg              | InOut  | MESSAGE   |            |                        | True     | True    |          |         |
+    Ref_MsgResp          | InOut  | SINT      | 60         |                        | True     | True    | False    |         |
+    Val_LogicalAddress   | Output |           |            | Local.LogicalAddress   | False    | True    |          |         |
+    Val_State            | Output |           |            | Local.State            | False    | True    |          |         |
+    Val_Suspended        | Output |           |            | Local.Suspended        | False    | True    |          |         |
+    Val_Disabled         | Output |           |            | Local.Disabled         | False    | True    |          |         |
+    Val_BusSpeed         | Output |           |            | Local.BusSpeed         | False    | True    |          |         |
+    Val_OTGSupport       | Output |           |            | Local.OTGSupport       | False    | True    |          |         |
+    Val_Mode             | Output |           |            | Local.Mode             | False    | True    |          |         |
+    Val_IFCounterLength  | Output |           |            | Local.IFCounterLength  | False    | True    |          |         |
+    Val_IFRxGood         | Output |           |            | Local.IFRxGood         | False    | True    |          |         |
+    Val_IFRxBad          | Output |           |            | Local.IFRxBad          | False    | True    |          |         |
+    Val_IFRxDropped      | Output |           |            | Local.IFRxDropped      | False    | True    |          |         |
+    Val_IFTxGood         | Output |           |            | Local.IFTxGood         | False    | True    |          |         |
+    Val_IFTxRetry        | Output |           |            | Local.IFTxRetry        | False    | True    |          |         |
+    Val_IFTxDropped      | Output |           |            | Local.IFTxDropped      | False    | True    |          |         |
+    Val_MCType           | Output |           |            | Local.MCType           | False    | True    |          |         |
+    Val_MCLength         | Output |           |            | Local.MCLength         | False    | True    |          |         |
+    Val_MCRxBytes        | Output |           |            | Local.MCRxBytes        | False    | True    |          |         |
+    Val_MCRxDroppedBytes | Output |           |            | Local.MCRxDroppedBytes | False    | True    |          |         |
+    Val_MCTxBytes        | Output |           |            | Local.MCTxBytes        | False    | True    |          |         |
+    Val_MCTxDroppedBytes | Output |           |            | Local.MCTxDroppedBytes | False    | True    |          |         |
+    Val_FIFOOverflows    | Output |           |            | Local.FIFOOverflows    | False    | True    |          |         |
+    Val_FIFOUnderruns    | Output |           |            | Local.FIFOUnderruns    | False    | True    |          |         |
+
+  Local tags:
+    Name         | Data type           | Dimensions | Default | External access | Description
+    -------------+---------------------+------------+---------+-----------------+------------
+    Local        | ST_Sys_USB          |            |         | Read Only       |
+    Module       | Sys_Module          |            |         | Read Only       |
+    PG           | RTC_PulseGen        |            |         | None            |
+    SetMsgParams | Msg_SetParams       |            |         | None            |
+    SetMsgPath   | Msg_SetPathToModule |            |         | None            |
+    OSR          | DINT                |            | 0       | None            |
+    i            | DINT                |            | 0       | None            |
+    Size         | DINT                |            | 0       | None            |
+    ZeroBuffer   | Msg_ZeroBuffer      |            |         | None            |
+
+  Dependencies:
+    DataType: ST_Sys_USB [resolved]
+    AddOnInstructionDefinition: Sys_Module [resolved]
+    AddOnInstructionDefinition: RTC_PulseGen [resolved]
+    AddOnInstructionDefinition: Msg_SetParams [resolved]
+    AddOnInstructionDefinition: Msg_SetPathToModule [resolved]
+    AddOnInstructionDefinition: Msg_ZeroBuffer [resolved]
+
+  Routine: Logic [ST]
+    0: 
+    1: /*
+    2: 	Sys_USB
+    3: */
+    4: 
+    5: PG.Inp_Interval := 1000;
+    6: PG.Inp_Enable := 1;
+    7: RTC_PulseGen(PG);
+    8: 
+    9: if (PG.Out & (Ref_Msg.DN OR Ref_Msg.ER OR NOT Ref_Msg.EN)) then
+    10: 	Msg_SetParams(SetMsgParams, 16#033A, 1, 0, 0, Ref_Msg);
+    11: 	Msg_SetPathToModule(SetMsgPath, Ref_Module, Ref_Msg);
+    12: 	MSG(Ref_Msg);
+    13: end_if;
+    14: 
+    15: if ((Ref_Msg.DN OR Ref_Msg.ER) & NOT OSR.0) then
+    16: 	if (Ref_Msg.ER) then
+    17: 		Msg_ZeroBuffer(ZeroBuffer, Ref_MsgResp);
+    18: 	end_if;
+    19: 	
+    20: 	COP(Ref_MsgResp[0], Local, 1);
+    21: end_if;
+    22: OSR.0 := (Ref_Msg.DN OR Ref_Msg.ER);
+    23:

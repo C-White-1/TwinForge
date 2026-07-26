@@ -4,7 +4,12 @@ from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import LadderRung, Program, Routine
+from twinforge.model import (
+    LadderRung,
+    Program,
+    Routine,
+    StructuredTextLine,
+)
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .source_extension import captured_to_source_extension
@@ -35,7 +40,9 @@ def convert_program(
 
     for routines in section.elements.get("Routines", []):
         for routine_section in routines.elements.get("Routine", []):
-            routine = _convert_routine(routine_section, program.name, diagnostics)
+            routine = convert_routine(
+                routine_section, program.name, diagnostics
+            )
             if routine is None:
                 continue
             if routine.name in program.routines:
@@ -89,7 +96,7 @@ def convert_program(
     return program
 
 
-def _convert_routine(
+def convert_routine(
     section: CapturedSection,
     program_name: str,
     diagnostics: list[ConversionDiagnostic] | None,
@@ -124,7 +131,53 @@ def _convert_routine(
     )
     if language == "RLL":
         routine.ladder_rungs = _convert_rungs(section, name, diagnostics)
+    elif language == "ST":
+        routine.structured_text_lines = _convert_structured_text(
+            section, name, diagnostics
+        )
     return routine
+
+
+def _convert_structured_text(
+    section: CapturedSection,
+    routine_name: str,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> list[StructuredTextLine]:
+    lines: list[StructuredTextLine] = []
+    numbers: set[int] = set()
+    for content in section.elements.get("STContent", []):
+        for line_section in content.elements.get("Line", []):
+            raw_number = line_section.attributes.get("Number")
+            number = _optional_int(
+                raw_number, "Number", routine_name, diagnostics
+            )
+            if number is not None and number in numbers:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.ERROR,
+                    "duplicate_structured_text_line_number",
+                    (
+                        f"routine {routine_name!r} contains duplicate "
+                        f"Structured Text line number {number}"
+                    ),
+                    routine_name,
+                    "Number",
+                    raw_number,
+                )
+            elif number is not None:
+                numbers.add(number)
+            lines.append(
+                StructuredTextLine(
+                    number=number,
+                    # Do not strip ST source: indentation is meaningful to
+                    # readers and must survive a report/export round trip.
+                    text=(line_section.text or "").strip("\r\n"),
+                    source_extensions=[
+                        captured_to_source_extension(line_section)
+                    ],
+                )
+            )
+    return lines
 
 
 def _convert_rungs(

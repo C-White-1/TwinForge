@@ -4,9 +4,11 @@ Version: 0.1.0
 Summary: ControlLogix and CIP discovery toolkit
 Requires-Python: >=3.10
 Description-Content-Type: text/markdown
+License-File: LICENSE
 Requires-Dist: pycomm3>=1.2.16
 Provides-Extra: validation
 Requires-Dist: lxml>=6.1.1; extra == "validation"
+Dynamic: license-file
 
 # TwinForge
 
@@ -63,6 +65,7 @@ Exporters consume the model and never parse L5X directly.
 - Controller, module and electronic-key identity
 - Chassis, slots, module connections and parent relationships
 - Datatypes, controller/program tags and scalar exported values
+- Add-On Instructions, parameters, typed defaults and Structured Text source
 - Programs, routines, RLL rungs, tasks and scheduled-program references
 - Module engineering units and configured analogue ranges
 - Nominal, configured, assigned, unavailable and spare I/O evidence
@@ -70,6 +73,7 @@ Exporters consume the model and never parse L5X directly.
 - PLCopen XML 2.01 and CODESYS-targeted output
 - AutomationML 2.1 / CAEX 3.0 hierarchy, semantic libraries and links
 - Vendor-neutral and Rockwell catalog SystemUnitClasses
+- Model-driven controller, tag, datatype, module, task and program reports
 
 ## Quick start
 
@@ -99,9 +103,8 @@ uv run pyright
 ```
 
 Pyright uses `standard` mode for `src/twinforge`, `tests`, and maintained
-examples. Historical `src/test*.py` experiments and the legacy
-`examples/build_twin.py` live-discovery sketch are excluded until their
-underlying APIs are implemented.
+examples. The legacy `examples/build_twin.py` live-discovery sketch is excluded
+until its underlying API is implemented.
 
 Generate PLCopen XML:
 
@@ -111,6 +114,21 @@ uv run python examples\export_plcopen.py `
   examples\PLCOpenXML\BoosterCompressor_codesys.xml `
   --profile codesys
 ```
+
+Generate human-readable engineering reports:
+
+```powershell
+uv run python examples\export_reports.py `
+  tests\data\basic\BoosterCompressor_20260128.L5X `
+  reports\BoosterCompressor
+```
+
+The report exporter consumes the vendor-neutral model rather than parsing L5X
+directly. Reports therefore include promoted scalar values, engineering units,
+ranges, resolved task/program relationships and preserved RLL source text.
+AOI reports include parameters, typed defaults and numbered Structured Text
+source lines. Executable PLCopen conversion of Structured Text is not yet
+implemented.
 
 Generate and validate AutomationML:
 

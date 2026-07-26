@@ -1,0 +1,16 @@
+CONTROLLER TAGS
+================================================================================
+Count: 0
+
+Name | Kind | Data type | Alias for | Initial value | Unit | Range | Description
+-----+------+-----------+-----------+---------------+------+-------+------------
+
+PROGRAM TAGS: Dev_USB
+================================================================================
+Count: 3
+
+Name       | Kind | Data type | Alias for | Initial value | Unit | Range | Description
+-----------+------+-----------+-----------+---------------+------+-------+------------
+MsgAttrAll | Base | MESSAGE   |           |               |      |       |
+MsgResp    | Base | SINT      |           |               |      |       |
+USB        | Base | Sys_USB   |           |               |      |       |

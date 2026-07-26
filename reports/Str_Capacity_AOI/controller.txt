@@ -1,0 +1,16 @@
+CONTROLLER SUMMARY
+================================================================================
+Name                : DEVPAC
+Product             : 
+Vendor              : 
+Product type        : 
+Product code        : 
+Revision            : 
+Serial              : 
+Chassis             : 0
+Modules             : 0
+Controller tags     : 0
+Datatypes           : 0
+Add-On Instructions : 1
+Programs            : 0
+Tasks               : 0

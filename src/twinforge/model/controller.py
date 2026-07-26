@@ -10,6 +10,7 @@ from .identity import Identity
 from .datatype import Datatype
 
 if TYPE_CHECKING:
+    from .add_on_instruction import AddOnInstruction
     from .module import Module
     from .program import Program
     from .tag import Tag
@@ -31,6 +32,10 @@ class Controller(Asset):
     tags: dict[str, Tag] = field(default_factory=dict)
 
     datatypes: dict[str, Datatype] = field(default_factory=dict)
+
+    add_on_instructions: dict[str, AddOnInstruction] = field(
+        default_factory=dict
+    )
 
     unplaced_modules: list[Module] = field(default_factory=list)
 
@@ -72,6 +77,16 @@ class Controller(Asset):
             raise ValueError(f"Datatype '{datatype.name}' already exists")
         datatype.parent = self
         self.datatypes[datatype.name] = datatype
+
+    def add_add_on_instruction(
+        self, instruction: AddOnInstruction
+    ) -> None:
+        if instruction.name in self.add_on_instructions:
+            raise ValueError(
+                f"Add-On Instruction '{instruction.name}' already exists"
+            )
+        instruction.parent = self
+        self.add_on_instructions[instruction.name] = instruction
 
     def add_unplaced_module(self, module: Module) -> None:
         module.parent = None

@@ -1,5 +1,6 @@
 """L5X conversion helpers."""
 
+from .add_on_instruction import convert_add_on_instruction
 from .controller import convert_controller
 from .engineering_unit import resolve_engineering_units
 from .datatype import convert_datatype, resolve_datatype_references
@@ -12,6 +13,7 @@ from .task import convert_task
 __all__ = [
     "captured_to_source_extension",
     "convert_controller",
+    "convert_add_on_instruction",
     "convert_datatype",
     "convert_module",
     "convert_program",
