@@ -114,6 +114,49 @@ _SPEED_REFERENCE_OPTIONS = (
     DeviceParameterOption(value="16", label="Positioning"),
 )
 
+_MOTOR_FEEDBACK_OPTIONS = (
+    DeviceParameterOption(value="0", label="None"),
+    DeviceParameterOption(value="1", label="Pulse Train"),
+    DeviceParameterOption(value="2", label="Single Channel"),
+    DeviceParameterOption(value="3", label="Single Channel with Check"),
+    DeviceParameterOption(value="4", label="Quadrature"),
+    DeviceParameterOption(value="5", label="Quadrature with Check"),
+)
+
+_DISABLED_ENABLED_OPTIONS = (
+    DeviceParameterOption(value="0", label="Disabled"),
+    DeviceParameterOption(value="1", label="Enabled"),
+)
+
+_REVERSE_DISABLE_OPTIONS = (
+    DeviceParameterOption(value="0", label="Reverse Enabled"),
+    DeviceParameterOption(value="1", label="Reverse Disabled"),
+)
+
+_COMPENSATION_OPTIONS = (
+    DeviceParameterOption(value="0", label="Disabled"),
+    DeviceParameterOption(value="1", label="Electrical"),
+    DeviceParameterOption(value="2", label="Mechanical"),
+    DeviceParameterOption(value="3", label="Both"),
+)
+
+_POWER_LOSS_OPTIONS = (
+    DeviceParameterOption(value="0", label="Coast"),
+    DeviceParameterOption(value="1", label="Decelerate"),
+)
+
+_FAULT_CLEAR_OPTIONS = (
+    DeviceParameterOption(value="0", label="Ready / Idle"),
+    DeviceParameterOption(value="1", label="Reset Active Fault"),
+    DeviceParameterOption(value="2", label="Clear Fault Buffer"),
+)
+
+_RESET_METERS_OPTIONS = (
+    DeviceParameterOption(value="0", label="Ready / Idle"),
+    DeviceParameterOption(value="1", label="Reset Energy Meters"),
+    DeviceParameterOption(value="2", label="Reset Time Meters"),
+)
+
 _ETHERNET_FAULT_ACTION_OPTIONS = (
     DeviceParameterOption(value="0", label="Fault"),
     DeviceParameterOption(value="1", label="Stop"),
@@ -493,6 +536,40 @@ def _advanced_display_parameter(
         read_only=True,
         group_prefix="d",
         group_name="Advanced Display",
+    )
+
+
+def _advanced_program_parameter(
+    *,
+    number: int,
+    name: str,
+    description: str,
+    engineering_unit: str | None = None,
+    minimum: str | None = None,
+    maximum: str | None = None,
+    default: str | None = None,
+    resolution: str | None = None,
+    options: tuple[DeviceParameterOption, ...] = (),
+    option_set_name: str | None = None,
+    change_requires_stop: bool,
+) -> DeviceParameterDefinition:
+    """Build one writable Advanced Program definition."""
+
+    return _parameter(
+        number=number,
+        code=f"A{number:03d}",
+        name=name,
+        description=description,
+        engineering_unit=engineering_unit,
+        minimum=minimum,
+        maximum=maximum,
+        default=default,
+        resolution=resolution,
+        options=options,
+        option_set_name=option_set_name,
+        change_requires_stop=change_requires_stop,
+        group_prefix="A",
+        group_name="Advanced Program",
     )
 
 
@@ -1366,5 +1443,356 @@ _PARAMETERS = {
             DeviceParameterFlag("2", "Opto Output 1"),
             DeviceParameterFlag("3", "Opto Output 2"),
         ),
+    ),
+    431: _advanced_program_parameter(
+        number=431,
+        name="Jog Frequency",
+        description="Sets output frequency while a jog command is active.",
+        engineering_unit="Hz",
+        minimum="0.00",
+        maximum="P044 Maximum Freq",
+        default="10.00",
+        resolution="0.01 Hz",
+        change_requires_stop=True,
+    ),
+    432: _advanced_program_parameter(
+        number=432,
+        name="Jog Accel/Decel",
+        description=(
+            "Sets the acceleration and deceleration time used in jog mode."
+        ),
+        engineering_unit="s",
+        minimum="0.01",
+        maximum="600.00",
+        default="10.00",
+        resolution="0.01 s",
+        change_requires_stop=True,
+    ),
+    434: _advanced_program_parameter(
+        number=434,
+        name="DC Brake Time",
+        description=(
+            "Sets how long DC braking current is injected into the motor for "
+            "applicable stop modes."
+        ),
+        engineering_unit="s",
+        minimum="0.0",
+        maximum="99.9",
+        default="0.0",
+        resolution="0.1 s",
+        change_requires_stop=True,
+    ),
+    435: _advanced_program_parameter(
+        number=435,
+        name="DC Brake Level",
+        description=(
+            "Sets the maximum DC braking current applied to the motor for "
+            "applicable stop modes."
+        ),
+        engineering_unit="A",
+        minimum="0.00",
+        maximum="Drive Rated Amps × 1.80",
+        default="Drive Rated Amps × 0.05",
+        resolution="0.01 A",
+        change_requires_stop=True,
+    ),
+    439: _advanced_program_parameter(
+        number=439,
+        name="S Curve %",
+        description=(
+            "Sets the fixed S-curve shaping applied to acceleration and "
+            "deceleration ramps, including jog."
+        ),
+        engineering_unit="%",
+        minimum="0",
+        maximum="100",
+        default="0",
+        resolution="1%",
+        change_requires_stop=True,
+    ),
+    440: _advanced_program_parameter(
+        number=440,
+        name="PWM Frequency",
+        description="Sets the carrier frequency for the PWM output waveform.",
+        engineering_unit="kHz",
+        minimum="2.0",
+        maximum="16.0",
+        default="4.0",
+        resolution="0.1 kHz",
+        change_requires_stop=False,
+    ),
+    441: _advanced_program_parameter(
+        number=441,
+        name="Droop Hertz@ FLA",
+        description=(
+            "Sets frequency droop at full-load current for applications such "
+            "as load sharing."
+        ),
+        engineering_unit="Hz",
+        minimum="0.0",
+        maximum="10.0",
+        default="0.0",
+        resolution="0.1 Hz",
+        change_requires_stop=True,
+    ),
+    486: _advanced_program_parameter(
+        number=486,
+        name="Shear Pin1 Level",
+        description=(
+            "Sets the current threshold above which a shear-pin fault occurs "
+            "after the A487 delay; zero disables the function."
+        ),
+        engineering_unit="A",
+        minimum="0.0",
+        maximum="Drive Rated Amps × 2",
+        default="0.0",
+        resolution="0.1 A",
+        change_requires_stop=True,
+    ),
+    487: _advanced_program_parameter(
+        number=487,
+        name="Shear Pin 1 Time",
+        description=(
+            "Sets how long current must remain at or above A486 before a "
+            "shear-pin fault occurs."
+        ),
+        engineering_unit="s",
+        minimum="0.00",
+        maximum="30.00",
+        default="0.00",
+        resolution="0.01 s",
+        change_requires_stop=True,
+    ),
+    490: _advanced_program_parameter(
+        number=490,
+        name="Load Loss Level",
+        description=(
+            "Sets the current threshold below which a load-loss fault occurs "
+            "after the A491 delay."
+        ),
+        engineering_unit="A",
+        minimum="0.0",
+        maximum="Drive Rated Amps",
+        default="0.0",
+        resolution="0.1 A",
+        change_requires_stop=True,
+    ),
+    491: _advanced_program_parameter(
+        number=491,
+        name="Load Loss Time",
+        description=(
+            "Sets how long current must remain below A490 before a load-loss "
+            "fault occurs."
+        ),
+        engineering_unit="s",
+        minimum="0",
+        maximum="9999",
+        default="0",
+        resolution="1 s",
+        change_requires_stop=True,
+    ),
+    534: _advanced_program_parameter(
+        number=534,
+        name="Maximum Voltage",
+        description="Sets the highest voltage that the drive outputs.",
+        engineering_unit="V AC",
+        minimum=(
+            "10 (230 V drive), 20 (460 V drive), or 25 (600 V drive)"
+        ),
+        maximum=(
+            "255 (230 V drive), 510 (460 V drive), or 637.5 (600 V drive)"
+        ),
+        default="Drive Rated Volts",
+        resolution="1 V AC",
+        change_requires_stop=True,
+    ),
+    535: _advanced_program_parameter(
+        number=535,
+        name="Motor Fdbk Type",
+        description=(
+            "Selects the motor speed-feedback device and its signal-checking "
+            "mode."
+        ),
+        default="0",
+        options=_MOTOR_FEEDBACK_OPTIONS,
+        option_set_name="Motor Feedback Type",
+        change_requires_stop=True,
+    ),
+    536: _advanced_program_parameter(
+        number=536,
+        name="Encoder PPR",
+        description=(
+            "Sets the encoder pulses per revolution when an encoder feedback "
+            "device is used."
+        ),
+        engineering_unit="PPR",
+        minimum="1",
+        maximum="20000",
+        default="1024",
+        resolution="1 PPR",
+        change_requires_stop=False,
+    ),
+    537: _advanced_program_parameter(
+        number=537,
+        name="Pulse In Scale",
+        description=(
+            "Sets the gain used to convert pulse-input frequency to output "
+            "frequency."
+        ),
+        minimum="0",
+        maximum="20000",
+        default="64",
+        resolution="1",
+        change_requires_stop=False,
+    ),
+    543: _advanced_program_parameter(
+        number=543,
+        name="Start At PowerUp",
+        description=(
+            "Selects whether a maintained run signal may start the drive "
+            "after power-up without being cycled."
+        ),
+        default="0",
+        options=_DISABLED_ENABLED_OPTIONS,
+        option_set_name="Disabled / Enabled",
+        change_requires_stop=True,
+    ),
+    544: _advanced_program_parameter(
+        number=544,
+        name="Reverse Disable",
+        description=(
+            "Selects whether commands may change the direction of motor "
+            "rotation."
+        ),
+        default="0",
+        options=_REVERSE_DISABLE_OPTIONS,
+        option_set_name="Reverse Direction Permission",
+        change_requires_stop=True,
+    ),
+    545: _advanced_program_parameter(
+        number=545,
+        name="Flying Start En",
+        description=(
+            "Selects whether the drive catches a spinning motor and ramps "
+            "from its detected speed at each start."
+        ),
+        default="0",
+        options=_DISABLED_ENABLED_OPTIONS,
+        option_set_name="Disabled / Enabled",
+        change_requires_stop=False,
+    ),
+    546: _advanced_program_parameter(
+        number=546,
+        name="FlyStrt CurLimit",
+        description=(
+            "Sets the current threshold used to determine when flying start "
+            "has matched motor frequency."
+        ),
+        engineering_unit="%",
+        minimum="30",
+        maximum="200",
+        default="65",
+        resolution="1%",
+        change_requires_stop=False,
+    ),
+    547: _advanced_program_parameter(
+        number=547,
+        name="Compensation",
+        description=(
+            "Selects electrical or mechanical correction intended to improve "
+            "motor stability."
+        ),
+        default="1",
+        options=_COMPENSATION_OPTIONS,
+        option_set_name="Motor Stability Compensation",
+        change_requires_stop=False,
+    ),
+    548: _advanced_program_parameter(
+        number=548,
+        name="Power Loss Mode",
+        description="Selects the drive response to loss of input power.",
+        default="0",
+        options=_POWER_LOSS_OPTIONS,
+        option_set_name="Power Loss Response",
+        change_requires_stop=False,
+    ),
+    550: _advanced_program_parameter(
+        number=550,
+        name="Bus Reg Enable",
+        description="Selects whether DC-bus regulation is enabled.",
+        default="1",
+        options=_DISABLED_ENABLED_OPTIONS,
+        option_set_name="Disabled / Enabled",
+        change_requires_stop=False,
+    ),
+    551: _advanced_program_parameter(
+        number=551,
+        name="Fault Clear",
+        description=(
+            "Issues a command to reset the active fault or clear the fault "
+            "history buffer."
+        ),
+        default="0",
+        options=_FAULT_CLEAR_OPTIONS,
+        option_set_name="Fault Clear Command",
+        change_requires_stop=True,
+    ),
+    555: _advanced_program_parameter(
+        number=555,
+        name="Reset Meters",
+        description=(
+            "Issues a command to reset accumulated energy values or elapsed "
+            "time values."
+        ),
+        default="0",
+        options=_RESET_METERS_OPTIONS,
+        option_set_name="Meter Reset Command",
+        change_requires_stop=False,
+    ),
+    559: _advanced_program_parameter(
+        number=559,
+        name="Counts Per Unit",
+        description=(
+            "Sets the number of encoder counts represented by one "
+            "application-defined position unit."
+        ),
+        minimum="1",
+        maximum="32000",
+        default="4096",
+        resolution="1",
+        change_requires_stop=False,
+    ),
+    572: _advanced_program_parameter(
+        number=572,
+        name="Speed Ratio",
+        description="Sets the scale factor applied to the drive speed command.",
+        minimum="0.01",
+        maximum="99.99",
+        default="1.00",
+        resolution="0.01",
+        change_requires_stop=True,
+    ),
+    575: _advanced_program_parameter(
+        number=575,
+        name="Flux Braking En",
+        description="Selects whether flux braking is enabled.",
+        default="0",
+        options=_DISABLED_ENABLED_OPTIONS,
+        option_set_name="Disabled / Enabled",
+        change_requires_stop=False,
+    ),
+    576: _advanced_program_parameter(
+        number=576,
+        name="Phase Loss Level",
+        description=(
+            "Sets the per-phase current threshold used to detect output phase "
+            "loss; a lower value reduces sensitivity."
+        ),
+        engineering_unit="%",
+        minimum="0.0",
+        maximum="100.0",
+        default="25.0 (induction motor) or 4.0 (PM motor)",
+        resolution="0.1%",
+        change_requires_stop=False,
     ),
 }

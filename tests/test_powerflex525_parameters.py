@@ -611,3 +611,188 @@ def test_preserves_advanced_display_status_bits(
     actual_flags = {flag.position: flag.label for flag in definition.flags}
     assert actual_flags.items() >= expected_flags.items()
     assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "default", "requires_stop"),
+    [
+        (431, "Jog Frequency", "Hz", "10.00", True),
+        (432, "Jog Accel/Decel", "s", "10.00", True),
+        (434, "DC Brake Time", "s", "0.0", True),
+        (435, "DC Brake Level", "A", "Drive Rated Amps × 0.05", True),
+        (439, "S Curve %", "%", "0", True),
+        (440, "PWM Frequency", "kHz", "4.0", False),
+        (441, "Droop Hertz@ FLA", "Hz", "0.0", True),
+    ],
+)
+def test_covers_advanced_program_motion_and_braking(
+    number: int,
+    name: str,
+    unit: str,
+    default: str,
+    requires_stop: bool,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"A{number:03d}"
+    assert definition.name == name
+    assert definition.group_name == "Advanced Program"
+    assert definition.engineering_unit == unit
+    assert definition.default == default
+    assert definition.change_requires_stop is requires_stop
+    assert not definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "maximum", "resolution"),
+    [
+        (486, "Shear Pin1 Level", "A", "Drive Rated Amps × 2", "0.1 A"),
+        (487, "Shear Pin 1 Time", "s", "30.00", "0.01 s"),
+        (490, "Load Loss Level", "A", "Drive Rated Amps", "0.1 A"),
+        (491, "Load Loss Time", "s", "9999", "1 s"),
+    ],
+)
+def test_covers_advanced_program_protection_thresholds(
+    number: int,
+    name: str,
+    unit: str,
+    maximum: str,
+    resolution: str,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.engineering_unit == unit
+    assert definition.maximum == maximum
+    assert definition.resolution == resolution
+    assert definition.default in {"0", "0.0", "0.00"}
+    assert definition.change_requires_stop
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "default", "requires_stop"),
+    [
+        (534, "Maximum Voltage", "V AC", "Drive Rated Volts", True),
+        (536, "Encoder PPR", "PPR", "1024", False),
+        (537, "Pulse In Scale", None, "64", False),
+    ],
+)
+def test_covers_advanced_program_feedback_scaling(
+    number: int,
+    name: str,
+    unit: str | None,
+    default: str,
+    requires_stop: bool,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.engineering_unit == unit
+    assert definition.default == default
+    assert definition.change_requires_stop is requires_stop
+
+
+def test_preserves_motor_feedback_type_options():
+    definition = PowerFlex525ParameterCatalogue().definition(535)
+
+    assert definition is not None
+    assert definition.option_set_name == "Motor Feedback Type"
+    assert [(option.value, option.label) for option in definition.options] == [
+        ("0", "None"),
+        ("1", "Pulse Train"),
+        ("2", "Single Channel"),
+        ("3", "Single Channel with Check"),
+        ("4", "Quadrature"),
+        ("5", "Quadrature with Check"),
+    ]
+    assert definition.change_requires_stop
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "default", "requires_stop"),
+    [
+        (543, "Start At PowerUp", "0", True),
+        (544, "Reverse Disable", "0", True),
+        (545, "Flying Start En", "0", False),
+        (547, "Compensation", "1", False),
+        (548, "Power Loss Mode", "0", False),
+        (550, "Bus Reg Enable", "1", False),
+    ],
+)
+def test_covers_advanced_program_start_and_power_behaviour(
+    number: int,
+    name: str,
+    default: str,
+    requires_stop: bool,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.default == default
+    assert definition.options
+    assert definition.change_requires_stop is requires_stop
+
+
+def test_uses_manual_flying_start_current_limit_default():
+    definition = PowerFlex525ParameterCatalogue().definition(546)
+
+    assert definition is not None
+    assert definition.engineering_unit == "%"
+    assert definition.minimum == "30"
+    assert definition.maximum == "200"
+    assert definition.default == "65"
+    assert definition.resolution == "1%"
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "default", "requires_stop"),
+    [
+        (551, "Fault Clear", "0", True),
+        (555, "Reset Meters", "0", False),
+        (559, "Counts Per Unit", "4096", False),
+        (572, "Speed Ratio", "1.00", True),
+        (575, "Flux Braking En", "0", False),
+        (
+            576,
+            "Phase Loss Level",
+            "25.0 (induction motor) or 4.0 (PM motor)",
+            False,
+        ),
+    ],
+)
+def test_covers_remaining_advanced_program_parameters(
+    number: int,
+    name: str,
+    default: str,
+    requires_stop: bool,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.default == default
+    assert definition.change_requires_stop is requires_stop
+
+
+@pytest.mark.parametrize(
+    ("number", "option_set_name", "values"),
+    [
+        (551, "Fault Clear Command", ["0", "1", "2"]),
+        (555, "Meter Reset Command", ["0", "1", "2"]),
+        (575, "Disabled / Enabled", ["0", "1"]),
+    ],
+)
+def test_preserves_remaining_advanced_program_options(
+    number: int,
+    option_set_name: str,
+    values: list[str],
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.option_set_name == option_set_name
+    assert [option.value for option in definition.options] == values

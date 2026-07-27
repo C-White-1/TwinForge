@@ -19,6 +19,13 @@ No AOI source has been changed.
 | PF525-QA-006 | Low | T099 documentation | Open | Member description contains only the parameter code |
 | PF525-QA-007 | Low | T088 documentation | Open | Description lists selected modes rather than the complete option range |
 | PF525-QA-008 | Low | b008/b009 documentation | Open | Fault-history member descriptions contain only parameter codes |
+| PF525-QA-009 | Medium | A440 exposure | Open | Read request exists, but its assignment is commented out and no AOI member exposes the value |
+| PF525-QA-010 | Medium | A490 validation | Open | AOI permits twice the manual maximum load-loss threshold |
+| PF525-QA-011 | High | A544 write safety | Open | AOI does not enforce the documented stop-only or option-range constraints |
+| PF525-QA-012 | Medium | A545 validation | Open | AOI writes the flying-start option without validating its range |
+| PF525-QA-013 | Medium | A546 default | Open | AOI initialization and write comment use 150%, while the manual and member description use 65% |
+| PF525-QA-014 | Medium | A576 documentation | Open | AOI gives the wrong induction-motor default for phase-loss sensitivity |
+| PF525-QA-015 | High | A572 write safety | Open | AOI forces a stop-only parameter without checking that the drive is inactive |
 
 ## Findings
 
@@ -125,6 +132,124 @@ No AOI source has been changed.
   behaviour from these AOI members.
 - Manual verification: confirm the history ordering on the target firmware
   and enrich both member descriptions.
+
+### PF525-QA-009 — A440 read value is discarded
+
+- Severity: Medium
+- Status: Open
+- Read-message setup: assigns parameter 440 to `Ref_MsgData[20]`.
+- Read-message result handling: the assignment
+  `Local.PWMFrequency := Ref_MsgData[20] * 0.1` is commented out.
+- AOI interface: no `PWMFrequency` member or alias exposes either the process
+  value or a setpoint.
+- Manual evidence: A440 sets PWM carrier frequency from 2.0 through 16.0 kHz
+  with 0.1 kHz resolution and is not read-only.
+- Potential impact: the AOI requests A440 on every applicable read cycle but
+  discards the result, while users cannot monitor or configure the parameter
+  through the AOI interface.
+- Manual verification:
+  1. Confirm whether A440 was intentionally removed from the AOI interface.
+  2. Confirm that read slot 20 returns A440 on the target firmware.
+  3. If support is intended, restore a typed parameter member and the scaled
+     result assignment, then add the corresponding write-message mapping.
+  4. If support is not intended, remove the unused read request.
+
+### PF525-QA-010 — A490 validation exceeds the documented maximum
+
+- Severity: Medium
+- Status: Open
+- AOI member description: identifies the maximum as drive-rated current.
+- AOI write validation: accepts `LoadLossLevel.SP` through
+  `RatedCurrent * 2.0`.
+- Manual evidence: A490 has a maximum of drive-rated current.
+- Potential impact: the AOI can issue a setpoint above the documented drive
+  range. It is unclear whether the drive rejects, clips, or accepts such a
+  write, and a high threshold could undermine the intended load-loss
+  protection.
+- Manual verification:
+  1. Confirm the applicable drive firmware and its accepted A490 range.
+  2. Test a write between one and two times drive-rated current in a safe,
+     controlled environment.
+  3. Record whether the drive rejects or clips the value and how the AOI
+     reports the result.
+  4. If the manual limit is confirmed, change the AOI validation maximum to
+     `RatedCurrent`.
+
+### PF525-QA-011 — A544 write omits stop and range checks
+
+- Severity: High
+- Status: Open
+- Manual evidence: A544 must be changed while the drive is stopped and accepts
+  only 0, Reverse Enabled, or 1, Reverse Disabled.
+- AOI write logic: writes any changed setpoint without checking
+  `NOT Sts_Active` or restricting the value to 0 or 1.
+- Potential impact: the AOI may attempt a direction-permission change while
+  the drive is active or issue an undocumented option value. Whether the drive
+  rejects either request depends on device and firmware behaviour.
+- Manual verification:
+  1. Confirm the accepted A544 values on the applicable firmware.
+  2. Verify that an active drive rejects an A544 write without changing
+     direction behaviour.
+  3. Add both an inactive-state interlock and a 0-through-1 range check to the
+     AOI write path.
+
+### PF525-QA-012 — A545 write omits option validation
+
+- Severity: Medium
+- Status: Open
+- Manual and AOI descriptions: A545 accepts only 0, Disabled, and 1, Enabled.
+- AOI write logic: writes any changed setpoint without checking the value.
+- Potential impact: an out-of-range setpoint can be sent to the drive, leaving
+  rejection and recovery behaviour dependent on firmware.
+- Manual verification: test an invalid value safely, record the device
+  response, and add a 0-through-1 validation check with setpoint rollback.
+
+### PF525-QA-013 — A546 default conflicts with the manual
+
+- Severity: Medium
+- Status: Open
+- Manual evidence: A546 factory default is 65%.
+- AOI member description: identifies 65% as the default.
+- AOI initialization: sets `FlyingStartCurrentLimit.SP` to 150%.
+- AOI write-routine comment: also identifies 150% as the default.
+- Potential impact: after initialization, the AOI can request a substantially
+  higher flying-start current limit than the documented factory default.
+- Manual verification:
+  1. Confirm whether 150% is a deliberate library application default.
+  2. Record the engineering basis and motor/drive limitations if deliberate.
+  3. Otherwise initialize the setpoint to 65% and correct the write comment.
+
+### PF525-QA-014 — A576 induction-motor default is incorrect
+
+- Severity: Medium
+- Status: Open
+- AOI member description: identifies the A576 defaults as 0% for induction
+  motors and 4% for permanent-magnet motors.
+- Manual evidence: the defaults are 25% for induction motors and 4% for
+  permanent-magnet motors.
+- Potential impact: an engineer relying on the AOI description may select a
+  phase-loss threshold with materially lower sensitivity than intended.
+- Manual verification: confirm the defaults on each supported firmware and
+  correct the AOI member description from 0% to 25% for induction motors.
+
+### PF525-QA-015 — A572 automatic write omits the stop interlock
+
+- Severity: High
+- Status: Open
+- Manual evidence: the drive must be stopped before changing A572.
+- AOI policy: A572 is intentionally maintained at 1.00.
+- AOI write logic: whenever its process value differs from 1.00, the AOI
+  writes 100 raw counts without checking `NOT Sts_Active`.
+- Potential impact: an AOI invocation can attempt to change a stop-only speed
+  scaling parameter while the drive is active. Device rejection behaviour is
+  firmware-dependent; acceptance could cause an immediate speed-reference
+  scaling change.
+- Manual verification:
+  1. Confirm the intended reason for forcing A572 to 1.00.
+  2. Test active-drive rejection safely on each supported firmware.
+  3. Add an inactive-state interlock before issuing the automatic write.
+  4. Consider reporting a configuration mismatch while active rather than
+     repeatedly requesting the write.
 
 ## Review notes
 

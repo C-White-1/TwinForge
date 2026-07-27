@@ -162,34 +162,34 @@ Observed parameter inventory:
 | 382 | d382 | Torque Current | Advanced Display | yes | no | 41 |
 | 393 | d393 | Drive Status 2 | Advanced Display | yes | no | 46 |
 | 394 | d394 | Dig Out Status | Advanced Display | yes | no | 47 |
-| 431 | A431 | JogFrequency | Advanced Program | yes | yes | 11 |
-| 432 | A432 | JogAccelDecel | Advanced Program | yes | yes | 12 |
-| 434 | A434 | DCBrakeTime | Advanced Program | yes | yes | 14 |
-| 435 | A435 | DCBrakeLevel | Advanced Program | yes | yes | 15 |
-| 439 | A439 | SCurvePercent | Advanced Program | yes | yes | 19 |
-| 440 | A440 | PWMFrequency | Advanced Program | yes | no | 20 |
-| 441 | A441 | DroopHertzFLA | Advanced Program | yes | yes | 21 |
-| 486 | A486 | ShearPin1Level | Advanced Program | yes | yes | 33 |
-| 487 | A487 | ShearPin1Time | Advanced Program | yes | yes | 34 |
-| 490 | A490 | LoadLossLevel | Advanced Program | yes | yes | 37 |
-| 491 | A491 | LoadLossTime | Advanced Program | yes | yes | 38 |
-| 534 | A534 | MaximumVoltage | Advanced Program | yes | yes | 13 |
-| 535 | A535 | MotorFeedbackType | Advanced Program | yes | yes | 14 |
-| 536 | A536 | EncoderPPR | Advanced Program | yes | yes | 15 |
-| 537 | A537 | PulseInScale | Advanced Program | yes | yes | 16 |
-| 543 | A543 | StartAtPowerUp | Advanced Program | yes | yes | 22 |
-| 544 | A544 | ReverseDisable | Advanced Program | yes | yes | 23 |
-| 545 | A545 | FlyingStartEnable | Advanced Program | yes | yes | 24 |
-| 546 | A546 | FlyStrtCurLimit | Advanced Program | yes | yes | 25 |
+| 431 | A431 | Jog Frequency | Advanced Program | yes | yes | 11 |
+| 432 | A432 | Jog Accel/Decel | Advanced Program | yes | yes | 12 |
+| 434 | A434 | DC Brake Time | Advanced Program | yes | yes | 14 |
+| 435 | A435 | DC Brake Level | Advanced Program | yes | yes | 15 |
+| 439 | A439 | S Curve % | Advanced Program | yes | yes | 19 |
+| 440 | A440 | PWM Frequency | Advanced Program | yes | no | 20 |
+| 441 | A441 | Droop Hertz@ FLA | Advanced Program | yes | yes | 21 |
+| 486 | A486 | Shear Pin1 Level | Advanced Program | yes | yes | 33 |
+| 487 | A487 | Shear Pin 1 Time | Advanced Program | yes | yes | 34 |
+| 490 | A490 | Load Loss Level | Advanced Program | yes | yes | 37 |
+| 491 | A491 | Load Loss Time | Advanced Program | yes | yes | 38 |
+| 534 | A534 | Maximum Voltage | Advanced Program | yes | yes | 13 |
+| 535 | A535 | Motor Fdbk Type | Advanced Program | yes | yes | 14 |
+| 536 | A536 | Encoder PPR | Advanced Program | yes | yes | 15 |
+| 537 | A537 | Pulse In Scale | Advanced Program | yes | yes | 16 |
+| 543 | A543 | Start At PowerUp | Advanced Program | yes | yes | 22 |
+| 544 | A544 | Reverse Disable | Advanced Program | yes | yes | 23 |
+| 545 | A545 | Flying Start En | Advanced Program | yes | yes | 24 |
+| 546 | A546 | FlyStrt CurLimit | Advanced Program | yes | yes | 25 |
 | 547 | A547 | Compensation | Advanced Program | yes | no | 26 |
-| 548 | A548 | PowerLossMode | Advanced Program | yes | yes | 27 |
-| 550 | A550 | BusRegEnable | Advanced Program | yes | no | 29 |
-| 551 | A551 | FaultClear | Advanced Program | yes | yes | 48 |
-| 555 | A555 | ResetMeters | Advanced Program | yes | no | 51 |
-| 559 | A559 | CountsPerUnit | Advanced Program | yes | yes | 33 |
-| 572 | A572 | SpeedRatio | Advanced Program | yes | yes | 46 |
-| 575 | A575 | FluxBrakingEn | Advanced Program | yes | no | 49 |
-| 576 | A576 | PhaseLossLevel | Advanced Program | yes | no | 50 |
+| 548 | A548 | Power Loss Mode | Advanced Program | yes | yes | 27 |
+| 550 | A550 | Bus Reg Enable | Advanced Program | yes | no | 29 |
+| 551 | A551 | Fault Clear | Advanced Program | yes | yes | 48 |
+| 555 | A555 | Reset Meters | Advanced Program | yes | no | 51 |
+| 559 | A559 | Counts Per Unit | Advanced Program | yes | yes | 33 |
+| 572 | A572 | Speed Ratio | Advanced Program | yes | yes | 46 |
+| 575 | A575 | Flux Braking En | Advanced Program | yes | no | 49 |
+| 576 | A576 | Phase Loss Level | Advanced Program | yes | no | 50 |
 | 604 | F604 | Fault04Code | Fault and Diagnostic | yes | no | 61 |
 | 605 | F605 | Fault05Code | Fault and Diagnostic | yes | no | 62 |
 | 606 | F606 | Fault06Code | Fault and Diagnostic | yes | no | 63 |
@@ -330,6 +330,34 @@ Curated parameter semantics:
 | d382 | Reports motor torque current measured by the drive. | 0.00 to Drive Rated Amps × 2 | A | — | 0.01 A | Read only | no |
 | d393 | Reports the present operating condition of the drive as a bit-mapped status word. | 0 = Jogging; 1 = Flux Braking; 2 = Motor Overload; 3 = Auto-reset Countdown; 4 = DC Braking; 5 = At Frequency; 6 = Auto-tuning; 7 = EM Braking; 8 = Current Limiting; 10 = Safety Input 1; 11 = Safety Input 2; 12 = Fault 111 Status; 13 = Safe Torque Permit | — | — | 1 | Read only | no |
 | d394 | Reports the activation states of relay and opto-isolated outputs as a bit-mapped status word. | 0 = Relay Output 1; 1 = Relay Output 2; 2 = Opto Output 1; 3 = Opto Output 2 | — | — | 1 | Read only | no |
+| A431 | Sets output frequency while a jog command is active. | 0.00 to P044 Maximum Freq | Hz | 10.00 | 0.01 Hz | Read/write | yes |
+| A432 | Sets the acceleration and deceleration time used in jog mode. | 0.01 to 600.00 | s | 10.00 | 0.01 s | Read/write | yes |
+| A434 | Sets how long DC braking current is injected into the motor for applicable stop modes. | 0.0 to 99.9 | s | 0.0 | 0.1 s | Read/write | yes |
+| A435 | Sets the maximum DC braking current applied to the motor for applicable stop modes. | 0.00 to Drive Rated Amps × 1.80 | A | Drive Rated Amps × 0.05 | 0.01 A | Read/write | yes |
+| A439 | Sets the fixed S-curve shaping applied to acceleration and deceleration ramps, including jog. | 0 to 100 | % | 0 | 1% | Read/write | yes |
+| A440 | Sets the carrier frequency for the PWM output waveform. | 2.0 to 16.0 | kHz | 4.0 | 0.1 kHz | Read/write | no |
+| A441 | Sets frequency droop at full-load current for applications such as load sharing. | 0.0 to 10.0 | Hz | 0.0 | 0.1 Hz | Read/write | yes |
+| A486 | Sets the current threshold above which a shear-pin fault occurs after the A487 delay; zero disables the function. | 0.0 to Drive Rated Amps × 2 | A | 0.0 | 0.1 A | Read/write | yes |
+| A487 | Sets how long current must remain at or above A486 before a shear-pin fault occurs. | 0.00 to 30.00 | s | 0.00 | 0.01 s | Read/write | yes |
+| A490 | Sets the current threshold below which a load-loss fault occurs after the A491 delay. | 0.0 to Drive Rated Amps | A | 0.0 | 0.1 A | Read/write | yes |
+| A491 | Sets how long current must remain below A490 before a load-loss fault occurs. | 0 to 9999 | s | 0 | 1 s | Read/write | yes |
+| A534 | Sets the highest voltage that the drive outputs. | 10 (230 V drive), 20 (460 V drive), or 25 (600 V drive) to 255 (230 V drive), 510 (460 V drive), or 637.5 (600 V drive) | V AC | Drive Rated Volts | 1 V AC | Read/write | yes |
+| A535 | Selects the motor speed-feedback device and its signal-checking mode. | See option set: Motor Feedback Type | — | 0 | — | Read/write | yes |
+| A536 | Sets the encoder pulses per revolution when an encoder feedback device is used. | 1 to 20000 | PPR | 1024 | 1 PPR | Read/write | no |
+| A537 | Sets the gain used to convert pulse-input frequency to output frequency. | 0 to 20000 | — | 64 | 1 | Read/write | no |
+| A543 | Selects whether a maintained run signal may start the drive after power-up without being cycled. | See option set: Disabled / Enabled | — | 0 | — | Read/write | yes |
+| A544 | Selects whether commands may change the direction of motor rotation. | See option set: Reverse Direction Permission | — | 0 | — | Read/write | yes |
+| A545 | Selects whether the drive catches a spinning motor and ramps from its detected speed at each start. | See option set: Disabled / Enabled | — | 0 | — | Read/write | no |
+| A546 | Sets the current threshold used to determine when flying start has matched motor frequency. | 30 to 200 | % | 65 | 1% | Read/write | no |
+| A547 | Selects electrical or mechanical correction intended to improve motor stability. | See option set: Motor Stability Compensation | — | 1 | — | Read/write | no |
+| A548 | Selects the drive response to loss of input power. | See option set: Power Loss Response | — | 0 | — | Read/write | no |
+| A550 | Selects whether DC-bus regulation is enabled. | See option set: Disabled / Enabled | — | 1 | — | Read/write | no |
+| A551 | Issues a command to reset the active fault or clear the fault history buffer. | See option set: Fault Clear Command | — | 0 | — | Read/write | yes |
+| A555 | Issues a command to reset accumulated energy values or elapsed time values. | See option set: Meter Reset Command | — | 0 | — | Read/write | no |
+| A559 | Sets the number of encoder counts represented by one application-defined position unit. | 1 to 32000 | — | 4096 | 1 | Read/write | no |
+| A572 | Sets the scale factor applied to the drive speed command. | 0.01 to 99.99 | — | 1.00 | 0.01 | Read/write | yes |
+| A575 | Selects whether flux braking is enabled. | See option set: Disabled / Enabled | — | 0 | — | Read/write | no |
+| A576 | Sets the per-phase current threshold used to detect output phase loss; a lower value reduces sensitivity. | 0.0 to 100.0 | % | 25.0 (induction motor) or 4.0 (PM motor) | 0.1% | Read/write | no |
 
 Parameter option sets:
 
@@ -362,6 +390,13 @@ Parameter option sets:
 | 22 | Setpoint 4–20 mA |
 | 23 | DC Bus Voltage 4–20 mA |
 
+#### Disabled / Enabled
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Disabled |
+| 1 | Enabled |
+
 #### EtherNet/IP Fault Action
 
 | Value | Meaning |
@@ -371,6 +406,49 @@ Parameter option sets:
 | 2 | Zero Data |
 | 3 | Hold Last |
 | 4 | Send Fault Configuration |
+
+#### Fault Clear Command
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Ready / Idle |
+| 1 | Reset Active Fault |
+| 2 | Clear Fault Buffer |
+
+#### Meter Reset Command
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Ready / Idle |
+| 1 | Reset Energy Meters |
+| 2 | Reset Time Meters |
+
+#### Motor Feedback Type
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | None |
+| 1 | Pulse Train |
+| 2 | Single Channel |
+| 3 | Single Channel with Check |
+| 4 | Quadrature |
+| 5 | Quadrature with Check |
+
+#### Motor Stability Compensation
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Disabled |
+| 1 | Electrical |
+| 2 | Mechanical |
+| 3 | Both |
+
+#### Power Loss Response
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Coast |
+| 1 | Decelerate |
 
 #### Programmable Digital Input
 
@@ -466,6 +544,13 @@ Parameter option sets:
 | 29 | Safe-Off |
 | 30 | Safe Torque Permit |
 | 31 | Auto-Restart Countdown |
+
+#### Reverse Direction Permission
+
+| Value | Meaning |
+| ---: | --- |
+| 0 | Reverse Enabled |
+| 1 | Reverse Disabled |
 
 #### Speed Reference
 
