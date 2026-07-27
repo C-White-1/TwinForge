@@ -21,6 +21,8 @@ from intended work.
 - [x] AutomationML 2.1 / CAEX 3.0 export and validation
 - [x] AutomationML semantic libraries, typed instances and PLCopen references
 - [x] Nominal, configured, unavailable, assigned and spare I/O reporting
+- [x] Manual-backed semantics for all 163 PowerFlex 525 parameters observed by
+  the reference AOI bulk-read implementation
 
 The current fixture converts all 134 rungs and 474 instruction occurrences.
 That is a project-specific result, not universal Logix coverage.

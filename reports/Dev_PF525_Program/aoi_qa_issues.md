@@ -26,6 +26,10 @@ No AOI source has been changed.
 | PF525-QA-013 | Medium | A546 default | Open | AOI initialization and write comment use 150%, while the manual and member description use 65% |
 | PF525-QA-014 | Medium | A576 documentation | Open | AOI gives the wrong induction-motor default for phase-loss sensitivity |
 | PF525-QA-015 | High | A572 write safety | Open | AOI forces a stop-only parameter without checking that the drive is inactive |
+| PF525-QA-016 | Low | F604–F610 documentation | Open | Extended fault-history descriptions contain only parameter codes |
+| PF525-QA-017 | Low | F631–F640 terminology | Open | AOI calls output-frequency snapshots “Speed” |
+| PF525-QA-018 | Low | F641–F650 documentation | Open | Fault-current descriptions contain only parameter codes |
+| PF525-QA-019 | Low | F651–F660 documentation | Open | Fault DC-bus-voltage descriptions contain only parameter codes |
 
 ## Findings
 
@@ -250,6 +254,62 @@ No AOI source has been changed.
   3. Add an inactive-state interlock before issuing the automatic write.
   4. Consider reporting a configuration mismatch while active rather than
      repeatedly requesting the write.
+
+### PF525-QA-016 — F604 through F610 descriptions are incomplete
+
+- Severity: Low
+- Status: Open
+- AOI descriptions: contain only the respective parameter codes.
+- Manual evidence: F604 through F610 are entries 4 through 10 in the unique
+  recent-fault history; b007 is the most recent entry and repeated faults are
+  recorded only once.
+- Potential impact: users cannot determine the history ordering or duplicate
+  handling from the AOI member descriptions.
+- Manual verification: confirm ordering on the target firmware and enrich the
+  seven member descriptions with their history positions.
+
+### PF525-QA-017 — F631 through F640 are named as speed, not frequency
+
+- Severity: Low
+- Status: Open
+- AOI evidence: members are named `Fault01Speed` through `Fault10Speed`, and
+  their descriptions contain only the respective parameter codes.
+- Manual evidence: F631 through F640 are `[Fault 1 Freq]` through
+  `[Fault10 Freq]`. Each stores b001 `[Output Freq]` for the corresponding
+  recent fault, in hertz with 0.01 Hz display resolution.
+- Potential impact: consumers could interpret the values as shaft speed in
+  RPM rather than electrical output frequency in hertz.
+- Manual verification: confirm values against the drive display and consider
+  frequency-based member names or enriched descriptions in a future AOI
+  revision.
+
+### PF525-QA-018 — F641 through F650 descriptions are incomplete
+
+- Severity: Low
+- Status: Open
+- AOI evidence: the `Fault01Current` through `Fault10Current` descriptions
+  contain only the respective parameter codes.
+- Manual evidence: F641 through F650 store b003 `[Output Current]` with each
+  of the ten most recent faults. Values are in amperes, from zero through
+  twice the drive-rated current, with 0.01 A display resolution.
+- Potential impact: consumers cannot determine the unit, range, or
+  fault-history ordering from the AOI member descriptions.
+- Manual verification: compare the captured current against the drive fault
+  history and enrich the AOI descriptions in a future revision.
+
+### PF525-QA-019 — F651 through F660 descriptions are incomplete
+
+- Severity: Low
+- Status: Open
+- AOI evidence: the `Fault01BusVoltage` through `Fault10BusVoltage`
+  descriptions contain only the respective parameter codes.
+- Manual evidence: F651 through F660 store b005 `[DC Bus Voltage]` with each
+  of the ten most recent faults. Values range from 0 through 1200 V DC with
+  1 V DC display resolution.
+- Potential impact: consumers cannot determine the electrical quantity,
+  unit, range, or fault-history ordering from the member descriptions.
+- Manual verification: compare the captured voltage against the drive fault
+  history and enrich the AOI descriptions in a future revision.
 
 ## Review notes
 

@@ -30,6 +30,11 @@ POWERFLEX_525_PARAMETER_GROUPS = {
 class PowerFlex525ParameterCatalogue:
     """Look up curated facts from the cited PowerFlex user manual."""
 
+    def curated_numbers(self) -> tuple[int, ...]:
+        """Return curated parameter numbers in deterministic order."""
+
+        return tuple(sorted(_PARAMETERS))
+
     def definition(self, number: int) -> DeviceParameterDefinition | None:
         """Return a definition when that parameter has been curated."""
 
@@ -570,6 +575,133 @@ def _advanced_program_parameter(
         change_requires_stop=change_requires_stop,
         group_prefix="A",
         group_name="Advanced Program",
+    )
+
+
+def _fault_diagnostic_parameter(
+    *,
+    number: int,
+    name: str,
+    description: str,
+    engineering_unit: str | None = None,
+    minimum: str | None = None,
+    maximum: str | None = None,
+    resolution: str | None = None,
+) -> DeviceParameterDefinition:
+    """Build one read-only Fault and Diagnostic definition."""
+
+    return _parameter(
+        number=number,
+        code=f"F{number:03d}",
+        name=name,
+        description=description,
+        engineering_unit=engineering_unit,
+        minimum=minimum,
+        maximum=maximum,
+        resolution=resolution,
+        read_only=True,
+        group_prefix="F",
+        group_name="Fault and Diagnostic",
+    )
+
+
+def _historical_fault_code_parameter(
+    number: int,
+    history_position: int,
+) -> DeviceParameterDefinition:
+    """Build one entry in the drive's unique recent-fault history."""
+
+    return _fault_diagnostic_parameter(
+        number=number,
+        name=f"Fault {history_position} Code",
+        description=(
+            f"Reports entry {history_position} in the unique recent-fault "
+            "history, where entry 1 is the most recent."
+        ),
+        minimum="F0",
+        maximum="F127",
+    )
+
+
+def _historical_fault_frequency_parameter(
+    number: int,
+    history_position: int,
+) -> DeviceParameterDefinition:
+    """Build an output-frequency snapshot for one recent fault."""
+
+    return _fault_diagnostic_parameter(
+        number=number,
+        name=f"Fault {history_position} Frequency",
+        description=(
+            "Stores the output frequency recorded with fault-history entry "
+            f"{history_position}, where entry 1 is the most recent."
+        ),
+        engineering_unit="Hz",
+        minimum="0.00",
+        maximum="500.00",
+        resolution="0.01 Hz",
+    )
+
+
+def _historical_fault_current_parameter(
+    number: int,
+    history_position: int,
+) -> DeviceParameterDefinition:
+    """Build an output-current snapshot for one recent fault."""
+
+    return _fault_diagnostic_parameter(
+        number=number,
+        name=f"Fault {history_position} Current",
+        description=(
+            "Stores the output current recorded with fault-history entry "
+            f"{history_position}, where entry 1 is the most recent."
+        ),
+        engineering_unit="A",
+        minimum="0.00",
+        maximum="Drive Rated Amps x 2",
+        resolution="0.01 A",
+    )
+
+
+def _historical_fault_bus_voltage_parameter(
+    number: int,
+    history_position: int,
+) -> DeviceParameterDefinition:
+    """Build a DC-bus-voltage snapshot for one recent fault."""
+
+    return _fault_diagnostic_parameter(
+        number=number,
+        name=f"Fault {history_position} DC Bus Voltage",
+        description=(
+            "Stores the DC bus voltage recorded with fault-history entry "
+            f"{history_position}, where entry 1 is the most recent."
+        ),
+        engineering_unit="V DC",
+        minimum="0",
+        maximum="1200",
+        resolution="1 V DC",
+    )
+
+
+def _active_network_octet_parameter(
+    *,
+    number: int,
+    address_kind: str,
+    octet: int,
+) -> DeviceParameterDefinition:
+    """Build one active embedded EtherNet/IP address octet."""
+
+    return _fault_diagnostic_parameter(
+        number=number,
+        name=f"Active {address_kind} Octet {octet}",
+        description=(
+            f"Reports octet {octet} of the active {address_kind.lower()} "
+            "currently used by the embedded EtherNet/IP interface; a value "
+            "of zero can indicate that no address is set."
+        ),
+        minimum="0",
+        maximum="255",
+        resolution="1",
     )
 
 
@@ -1794,5 +1926,102 @@ _PARAMETERS = {
         default="25.0 (induction motor) or 4.0 (PM motor)",
         resolution="0.1%",
         change_requires_stop=False,
+    ),
+    604: _historical_fault_code_parameter(604, 4),
+    605: _historical_fault_code_parameter(605, 5),
+    606: _historical_fault_code_parameter(606, 6),
+    607: _historical_fault_code_parameter(607, 7),
+    608: _historical_fault_code_parameter(608, 8),
+    609: _historical_fault_code_parameter(609, 9),
+    610: _historical_fault_code_parameter(610, 10),
+    631: _historical_fault_frequency_parameter(631, 1),
+    632: _historical_fault_frequency_parameter(632, 2),
+    633: _historical_fault_frequency_parameter(633, 3),
+    634: _historical_fault_frequency_parameter(634, 4),
+    635: _historical_fault_frequency_parameter(635, 5),
+    636: _historical_fault_frequency_parameter(636, 6),
+    637: _historical_fault_frequency_parameter(637, 7),
+    638: _historical_fault_frequency_parameter(638, 8),
+    639: _historical_fault_frequency_parameter(639, 9),
+    640: _historical_fault_frequency_parameter(640, 10),
+    641: _historical_fault_current_parameter(641, 1),
+    642: _historical_fault_current_parameter(642, 2),
+    643: _historical_fault_current_parameter(643, 3),
+    644: _historical_fault_current_parameter(644, 4),
+    645: _historical_fault_current_parameter(645, 5),
+    646: _historical_fault_current_parameter(646, 6),
+    647: _historical_fault_current_parameter(647, 7),
+    648: _historical_fault_current_parameter(648, 8),
+    649: _historical_fault_current_parameter(649, 9),
+    650: _historical_fault_current_parameter(650, 10),
+    651: _historical_fault_bus_voltage_parameter(651, 1),
+    652: _historical_fault_bus_voltage_parameter(652, 2),
+    653: _historical_fault_bus_voltage_parameter(653, 3),
+    654: _historical_fault_bus_voltage_parameter(654, 4),
+    655: _historical_fault_bus_voltage_parameter(655, 5),
+    656: _historical_fault_bus_voltage_parameter(656, 6),
+    657: _historical_fault_bus_voltage_parameter(657, 7),
+    658: _historical_fault_bus_voltage_parameter(658, 8),
+    659: _historical_fault_bus_voltage_parameter(659, 9),
+    660: _historical_fault_bus_voltage_parameter(660, 10),
+    693: _active_network_octet_parameter(
+        number=693,
+        address_kind="IP Address",
+        octet=1,
+    ),
+    694: _active_network_octet_parameter(
+        number=694,
+        address_kind="IP Address",
+        octet=2,
+    ),
+    695: _active_network_octet_parameter(
+        number=695,
+        address_kind="IP Address",
+        octet=3,
+    ),
+    696: _active_network_octet_parameter(
+        number=696,
+        address_kind="IP Address",
+        octet=4,
+    ),
+    697: _active_network_octet_parameter(
+        number=697,
+        address_kind="Subnet Mask",
+        octet=1,
+    ),
+    698: _active_network_octet_parameter(
+        number=698,
+        address_kind="Subnet Mask",
+        octet=2,
+    ),
+    699: _active_network_octet_parameter(
+        number=699,
+        address_kind="Subnet Mask",
+        octet=3,
+    ),
+    700: _active_network_octet_parameter(
+        number=700,
+        address_kind="Subnet Mask",
+        octet=4,
+    ),
+    701: _active_network_octet_parameter(
+        number=701,
+        address_kind="Gateway Address",
+        octet=1,
+    ),
+    702: _active_network_octet_parameter(
+        number=702,
+        address_kind="Gateway Address",
+        octet=2,
+    ),
+    703: _active_network_octet_parameter(
+        number=703,
+        address_kind="Gateway Address",
+        octet=3,
+    ),
+    704: _active_network_octet_parameter(
+        number=704,
+        address_kind="Gateway Address",
+        octet=4,
     ),
 }

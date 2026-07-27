@@ -190,55 +190,55 @@ Observed parameter inventory:
 | 572 | A572 | Speed Ratio | Advanced Program | yes | yes | 46 |
 | 575 | A575 | Flux Braking En | Advanced Program | yes | no | 49 |
 | 576 | A576 | Phase Loss Level | Advanced Program | yes | no | 50 |
-| 604 | F604 | Fault04Code | Fault and Diagnostic | yes | no | 61 |
-| 605 | F605 | Fault05Code | Fault and Diagnostic | yes | no | 62 |
-| 606 | F606 | Fault06Code | Fault and Diagnostic | yes | no | 63 |
-| 607 | F607 | Fault07Code | Fault and Diagnostic | yes | no | 0 |
-| 608 | F608 | Fault08Code | Fault and Diagnostic | yes | no | 1 |
-| 609 | F609 | Fault09Code | Fault and Diagnostic | yes | no | 2 |
-| 610 | F610 | Fault10Code | Fault and Diagnostic | yes | no | 3 |
-| 631 | F631 | Fault01Speed | Fault and Diagnostic | yes | no | 4 |
-| 632 | F632 | Fault02Speed | Fault and Diagnostic | yes | no | 5 |
-| 633 | F633 | Fault03Speed | Fault and Diagnostic | yes | no | 6 |
-| 634 | F634 | Fault04Speed | Fault and Diagnostic | yes | no | 7 |
-| 635 | F635 | Fault05Speed | Fault and Diagnostic | yes | no | 8 |
-| 636 | F636 | Fault06Speed | Fault and Diagnostic | yes | no | 9 |
-| 637 | F637 | Fault07Speed | Fault and Diagnostic | yes | no | 10 |
-| 638 | F638 | Fault08Speed | Fault and Diagnostic | yes | no | 11 |
-| 639 | F639 | Fault09Speed | Fault and Diagnostic | yes | no | 12 |
-| 640 | F640 | Fault10Speed | Fault and Diagnostic | yes | no | 13 |
-| 641 | F641 | Fault01Current | Fault and Diagnostic | yes | no | 14 |
-| 642 | F642 | Fault02Current | Fault and Diagnostic | yes | no | 15 |
-| 643 | F643 | Fault03Current | Fault and Diagnostic | yes | no | 16 |
-| 644 | F644 | Fault04Current | Fault and Diagnostic | yes | no | 17 |
-| 645 | F645 | Fault05Current | Fault and Diagnostic | yes | no | 18 |
-| 646 | F646 | Fault06Current | Fault and Diagnostic | yes | no | 19 |
-| 647 | F647 | Fault07Current | Fault and Diagnostic | yes | no | 20 |
-| 648 | F648 | Fault08Current | Fault and Diagnostic | yes | no | 21 |
-| 649 | F649 | Fault09Current | Fault and Diagnostic | yes | no | 22 |
-| 650 | F650 | Fault10Current | Fault and Diagnostic | yes | no | 23 |
-| 651 | F651 | Fault01BusVoltage | Fault and Diagnostic | yes | no | 24 |
-| 652 | F652 | Fault02BusVoltage | Fault and Diagnostic | yes | no | 25 |
-| 653 | F653 | Fault03BusVoltage | Fault and Diagnostic | yes | no | 26 |
-| 654 | F654 | Fault04BusVoltage | Fault and Diagnostic | yes | no | 27 |
-| 655 | F655 | Fault05BusVoltage | Fault and Diagnostic | yes | no | 28 |
-| 656 | F656 | Fault06BusVoltage | Fault and Diagnostic | yes | no | 29 |
-| 657 | F657 | Fault07BusVoltage | Fault and Diagnostic | yes | no | 30 |
-| 658 | F658 | Fault08BusVoltage | Fault and Diagnostic | yes | no | 31 |
-| 659 | F659 | Fault09BusVoltage | Fault and Diagnostic | yes | no | 32 |
-| 660 | F660 | Fault10BusVoltage | Fault and Diagnostic | yes | no | 33 |
-| 693 | F693 | IPAddr1 | Fault and Diagnostic | yes | no | 52 |
-| 694 | F694 | IPAddr2 | Fault and Diagnostic | yes | no | 53 |
-| 695 | F695 | IPAddr3 | Fault and Diagnostic | yes | no | 54 |
-| 696 | F696 | IPAddr4 | Fault and Diagnostic | yes | no | 55 |
-| 697 | F697 | IPMask1 | Fault and Diagnostic | yes | no | 56 |
-| 698 | F698 | IPMask2 | Fault and Diagnostic | yes | no | 57 |
-| 699 | F699 | IPMask3 | Fault and Diagnostic | yes | no | 58 |
-| 700 | F700 | IPMask4 | Fault and Diagnostic | yes | no | 59 |
-| 701 | F701 | IPGateway1 | Fault and Diagnostic | yes | no | 60 |
-| 702 | F702 | IPGateway2 | Fault and Diagnostic | yes | no | 61 |
-| 703 | F703 | IPGateway3 | Fault and Diagnostic | yes | no | 62 |
-| 704 | F704 | IPGateway4 | Fault and Diagnostic | yes | no | 63 |
+| 604 | F604 | Fault 4 Code | Fault and Diagnostic | yes | no | 61 |
+| 605 | F605 | Fault 5 Code | Fault and Diagnostic | yes | no | 62 |
+| 606 | F606 | Fault 6 Code | Fault and Diagnostic | yes | no | 63 |
+| 607 | F607 | Fault 7 Code | Fault and Diagnostic | yes | no | 0 |
+| 608 | F608 | Fault 8 Code | Fault and Diagnostic | yes | no | 1 |
+| 609 | F609 | Fault 9 Code | Fault and Diagnostic | yes | no | 2 |
+| 610 | F610 | Fault 10 Code | Fault and Diagnostic | yes | no | 3 |
+| 631 | F631 | Fault 1 Frequency | Fault and Diagnostic | yes | no | 4 |
+| 632 | F632 | Fault 2 Frequency | Fault and Diagnostic | yes | no | 5 |
+| 633 | F633 | Fault 3 Frequency | Fault and Diagnostic | yes | no | 6 |
+| 634 | F634 | Fault 4 Frequency | Fault and Diagnostic | yes | no | 7 |
+| 635 | F635 | Fault 5 Frequency | Fault and Diagnostic | yes | no | 8 |
+| 636 | F636 | Fault 6 Frequency | Fault and Diagnostic | yes | no | 9 |
+| 637 | F637 | Fault 7 Frequency | Fault and Diagnostic | yes | no | 10 |
+| 638 | F638 | Fault 8 Frequency | Fault and Diagnostic | yes | no | 11 |
+| 639 | F639 | Fault 9 Frequency | Fault and Diagnostic | yes | no | 12 |
+| 640 | F640 | Fault 10 Frequency | Fault and Diagnostic | yes | no | 13 |
+| 641 | F641 | Fault 1 Current | Fault and Diagnostic | yes | no | 14 |
+| 642 | F642 | Fault 2 Current | Fault and Diagnostic | yes | no | 15 |
+| 643 | F643 | Fault 3 Current | Fault and Diagnostic | yes | no | 16 |
+| 644 | F644 | Fault 4 Current | Fault and Diagnostic | yes | no | 17 |
+| 645 | F645 | Fault 5 Current | Fault and Diagnostic | yes | no | 18 |
+| 646 | F646 | Fault 6 Current | Fault and Diagnostic | yes | no | 19 |
+| 647 | F647 | Fault 7 Current | Fault and Diagnostic | yes | no | 20 |
+| 648 | F648 | Fault 8 Current | Fault and Diagnostic | yes | no | 21 |
+| 649 | F649 | Fault 9 Current | Fault and Diagnostic | yes | no | 22 |
+| 650 | F650 | Fault 10 Current | Fault and Diagnostic | yes | no | 23 |
+| 651 | F651 | Fault 1 DC Bus Voltage | Fault and Diagnostic | yes | no | 24 |
+| 652 | F652 | Fault 2 DC Bus Voltage | Fault and Diagnostic | yes | no | 25 |
+| 653 | F653 | Fault 3 DC Bus Voltage | Fault and Diagnostic | yes | no | 26 |
+| 654 | F654 | Fault 4 DC Bus Voltage | Fault and Diagnostic | yes | no | 27 |
+| 655 | F655 | Fault 5 DC Bus Voltage | Fault and Diagnostic | yes | no | 28 |
+| 656 | F656 | Fault 6 DC Bus Voltage | Fault and Diagnostic | yes | no | 29 |
+| 657 | F657 | Fault 7 DC Bus Voltage | Fault and Diagnostic | yes | no | 30 |
+| 658 | F658 | Fault 8 DC Bus Voltage | Fault and Diagnostic | yes | no | 31 |
+| 659 | F659 | Fault 9 DC Bus Voltage | Fault and Diagnostic | yes | no | 32 |
+| 660 | F660 | Fault 10 DC Bus Voltage | Fault and Diagnostic | yes | no | 33 |
+| 693 | F693 | Active IP Address Octet 1 | Fault and Diagnostic | yes | no | 52 |
+| 694 | F694 | Active IP Address Octet 2 | Fault and Diagnostic | yes | no | 53 |
+| 695 | F695 | Active IP Address Octet 3 | Fault and Diagnostic | yes | no | 54 |
+| 696 | F696 | Active IP Address Octet 4 | Fault and Diagnostic | yes | no | 55 |
+| 697 | F697 | Active Subnet Mask Octet 1 | Fault and Diagnostic | yes | no | 56 |
+| 698 | F698 | Active Subnet Mask Octet 2 | Fault and Diagnostic | yes | no | 57 |
+| 699 | F699 | Active Subnet Mask Octet 3 | Fault and Diagnostic | yes | no | 58 |
+| 700 | F700 | Active Subnet Mask Octet 4 | Fault and Diagnostic | yes | no | 59 |
+| 701 | F701 | Active Gateway Address Octet 1 | Fault and Diagnostic | yes | no | 60 |
+| 702 | F702 | Active Gateway Address Octet 2 | Fault and Diagnostic | yes | no | 61 |
+| 703 | F703 | Active Gateway Address Octet 3 | Fault and Diagnostic | yes | no | 62 |
+| 704 | F704 | Active Gateway Address Octet 4 | Fault and Diagnostic | yes | no | 63 |
 
 Curated parameter semantics:
 
@@ -358,6 +358,55 @@ Curated parameter semantics:
 | A572 | Sets the scale factor applied to the drive speed command. | 0.01 to 99.99 | — | 1.00 | 0.01 | Read/write | yes |
 | A575 | Selects whether flux braking is enabled. | See option set: Disabled / Enabled | — | 0 | — | Read/write | no |
 | A576 | Sets the per-phase current threshold used to detect output phase loss; a lower value reduces sensitivity. | 0.0 to 100.0 | % | 25.0 (induction motor) or 4.0 (PM motor) | 0.1% | Read/write | no |
+| F604 | Reports entry 4 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F605 | Reports entry 5 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F606 | Reports entry 6 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F607 | Reports entry 7 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F608 | Reports entry 8 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F609 | Reports entry 9 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F610 | Reports entry 10 in the unique recent-fault history, where entry 1 is the most recent. | F0 to F127 | — | — | — | Read only | no |
+| F631 | Stores the output frequency recorded with fault-history entry 1, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F632 | Stores the output frequency recorded with fault-history entry 2, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F633 | Stores the output frequency recorded with fault-history entry 3, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F634 | Stores the output frequency recorded with fault-history entry 4, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F635 | Stores the output frequency recorded with fault-history entry 5, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F636 | Stores the output frequency recorded with fault-history entry 6, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F637 | Stores the output frequency recorded with fault-history entry 7, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F638 | Stores the output frequency recorded with fault-history entry 8, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F639 | Stores the output frequency recorded with fault-history entry 9, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F640 | Stores the output frequency recorded with fault-history entry 10, where entry 1 is the most recent. | 0.00 to 500.00 | Hz | — | 0.01 Hz | Read only | no |
+| F641 | Stores the output current recorded with fault-history entry 1, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F642 | Stores the output current recorded with fault-history entry 2, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F643 | Stores the output current recorded with fault-history entry 3, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F644 | Stores the output current recorded with fault-history entry 4, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F645 | Stores the output current recorded with fault-history entry 5, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F646 | Stores the output current recorded with fault-history entry 6, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F647 | Stores the output current recorded with fault-history entry 7, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F648 | Stores the output current recorded with fault-history entry 8, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F649 | Stores the output current recorded with fault-history entry 9, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F650 | Stores the output current recorded with fault-history entry 10, where entry 1 is the most recent. | 0.00 to Drive Rated Amps x 2 | A | — | 0.01 A | Read only | no |
+| F651 | Stores the DC bus voltage recorded with fault-history entry 1, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F652 | Stores the DC bus voltage recorded with fault-history entry 2, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F653 | Stores the DC bus voltage recorded with fault-history entry 3, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F654 | Stores the DC bus voltage recorded with fault-history entry 4, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F655 | Stores the DC bus voltage recorded with fault-history entry 5, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F656 | Stores the DC bus voltage recorded with fault-history entry 6, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F657 | Stores the DC bus voltage recorded with fault-history entry 7, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F658 | Stores the DC bus voltage recorded with fault-history entry 8, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F659 | Stores the DC bus voltage recorded with fault-history entry 9, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F660 | Stores the DC bus voltage recorded with fault-history entry 10, where entry 1 is the most recent. | 0 to 1200 | V DC | — | 1 V DC | Read only | no |
+| F693 | Reports octet 1 of the active ip address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F694 | Reports octet 2 of the active ip address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F695 | Reports octet 3 of the active ip address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F696 | Reports octet 4 of the active ip address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F697 | Reports octet 1 of the active subnet mask currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F698 | Reports octet 2 of the active subnet mask currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F699 | Reports octet 3 of the active subnet mask currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F700 | Reports octet 4 of the active subnet mask currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F701 | Reports octet 1 of the active gateway address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F702 | Reports octet 2 of the active gateway address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F703 | Reports octet 3 of the active gateway address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
+| F704 | Reports octet 4 of the active gateway address currently used by the embedded EtherNet/IP interface; a value of zero can indicate that no address is set. | 0 to 255 | — | — | 1 | Read only | no |
 
 Parameter option sets:
 

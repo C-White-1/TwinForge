@@ -69,6 +69,28 @@ Evidence-bearing `SoftwareBinding` records then link that definition to:
 The AOI definition and its instance tag are deliberately distinct. One
 definition may be reused by multiple tags and physical drive instances.
 
+## Parameter catalogue coverage
+
+TwinForge provides manual-backed semantics for all 163 parameter numbers
+observed in the reference AOI's bulk-read requests. The catalogue records:
+
+- the Rockwell parameter code and group;
+- purpose and engineering units;
+- ranges, enumerated options, and status flags where documented;
+- defaults and display resolution where documented;
+- read-only and stop-required constraints; and
+- relationships among fault codes and their frequency, current, and DC-bus
+  snapshots.
+
+This is complete coverage of the parameters exercised by this particular AOI,
+not of every parameter supported by every PowerFlex 525 firmware revision.
+The generated
+[`corpus_evidence.md`](../../reports/Dev_PF525_Program/corpus_evidence.md)
+contains the observed inventory and curated semantics. Potential discrepancies
+between the AOI and the manual remain isolated in
+[`aoi_qa_issues.md`](../../reports/Dev_PF525_Program/aoi_qa_issues.md) for
+manual verification; TwinForge does not silently rewrite the source AOI.
+
 CODESYS CAA Device Diagnosis is unrelated source evidence. It belongs only to
 the future CODESYS target adapter for observing or controlling the imported
 device connection.

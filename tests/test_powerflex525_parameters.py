@@ -6,6 +6,54 @@ from twinforge.knowledge.powerflex525_parameters import (
 )
 
 
+def test_catalogue_covers_exactly_the_163_observed_aoi_parameters():
+    expected = {
+        *range(1, 10),
+        *range(12, 18),
+        *range(19, 23),
+        *range(27, 30),
+        *range(31, 52),
+        53,
+        *range(62, 71),
+        *range(72, 74),
+        *range(75, 78),
+        *range(79, 83),
+        *range(84, 86),
+        88,
+        90,
+        99,
+        *range(105, 107),
+        *range(143, 145),
+        *range(360, 365),
+        367,
+        369,
+        *range(375, 377),
+        378,
+        *range(380, 383),
+        *range(393, 395),
+        *range(431, 433),
+        *range(434, 436),
+        *range(439, 442),
+        *range(486, 488),
+        *range(490, 492),
+        *range(534, 538),
+        *range(543, 549),
+        *range(550, 552),
+        555,
+        559,
+        572,
+        *range(575, 577),
+        *range(604, 611),
+        *range(631, 661),
+        *range(693, 705),
+    }
+
+    numbers = PowerFlex525ParameterCatalogue().curated_numbers()
+
+    assert len(numbers) == 163
+    assert set(numbers) == expected
+
+
 def test_resolves_curated_parameter_definition():
     catalogue = PowerFlex525ParameterCatalogue()
 
@@ -796,3 +844,127 @@ def test_preserves_remaining_advanced_program_options(
     assert definition is not None
     assert definition.option_set_name == option_set_name
     assert [option.value for option in definition.options] == values
+
+
+@pytest.mark.parametrize(
+    ("number", "history_position"),
+    [
+        (604, 4),
+        (605, 5),
+        (606, 6),
+        (607, 7),
+        (608, 8),
+        (609, 9),
+        (610, 10),
+    ],
+)
+def test_covers_extended_fault_code_history(
+    number: int,
+    history_position: int,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"F{number:03d}"
+    assert definition.name == f"Fault {history_position} Code"
+    assert definition.group_name == "Fault and Diagnostic"
+    assert str(history_position) in (definition.description or "")
+    assert definition.minimum == "F0"
+    assert definition.maximum == "F127"
+    assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "history_position"),
+    [(number, number - 630) for number in range(631, 641)],
+)
+def test_covers_fault_history_frequency_snapshots(
+    number: int,
+    history_position: int,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"F{number}"
+    assert definition.name == f"Fault {history_position} Frequency"
+    assert definition.group_name == "Fault and Diagnostic"
+    assert f"entry {history_position}" in (definition.description or "")
+    assert definition.engineering_unit == "Hz"
+    assert definition.minimum == "0.00"
+    assert definition.maximum == "500.00"
+    assert definition.resolution == "0.01 Hz"
+    assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "history_position"),
+    [(number, number - 640) for number in range(641, 651)],
+)
+def test_covers_fault_history_current_snapshots(
+    number: int,
+    history_position: int,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"F{number}"
+    assert definition.name == f"Fault {history_position} Current"
+    assert definition.group_name == "Fault and Diagnostic"
+    assert f"entry {history_position}" in (definition.description or "")
+    assert definition.engineering_unit == "A"
+    assert definition.minimum == "0.00"
+    assert definition.maximum == "Drive Rated Amps x 2"
+    assert definition.resolution == "0.01 A"
+    assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "history_position"),
+    [(number, number - 650) for number in range(651, 661)],
+)
+def test_covers_fault_history_bus_voltage_snapshots(
+    number: int,
+    history_position: int,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"F{number}"
+    assert definition.name == f"Fault {history_position} DC Bus Voltage"
+    assert definition.group_name == "Fault and Diagnostic"
+    assert f"entry {history_position}" in (definition.description or "")
+    assert definition.engineering_unit == "V DC"
+    assert definition.minimum == "0"
+    assert definition.maximum == "1200"
+    assert definition.resolution == "1 V DC"
+    assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "address_kind", "octet"),
+    [
+        *[(number, "IP Address", number - 692) for number in range(693, 697)],
+        *[(number, "Subnet Mask", number - 696) for number in range(697, 701)],
+        *[
+            (number, "Gateway Address", number - 700)
+            for number in range(701, 705)
+        ],
+    ],
+)
+def test_covers_active_network_address_octets(
+    number: int,
+    address_kind: str,
+    octet: int,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"F{number}"
+    assert definition.name == f"Active {address_kind} Octet {octet}"
+    assert definition.group_name == "Fault and Diagnostic"
+    assert f"octet {octet}" in (definition.description or "")
+    assert "currently used" in (definition.description or "")
+    assert definition.minimum == "0"
+    assert definition.maximum == "255"
+    assert definition.resolution == "1"
+    assert definition.read_only
