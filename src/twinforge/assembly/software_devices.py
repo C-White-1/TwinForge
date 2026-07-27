@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from twinforge.analysis.literal_assignments import extract_literal_assignments
+from twinforge.analysis.parameter_writes import (
+    ParameterSetpointBinding,
+    extract_parameter_literal_write_bindings,
+    extract_parameter_setpoint_bindings,
+)
 from twinforge.converters.device import assemble_device_from_module
 from twinforge.knowledge.powerflex525_parameters import (
     POWERFLEX_525_PARAMETER_REFERENCE,
@@ -16,9 +21,12 @@ from twinforge.model import (
     AddOnInstruction,
     CommunicationService,
     Device,
+    DeviceParameterValueEvidence,
     DeviceType,
     ObservedParameterAccess,
     SoftwareModuleAssembly,
+    SourceNode,
+    Tag,
 )
 from twinforge.parsers.l5x.corpus import L5XCorpus
 
@@ -250,6 +258,10 @@ def _add_powerflex_parameter_inventory(
         for item in read_evidence
         if item.comment is not None
     }
+    setpoint_bindings = extract_parameter_setpoint_bindings(implementation)
+    literal_write_bindings = extract_parameter_literal_write_bindings(
+        implementation
+    )
     catalogue = PowerFlex525ParameterCatalogue()
     for number in sorted(set(read_candidates) | set(write_candidates)):
         matching_reads = [
@@ -260,6 +272,30 @@ def _add_powerflex_parameter_inventory(
         ]
         label = labels.get(number)
         code, group_prefix, display_name = _parse_parameter_label(label)
+        configured_value = _configured_parameter_value(
+            source.instance_tag,
+            label,
+            implementation,
+            setpoint_bindings.get(number),
+        )
+        configuration_note = None
+        if configured_value is None and number in setpoint_bindings:
+            member_name = setpoint_bindings[number].member_name
+            configuration_note = (
+                f"AOI writes internal setpoint Local.Params.{member_name}.SP, "
+                "but no unique exported instance value was found."
+            )
+        elif configured_value is None and number in literal_write_bindings:
+            literal = literal_write_bindings[number]
+            configuration_note = (
+                f"AOI automatically writes raw literal "
+                f"{literal.lexical_value}; this is behavior, not saved "
+                "configuration."
+            )
+        elif configured_value is None and matching_writes:
+            configuration_note = (
+                "No unique configured-value evidence was recovered."
+            )
         definition = catalogue.definition(number)
         if definition is not None:
             code = definition.code
@@ -298,6 +334,9 @@ def _add_powerflex_parameter_inventory(
                     item.source_text.strip()
                     for item in (*matching_reads, *matching_writes)
                 ),
+                configured_value=configured_value,
+                configuration_note=configuration_note,
+                advisories=catalogue.advisories(number),
             )
         )
 
@@ -329,3 +368,113 @@ def _parse_parameter_label(
         match.group("name").strip(),
     )
 
+
+def _configured_parameter_value(
+    instance_tag: Tag,
+    label: str | None,
+    implementation: AddOnInstruction | None = None,
+    setpoint_binding: ParameterSetpointBinding | None = None,
+) -> DeviceParameterValueEvidence | None:
+    """Read one AOI ``Cfg_*`` member only when its source match is unique."""
+
+    _, _, member_name = _parse_parameter_label(label)
+    if member_name is None:
+        return None
+    expected_names = {f"Cfg_{member_name}"}
+    target_members = {member_name}
+    if setpoint_binding is not None:
+        target_members.add(setpoint_binding.member_name)
+    if implementation is not None:
+        targets = {
+            f"Local.Params.{target_member}.SP".casefold()
+            for target_member in target_members
+        }
+        expected_names.update(
+            parameter.name
+            for parameter in implementation.parameters.values()
+            if parameter.alias_for is not None
+            and parameter.alias_for.casefold() in targets
+        )
+    matches = []
+    for extension in instance_tag.source_extensions:
+        if extension.format.casefold() != "l5x":
+            continue
+        matches.extend(
+            node
+            for node in _walk_source_nodes(extension.root)
+            if node.name == "DataValueMember"
+            and node.attributes.get("Name") in expected_names
+            and "Value" in node.attributes
+        )
+    if len(matches) != 1:
+        if setpoint_binding is None:
+            return None
+        return _nested_setpoint_value(
+            instance_tag,
+            setpoint_binding,
+        )
+    attributes = matches[0].attributes
+    return DeviceParameterValueEvidence(
+        lexical_value=attributes["Value"],
+        source=(
+            f"{instance_tag.name}.{attributes['Name']}"
+        ),
+        data_type=attributes.get("DataType"),
+        radix=attributes.get("Radix"),
+        evidence=(
+            (
+                f"{setpoint_binding.routine_name}: "
+                f"parameter {setpoint_binding.number} writes "
+                f"Local.Params.{setpoint_binding.member_name}.SP"
+            ),
+        )
+        if setpoint_binding is not None
+        else (),
+    )
+
+
+def _nested_setpoint_value(
+    instance_tag: Tag,
+    binding: ParameterSetpointBinding,
+) -> DeviceParameterValueEvidence | None:
+    """Read an exact decorated ``StructureMember/<SP>`` setpoint path."""
+
+    matches = []
+    for extension in instance_tag.source_extensions:
+        if extension.format.casefold() != "l5x":
+            continue
+        for node in _walk_source_nodes(extension.root):
+            if (
+                node.name != "StructureMember"
+                or node.attributes.get("Name") != binding.member_name
+            ):
+                continue
+            matches.extend(
+                child
+                for child in node.children
+                if child.name == "DataValueMember"
+                and child.attributes.get("Name") == "SP"
+                and "Value" in child.attributes
+            )
+    if len(matches) != 1:
+        return None
+    attributes = matches[0].attributes
+    return DeviceParameterValueEvidence(
+        lexical_value=attributes["Value"],
+        source=f"{instance_tag.name}.{binding.member_name}.SP",
+        data_type=attributes.get("DataType"),
+        radix=attributes.get("Radix"),
+        evidence=(
+            f"{binding.routine_name}: parameter {binding.number} writes "
+            f"Local.Params.{binding.member_name}.SP",
+        ),
+    )
+
+
+def _walk_source_nodes(root: SourceNode) -> tuple[SourceNode, ...]:
+    """Return a deterministic depth-first view of one preserved source tree."""
+
+    nodes = [root]
+    for child in root.children:
+        nodes.extend(_walk_source_nodes(child))
+    return tuple(nodes)

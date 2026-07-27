@@ -62,6 +62,7 @@ Exporters consume the model and never parse L5X directly.
 - AutomationML 2.1 / CAEX 3.0 hierarchy, semantic libraries and links
 - Vendor-neutral and Rockwell catalog SystemUnitClasses
 - Model-driven controller, tag, datatype, module, task and program reports
+- Vendor-neutral device parameter and setpoint reports in Markdown and CSV
 
 ## Quick start
 
@@ -176,6 +177,7 @@ schemas must be obtained from their official publishers and supplied locally.
 - [Architecture](ARCHITECTURE.md)
 - [Domain model](MODEL.md)
 - [Roadmap](ROADMAP.md)
+- [Parameter and setpoint reports](docs/parameter-reports.md)
 - [PLCopen capability matrix](docs/plcopen-capabilities.md)
 - [AOI portability and runtime contracts](docs/aoi-portability.md)
 - [Structured Text front end](docs/structured-text.md)

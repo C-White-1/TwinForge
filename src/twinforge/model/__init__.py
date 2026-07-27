@@ -14,10 +14,13 @@ from .controller import Controller
 from .datatype import Datatype, DatatypeMember
 from .device import Device, DeviceType
 from .device_parameter import (
+    DeviceParameterAdvisory,
+    DeviceParameterAdvisorySeverity,
     DeviceParameterDefinition,
     DeviceParameterField,
     DeviceParameterFlag,
     DeviceParameterOption,
+    DeviceParameterValueEvidence,
 )
 from .device_module_binding import DeviceModuleBinding, DeviceModuleRole
 from .electronic_key import ElectronicKey, KeyingMode
@@ -75,9 +78,12 @@ __all__ = [
     "DatatypeMember",
     "Device",
     "DeviceParameterDefinition",
+    "DeviceParameterAdvisory",
+    "DeviceParameterAdvisorySeverity",
     "DeviceParameterField",
     "DeviceParameterFlag",
     "DeviceParameterOption",
+    "DeviceParameterValueEvidence",
     "DeviceModuleBinding",
     "DeviceModuleRole",
     "DeviceType",

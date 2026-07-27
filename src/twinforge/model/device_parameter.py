@@ -3,6 +3,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
+
+
+class DeviceParameterAdvisorySeverity(Enum):
+    """Review priority assigned to parameter evidence."""
+
+    LOW = "Low"
+    MEDIUM = "Medium"
+    HIGH = "High"
+
+
+@dataclass(frozen=True)
+class DeviceParameterAdvisory:
+    """One evidence-backed parameter review advisory."""
+
+    code: str
+    severity: DeviceParameterAdvisorySeverity
+    summary: str
+    reference: str | None = None
 
 
 @dataclass(frozen=True)
@@ -28,6 +47,17 @@ class DeviceParameterField:
     position: str
     label: str
     options: tuple[DeviceParameterOption, ...] = ()
+
+
+@dataclass(frozen=True)
+class DeviceParameterValueEvidence:
+    """One lexical parameter value retained with its source provenance."""
+
+    lexical_value: str
+    source: str
+    data_type: str | None = None
+    radix: str | None = None
+    evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

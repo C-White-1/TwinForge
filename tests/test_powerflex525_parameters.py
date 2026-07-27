@@ -54,6 +54,18 @@ def test_catalogue_covers_exactly_the_163_observed_aoi_parameters():
     assert set(numbers) == expected
 
 
+def test_maps_qa_advisories_to_affected_parameters():
+    catalogue = PowerFlex525ParameterCatalogue()
+
+    assert [item.code for item in catalogue.advisories(105)] == [
+        "PF525-QA-001",
+        "PF525-QA-002",
+        "PF525-QA-005",
+    ]
+    assert catalogue.advisories(544)[0].severity.value == "High"
+    assert catalogue.advisories(1) == ()
+
+
 def test_resolves_curated_parameter_definition():
     catalogue = PowerFlex525ParameterCatalogue()
 

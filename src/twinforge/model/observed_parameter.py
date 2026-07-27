@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .device_parameter import DeviceParameterDefinition
+from .device_parameter import (
+    DeviceParameterAdvisory,
+    DeviceParameterDefinition,
+    DeviceParameterValueEvidence,
+)
 
 
 @dataclass(frozen=True)
@@ -23,3 +27,7 @@ class ObservedParameterAccess:
     observed_write: bool = False
     read_buffer_indices: tuple[int, ...] = ()
     evidence: tuple[str, ...] = ()
+    configured_value: DeviceParameterValueEvidence | None = None
+    runtime_value: DeviceParameterValueEvidence | None = None
+    configuration_note: str | None = None
+    advisories: tuple[DeviceParameterAdvisory, ...] = ()

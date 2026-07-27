@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from twinforge.model import (
+    DeviceParameterAdvisory,
+    DeviceParameterAdvisorySeverity,
     DeviceParameterDefinition,
     DeviceParameterField,
     DeviceParameterFlag,
     DeviceParameterOption,
 )
+
+
+_QA_REFERENCE = "reports/Dev_PF525_Program/aoi_qa_issues.md"
 
 
 POWERFLEX_525_PARAMETER_REFERENCE = (
@@ -39,6 +44,11 @@ class PowerFlex525ParameterCatalogue:
         """Return a definition when that parameter has been curated."""
 
         return _PARAMETERS.get(number)
+
+    def advisories(self, number: int) -> tuple[DeviceParameterAdvisory, ...]:
+        """Return AOI/manual comparison findings for one parameter."""
+
+        return _PARAMETER_ADVISORIES.get(number, ())
 
     def group_name(self, prefix: str | None) -> str | None:
         """Resolve a parameter-group prefix without changing its spelling."""
@@ -2025,3 +2035,57 @@ _PARAMETERS = {
         octet=4,
     ),
 }
+
+
+def _advisory(
+    number: int,
+    severity: DeviceParameterAdvisorySeverity,
+    summary: str,
+) -> DeviceParameterAdvisory:
+    return DeviceParameterAdvisory(
+        code=f"PF525-QA-{number:03d}",
+        severity=severity,
+        summary=summary,
+        reference=_QA_REFERENCE,
+    )
+
+
+def _build_parameter_advisories(
+) -> dict[int, tuple[DeviceParameterAdvisory, ...]]:
+    """Map the maintained AOI QA register to affected parameters."""
+
+    high = DeviceParameterAdvisorySeverity.HIGH
+    medium = DeviceParameterAdvisorySeverity.MEDIUM
+    low = DeviceParameterAdvisorySeverity.LOW
+    findings: list[tuple[tuple[int, ...], DeviceParameterAdvisory]] = [
+        ((105,), _advisory(1, high, "AOI described default conflicts with initialization.")),
+        ((105,), _advisory(2, high, "AOI safety-input semantics differ from the manual.")),
+        ((143,), _advisory(3, medium, "AOI description omits accepted option 4.")),
+        ((144,), _advisory(4, medium, "AOI description omits accepted option 4.")),
+        ((105,), _advisory(5, low, "AOI description contains a spelling error.")),
+        ((99,), _advisory(6, low, "AOI member description is incomplete.")),
+        ((88,), _advisory(7, low, "AOI description omits documented modes.")),
+        ((8, 9), _advisory(8, low, "Fault-history descriptions are incomplete.")),
+        ((440,), _advisory(9, medium, "AOI reads this value but does not expose it.")),
+        ((490,), _advisory(10, medium, "AOI validation exceeds the documented maximum.")),
+        ((544,), _advisory(11, high, "AOI write omits stop and range checks.")),
+        ((545,), _advisory(12, medium, "AOI write omits option validation.")),
+        ((546,), _advisory(13, medium, "AOI initialization conflicts with the documented default.")),
+        ((576,), _advisory(14, medium, "AOI gives the wrong induction-motor default.")),
+        ((572,), _advisory(15, high, "AOI forces a stop-only parameter without an inactive-state check.")),
+        (tuple(range(604, 611)), _advisory(16, low, "Extended fault-history descriptions are incomplete.")),
+        (tuple(range(631, 641)), _advisory(17, low, "AOI names output-frequency snapshots as speed.")),
+        (tuple(range(641, 651)), _advisory(18, low, "Fault-current descriptions are incomplete.")),
+        (tuple(range(651, 661)), _advisory(19, low, "Fault DC-bus-voltage descriptions are incomplete.")),
+    ]
+    result: dict[int, list[DeviceParameterAdvisory]] = {}
+    for numbers, advisory in findings:
+        for parameter_number in numbers:
+            result.setdefault(parameter_number, []).append(advisory)
+    return {
+        number: tuple(advisories)
+        for number, advisories in result.items()
+    }
+
+
+_PARAMETER_ADVISORIES = _build_parameter_advisories()

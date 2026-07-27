@@ -44,6 +44,10 @@ from .plcopen import (
     validate_plcopen_xml,
 )
 from .parameter_markdown import ParameterMarkdownExporter
+from .parameter_report import (
+    ParameterReportCSVExporter,
+    ParameterReportMarkdownExporter,
+)
 from .text_report import TextReportBundle, TextReportExporter
 
 __all__ = [
@@ -82,6 +86,8 @@ __all__ = [
     "PLCopenValidationError",
     "PLCopenValidationUnavailable",
     "ParameterMarkdownExporter",
+    "ParameterReportCSVExporter",
+    "ParameterReportMarkdownExporter",
     "validate_plcopen_xml",
     "TextReportBundle",
     "TextReportExporter",
