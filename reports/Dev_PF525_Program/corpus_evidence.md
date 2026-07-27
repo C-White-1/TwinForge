@@ -1,4 +1,4 @@
-# PowerFlex 525 L5X evidence report
+# PowerFlex 525 L5X corpus evidence report
 
 ## Summary
 
@@ -147,21 +147,21 @@ Observed parameter inventory:
 | 106 | T106 | Safety Fault Reset Configuration | Terminal Block | yes | yes | 59 |
 | 143 | C143 | EN Comm Flt Actn | Communications | yes | yes | 0 |
 | 144 | C144 | EN Idle Flt Actn | Communications | yes | yes | 1 |
-| 360 | d360 | AnalogIn0-10V | Advanced Display | yes | no | 31 |
-| 361 | d361 | AnalogIn4-20mA | Advanced Display | yes | no | 32 |
-| 362 | d362 | ElapsedTimeHr | Advanced Display | yes | no | 2 |
-| 363 | d363 | ElapsedTimeMin | Advanced Display | yes | no | 3 |
-| 364 | d364 | CounterStatus | Advanced Display | yes | no | 33 |
-| 367 | d367 | DriveType | Advanced Display | yes | no | 4 |
-| 369 | d369 | MotorOLLevel | Advanced Display | yes | no | 35 |
-| 375 | d375 | SlipHzMeter | Advanced Display | yes | no | 36 |
-| 376 | d376 | SpeedFeedback | Advanced Display | yes | no | 37 |
-| 378 | d378 | EncoderSpeed | Advanced Display | yes | no | 38 |
-| 380 | d380 | DCBusRipple | Advanced Display | yes | no | 39 |
-| 381 | d381 | OutputPowerFactor | Advanced Display | yes | no | 40 |
-| 382 | d382 | TorqueCurrent | Advanced Display | yes | no | 41 |
-| 393 | d393 | DriveStatus2 | Advanced Display | yes | no | 46 |
-| 394 | d394 | DigOutStatus | Advanced Display | yes | no | 47 |
+| 360 | d360 | Analog In 0-10V | Advanced Display | yes | no | 31 |
+| 361 | d361 | Analog In 4-20mA | Advanced Display | yes | no | 32 |
+| 362 | d362 | Elapsed Time-hr | Advanced Display | yes | no | 2 |
+| 363 | d363 | Elapsed Time-min | Advanced Display | yes | no | 3 |
+| 364 | d364 | Counter Status | Advanced Display | yes | no | 33 |
+| 367 | d367 | Drive Type | Advanced Display | yes | no | 4 |
+| 369 | d369 | Motor OL Level | Advanced Display | yes | no | 35 |
+| 375 | d375 | Slip Hz Meter | Advanced Display | yes | no | 36 |
+| 376 | d376 | Speed Feedback | Advanced Display | yes | no | 37 |
+| 378 | d378 | Encoder Speed | Advanced Display | yes | no | 38 |
+| 380 | d380 | DC Bus Ripple | Advanced Display | yes | no | 39 |
+| 381 | d381 | Output Powr Fctr | Advanced Display | yes | no | 40 |
+| 382 | d382 | Torque Current | Advanced Display | yes | no | 41 |
+| 393 | d393 | Drive Status 2 | Advanced Display | yes | no | 46 |
+| 394 | d394 | Dig Out Status | Advanced Display | yes | no | 47 |
 | 431 | A431 | JogFrequency | Advanced Program | yes | yes | 11 |
 | 432 | A432 | JogAccelDecel | Advanced Program | yes | yes | 12 |
 | 434 | A434 | DCBrakeTime | Advanced Program | yes | yes | 14 |
@@ -315,6 +315,21 @@ Curated parameter semantics:
 | T106 | Selects whether safety hardware fault F111 is reset by a power cycle or by the fault-clear mechanism. | 0 = Power-Cycle Reset; 1 = Fault-Clear Reset | — | 0 | — | Read/write | no |
 | C143 | Selects the drive action when embedded EtherNet/IP communications are disrupted. Non-fault selections can permit continued operation and require commissioning verification. | See option set: EtherNet/IP Fault Action | — | 0 | — | Read/write | no |
 | C144 | Selects the drive action when the EtherNet/IP scanner becomes idle because the controller enters Program mode. Non-fault selections can permit continued operation and require commissioning verification. | See option set: EtherNet/IP Fault Action | — | 0 | — | Read/write | no |
+| d360 | Reports the 0-10 V analog input as a percentage of full scale. | 0.0 to 100.0 | % | — | 0.1% | Read only | no |
+| d361 | Reports the 4-20 mA analog input as a percentage of full scale. | 0.0 to 100.0 | % | — | 0.1% | Read only | no |
+| d362 | Reports total powered-up hours since the elapsed-time meter was reset; unlike b019, this is not limited to time outputting power. | 0 to 32767 | h | — | 1 h | Read only | no |
+| d363 | Reports the minute component of total powered-up time; at its maximum it resets to zero and increments d362 by one hour. | 0.0 to 60.0 | min | — | 0.1 min | Read only | no |
+| d364 | Reports the current accumulated value of the internal counter when the counter function is enabled. | 0 to 65535 | — | — | 1 | Read only | no |
+| d367 | Reports the internal drive-type setting used by Rockwell Automation field service personnel. | 0 to 65535 | — | — | 1 | Read only | no |
+| d369 | Reports the present value of the motor overload counter. | 0.0 to 150.0 | % | — | 0.1% | Read only | no |
+| d375 | Reports the absolute amount of slip or droop presently applied to motor frequency. | 0.0 to 25.0 | Hz | — | 0.1 Hz | Read only | no |
+| d376 | Reports actual motor speed, measured by the feedback device when selected or otherwise estimated by the drive. | 0.0 to 64000.0 | rpm | — | 0.1 rpm | Read only | no |
+| d378 | Reports speed measured by the encoder or pulse-train feedback device, even when it is not controlling motor speed. | 0.0 to 64000.0 | rpm | — | 0.1 rpm | Read only | no |
+| d380 | Reports the real-time DC-bus ripple voltage. | 0 to 410 (230 V AC drive), 820 (460 V AC drive), or 1025 (600 V AC drive) | V DC | — | 1 V DC | Read only | no |
+| d381 | Reports the electrical angle between motor voltage and motor current. | 0.0 to 180.0 | ° | — | 0.1° | Read only | no |
+| d382 | Reports motor torque current measured by the drive. | 0.00 to Drive Rated Amps × 2 | A | — | 0.01 A | Read only | no |
+| d393 | Reports the present operating condition of the drive as a bit-mapped status word. | 0 = Jogging; 1 = Flux Braking; 2 = Motor Overload; 3 = Auto-reset Countdown; 4 = DC Braking; 5 = At Frequency; 6 = Auto-tuning; 7 = EM Braking; 8 = Current Limiting; 10 = Safety Input 1; 11 = Safety Input 2; 12 = Fault 111 Status; 13 = Safe Torque Permit | — | — | 1 | Read only | no |
+| d394 | Reports the activation states of relay and opto-isolated outputs as a bit-mapped status word. | 0 = Relay Output 1; 1 = Relay Output 2; 2 = Opto Output 1; 3 = Opto Output 2 | — | — | 1 | Read only | no |
 
 Parameter option sets:
 

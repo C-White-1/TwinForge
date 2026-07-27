@@ -467,6 +467,35 @@ def _basic_display_parameter(
     )
 
 
+def _advanced_display_parameter(
+    *,
+    number: int,
+    name: str,
+    description: str,
+    engineering_unit: str | None = None,
+    minimum: str | None = None,
+    maximum: str | None = None,
+    resolution: str | None = None,
+    flags: tuple[DeviceParameterFlag, ...] = (),
+) -> DeviceParameterDefinition:
+    """Build one read-only Advanced Display definition."""
+
+    return _parameter(
+        number=number,
+        code=f"d{number:03d}",
+        name=name,
+        description=description,
+        engineering_unit=engineering_unit,
+        minimum=minimum,
+        maximum=maximum,
+        resolution=resolution,
+        flags=flags,
+        read_only=True,
+        group_prefix="d",
+        group_name="Advanced Display",
+    )
+
+
 def _fault_code_parameter(number: int, sequence: str) -> DeviceParameterDefinition:
     """Build one ordered recent-fault code definition."""
 
@@ -1148,5 +1177,194 @@ _PARAMETERS = {
         option_set_name="EtherNet/IP Fault Action",
         group_prefix="C",
         group_name="Communications",
+    ),
+    360: _advanced_display_parameter(
+        number=360,
+        name="Analog In 0-10V",
+        description=(
+            "Reports the 0-10 V analog input as a percentage of full scale."
+        ),
+        engineering_unit="%",
+        minimum="0.0",
+        maximum="100.0",
+        resolution="0.1%",
+    ),
+    361: _advanced_display_parameter(
+        number=361,
+        name="Analog In 4-20mA",
+        description=(
+            "Reports the 4-20 mA analog input as a percentage of full scale."
+        ),
+        engineering_unit="%",
+        minimum="0.0",
+        maximum="100.0",
+        resolution="0.1%",
+    ),
+    362: _advanced_display_parameter(
+        number=362,
+        name="Elapsed Time-hr",
+        description=(
+            "Reports total powered-up hours since the elapsed-time meter was "
+            "reset; unlike b019, this is not limited to time outputting power."
+        ),
+        engineering_unit="h",
+        minimum="0",
+        maximum="32767",
+        resolution="1 h",
+    ),
+    363: _advanced_display_parameter(
+        number=363,
+        name="Elapsed Time-min",
+        description=(
+            "Reports the minute component of total powered-up time; at its "
+            "maximum it resets to zero and increments d362 by one hour."
+        ),
+        engineering_unit="min",
+        minimum="0.0",
+        maximum="60.0",
+        resolution="0.1 min",
+    ),
+    364: _advanced_display_parameter(
+        number=364,
+        name="Counter Status",
+        description=(
+            "Reports the current accumulated value of the internal counter "
+            "when the counter function is enabled."
+        ),
+        minimum="0",
+        maximum="65535",
+        resolution="1",
+    ),
+    367: _advanced_display_parameter(
+        number=367,
+        name="Drive Type",
+        description=(
+            "Reports the internal drive-type setting used by Rockwell "
+            "Automation field service personnel."
+        ),
+        minimum="0",
+        maximum="65535",
+        resolution="1",
+    ),
+    369: _advanced_display_parameter(
+        number=369,
+        name="Motor OL Level",
+        description="Reports the present value of the motor overload counter.",
+        engineering_unit="%",
+        minimum="0.0",
+        maximum="150.0",
+        resolution="0.1%",
+    ),
+    375: _advanced_display_parameter(
+        number=375,
+        name="Slip Hz Meter",
+        description=(
+            "Reports the absolute amount of slip or droop presently applied "
+            "to motor frequency."
+        ),
+        engineering_unit="Hz",
+        minimum="0.0",
+        maximum="25.0",
+        resolution="0.1 Hz",
+    ),
+    376: _advanced_display_parameter(
+        number=376,
+        name="Speed Feedback",
+        description=(
+            "Reports actual motor speed, measured by the feedback device "
+            "when selected or otherwise estimated by the drive."
+        ),
+        engineering_unit="rpm",
+        minimum="0.0",
+        maximum="64000.0",
+        resolution="0.1 rpm",
+    ),
+    378: _advanced_display_parameter(
+        number=378,
+        name="Encoder Speed",
+        description=(
+            "Reports speed measured by the encoder or pulse-train feedback "
+            "device, even when it is not controlling motor speed."
+        ),
+        engineering_unit="rpm",
+        minimum="0.0",
+        maximum="64000.0",
+        resolution="0.1 rpm",
+    ),
+    380: _advanced_display_parameter(
+        number=380,
+        name="DC Bus Ripple",
+        description="Reports the real-time DC-bus ripple voltage.",
+        engineering_unit="V DC",
+        minimum="0",
+        maximum=(
+            "410 (230 V AC drive), 820 (460 V AC drive), or "
+            "1025 (600 V AC drive)"
+        ),
+        resolution="1 V DC",
+    ),
+    381: _advanced_display_parameter(
+        number=381,
+        name="Output Powr Fctr",
+        description=(
+            "Reports the electrical angle between motor voltage and motor "
+            "current."
+        ),
+        engineering_unit="°",
+        minimum="0.0",
+        maximum="180.0",
+        resolution="0.1°",
+    ),
+    382: _advanced_display_parameter(
+        number=382,
+        name="Torque Current",
+        description="Reports motor torque current measured by the drive.",
+        engineering_unit="A",
+        minimum="0.00",
+        maximum="Drive Rated Amps × 2",
+        resolution="0.01 A",
+    ),
+    393: _advanced_display_parameter(
+        number=393,
+        name="Drive Status 2",
+        description=(
+            "Reports the present operating condition of the drive as a "
+            "bit-mapped status word."
+        ),
+        minimum="0",
+        maximum="65535",
+        resolution="1",
+        flags=(
+            DeviceParameterFlag("0", "Jogging"),
+            DeviceParameterFlag("1", "Flux Braking"),
+            DeviceParameterFlag("2", "Motor Overload"),
+            DeviceParameterFlag("3", "Auto-reset Countdown"),
+            DeviceParameterFlag("4", "DC Braking"),
+            DeviceParameterFlag("5", "At Frequency"),
+            DeviceParameterFlag("6", "Auto-tuning"),
+            DeviceParameterFlag("7", "EM Braking"),
+            DeviceParameterFlag("8", "Current Limiting"),
+            DeviceParameterFlag("10", "Safety Input 1"),
+            DeviceParameterFlag("11", "Safety Input 2"),
+            DeviceParameterFlag("12", "Fault 111 Status"),
+            DeviceParameterFlag("13", "Safe Torque Permit"),
+        ),
+    ),
+    394: _advanced_display_parameter(
+        number=394,
+        name="Dig Out Status",
+        description=(
+            "Reports the activation states of relay and opto-isolated outputs "
+            "as a bit-mapped status word."
+        ),
+        minimum="0",
+        maximum="15",
+        resolution="1",
+        flags=(
+            DeviceParameterFlag("0", "Relay Output 1"),
+            DeviceParameterFlag("1", "Relay Output 2"),
+            DeviceParameterFlag("2", "Opto Output 1"),
+            DeviceParameterFlag("3", "Opto Output 2"),
+        ),
     ),
 }

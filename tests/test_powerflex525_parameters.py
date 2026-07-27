@@ -505,3 +505,109 @@ def test_covers_control_software_version():
     assert definition.resolution == "0.001"
     assert definition.engineering_unit is None
     assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "maximum", "resolution"),
+    [
+        (360, "Analog In 0-10V", "%", "100.0", "0.1%"),
+        (361, "Analog In 4-20mA", "%", "100.0", "0.1%"),
+        (362, "Elapsed Time-hr", "h", "32767", "1 h"),
+        (363, "Elapsed Time-min", "min", "60.0", "0.1 min"),
+        (364, "Counter Status", None, "65535", "1"),
+        (367, "Drive Type", None, "65535", "1"),
+    ],
+)
+def test_covers_advanced_display_inputs_time_and_status(
+    number: int,
+    name: str,
+    unit: str | None,
+    maximum: str,
+    resolution: str,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.code == f"d{number:03d}"
+    assert definition.name == name
+    assert definition.group_name == "Advanced Display"
+    assert definition.engineering_unit == unit
+    assert definition.maximum == maximum
+    assert definition.resolution == resolution
+    assert definition.read_only
+
+
+def test_distinguishes_powered_up_time_from_outputting_power_time():
+    catalogue = PowerFlex525ParameterCatalogue()
+
+    powered_up_hours = catalogue.definition(362)
+    outputting_power_hours = catalogue.definition(19)
+
+    assert powered_up_hours is not None
+    assert outputting_power_hours is not None
+    assert "powered-up" in (powered_up_hours.description or "")
+    assert powered_up_hours.resolution == "1 h"
+    assert "outputting power" in (outputting_power_hours.description or "")
+    assert outputting_power_hours.resolution == "10 h"
+
+
+@pytest.mark.parametrize(
+    ("number", "name", "unit", "resolution"),
+    [
+        (369, "Motor OL Level", "%", "0.1%"),
+        (375, "Slip Hz Meter", "Hz", "0.1 Hz"),
+        (376, "Speed Feedback", "rpm", "0.1 rpm"),
+        (378, "Encoder Speed", "rpm", "0.1 rpm"),
+        (380, "DC Bus Ripple", "V DC", "1 V DC"),
+        (381, "Output Powr Fctr", "°", "0.1°"),
+        (382, "Torque Current", "A", "0.01 A"),
+    ],
+)
+def test_covers_advanced_display_measurements(
+    number: int,
+    name: str,
+    unit: str,
+    resolution: str,
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    assert definition.name == name
+    assert definition.engineering_unit == unit
+    assert definition.resolution == resolution
+    assert definition.read_only
+
+
+@pytest.mark.parametrize(
+    ("number", "expected_flags"),
+    [
+        (
+            393,
+            {
+                "0": "Jogging",
+                "8": "Current Limiting",
+                "10": "Safety Input 1",
+                "13": "Safe Torque Permit",
+            },
+        ),
+        (
+            394,
+            {
+                "0": "Relay Output 1",
+                "1": "Relay Output 2",
+                "2": "Opto Output 1",
+                "3": "Opto Output 2",
+            },
+        ),
+    ],
+)
+def test_preserves_advanced_display_status_bits(
+    number: int,
+    expected_flags: dict[str, str],
+):
+    definition = PowerFlex525ParameterCatalogue().definition(number)
+
+    assert definition is not None
+    actual_flags = {flag.position: flag.label for flag in definition.flags}
+    assert actual_flags.items() >= expected_flags.items()
+    assert definition.read_only
