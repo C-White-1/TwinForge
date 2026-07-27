@@ -27,6 +27,8 @@ def test_parser_converts_datatypes_and_resolves_tag_and_member_references(tmp_pa
                   <Member Name="Enabled" DataType="BOOL" Dimension="0"
                           Radix="Decimal" Hidden="false"
                           ExternalAccess="Read/Write" />
+                  <Member Name="EnabledBit" DataType="BIT" Dimension="0"
+                          Target="Enabled" BitNumber="0" Hidden="false" />
                 </Members>
               </DataType>
               <DataType Name="MotorConfig" Family="NoFamily" Class="User">
@@ -60,6 +62,8 @@ def test_parser_converts_datatypes_and_resolves_tag_and_member_references(tmp_pa
     assert alarm_type is not None
     assert motor_type is not None
     assert alarm_type.parent is controller
+    assert alarm_type.members[1].target == "Enabled"
+    assert alarm_type.members[1].bit_number == 0
     assert motor_type.description == "Motor configuration"
     assert motor_type.members[0].data_type is alarm_type
     assert motor_type.members[1].data_type_name == "REAL"

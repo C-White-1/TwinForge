@@ -10,6 +10,12 @@ from .source_extension import SourceExtension
 
 @dataclass
 class DatatypeMember:
+    """One member of a structured datatype.
+
+    ``target`` and ``bit_number`` describe an explicitly captured bit overlay.
+    They remain optional because ordinary members are not overlays.
+    """
+
     name: str = ""
     data_type_name: str | None = None
     data_type: "Datatype | None" = None
@@ -18,6 +24,8 @@ class DatatypeMember:
     hidden: bool | None = None
     external_access: str | None = None
     description: str | None = None
+    target: str | None = None
+    bit_number: int | None = None
     source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
 
 

@@ -44,6 +44,18 @@ DATATYPE_MEMBER_ATTRIBUTES: dict[str, AttributeSpec] = {
         valid_values=("Read/Write", "Read Only", "None"),
         manual_ref="1756-RM014D-EN-P September 2025, Data type member attributes.",
     ),
+    "Target": AttributeSpec(
+        name="Target",
+        description="Backing member overlaid by a BIT member.",
+        manual_ref="1756-RM014D-EN-P September 2025, Data type member attributes.",
+    ),
+    "BitNumber": AttributeSpec(
+        name="BitNumber",
+        description="Bit position within the backing overlay member.",
+        xml_type=str,
+        datatype=int,
+        manual_ref="1756-RM014D-EN-P September 2025, Data type member attributes.",
+    ),
 }
 
 DATATYPE_MEMBER_ELEMENTS: dict[str, ElementSpec] = {

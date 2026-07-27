@@ -68,6 +68,14 @@ not ordinary IEC logic.
 - [ ] Compare target diagnostics with Rockwell source semantics
 - [ ] Record which properties are equivalent, approximated, or unavailable
 
+## Deferred PowerFlex AOI engineering outputs
+
+- [x] Analyze the cyclic input/status and output/command contract
+- [x] Generate a focused diagnostic and fault report
+- [x] Generate a PowerFlex functional description from captured behavior
+- [ ] Complete hardware-dependent EtherNet/IP and drive validation when a
+  suitable PowerFlex 525 test installation is available
+
 ## Current boundary
 
 TwinForge can now parse, type, lower, and emit all portable `Sys_Module`

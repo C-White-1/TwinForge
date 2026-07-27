@@ -16,6 +16,11 @@ from .codesys_st import (
     emit_codesys_st_unit,
 )
 from .corpus_markdown import CorpusMarkdownExporter
+from .cyclic_io_markdown import CyclicIOContractMarkdownExporter
+from .diagnostic_markdown import DeviceDiagnosticMarkdownExporter
+from .functional_description_markdown import (
+    FunctionalDescriptionMarkdownExporter,
+)
 from .codesys_plcopen_ir import (
     CodesysArgumentBinding,
     CodesysIRPLCopenExporter,
@@ -61,6 +66,9 @@ __all__ = [
     "AutomationMLValidationUnavailable",
     "CodesysSTDialect",
     "CorpusMarkdownExporter",
+    "CyclicIOContractMarkdownExporter",
+    "DeviceDiagnosticMarkdownExporter",
+    "FunctionalDescriptionMarkdownExporter",
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",
     "CodesysArgumentBinding",

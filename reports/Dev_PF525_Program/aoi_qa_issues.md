@@ -30,8 +30,32 @@ No AOI source has been changed.
 | PF525-QA-017 | Low | F631–F640 terminology | Open | AOI calls output-frequency snapshots “Speed” |
 | PF525-QA-018 | Low | F641–F650 documentation | Open | Fault-current descriptions contain only parameter codes |
 | PF525-QA-019 | Low | F651–F660 documentation | Open | Fault DC-bus-voltage descriptions contain only parameter codes |
+| PF525-QA-020 | High | Run interlock | Open | Fault, EtherNet/IP control, and safety terms are commented out of IntlkOK |
 
 ## Findings
+
+### PF525-QA-020 — Run interlock excludes three shown conditions
+
+- Severity: High
+- Status: Open
+- AOI expression:
+  `IntlkOK := (Inp_IntlkOK OR Sts_Bypass) & Inp_NBIntlkOK
+  (*& NOT Sts_Fault & Sts_ENetLogicCtrl & NOT Sts_SafetyActive*);`
+- Executed behavior: `IntlkOK` uses the bypassable and non-bypassable
+  interlock inputs only. The drive-fault, EtherNet/IP logic-control, and
+  safety-active terms are comments and do not affect the result.
+- Potential impact: host run requests can remain logically asserted while
+  one of those three conditions is abnormal. Other drive and hardware layers
+  may still prevent torque, but that cannot be assumed to be equivalent to
+  an active AOI interlock.
+- Manual verification:
+  1. Confirm whether the commented terms were intentionally removed.
+  2. Test drive fault, loss of EtherNet/IP logic control, and active safety
+     separately while a run request exists.
+  3. Observe the AOI run latch, cyclic command word, physical drive state,
+     and recovery behavior.
+  4. Decide whether each condition belongs in `IntlkOK`, another explicit
+     stop path, or documented external protection.
 
 ### PF525-QA-001 — T105 described default conflicts with initialization
 

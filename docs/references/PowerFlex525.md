@@ -91,6 +91,25 @@ between the AOI and the manual remain isolated in
 [`aoi_qa_issues.md`](../../reports/Dev_PF525_Program/aoi_qa_issues.md) for
 manual verification; TwinForge does not silently rewrite the source AOI.
 
+The generated
+[`cyclic_io_contract.md`](../../reports/Dev_PF525_Program/cyclic_io_contract.md)
+documents the 8-byte drive-to-controller status image and the 4-byte
+controller-to-drive command image. It distinguishes configured connection
+evidence, captured datatype overlays, and AOI-specific command behavior.
+
+The generated
+[`diagnostic_fault_report.md`](../../reports/Dev_PF525_Program/diagnostic_fault_report.md)
+separates live drive faults, controller-module faults, communications state,
+configured communication-loss behavior, the ten-entry fault-history contract,
+and the distinct active-fault reset and history-clear commands.
+
+The generated
+[`functional_description.md`](../../reports/Dev_PF525_Program/functional_description.md)
+combines command-source modes, run and jog behavior, permissive/interlock
+gating, start delay, speed limiting, setpoint tracking, communications,
+parameter services, and diagnostic boundaries into one traceable engineering
+description.
+
 CODESYS CAA Device Diagnosis is unrelated source evidence. It belongs only to
 the future CODESYS target adapter for observing or controlling the imported
 device connection.

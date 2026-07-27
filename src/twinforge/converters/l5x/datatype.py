@@ -7,6 +7,7 @@ from twinforge.converters.diagnostics import (
 from twinforge.model import Controller, Datatype, DatatypeMember
 from twinforge.parsers.l5x.capture import CapturedSection
 
+from .conversion_value import optional_int
 from .source_extension import captured_to_source_extension
 
 
@@ -105,6 +106,13 @@ def _convert_member(
         hidden=_optional_bool(section, "Hidden", diagnostics, datatype_name),
         external_access=section.attributes.get("ExternalAccess"),
         description=_description(section),
+        target=section.attributes.get("Target"),
+        bit_number=optional_int(
+            section.attributes.get("BitNumber"),
+            "BitNumber",
+            section,
+            diagnostics,
+        ),
         source_extensions=[captured_to_source_extension(section)],
     )
 
