@@ -73,6 +73,23 @@ not ordinary IEC logic.
 - [x] Analyze the cyclic input/status and output/command contract
 - [x] Generate a focused diagnostic and fault report
 - [x] Generate a PowerFlex functional description from captured behavior
+- [x] Classify PowerFlex conversion readiness and implementation order
+- [x] Define target-neutral cyclic-I/O layouts and runtime service contracts
+- [x] Verify the captured 8-byte status and 4-byte command packing
+- [x] Port and behavior-test the target-neutral Dvc_PF525 command core
+- [x] Emit the neutral command core as IEC Structured Text
+- [x] Package the core with PLC_PRG and MainTask for CODESYS import
+- [x] Import and compile the generated PowerFlex core in CODESYS
+- [x] Capture and inventory a native CODESYS PowerFlex test visualization
+- [ ] Decode native visualization property identifiers using controlled
+  differential exports
+- [x] Define a target-neutral visualization model
+- [x] Generate a native CODESYS visualization only after profile compatibility
+  and round-trip behavior are verified
+- [x] Implement a source-backed SP22 exporter for the verified existing-control
+  subset
+- [x] Import and inspect the unchanged source-backed round-trip in CODESYS
+- [x] Verify a deliberately modified source-backed export in CODESYS
 - [ ] Complete hardware-dependent EtherNet/IP and drive validation when a
   suitable PowerFlex 525 test installation is available
 

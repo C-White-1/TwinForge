@@ -31,6 +31,7 @@ No AOI source has been changed.
 | PF525-QA-018 | Low | F641–F650 documentation | Open | Fault-current descriptions contain only parameter codes |
 | PF525-QA-019 | Low | F651–F660 documentation | Open | Fault DC-bus-voltage descriptions contain only parameter codes |
 | PF525-QA-020 | High | Run interlock | Open | Fault, EtherNet/IP control, and safety terms are commented out of IntlkOK |
+| PF525-QA-021 | Medium | Program jog gating | Open | Program jog bypasses the shared availability and permissive terms |
 
 ## Findings
 
@@ -56,6 +57,28 @@ No AOI source has been changed.
      and recovery behavior.
   4. Decide whether each condition belongs in `IntlkOK`, another explicit
      stop path, or documented external protection.
+
+### PF525-QA-021 — Program jog bypasses shared gating
+
+- Severity: Medium
+- Status: Open
+- AOI expression:
+  `JogFwd := Sts_JogFwdAvail & PermOK & ((operator) OR (external) OR
+  (maintenance)) OR (Sts_Program & PCmd_JogFwd & NOT PCmd_JogRev);`
+  The reverse equation has the same structure.
+- Executed behavior: IEC/Logix operator precedence evaluates the final
+  program branch outside the `Sts_JogFwdAvail & PermOK` terms. A program jog
+  can therefore assert even when the corresponding availability status or
+  combined permissive is false.
+- Potential impact: program and non-program jog sources do not share the
+  same gating behavior. External logic or the drive may still prevent
+  motion, but TwinForge does not assume that protection is equivalent.
+- Manual verification:
+  1. Confirm whether program jog was intentionally exempted.
+  2. Test both program jog directions with permissives false.
+  3. Test both directions with the corresponding availability status false.
+  4. Decide whether parentheses should place the program branch under the
+     common gate in a future AOI revision.
 
 ### PF525-QA-001 — T105 described default conflicts with initialization
 

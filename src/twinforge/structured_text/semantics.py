@@ -80,6 +80,7 @@ class CallKind(str, Enum):
     EXPLICIT_MESSAGE = "explicit_message"
     MEMORY_COPY = "memory_copy"
     RETENTIVE_TIMER = "retentive_timer"
+    TYPE_CONVERSION = "type_conversion"
     USER_DEFINED_INSTRUCTION = "user_defined_instruction"
     ROUTINE = "routine"
     FUNCTION_BLOCK_INSTANCE = "function_block_instance"

@@ -15,7 +15,21 @@ from .codesys_st import (
     emit_codesys_st_routine,
     emit_codesys_st_unit,
 )
+from .codesys_visualization_markdown import (
+    CodesysVisualizationMarkdownExporter,
+)
+from .codesys_visualization_diff_markdown import (
+    CodesysVisualizationDiffMarkdownExporter,
+)
+from .codesys_native_visualization import (
+    CodesysNativeVisualizationExporter,
+    CodesysNativeVisualizationExportError,
+    CodesysNativeVisualizationExportResult,
+)
 from .corpus_markdown import CorpusMarkdownExporter
+from .conversion_readiness_markdown import (
+    ConversionReadinessMarkdownExporter,
+)
 from .cyclic_io_markdown import CyclicIOContractMarkdownExporter
 from .diagnostic_markdown import DeviceDiagnosticMarkdownExporter
 from .functional_description_markdown import (
@@ -53,6 +67,10 @@ from .parameter_report import (
     ParameterReportCSVExporter,
     ParameterReportMarkdownExporter,
 )
+from .powerflex525_iec import (
+    build_powerflex525_iec_unit,
+    powerflex525_codesys_integration,
+)
 from .text_report import TextReportBundle, TextReportExporter
 
 __all__ = [
@@ -65,7 +83,13 @@ __all__ = [
     "AutomationMLValidationError",
     "AutomationMLValidationUnavailable",
     "CodesysSTDialect",
+    "CodesysVisualizationMarkdownExporter",
+    "CodesysVisualizationDiffMarkdownExporter",
+    "CodesysNativeVisualizationExporter",
+    "CodesysNativeVisualizationExportError",
+    "CodesysNativeVisualizationExportResult",
     "CorpusMarkdownExporter",
+    "ConversionReadinessMarkdownExporter",
     "CyclicIOContractMarkdownExporter",
     "DeviceDiagnosticMarkdownExporter",
     "FunctionalDescriptionMarkdownExporter",
@@ -75,6 +99,7 @@ __all__ = [
     "CodesysProjectIntegration",
     "codesys_parameter_initial_value",
     "codesys_program_variable_name",
+    "build_powerflex525_iec_unit",
     "IECRequirement",
     "IECSTDialect",
     "IECSTDiagnostic",
@@ -96,6 +121,7 @@ __all__ = [
     "ParameterMarkdownExporter",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
+    "powerflex525_codesys_integration",
     "validate_plcopen_xml",
     "TextReportBundle",
     "TextReportExporter",

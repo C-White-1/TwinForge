@@ -110,6 +110,97 @@ gating, start delay, speed limiting, setpoint tracking, communications,
 parameter services, and diagnostic boundaries into one traceable engineering
 description.
 
+The generated
+[`conversion_readiness.md`](../../reports/Dev_PF525_Program/conversion_readiness.md)
+classifies portable logic, datatype and instruction adaptations, target
+adapters, manual design review, and hardware validation. It is the staged
+implementation checklist for PLCopen/CODESYS conversion while preserving a
+separate adapter boundary for future OpenPLC support.
+
+The target-neutral runtime boundary is implemented in
+[`runtime/cyclic_io.py`](../../src/twinforge/runtime/cyclic_io.py) and
+[`runtime/contracts.py`](../../src/twinforge/runtime/contracts.py). The cyclic
+layout is built from the captured `CyclicIOContract`; it is not a second
+hard-coded interpretation of the source XML. Tests verify little-endian
+packing, signed feedback, bit overlays, preservation of unspecified bytes and
+bits, image-size rejection, and parameter request semantics.
+
+Cyclic transport adapters exchange the exact raw images through
+`CyclicIOProvider`. Parameter and module operations use separate non-blocking
+contracts so converted IEC logic does not depend directly on Logix `MESSAGE`,
+`MODULE`, CODESYS device-tree objects, or a future OpenPLC fieldbus API.
+
+The portable command engine is implemented in
+[`powerflex525_core.py`](../../src/twinforge/runtime/powerflex525_core.py).
+It retains command-source arbitration, level and latched run behavior,
+permissive and interlock equations, start delay, command-word construction,
+jog selection, speed limiting, and retained state. The engine accepts
+normalized status and returns cyclic values; explicit messaging and module
+services remain outside it. Its `prescan()` deliberately preserves portable
+run and timer state because the captured Prescan routine does not explicitly
+write those values. A target may invoke the separate explicit reset only when
+the project lifecycle policy requires and documents it.
+
+Two source behaviors are deliberately preserved rather than silently changed:
+the commented run-interlock terms tracked by `PF525-QA-020`, and the
+program-jog precedence tracked by `PF525-QA-021`.
+
+The portable core can be emitted as executable IEC IR by
+[`powerflex525_iec.py`](../../src/twinforge/exporters/powerflex525_iec.py).
+The generated
+[`PowerFlex525_core_codesys.xml`](../../examples/PLCOpenXML/PowerFlex525_core_codesys.xml)
+contains `TF_PowerFlex525_Core`, a calling `PLC_PRG`, and a cyclic `MainTask`.
+The function-block body contains no `MESSAGE`, `MODULE`, GSV/SSV, CODESYS
+device-tree, or fieldbus API calls.
+
+All generated program inputs start at zero or false. In particular,
+non-bypassable permissive/interlock inputs and maximum speed do not default to
+an operational state. The imported demonstration therefore cannot produce a
+run command until the user deliberately supplies the required status,
+command-source, permissive, interlock, availability, speed-limit, and drive
+feedback bindings.
+
 CODESYS CAA Device Diagnosis is unrelated source evidence. It belongs only to
 the future CODESYS target adapter for observing or controlling the imported
 device connection.
+
+## CODESYS native visualization evidence
+
+The user-authored native CODESYS export
+`reference/PLCopenXML/codesys-native/12_powerflex_visualization.export`
+is an interoperability test fixture, not PLCopen XML. TwinForge can inventory
+its visualization, controls, geometry, text, IEC variable bindings, Toggle and
+InputBox actions, and selected Visualization Manager settings using
+[`codesys_native.py`](../../src/twinforge/parsers/codesys_native.py). The
+generated
+[`codesys_visualization_inventory.md`](../../reports/Dev_PF525_Program/codesys_visualization_inventory.md)
+records that evidence.
+
+The native format is a profile-dependent `IArchivable` object graph with
+opaque GUIDs and numeric property identifiers. The parser therefore retains
+the complete source archive and raw XML for every decoded object. TwinForge
+does not yet generate native CODESYS visualization exports: the numeric
+property mapping must first be compared with exports from additional CODESYS
+profiles and deliberately varied controls.
+
+Friendly native-property decoding is selected through the exact profile
+registry in
+[`codesys_native_profiles.py`](../../src/twinforge/parsers/codesys_native_profiles.py).
+The tested `CODESYS V3.5 SP22 Patch 2` mappings include X, Y, width, height,
+text, and the experimentally confirmed centre coordinates. Unknown profiles
+remain lossless but undecoded; they never inherit SP22 mappings implicitly.
+
+Parsed evidence is lowered through
+[`codesys_visualization.py`](../../src/twinforge/converters/codesys_visualization.py)
+into the
+[`vendor-neutral visualization model`](../architecture/visualization-model.md).
+The model contains portable controls, geometry, bindings, and interactions;
+native CODESYS XML and numeric properties remain attached as source
+extensions for lossless round-tripping and future profile-specific export.
+
+The controlled procedure and initial export series are defined in
+[`CODESYS-visualization-differential-testing.md`](CODESYS-visualization-differential-testing.md).
+TwinForge provides
+[`diff_codesys_visualizations.py`](../../examples/diff_codesys_visualizations.py)
+to produce a semantic and opaque-property report from each baseline/variant
+pair.

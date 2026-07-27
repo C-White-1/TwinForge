@@ -63,6 +63,17 @@ from .software_call import (
 from .tag import MessageTagConfiguration, Tag
 from .tag_value import ScalarTagValue, TagValue
 from .task import Task
+from .visualization import (
+    VisualizationBinding,
+    VisualizationBindingRole,
+    VisualizationCanvas,
+    VisualizationControl,
+    VisualizationControlKind,
+    VisualizationDocument,
+    VisualizationGeometry,
+    VisualizationInteraction,
+    VisualizationInteractionKind,
+)
 
 __all__ = [
     "AddOnInstruction",
@@ -130,4 +141,13 @@ __all__ = [
     "TagValue",
     "ScalarTagValue",
     "Task",
+    "VisualizationBinding",
+    "VisualizationBindingRole",
+    "VisualizationCanvas",
+    "VisualizationControl",
+    "VisualizationControlKind",
+    "VisualizationDocument",
+    "VisualizationGeometry",
+    "VisualizationInteraction",
+    "VisualizationInteractionKind",
 ]
