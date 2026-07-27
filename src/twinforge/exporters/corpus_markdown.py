@@ -266,6 +266,14 @@ def _append_parameter_inventory(
         parameter.group_name or parameter.group_prefix or "Unclassified"
         for parameter in ordered
     )
+    curated = [
+        parameter for parameter in ordered if parameter.definition is not None
+    ]
+    missing = [
+        parameter.number
+        for parameter in ordered
+        if parameter.definition is None
+    ]
     lines.extend(
         [
             "- Parameter groups: "
@@ -273,8 +281,16 @@ def _append_parameter_inventory(
                 f"{group} ({count})"
                 for group, count in sorted(group_counts.items())
             ),
+            "- Curated semantics coverage: "
+            f"{len(curated)}/{len(ordered)} observed parameters "
+            f"({len(curated) / len(ordered):.1%})",
         ]
     )
+    if missing:
+        lines.append(
+            "- Parameters without curated semantics: "
+            + _number_ranges(tuple(missing))
+        )
     references = sorted(
         {
             parameter.reference

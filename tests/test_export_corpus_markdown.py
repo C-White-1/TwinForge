@@ -128,3 +128,22 @@ def test_renders_a_shared_parameter_option_set_once():
     assert report.count("#### Start Source") == 1
     assert report.count("| 5 | EtherNet/IP |") == 1
     assert report.count("See option set: Start Source") == 2
+
+
+def test_reports_curated_semantics_coverage_and_missing_parameters():
+    catalogue = PowerFlex525ParameterCatalogue()
+    definition = catalogue.definition(34)
+    assert definition is not None
+    lines: list[str] = []
+
+    _append_parameter_inventory(
+        lines,
+        [
+            ObservedParameterAccess(number=34, definition=definition),
+            ObservedParameterAccess(number=999),
+        ],
+    )
+    report = "\n".join(lines)
+
+    assert "- Curated semantics coverage: 1/2 observed parameters (50.0%)" in report
+    assert "- Parameters without curated semantics: 999" in report

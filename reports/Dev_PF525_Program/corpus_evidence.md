@@ -70,6 +70,7 @@
 - Observed bulk-read parameter candidates (163): 1–9, 12–17, 19–22, 27–29, 31–51, 53, 62–70, 72–73, 75–77, 79–82, 84–85, 88, 90, 99, 105–106, 143–144, 360–364, 367, 369, 375–376, 378, 380–382, 393–394, 431–432, 434–435, 439–441, 486–487, 490–491, 534–537, 543–548, 550–551, 555, 559, 572, 575–576, 604–610, 631–660, 693–704
 - Observed write parameter candidates (70): 31–39, 41–51, 53, 62–70, 72–73, 75–77, 79–82, 84–85, 88, 90, 99, 105–106, 143–144, 431–432, 434–435, 439, 441, 486–487, 490–491, 534–537, 543–546, 548, 551, 559, 572
 - Parameter groups: Advanced Display (15), Advanced Program (28), Basic Display (22), Basic Program (22), Communications (2), Fault and Diagnostic (49), Terminal Block (25)
+- Curated semantics coverage: 163/163 observed parameters (100.0%)
 - Parameter references: Rockwell Automation Publication 520-UM001L-EN-E, PowerFlex 520-Series Adjustable Frequency AC Drive User Manual, March 2022
 
 Observed parameter inventory:
