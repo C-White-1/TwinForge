@@ -26,6 +26,23 @@ from .powerflex525_core import (
     PowerFlexCoreOutput,
     PowerFlexCoreState,
 )
+from .sys_module_core import (
+    SysModuleCore,
+    SysModuleModeWrite,
+    SysModuleOutputs,
+    SysModulePrescanResult,
+    SysModuleScanResult,
+    SysModuleSnapshot,
+    SysModuleStatus,
+    decode_entry_status,
+)
+from .sys_module_runtime import (
+    SysModuleAdapter,
+    SysModuleAdapterError,
+    SysModuleRuntime,
+    SysModuleRuntimeResult,
+    SysModuleServiceFailure,
+)
 
 __all__ = [
     "ByteOrder",
@@ -41,6 +58,19 @@ __all__ = [
     "ParameterResult",
     "ParameterResultState",
     "ParameterService",
+    "SysModuleCore",
+    "SysModuleModeWrite",
+    "SysModuleOutputs",
+    "SysModulePrescanResult",
+    "SysModuleScanResult",
+    "SysModuleSnapshot",
+    "SysModuleStatus",
+    "SysModuleAdapter",
+    "SysModuleAdapterError",
+    "SysModuleRuntime",
+    "SysModuleRuntimeResult",
+    "SysModuleServiceFailure",
+    "decode_entry_status",
     "PowerFlex525Core",
     "PowerFlexCommandSource",
     "PowerFlexCommands",

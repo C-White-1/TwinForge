@@ -70,6 +70,21 @@ not-found or disconnected state as **offline runtime evidence only**.
 Do not fabricate a connected state or classify a simulated response as
 PowerFlex hardware evidence.
 
+TwinForge can generate an importable normalized binding shell with:
+
+```powershell
+uv run python examples/export_codesys_sys_module_binding.py `
+  examples/PLCOpenXML/TF_Codesys_SysModule_Binding.xml
+```
+
+The generated project contains `TF_Codesys_ENIP_ModuleBinding`, `PLC_PRG`,
+and `MainTask`. Wire the generated remote-adapter observations to its
+`Inp_*` variables. Its one-scan `Out_RequestReconfigure` and
+`Out_RequestedEnable` outputs are request intent only; the native helper must
+perform and monitor `DED.Reconfigure`, then return busy, done, and failed
+feedback. The shell contains no unresolved Rockwell `MODULE`, `GSV`, or `SSV`
+constructs.
+
 ## Deferred hardware observations
 
 When a physical PowerFlex 525 and an isolated test network become available,
@@ -127,3 +142,47 @@ PLCopen file `12_enip_remote_adapter_diagnostics.xml`.
   recorded as unsupported.
 - No Rockwell `EntryStatus`, `FaultCode`, `FaultInfo`, or `Mode` numeric value
   is fabricated.
+
+## Offline session evidence — 2026-07-28
+
+The generated
+`examples/PLCOpenXML/TF_Codesys_SysModule_Binding.xml` project was imported
+and built successfully in CODESYS Control Win V3 x64.
+
+A generic EtherNet/IP device named `Dev_PF525` was configured beneath an
+EtherNet/IP Scanner with the source-backed connection values:
+
+- address `192.168.1.80`;
+- configuration assembly class 4, instance 6, attribute 3;
+- consuming O-to-T assembly instance 2 with 4 bytes;
+- producing T-to-O assembly instance 1 with 8 bytes;
+- cyclic Exclusive Owner connection at 10 ms; and
+- generated path `20 04 24 06 2C 02 2C 01`.
+
+CODESYS generated IEC variable `Dev_PF525` with datatype
+`RemoteAdapter_diag`. Autocomplete and successful compilation confirmed:
+
+- `Enable`;
+- `eState`;
+- `GetDeviceInfo`;
+- `GetDeviceState`;
+- `sDiagString`; and
+- `xDiagnosticAvailable`.
+
+The generated `AdapterState` enum documents `RUNNING` as all connections
+established, and exposes `BUS_ERROR` and `ERROR` as explicit failure states.
+The next session should compile the qualified enum mappings into the binding:
+
+```iecst
+xInp_Connected :=
+    Dev_PF525.eState = IoDrvEtherNetIP.AdapterState.RUNNING;
+xInp_Enabled := Dev_PF525.Enable;
+xInp_Faulted :=
+    (Dev_PF525.eState = IoDrvEtherNetIP.AdapterState.BUS_ERROR)
+    OR (Dev_PF525.eState = IoDrvEtherNetIP.AdapterState.ERROR);
+xInp_DiagnosticAvailable := Dev_PF525.xDiagnosticAvailable;
+```
+
+The diagnostic property assignments to `Enable`, `sDiagString`, and
+`xDiagnosticAvailable` already compile. Reconfiguration and the
+`GetDeviceState` signature remain to be verified.

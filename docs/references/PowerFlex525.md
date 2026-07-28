@@ -164,6 +164,13 @@ CODESYS CAA Device Diagnosis is unrelated source evidence. It belongs only to
 the future CODESYS target adapter for observing or controlling the imported
 device connection.
 
+The portable behavior of the referenced `Sys_Module` AOI is implemented and
+tested separately in
+[`sys-module-core.md`](../architecture/sys-module-core.md). It preserves raw
+EntryStatus decoding, the shared inhibit/uninhibit edge latch, and explicit
+Prescan assignments while keeping GSV/SSV execution behind the target-adapter
+boundary.
+
 ## CODESYS native visualization evidence
 
 The user-authored native CODESYS export

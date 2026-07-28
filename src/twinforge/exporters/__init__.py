@@ -15,6 +15,10 @@ from .codesys_st import (
     emit_codesys_st_routine,
     emit_codesys_st_unit,
 )
+from .codesys_sys_module_iec import (
+    build_codesys_sys_module_binding_unit,
+    codesys_sys_module_binding_integration,
+)
 from .codesys_visualization_markdown import (
     CodesysVisualizationMarkdownExporter,
 )
@@ -83,6 +87,8 @@ __all__ = [
     "AutomationMLValidationError",
     "AutomationMLValidationUnavailable",
     "CodesysSTDialect",
+    "build_codesys_sys_module_binding_unit",
+    "codesys_sys_module_binding_integration",
     "CodesysVisualizationMarkdownExporter",
     "CodesysVisualizationDiffMarkdownExporter",
     "CodesysNativeVisualizationExporter",

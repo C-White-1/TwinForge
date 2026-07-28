@@ -54,17 +54,20 @@ not ordinary IEC logic.
 - [x] Define the native CODESYS EtherNet/IP diagnostic experiment
 - [ ] Run the native CODESYS EtherNet/IP diagnostic experiment
 - [ ] Export its PLCopen XML and library metadata
-- [ ] Map supported reads through the target adapter
-- [ ] Preserve unsupported writes as explicit blocking requirements
-- [ ] Generate a compilable function block without unresolved `MODULE` types
+- [x] Map supported normalized reads through the target adapter
+- [x] Preserve unsupported reconfiguration as an explicit blocking
+  requirement
+- [x] Generate a compilable normalized binding function block without
+  unresolved `MODULE` types
 - [ ] Import, compile, and observe representative device states
 
 ## Phase 4: validation
 
-- [ ] Unit-test every `EntryStatus` state mapping
-- [ ] Unit-test inhibit and uninhibit rising-edge behavior
-- [ ] Unit-test Prescan reset behavior
-- [ ] Unit-test target-service success and failure
+- [x] Unit-test every `EntryStatus` state mapping
+- [x] Unit-test inhibit and uninhibit rising-edge behavior
+- [x] Unit-test Prescan reset behavior
+- [x] Unit-test target-service success and failure through the vendor-neutral
+  adapter boundary
 - [ ] Compare target diagnostics with Rockwell source semantics
 - [ ] Record which properties are equivalent, approximated, or unavailable
 
@@ -81,8 +84,9 @@ not ordinary IEC logic.
 - [x] Package the core with PLC_PRG and MainTask for CODESYS import
 - [x] Import and compile the generated PowerFlex core in CODESYS
 - [x] Capture and inventory a native CODESYS PowerFlex test visualization
-- [ ] Decode native visualization property identifiers using controlled
-  differential exports
+- [x] Decode the verified geometry, text, binding, action, and InputBox subset
+  using controlled differential exports
+- [ ] Expand the profile map for remaining opaque visualization properties
 - [x] Define a target-neutral visualization model
 - [x] Generate a native CODESYS visualization only after profile compatibility
   and round-trip behavior are verified
@@ -99,6 +103,11 @@ TwinForge can now parse, type, lower, and emit all portable `Sys_Module`
 logic without false unresolved-expression or unknown-datatype diagnostics.
 Emission remains incomplete solely because no CODESYS implementation of the
 neutral `controller_object_access` capability has yet been established.
+
+TwinForge also provides a CODESYS EtherNet/IP implementation of the narrower
+normalized `ModuleService` contract. This supports connection and diagnostic
+observation plus capability-gated reconfiguration requests, but it is not
+substituted for raw Rockwell controller-object access.
 
 This is intentional. Returning constant “healthy” values or silently ignoring
 module inhibit commands would produce compilable XML with unsafe semantics.
