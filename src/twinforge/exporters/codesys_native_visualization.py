@@ -182,12 +182,13 @@ def _update_control(
             raise CodesysNativeVisualizationExportError(
                 "changing interaction kind is not yet supported"
             )
-        _update_interaction(item, new_action)
+        _update_interaction(item, old_action, new_action)
     _validate_bindings(old, new)
 
 
 def _update_interaction(
     item: ET.Element,
+    old: VisualizationInteraction,
     interaction: VisualizationInteraction,
 ) -> None:
     if interaction.kind is VisualizationInteractionKind.TOGGLE:
@@ -205,6 +206,12 @@ def _update_interaction(
         }
         for name, value in values.items():
             _set_direct_named_value(action, name, value)
+        if interaction.prompt != old.prompt:
+            _set_direct_named_value(
+                action,
+                "TextOutputVariableInitialized",
+                "True",
+            )
         return
     raise CodesysNativeVisualizationExportError(
         "unknown interactions cannot be generated"

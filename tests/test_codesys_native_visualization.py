@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from twinforge.exporters.codesys_visualization_markdown import (
@@ -254,6 +256,109 @@ def test_native_export_rejects_document_without_source_archive() -> None:
         CodesysNativeVisualizationExporter().export(
             VisualizationDocument()
         )
+
+
+def test_source_backed_export_updates_input_box_constraints() -> None:
+    source_xml = (
+        XML.replace(
+            "</List></Single>",
+            "<Single><Single Name=\"Id\">550940142</Single>"
+            "<Single Name=\"Value\">60</Single></Single>"
+            "<Single><Single Name=\"Id\">1473355128</Single>"
+            "<Single Name=\"Value\">35</Single></Single>"
+            "</List></Single>",
+            1,
+        )
+        .replace(
+            '<Array Name="ConfiguredComplexInputs"><Single>',
+            '<Dictionary Name="VisualElementInputActions"><Entry><Value>'
+            '<Array><Single>'
+            '<Single Name="InputBoxVariable">PLC_PRG.rSpeed</Single>'
+            '<Single Name="InputBoxMin">0</Single>'
+            '<Single Name="InputBoxMax">65</Single>'
+            '<Single Name="InputBoxDialogTitle">Speed</Single>'
+            '<Single Name="Format">%.1f</Single>'
+            "</Single></Array></Value></Entry></Dictionary>"
+            '<Array Name="ConfiguredComplexInputs"><Single>',
+        )
+    )
+    document = convert_codesys_visualization(
+        CodesysNativeExportParser().parse(source_xml)
+    )
+    control = document.canvases[0].controls[0]
+    input_index = next(
+        index
+        for index, interaction in enumerate(control.interactions)
+        if interaction.kind is VisualizationInteractionKind.VALUE_INPUT
+    )
+    control.interactions[input_index] = replace(
+        control.interactions[input_index],
+        maximum="70",
+    )
+
+    result = CodesysNativeVisualizationExporter().export(document)
+    exported = CodesysNativeExportParser().parse(result.xml)
+    input_box = next(
+        action
+        for action in exported.visualizations[0].elements[0].actions
+        if action.kind == "InputBox"
+    )
+
+    assert input_box.properties["InputBoxMin"] == "0"
+    assert input_box.properties["InputBoxMax"] == "70"
+    assert input_box.properties["Format"] == "%.1f"
+    assert input_box.properties["InputBoxDialogTitle"] == "Speed"
+
+
+def test_native_export_sets_required_prompt_initialization_flag() -> None:
+    source_xml = (
+        XML.replace(
+            "</List></Single>",
+            "<Single><Single Name=\"Id\">550940142</Single>"
+            "<Single Name=\"Value\">60</Single></Single>"
+            "<Single><Single Name=\"Id\">1473355128</Single>"
+            "<Single Name=\"Value\">35</Single></Single>"
+            "</List></Single>",
+            1,
+        )
+        .replace(
+            '<Array Name="ConfiguredComplexInputs"><Single>',
+            '<Dictionary Name="VisualElementInputActions"><Entry><Value>'
+            '<Array><Single>'
+            '<Single Name="InputBoxVariable">PLC_PRG.rSpeed</Single>'
+            '<Single Name="InputBoxMin">0</Single>'
+            '<Single Name="InputBoxMax">70</Single>'
+            '<Single Name="InputBoxDialogTitle">Speed</Single>'
+            '<Single Name="TextOutputVariableInitialized">False</Single>'
+            '<Single Name="Format">%.1f</Single>'
+            "</Single></Array></Value></Entry></Dictionary>"
+            '<Array Name="ConfiguredComplexInputs"><Single>',
+        )
+    )
+    document = convert_codesys_visualization(
+        CodesysNativeExportParser().parse(source_xml)
+    )
+    control = document.canvases[0].controls[0]
+    input_index = next(
+        index
+        for index, interaction in enumerate(control.interactions)
+        if interaction.kind is VisualizationInteractionKind.VALUE_INPUT
+    )
+    control.interactions[input_index] = replace(
+        control.interactions[input_index],
+        prompt="TwinForge Speed",
+    )
+
+    result = CodesysNativeVisualizationExporter().export(document)
+    exported = CodesysNativeExportParser().parse(result.xml)
+    input_box = next(
+        action
+        for action in exported.visualizations[0].elements[0].actions
+        if action.kind == "InputBox"
+    )
+
+    assert input_box.properties["InputBoxDialogTitle"] == "TwinForge Speed"
+    assert input_box.properties["TextOutputVariableInitialized"] == "True"
 
 
 def test_markdown_reports_generation_boundary() -> None:

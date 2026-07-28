@@ -69,7 +69,7 @@ archive format.
 exports by cloning the retained native archive and updating only verified
 SP22 fields. It currently supports existing-control geometry, derived centre
 coordinates, text, the selected theme, Toggle operands, and InputBox operand,
-format, limits, and prompt.
+format, and limits.
 
 It explicitly rejects archive synthesis, unknown profiles, canvas or control
 addition/removal, control-type changes, interaction addition/removal, canvas
@@ -97,3 +97,45 @@ SP22 Patch 2. CODESYS rendered the TwinForge Start caption at the modified X
 position. This validates native generation for the documented source-backed,
 verified-profile subset; it does not authorize synthetic archive creation or
 unsupported structural mutations.
+
+The controlled modifier also supports normalized value-input minimum, maximum,
+format, and prompt fields. Export
+`27_powerflex_speed_max_70.export` changes only
+`GenElemInst_5`'s `InputBoxMax` from 65 to 70. The native differential reports
+no binding, geometry, action-kind, control, or manager changes.
+
+The export was imported successfully into CODESYS V3.5 SP22 Patch 2, where
+the speed Textfield's input configuration reported a maximum of 70. This
+verifies normalized InputBox-parameter generation for the tested source-backed
+profile.
+
+Export `28_powerflex_speed_prompt.export` experimentally changed only
+`InputBoxDialogTitle` from `'Speed Setpoint (Hz)'` to
+`'TwinForge Speed Setpoint (Hz)'`. CODESYS imported the field but its Default
+Keypad continued to render `Speed Setpoint (Hz)`, while the independently
+changed maximum of 70 remained effective. Prompt mutation is therefore not a
+verified target capability and the exporter now rejects it.
+
+Export `29_powerflex_speed_label.export` changes only the separate speed Label
+control while leaving every InputBox property untouched. It is a controlled
+test of whether the Default Keypad derives its runtime heading from nearby
+label/localization evidence rather than `InputBoxDialogTitle`.
+
+CODESYS rendered the modified label but retained the old keypad heading. The
+direct-label hypothesis is therefore disproven.
+
+A subsequent native CODESYS edit identified the required companion state:
+changing the dialog title also changes `TextOutputVariableInitialized` from
+False to True. The native edit produced the expected runtime heading.
+TwinForge now emits both fields atomically when a neutral prompt changes.
+Export `32_powerflex_prompt_initialized.export` reproduces exactly those two
+action-property transitions.
+
+Export 32 was imported and run successfully in CODESYS V3.5 SP22 Patch 2.
+The Default Keypad displayed `TwinForge Speed Setpoint (Hz)`, and the widened
+label rendered without clipping. This verifies prompt generation and its
+required initialization state for the tested source-backed profile.
+
+Because the longer experimental label was clipped at its original width,
+export `30_powerflex_speed_label_wide.export` changes only that Label width
+from 150 to 250 and updates its derived `center_x` from 195 to 245.

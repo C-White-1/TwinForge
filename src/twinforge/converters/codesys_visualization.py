@@ -128,7 +128,7 @@ def _convert_interaction(
     properties = action.properties
     if action.kind == "Toggle":
         kind = VisualizationInteractionKind.TOGGLE
-        operand = bindings[0] if bindings else None
+        operand = properties.get("Operand")
     elif action.kind == "InputBox":
         kind = VisualizationInteractionKind.VALUE_INPUT
         operand = properties.get("InputBoxVariable")

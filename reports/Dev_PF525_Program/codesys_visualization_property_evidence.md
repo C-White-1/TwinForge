@@ -231,3 +231,96 @@ logic-command display, and CODESYS Demo Style appearance.
 
 This verifies a deliberate neutral-model mutation through native CODESYS
 export for the tested SP22 source-backed subset.
+
+## InputBox mutation export
+
+- Source:
+  `examples/CODESYS/26_powerflex_visualization_modified.export`
+- Generated:
+  `examples/CODESYS/27_powerflex_speed_max_70.export`
+- Neutral control: `GenElemInst_5`
+- InputBox maximum: 65 to 70
+- Other semantic changes: none
+- Differential report:
+  [`codesys_diff_27_speed_max.md`](codesys_diff_27_speed_max.md)
+- CODESYS import target: top Device
+- Result: imported successfully
+- Parameter verification: InputBox maximum displayed as 70
+
+## InputBox prompt mutation export
+
+- Source:
+  `examples/CODESYS/27_powerflex_speed_max_70.export`
+- Generated:
+  `examples/CODESYS/28_powerflex_speed_prompt.export`
+- Neutral control: `GenElemInst_5`
+- Dialog title: `'Speed Setpoint (Hz)'` to
+  `'TwinForge Speed Setpoint (Hz)'`
+- Other semantic changes: none
+- Differential report:
+  [`codesys_diff_28_speed_prompt.md`](codesys_diff_28_speed_prompt.md)
+- CODESYS import: successful
+- Runtime result: Default Keypad still displayed `Speed Setpoint (Hz)`
+- Assessment: `InputBoxDialogTitle` alone is not runtime-effective for the
+  tested configuration
+
+## Keypad title-source experiment
+
+- Source:
+  `examples/CODESYS/27_powerflex_speed_max_70.export`
+- Generated:
+  `examples/CODESYS/29_powerflex_speed_label.export`
+- Changed control: `GenElemInst_9`
+- Label text: Speed Setpoint (Hz) to TwinForge Speed Setpoint (Hz)
+- InputBox properties changed: none
+- Other semantic changes: none
+- Differential report:
+  [`codesys_diff_29_speed_label.md`](codesys_diff_29_speed_label.md)
+- Hypothesis tested: Default Keypad might derive its heading from this
+  associated label or its localization path
+- CODESYS runtime result: label text changed, but keypad heading did not
+- Assessment: the direct-label hypothesis is disproven; another generated or
+  language-model representation controls the runtime heading
+
+## Wider keypad-title label
+
+- Source:
+  `examples/CODESYS/29_powerflex_speed_label.export`
+- Generated:
+  `examples/CODESYS/30_powerflex_speed_label_wide.export`
+- Changed control: `GenElemInst_9`
+- Width: 150 to 250
+- Derived `center_x`: 195 to 245
+- Text and InputBox properties: unchanged
+- Differential report:
+  [`codesys_diff_30_speed_label_wide.md`](codesys_diff_30_speed_label_wide.md)
+- CODESYS visual verification: pending
+
+## Native dialog-title resolution
+
+- Native editor export:
+  `examples/CODESYS/31_dialog_title_native.export`
+- Runtime result: TwinForge Speed Setpoint (Hz) displayed successfully
+- Required title property: `InputBoxDialogTitle`
+- Required companion transition:
+  `TextOutputVariableInitialized` False to True
+- Opaque property `823443203` was regenerated on unrelated text controls and
+  is treated as editor language-model churn, not a required title field
+
+## Reproduced prompt mutation
+
+- Source:
+  `examples/CODESYS/30_powerflex_speed_label_wide.export`
+- Generated:
+  `examples/CODESYS/32_powerflex_prompt_initialized.export`
+- `InputBoxDialogTitle`: `'Speed Setpoint (Hz)'` to
+  `'TwinForge Speed Setpoint (Hz)'`
+- `TextOutputVariableInitialized`: False to True
+- Other semantic changes: none
+- Differential report:
+  [`codesys_diff_32_prompt_initialized.md`](codesys_diff_32_prompt_initialized.md)
+- CODESYS import target: top Device
+- Result: imported and ran successfully
+- Runtime verification: keypad displayed
+  `TwinForge Speed Setpoint (Hz)`
+- Label verification: widened label displayed without clipping

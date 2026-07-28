@@ -172,17 +172,20 @@ def _parse_element(
 
 def _parse_actions(item: ET.Element) -> tuple[CodesysVisualizationAction, ...]:
     actions: list[CodesysVisualizationAction] = []
-    for node in item.iter():
-        name = node.get("Name", "")
-        text = (node.text or "").strip()
-        candidate = name if name in {"Toggle", "InputBox"} else text
-        if candidate not in {"Toggle", "InputBox"}:
+    for node in item.findall(
+        "./Array[@Name='ConfiguredComplexInputs']/Single"
+    ):
+        candidate = _named_value(node, "Name")
+        if candidate is None:
             continue
         values = {
             child.get("Name", ""): (child.text or "")
             for child in node.iter()
             if child.get("Name") and child.text is not None
         }
+        operand = _configured_action_operand(node)
+        if operand is not None:
+            values["Operand"] = operand
         actions.append(
             CodesysVisualizationAction(
                 kind=candidate,
@@ -208,6 +211,17 @@ def _parse_actions(item: ET.Element) -> tuple[CodesysVisualizationAction, ...]:
             )
         )
     return tuple(actions)
+
+
+def _configured_action_operand(node: ET.Element) -> str | None:
+    member = node.find(
+        "./Single[@Name='VisualElemMemberList']/"
+        "List[@Name='VisualElemMemberList']/Single/"
+        "Single[@Name='Value']"
+    )
+    if member is None:
+        member = node.find("./Single[@Name='Value']")
+    return member.text if member is not None else None
 
 
 def _member_values(node: ET.Element) -> dict[str, str]:
