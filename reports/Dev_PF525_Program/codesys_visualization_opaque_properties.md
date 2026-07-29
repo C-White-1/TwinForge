@@ -1,7 +1,7 @@
 # CODESYS opaque visualization-property register
 
 - Profile: CODESYS V3.5 SP22 Patch 2
-- Unmapped property IDs: 29
+- Unmapped property IDs: 28
 - Promotion rule: controlled differential evidence on compatible controls
 
 | Property ID | Occurrences | Element types | Preserved samples |
@@ -10,7 +10,6 @@
 | `493260384` | 7 | Button, Label, Lamp1, Textfield | `4294967295`, `Color=-12337; CanonicalName=Element-Alarm-Fill-Color` |
 | `494569607` | 7 | Button, Label, Lamp1, Textfield | `4278190080`, `Color=-3355444; CanonicalName=Element-Frame-Color` |
 | `571893170` | 7 | Button, Label, Lamp1, Textfield | `<empty>` |
-| `2565699834` | 7 | Button, Label, Lamp1, Textfield | `VCENTER` |
 | `2597686782` | 7 | Button, Label, Lamp1, Textfield | `False`, `True` |
 | `2678395525` | 7 | Button, Label, Lamp1, Textfield | `1` |
 | `2812299069` | 7 | Button, Label, Lamp1, Textfield | `4294967295`, `Color=-1; CanonicalName=Element-Fill-Color` |

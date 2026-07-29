@@ -191,3 +191,18 @@ Experiment 40 changed only the Start Forward explicit Arial size. The archive
 changed `FontSize` from 19 to 21, while CODESYS displayed 14.25 pt and
 15.75 pt. This confirms that the SP22 profile stores 96-DPI pixel sizes and
 displays points using `points = pixels × 72 / 96`.
+
+Experiment 41 changed the Start Forward button vertical text alignment from
+centered to top. Property `2565699834` changed from `VCENTER` to `TOP`, with
+no other element or manager change. It remains a candidate pending repetition
+on the Stop button.
+
+Experiment 42 repeated the centered-to-top transition on the Stop button.
+Property `2565699834` again changed from `VCENTER` to `TOP`, while its binding
+and Toggle action remained unchanged. It is promoted to `vertical_alignment`
+for the exact SP22 Patch 2 profile.
+
+Experiment 43 changed the Start Forward button from top to bottom. The known
+`vertical_alignment` property changed from `TOP` to `BOTTOM` with no other
+change. Together with the original centered state, the complete observed SP22
+value set is `TOP`, `VCENTER`, and `BOTTOM`.

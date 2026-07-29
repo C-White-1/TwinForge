@@ -12,6 +12,7 @@ class CodesysNativeProfile:
 
     name: str
     property_names: Mapping[str, str]
+    property_values: Mapping[str, tuple[str, ...]]
     evidence: str
     font_dpi: int | None = None
 
@@ -28,7 +29,13 @@ _SP22_PATCH_2 = CodesysNativeProfile(
             "550940142": "center_x",
             "1473355128": "center_y",
             "2340015797": "horizontal_alignment",
+            "2565699834": "vertical_alignment",
             "3729828405": "font",
+        }
+    ),
+    property_values=MappingProxyType(
+        {
+            "vertical_alignment": ("TOP", "VCENTER", "BOTTOM"),
         }
     ),
     evidence=(

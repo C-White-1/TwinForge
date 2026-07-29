@@ -35,6 +35,15 @@ STOP_CUSTOM_FONT_VARIANT = (
 RUN_CUSTOM_FONT_SIZE_VARIANT = (
     SOURCE.parent / "40_run_button_custom_font_size.export"
 )
+RUN_VERTICAL_ALIGNMENT_VARIANT = (
+    SOURCE.parent / "41_run_button_vertical_alignment.export"
+)
+STOP_VERTICAL_ALIGNMENT_VARIANT = (
+    SOURCE.parent / "42_stop_button_vertical_alignment.export"
+)
+RUN_VERTICAL_BOTTOM_VARIANT = (
+    SOURCE.parent / "43_run_button_vertical_bottom.export"
+)
 LOCAL_EVIDENCE = pytest.mark.skipif(
     not all(
         path.exists()
@@ -48,6 +57,9 @@ LOCAL_EVIDENCE = pytest.mark.skipif(
             CUSTOM_FONT_VARIANT,
             STOP_CUSTOM_FONT_VARIANT,
             RUN_CUSTOM_FONT_SIZE_VARIANT,
+            RUN_VERTICAL_ALIGNMENT_VARIANT,
+            STOP_VERTICAL_ALIGNMENT_VARIANT,
+            RUN_VERTICAL_BOTTOM_VARIANT,
         )
     ),
     reason="ignored local CODESYS differential exports are unavailable",
@@ -124,7 +136,7 @@ def test_checked_in_opaque_report_matches_baseline_evidence():
 
     assert "# CODESYS opaque visualization-property register" in report
     assert "- Profile: CODESYS V3.5 SP22 Patch 2" in report
-    assert "- Unmapped property IDs: 29" in report
+    assert "- Unmapped property IDs: 28" in report
 
 
 @LOCAL_EVIDENCE
@@ -328,6 +340,17 @@ def test_sp22_font_size_uses_verified_96_dpi_conversion():
     assert codesys_font_serialized_size(16, profile) == 21
 
 
+def test_sp22_vertical_alignment_has_complete_observed_value_set():
+    profile = codesys_native_profile("CODESYS V3.5 SP22 Patch 2")
+    assert profile is not None
+
+    assert profile.property_values["vertical_alignment"] == (
+        "TOP",
+        "VCENTER",
+        "BOTTOM",
+    )
+
+
 @LOCAL_EVIDENCE
 def test_experiment_40_isolates_run_button_serialized_font_size():
     parser = CodesysNativeExportParser()
@@ -347,3 +370,100 @@ def test_experiment_40_isolates_run_button_serialized_font_size():
     assert font.before is not None
     assert font.after is not None
     assert font.before.replace("FontSize=19", "FontSize=21") == font.after
+
+
+@LOCAL_EVIDENCE
+def test_experiment_41_isolates_run_button_vertical_alignment():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(RUN_CUSTOM_FONT_SIZE_VARIANT),
+        parser.parse(RUN_VERTICAL_ALIGNMENT_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_2"
+    assert change.bindings_before == change.bindings_after
+    assert change.actions_before == change.actions_after
+    assert [
+        (
+            item.property_id,
+            item.property_name,
+            item.before,
+            item.after,
+        )
+        for item in change.property_changes
+    ] == [
+        (
+            "2565699834",
+            "vertical_alignment",
+            "VCENTER",
+            "TOP",
+        )
+    ]
+
+
+@LOCAL_EVIDENCE
+def test_experiment_42_confirms_stop_button_vertical_alignment():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(RUN_VERTICAL_ALIGNMENT_VARIANT),
+        parser.parse(STOP_VERTICAL_ALIGNMENT_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_3"
+    assert change.bindings_before == change.bindings_after
+    assert change.actions_before == change.actions_after
+    assert [
+        (
+            item.property_id,
+            item.property_name,
+            item.before,
+            item.after,
+        )
+        for item in change.property_changes
+    ] == [
+        (
+            "2565699834",
+            "vertical_alignment",
+            "VCENTER",
+            "TOP",
+        )
+    ]
+
+
+@LOCAL_EVIDENCE
+def test_experiment_43_confirms_bottom_vertical_alignment_value():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(STOP_VERTICAL_ALIGNMENT_VARIANT),
+        parser.parse(RUN_VERTICAL_BOTTOM_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_2"
+    assert [
+        (
+            item.property_id,
+            item.property_name,
+            item.before,
+            item.after,
+        )
+        for item in change.property_changes
+    ] == [
+        (
+            "2565699834",
+            "vertical_alignment",
+            "TOP",
+            "BOTTOM",
+        )
+    ]

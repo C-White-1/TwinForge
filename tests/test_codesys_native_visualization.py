@@ -86,6 +86,8 @@ def test_parser_exposes_confirmed_profile_property_mappings() -> None:
         "<Single Name=\"Value\">35</Single></Single>"
         "<Single><Single Name=\"Id\">2340015797</Single>"
         "<Single Name=\"Value\">LEFT</Single></Single>"
+        "<Single><Single Name=\"Id\">2565699834</Single>"
+        "<Single Name=\"Value\">TOP</Single></Single>"
         "<Single><Single Name=\"Id\">3729828405</Single>"
         "<Single Name=\"Value\">Font-Standard</Single></Single>"
         "</List></Single>",
@@ -107,6 +109,8 @@ def test_parser_exposes_confirmed_profile_property_mappings() -> None:
     assert (
         element.property_names["2340015797"] == "horizontal_alignment"
     )
+    assert element.properties["vertical_alignment"] == "TOP"
+    assert element.property_names["2565699834"] == "vertical_alignment"
     assert element.properties["font"] == "Font-Standard"
     assert element.property_names["3729828405"] == "font"
 

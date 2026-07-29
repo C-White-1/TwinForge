@@ -21,6 +21,7 @@ CODESYS V3.5 SP22 Patch 2
 | 2340015797 | Horizontal text alignment | Experiments 34 and 35 changed the Run and Stop buttons from centered to left; value changed from `HCENTER` to `LEFT` | Confirmed profile mapping across two controls |
 | 3729828405 | Structured font descriptor | Experiments 36 and 37 changed the Run and Stop buttons from `Font-Standard` to `Font-Title`; resolved values changed from Arial 12 to Arial Narrow 38 | Confirmed profile mapping across two controls |
 | 663104332 | Resolved font color | Run button font-style change altered the associated `Element-Button-FontColor` value, but the Stop button repetition did not | Unresolved correlation; preserve without promotion |
+| 2565699834 | Vertical text alignment | Experiments 41 and 42 changed the Run and Stop buttons from centered to top; value changed from `VCENTER` to `TOP` | Confirmed profile mapping across two controls |
 
 ## Experiment 13
 
@@ -455,3 +456,47 @@ font size in 96-DPI pixels while the property grid displays typographic points:
 `points = stored_size × 72 / 96`. Selection through the Windows font dialog
 uses the inverse conversion with half-up pixel rounding. TwinForge records the
 96-DPI rule on the exact SP22 Patch 2 profile only.
+
+## Experiment 41
+
+- Baseline: `40_run_button_custom_font_size.export`
+- Variant: `41_run_button_vertical_alignment.export`
+- Intended change: Start Forward vertical alignment from centered to top
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_2`
+- Direct property: `2565699834` changed from `VCENTER` to `TOP`
+- Other property, binding, action, and manager changes: none
+- Differential report:
+  [`codesys_diff_41_run_button_vertical_alignment.md`](codesys_diff_41_run_button_vertical_alignment.md)
+
+This cleanly isolates a vertical-alignment candidate. It remains unmapped
+until experiment 42 repeats the transition on the Stop button.
+
+## Experiment 42
+
+- Baseline: `41_run_button_vertical_alignment.export`
+- Variant: `42_stop_button_vertical_alignment.export`
+- Intended change: Stop vertical alignment from centered to top
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_3`
+- Direct property: `2565699834` changed from `VCENTER` to `TOP`
+- Binding remained `PLC_PRG.xInp_PStop`
+- Action remained `Toggle`
+- Other property and manager changes: none
+- Differential report:
+  [`codesys_diff_42_stop_button_vertical_alignment.md`](codesys_diff_42_stop_button_vertical_alignment.md)
+
+This repeats the transition on a second button and promotes `2565699834` to
+`vertical_alignment` for the exact SP22 Patch 2 profile.
+
+## Experiment 43
+
+- Baseline: `42_stop_button_vertical_alignment.export`
+- Variant: `43_run_button_vertical_bottom.export`
+- Intended change: Start Forward vertical alignment from top to bottom
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_2`
+- Known `vertical_alignment`: `TOP` to `BOTTOM`
+- Other property, binding, action, and manager changes: none
+- Differential report:
+  [`codesys_diff_43_run_button_vertical_bottom.md`](codesys_diff_43_run_button_vertical_bottom.md)
+
+This confirms the third editor state. The complete observed SP22 value set is
+`TOP`, `VCENTER`, and `BOTTOM`; it is recorded on the exact profile.
