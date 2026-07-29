@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from twinforge.analysis import (
     compare_codesys_visualizations,
     inventory_opaque_visualization_properties,
@@ -21,23 +23,71 @@ ALIGNMENT_REPETITION = (
 )
 FONT_STYLE_VARIANT = SOURCE.parent / "36_run_button_font_style.export"
 FONT_STYLE_REPETITION = SOURCE.parent / "37_stop_button_font_style.export"
+LOCAL_EVIDENCE = pytest.mark.skipif(
+    not all(
+        path.exists()
+        for path in (
+            SOURCE,
+            ALIGNMENT_BASELINE,
+            ALIGNMENT_VARIANT,
+            ALIGNMENT_REPETITION,
+            FONT_STYLE_VARIANT,
+            FONT_STYLE_REPETITION,
+        )
+    ),
+    reason="ignored local CODESYS differential exports are unavailable",
+)
+
+SYNTHETIC = """\
+<ExportFile><StructuredView><Single>
+<List2 Name="EntryList"><Single>
+ <Single Name="MetaObject"><Single Name="Name">VISU_Test</Single></Single>
+ <Single Name="Object"><Single Name="VisualElemList">
+  <List Name="VisualElementList"><Single>
+   <Single Name="VisualElemMemberList">
+    <List Name="VisualElemMemberList">
+     <Single><Single Name="Id">1649127785</Single>
+      <Single Name="Value">10</Single></Single>
+     <Single><Single Name="Id">2340015797</Single>
+      <Single Name="Value">LEFT</Single></Single>
+     <Single><Single Name="Id">3729828405</Single>
+      <List Name="Value"><Single>
+       <Single Name="CanonicalName">Font-Title</Single>
+       <Single Name="FontName">Arial Narrow</Single>
+       <Single Name="FontSize">38</Single>
+      </Single></List></Single>
+     <Single><Single Name="Id">999999</Single>
+      <Single Name="Value">opaque</Single></Single>
+    </List>
+   </Single>
+   <Single Name="VisualElementName">Button</Single>
+   <Single Name="VisualElementIdentifier">Button_1</Single>
+   <Single Name="VisualElementId">0</Single>
+  </Single></List>
+ </Single></Single>
+</Single></List2>
+<Single Name="ProfileName">CODESYS V3.5 SP22 Patch 2</Single>
+</Single></StructuredView></ExportFile>
+"""
 
 
 def test_opaque_inventory_excludes_verified_profile_mappings():
-    document = CodesysNativeExportParser().parse(SOURCE)
+    document = CodesysNativeExportParser().parse(SYNTHETIC)
 
     properties = inventory_opaque_visualization_properties(document)
     identifiers = {item.property_id for item in properties}
 
-    assert len(properties) == 29
-    assert sum(item.occurrences for item in properties) == 130
+    assert len(properties) == 1
+    assert sum(item.occurrences for item in properties) == 1
     assert "1649127785" not in identifiers
     assert "550940142" not in identifiers
-    assert properties[0].occurrences == 7
+    assert "2340015797" not in identifiers
+    assert "3729828405" not in identifiers
+    assert properties[0].property_id == "999999"
 
 
 def test_opaque_report_preserves_evidence_without_guessed_names():
-    document = CodesysNativeExportParser().parse(SOURCE)
+    document = CodesysNativeExportParser().parse(SYNTHETIC)
     properties = inventory_opaque_visualization_properties(document)
 
     report = CodesysVisualizationOpaqueMarkdownExporter().export(
@@ -45,12 +95,25 @@ def test_opaque_report_preserves_evidence_without_guessed_names():
         profile=document.profile,
     )
 
-    assert "- Unmapped property IDs: 29" in report
-    assert "| `823443203` | 5 |" in report
+    assert "- Unmapped property IDs: 1" in report
+    assert "| `999999` | 1 |" in report
     assert "experiment candidates, not sufficient mapping evidence" in report
 
 
 def test_checked_in_opaque_report_matches_baseline_evidence():
+    report = (
+        Path(__file__).parents[1]
+        / "reports/Dev_PF525_Program/"
+        "codesys_visualization_opaque_properties.md"
+    ).read_text(encoding="utf-8")
+
+    assert "# CODESYS opaque visualization-property register" in report
+    assert "- Profile: CODESYS V3.5 SP22 Patch 2" in report
+    assert "- Unmapped property IDs: 29" in report
+
+
+@LOCAL_EVIDENCE
+def test_local_opaque_report_matches_baseline_evidence():
     document = CodesysNativeExportParser().parse(SOURCE)
     properties = inventory_opaque_visualization_properties(document)
     expected = CodesysVisualizationOpaqueMarkdownExporter().export(
@@ -66,6 +129,7 @@ def test_checked_in_opaque_report_matches_baseline_evidence():
     assert report == expected
 
 
+@LOCAL_EVIDENCE
 def test_experiment_34_isolated_run_button_horizontal_alignment():
     parser = CodesysNativeExportParser()
 
@@ -98,6 +162,7 @@ def test_experiment_34_isolated_run_button_horizontal_alignment():
     ]
 
 
+@LOCAL_EVIDENCE
 def test_experiment_35_confirms_stop_button_horizontal_alignment():
     parser = CodesysNativeExportParser()
 
@@ -130,6 +195,7 @@ def test_experiment_35_confirms_stop_button_horizontal_alignment():
     ]
 
 
+@LOCAL_EVIDENCE
 def test_experiment_36_exposes_structured_font_style_evidence():
     parser = CodesysNativeExportParser()
 
@@ -161,6 +227,7 @@ def test_experiment_36_exposes_structured_font_style_evidence():
     assert "FontSize=38" in font.after
 
 
+@LOCAL_EVIDENCE
 def test_experiment_37_confirms_structured_font_on_stop_button():
     parser = CodesysNativeExportParser()
 
