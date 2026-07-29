@@ -175,6 +175,9 @@ The CODESYS diagnostic and reconfiguration work is not PowerFlex-specific.
 The reusable EtherNet/IP adapter and the separate responsibilities of a
 PowerFlex device profile are documented in
 [`codesys-ethernetip-module-adapter.md`](../architecture/codesys-ethernetip-module-adapter.md).
+The generated
+[`sys_module_codesys_equivalence.md`](../../reports/Dev_PF525_Program/sys_module_codesys_equivalence.md)
+records the support and semantic-equivalence classification separately.
 
 ## CODESYS native visualization evidence
 

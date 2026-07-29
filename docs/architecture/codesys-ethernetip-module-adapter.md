@@ -138,6 +138,14 @@ that enable and disable requests move the generated adapter between
 drive I/O behavior, connection recovery, or equivalence to a Logix `Mode`
 write.
 
+The table is rendered from the same classifier used by TwinForge and is
+protected by a synchronization test. A standalone copy can be generated with:
+
+```powershell
+uv run python examples/export_codesys_module_equivalence.py `
+  reports/Dev_PF525_Program/sys_module_codesys_equivalence.md
+```
+
 ## Evidence
 
 The offline experiment and its limitations are recorded in
