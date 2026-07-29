@@ -128,3 +128,26 @@ Experiment 24 repeated the Y-position test on the Stop button. Property
 `357335551` changed from 47 to 57 and `1473355128` changed from 62 to 72, with
 height fixed at 30. This confirms `1473355128` as `center_y` across two
 controls for the tested CODESYS SP22 profile.
+
+## Remaining opaque-property register
+
+Experiment 24 contains 31 unmapped property IDs across 143 element-property
+occurrences. The generated
+[`codesys_visualization_opaque_properties.md`](../../reports/Dev_PF525_Program/codesys_visualization_opaque_properties.md)
+ranks them by occurrence and records control types and preserved sample
+values. It deliberately assigns no friendly names.
+
+The next useful controlled series should vary common editor properties on both
+buttons so each candidate can be repeated across compatible controls:
+
+| Export | Single deliberate change |
+| --- | --- |
+| `34_run_button_horizontal_alignment.export` | Change Run button horizontal text alignment |
+| `35_stop_button_horizontal_alignment.export` | Repeat the same alignment change on Stop |
+| `36_run_button_font_size.export` | Change only Run button font size |
+| `37_stop_button_font_size.export` | Repeat the same font-size change on Stop |
+| `38_run_button_font_name.export` | Change only Run button font name |
+| `39_stop_button_font_name.export` | Repeat the same font-name change on Stop |
+
+These experiments are recommendations, not inferred mappings. Each pair must
+be inspected before any numeric property is promoted into the SP22 profile.

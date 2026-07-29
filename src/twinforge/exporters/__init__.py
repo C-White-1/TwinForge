@@ -25,6 +25,9 @@ from .codesys_sys_module_iec import (
 from .codesys_visualization_markdown import (
     CodesysVisualizationMarkdownExporter,
 )
+from .codesys_visualization_opaque_markdown import (
+    CodesysVisualizationOpaqueMarkdownExporter,
+)
 from .codesys_visualization_diff_markdown import (
     CodesysVisualizationDiffMarkdownExporter,
 )
@@ -95,6 +98,7 @@ __all__ = [
     "build_codesys_sys_module_binding_unit",
     "codesys_sys_module_binding_integration",
     "CodesysVisualizationMarkdownExporter",
+    "CodesysVisualizationOpaqueMarkdownExporter",
     "CodesysVisualizationDiffMarkdownExporter",
     "CodesysNativeVisualizationExporter",
     "CodesysNativeVisualizationExportError",

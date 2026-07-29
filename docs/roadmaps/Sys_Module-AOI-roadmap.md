@@ -91,6 +91,8 @@ not ordinary IEC logic.
 - [x] Decode the verified geometry, text, binding, action, and InputBox subset
   using controlled differential exports
 - [ ] Expand the profile map for remaining opaque visualization properties
+- [x] Generate a ranked opaque-property register and controlled experiment
+  backlog without assigning guessed meanings
 - [x] Define a target-neutral visualization model
 - [x] Generate a native CODESYS visualization only after profile compatibility
   and round-trip behavior are verified

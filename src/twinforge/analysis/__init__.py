@@ -33,6 +33,10 @@ from .codesys_visualization_diff import (
     CodesysVisualizationDiff,
     compare_codesys_visualizations,
 )
+from .codesys_visualization_opaque import (
+    CodesysOpaqueProperty,
+    inventory_opaque_visualization_properties,
+)
 from .diagnostic_report import (
     DeviceDiagnosticReport,
     DiagnosticCommand,
@@ -104,6 +108,7 @@ __all__ = [
     "CodesysActionPropertyChange",
     "CodesysPropertyChange",
     "CodesysVisualizationDiff",
+    "CodesysOpaqueProperty",
     "DeviceDiagnosticReport",
     "DeviceFunctionalDescription",
     "DiagnosticCommand",
@@ -141,6 +146,7 @@ __all__ = [
     "build_device_diagnostic_report",
     "build_conversion_readiness_report",
     "compare_codesys_visualizations",
+    "inventory_opaque_visualization_properties",
     "build_device_functional_description",
     "extract_structured_text_calls",
     "evaluate_runtime_compatibility",
