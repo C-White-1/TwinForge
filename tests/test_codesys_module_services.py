@@ -1,4 +1,5 @@
 from twinforge.exporters.codesys_module_services import (
+    CODESYSModuleEquivalence,
     CODESYSModuleProfile,
     CODESYSModuleSupport,
     classify_codesys_module_service,
@@ -72,3 +73,38 @@ def test_ethernet_ip_faults_are_normalized_not_claimed_equivalent():
     assert "rather than the Rockwell" in fault_code.rationale
     assert fault_info.support is CODESYSModuleSupport.NORMALIZED
     assert "RemoteAdapter_diag.sDiagString" in fault_info.adapter_api
+    assert (
+        fault_code.equivalence is CODESYSModuleEquivalence.APPROXIMATED
+    )
+    assert (
+        fault_info.equivalence is CODESYSModuleEquivalence.APPROXIMATED
+    )
+
+
+def test_ethernet_ip_inhibit_remains_hardware_validation_dependent():
+    capability = classify_codesys_module_service(
+        IRControllerObjectIntent.SET_INHIBITED,
+        CODESYSModuleProfile.ETHERNET_IP_REMOTE_ADAPTER,
+    )
+
+    assert capability.support is CODESYSModuleSupport.NORMALIZED
+    assert (
+        capability.equivalence
+        is CODESYSModuleEquivalence.HARDWARE_VALIDATION_REQUIRED
+    )
+
+
+def test_every_controller_intent_has_an_explicit_equivalence():
+    capabilities = [
+        classify_codesys_module_service(
+            intent,
+            CODESYSModuleProfile.ETHERNET_IP_REMOTE_ADAPTER,
+        )
+        for intent in IRControllerObjectIntent
+    ]
+
+    assert len(capabilities) == len(IRControllerObjectIntent)
+    assert all(
+        isinstance(item.equivalence, CODESYSModuleEquivalence)
+        for item in capabilities
+    )

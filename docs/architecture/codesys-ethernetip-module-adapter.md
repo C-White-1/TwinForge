@@ -116,6 +116,28 @@ TwinForge preserves this distinction by implementing the normalized
 Hardware testing may establish behavioral equivalence for a specific device,
 but it cannot make the underlying representations identical.
 
+### Recorded equivalence
+
+Capability and equivalence are classified separately. `Normalized` support
+means TwinForge has an established target API; it does not mean the returned
+representation is identical to Rockwell.
+
+| Rockwell intent | CODESYS evidence | Support | Equivalence |
+| --- | --- | --- | --- |
+| Module instance | `GetDeviceInfo()` identity | Normalized | Approximated |
+| `EntryStatus` | `eState` and `GetDeviceState()` | Normalized | Approximated |
+| `FaultCode` | CAA Device Diagnosis error | Normalized | Approximated |
+| `FaultInfo` | Diagnostic availability and text | Normalized | Approximated |
+| Numeric `Mode` | `Enable` and device state | Normalized | Approximated |
+| Set inhibited | `Enable`, capability check, and `DED.Reconfigure` | Normalized | Hardware validation required |
+| Other source-specific attributes | None established | Unavailable | Unavailable |
+
+No row is classified as exactly equivalent. Offline execution established
+that enable and disable requests move the generated adapter between
+`NOT_CONFIGURED` and `DISABLED` without errors. It did not establish physical
+drive I/O behavior, connection recovery, or equivalence to a Logix `Mode`
+write.
+
 ## Evidence
 
 The offline experiment and its limitations are recorded in

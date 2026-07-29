@@ -72,7 +72,8 @@ not ordinary IEC logic.
 - [x] Unit-test target-service success and failure through the vendor-neutral
   adapter boundary
 - [ ] Compare target diagnostics with Rockwell source semantics
-- [ ] Record which properties are equivalent, approximated, or unavailable
+- [x] Record which properties are equivalent, approximated, unavailable, or
+  dependent on hardware validation
 
 ## Deferred PowerFlex AOI engineering outputs
 
@@ -104,22 +105,27 @@ not ordinary IEC logic.
 
 TwinForge can now parse, type, lower, and emit all portable `Sys_Module`
 logic without false unresolved-expression or unknown-datatype diagnostics.
-Emission remains incomplete solely because no CODESYS implementation of the
-neutral `controller_object_access` capability has yet been established.
+Source-equivalent emission remains incomplete because CODESYS does not expose
+the raw Rockwell values required by the broad
+`controller_object_access` capability.
 
 TwinForge also provides a CODESYS EtherNet/IP implementation of the narrower
 normalized `ModuleService` contract. This supports connection and diagnostic
-observation plus capability-gated reconfiguration requests, but it is not
-substituted for raw Rockwell controller-object access.
+observation plus capability-gated reconfiguration requests. TwinForge can now
+generate the verified diagnostic and single-call reconfiguration wiring for a
+configured `RemoteAdapter_diag` object, but it is not substituted for raw
+Rockwell controller-object access.
 
 This is intentional. Returning constant “healthy” values or silently ignoring
 module inhibit commands would produce compilable XML with unsafe semantics.
 
 Official CODESYS evidence shows that connection health can be normalized
 through CAA Device Diagnosis, whereas detailed state, fault data, identity,
-and runtime device control depend on the configured bus driver. For example,
-`DED.Reconfigure` supports runtime enable/disable for documented PROFINET
-configurations; this is not evidence of a universal CODESYS inhibit service.
+and runtime device control depend on the configured bus driver. The captured
+EtherNet/IP object implements `IReconfigureProvider`, and the offline
+experiment verified disable and re-enable state transitions. This is evidence
+for the EtherNet/IP profile only, not a universal CODESYS inhibit service or
+physical-drive equivalence.
 
 For the PowerFlex target, CODESYS generates a
 `IoDrvEtherNetIP.RemoteAdapter_diag` IEC object. Official library metadata
