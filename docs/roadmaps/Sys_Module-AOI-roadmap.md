@@ -52,14 +52,16 @@ not ordinary IEC logic.
 - [x] Identify CAA Device Diagnosis and bus-specific device IEC objects
 - [x] Establish that runtime enable/disable is bus-driver-specific
 - [x] Define the native CODESYS EtherNet/IP diagnostic experiment
-- [ ] Run the native CODESYS EtherNet/IP diagnostic experiment
-- [ ] Export its PLCopen XML and library metadata
+- [x] Run the offline native CODESYS EtherNet/IP diagnostic experiment
+- [x] Export its PLCopen XML, native configuration, and library metadata
 - [x] Map supported normalized reads through the target adapter
 - [x] Preserve unsupported reconfiguration as an explicit blocking
   requirement
 - [x] Generate a compilable normalized binding function block without
   unresolved `MODULE` types
-- [ ] Import, compile, and observe representative device states
+- [x] Import, compile, and observe offline `NOT_CONFIGURED` and `DISABLED`
+  states
+- [ ] Observe connected, disconnected, and faulted states with hardware
 
 ## Phase 4: validation
 

@@ -186,3 +186,44 @@ xInp_DiagnosticAvailable := Dev_PF525.xDiagnosticAvailable;
 The diagnostic property assignments to `Enable`, `sDiagString`, and
 `xDiagnosticAvailable` already compile. Reconfiguration and the
 `GetDeviceState` signature remain to be verified.
+
+## Completed offline runtime evidence — 2026-07-29
+
+The corrected project evidence is retained in:
+
+- `examples/PLCOpenXML/12_enip_remote_adapter_diagnostics.xml`; and
+- `examples/CODESYS/33_sys_module_enip_diagnostics.export`.
+
+The installed target resolved CAA Device Diagnosis 3.5.22.0 and
+IoDrvEtherNetIP 4.9.0.0. The following expressions compiled and ran:
+
+```iecst
+eObservedDeviceState := Dev_PF525.GetDeviceState();
+xInp_CanReconfigure :=
+    DED.CanReconfigure(itfNode := Dev_PF525);
+```
+
+The passive offline state was:
+
+- `AdapterState.NOT_CONFIGURED`;
+- `DED.DEVICE_STATE.NOT_CONFIGURED`;
+- enabled and reconfigurable;
+- not connected and not faulted;
+- no diagnostic string; and
+- `DED.ERROR.NO_ERROR`.
+
+A rising inhibit command set `Dev_PF525.Enable` to `FALSE`, completed
+`DED.Reconfigure` without error, and produced both
+`AdapterState.DISABLED` and `DED.DEVICE_STATE.DISABLED`. After releasing the
+shared command edge, a rising uninhibit command restored `Enable` to `TRUE`
+and both state models returned to `NOT_CONFIGURED`, as expected without a
+physical adapter.
+
+The final program calls `DED.Reconfigure` exactly once per scan. It supplies
+the prior asynchronous busy, done, and error outputs to the neutral binding,
+executes the binding, applies the requested `Enable` value, and then calls
+the reconfiguration function block.
+
+This proves the offline CODESYS node behavior only. It does not prove a
+PowerFlex connection, cyclic assembly exchange, drive response, or numeric
+equivalence with Rockwell `Mode`.
