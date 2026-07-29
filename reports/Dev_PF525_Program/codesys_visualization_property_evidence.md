@@ -399,3 +399,59 @@ its correlated color remain candidates until repeated on the Stop button.
 This repeats the font transition on a second button and promotes
 `3729828405` to `font` for the exact SP22 Patch 2 profile. Property
 `663104332` did not repeat and remains unresolved.
+
+## Experiment 38
+
+- Baseline: `37_stop_button_font_style.export`
+- Variant: `38_run_button_custom_font.export`
+- Intended change: Start Forward button from named `Title` style to explicit
+  Arial, Regular, 14
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_2`
+- Changed property: known `font` property `3729828405`
+- Serialized explicit values: `FontName=Arial`, `DisplayName=Arial`, and
+  `FontSize=19`
+- Named `CanonicalName=Font-Title` became absent
+- Other property, binding, action, and manager changes: none
+- Differential report:
+  [`codesys_diff_38_run_button_custom_font.md`](codesys_diff_38_run_button_custom_font.md)
+
+The editor displayed `Arial; 14`, while the archive stored `FontSize=19`.
+This is preserved as observed evidence. A points-to-serialization conversion
+is not asserted until a size-only experiment supplies another data point.
+
+## Experiment 39
+
+- Baseline: `38_run_button_custom_font.export`
+- Variant: `39_run_button_custom_font_size.export`
+- Actual changed element: `VISU_PowerFlex525_Test / GenElemInst_3` (Stop)
+- Actual change: named `Title` style to explicit Arial, Regular, 16
+- Serialized explicit values: `FontName=Arial`, `DisplayName=Arial`, and
+  `FontSize=21`
+- Binding remained `PLC_PRG.xInp_PStop`
+- Action remained `Toggle`
+- Other property and manager changes: none
+- Differential report:
+  [`codesys_diff_39_run_button_custom_font_size.md`](codesys_diff_39_run_button_custom_font_size.md)
+
+This does not isolate size on the same control, because the Stop button first
+changed from its named style to an explicit font. It does provide a second
+explicit-font observation: editor sizes 14 and 16 serialized as 19 and 21 on
+the Run and Stop buttons respectively. No conversion formula is asserted.
+
+## Experiment 40
+
+- Baseline: `39_run_button_custom_font_size.export`
+- Variant: `40_run_button_custom_font_size.export`
+- Intended and actual change: Start Forward explicit Arial size 14 to 16
+- Editor normalized display: `Arial, 14.25pt` to `Arial, 15.75pt`
+- Serialized change: `FontSize=19` to `FontSize=21`
+- Other font fields, properties, bindings, actions, and manager settings:
+  unchanged
+- Differential report:
+  [`codesys_diff_40_run_button_custom_font_size.md`](codesys_diff_40_run_button_custom_font_size.md)
+
+This same-control experiment confirms that the SP22 archive stores explicit
+font size in 96-DPI pixels while the property grid displays typographic points:
+`points = stored_size × 72 / 96`. Selection through the Windows font dialog
+uses the inverse conversion with half-up pixel rounding. TwinForge records the
+96-DPI rule on the exact SP22 Patch 2 profile only.

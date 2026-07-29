@@ -8,6 +8,11 @@ from twinforge.analysis import (
 )
 from twinforge.exporters import CodesysVisualizationOpaqueMarkdownExporter
 from twinforge.parsers.codesys_native import CodesysNativeExportParser
+from twinforge.parsers.codesys_native_profiles import (
+    codesys_font_points,
+    codesys_font_serialized_size,
+    codesys_native_profile,
+)
 
 
 SOURCE = (
@@ -23,6 +28,13 @@ ALIGNMENT_REPETITION = (
 )
 FONT_STYLE_VARIANT = SOURCE.parent / "36_run_button_font_style.export"
 FONT_STYLE_REPETITION = SOURCE.parent / "37_stop_button_font_style.export"
+CUSTOM_FONT_VARIANT = SOURCE.parent / "38_run_button_custom_font.export"
+STOP_CUSTOM_FONT_VARIANT = (
+    SOURCE.parent / "39_run_button_custom_font_size.export"
+)
+RUN_CUSTOM_FONT_SIZE_VARIANT = (
+    SOURCE.parent / "40_run_button_custom_font_size.export"
+)
 LOCAL_EVIDENCE = pytest.mark.skipif(
     not all(
         path.exists()
@@ -33,6 +45,9 @@ LOCAL_EVIDENCE = pytest.mark.skipif(
             ALIGNMENT_REPETITION,
             FONT_STYLE_VARIANT,
             FONT_STYLE_REPETITION,
+            CUSTOM_FONT_VARIANT,
+            STOP_CUSTOM_FONT_VARIANT,
+            RUN_CUSTOM_FONT_SIZE_VARIANT,
         )
     ),
     reason="ignored local CODESYS differential exports are unavailable",
@@ -250,3 +265,85 @@ def test_experiment_37_confirms_structured_font_on_stop_button():
     assert font.after is not None
     assert "CanonicalName=Font-Standard" in font.before
     assert "CanonicalName=Font-Title" in font.after
+
+
+@LOCAL_EVIDENCE
+def test_experiment_38_establishes_explicit_custom_font_baseline():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(FONT_STYLE_REPETITION),
+        parser.parse(CUSTOM_FONT_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_2"
+    assert len(change.property_changes) == 1
+    font = change.property_changes[0]
+    assert font.property_name == "font"
+    assert font.before is not None
+    assert font.after is not None
+    assert "CanonicalName=Font-Title" in font.before
+    assert "; CanonicalName=" not in font.after
+    assert "FontName=Arial" in font.after
+    assert "DisplayName=Arial" in font.after
+    assert "FontSize=19" in font.after
+
+
+@LOCAL_EVIDENCE
+def test_experiment_39_establishes_stop_button_custom_font_16():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(CUSTOM_FONT_VARIANT),
+        parser.parse(STOP_CUSTOM_FONT_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_3"
+    assert change.bindings_before == change.bindings_after
+    assert change.actions_before == change.actions_after
+    assert len(change.property_changes) == 1
+    font = change.property_changes[0]
+    assert font.property_name == "font"
+    assert font.before is not None
+    assert font.after is not None
+    assert "CanonicalName=Font-Title" in font.before
+    assert "FontName=Arial" in font.after
+    assert "DisplayName=Arial" in font.after
+    assert "FontSize=21" in font.after
+
+
+def test_sp22_font_size_uses_verified_96_dpi_conversion():
+    profile = codesys_native_profile("CODESYS V3.5 SP22 Patch 2")
+    assert profile is not None
+
+    assert codesys_font_points(19, profile) == 14.25
+    assert codesys_font_points(21, profile) == 15.75
+    assert codesys_font_serialized_size(14, profile) == 19
+    assert codesys_font_serialized_size(16, profile) == 21
+
+
+@LOCAL_EVIDENCE
+def test_experiment_40_isolates_run_button_serialized_font_size():
+    parser = CodesysNativeExportParser()
+
+    result = compare_codesys_visualizations(
+        parser.parse(STOP_CUSTOM_FONT_VARIANT),
+        parser.parse(RUN_CUSTOM_FONT_SIZE_VARIANT),
+    )
+
+    assert result.manager_changes == ()
+    assert len(result.element_changes) == 1
+    change = result.element_changes[0]
+    assert change.element_key == "GenElemInst_2"
+    assert len(change.property_changes) == 1
+    font = change.property_changes[0]
+    assert font.property_name == "font"
+    assert font.before is not None
+    assert font.after is not None
+    assert font.before.replace("FontSize=19", "FontSize=21") == font.after

@@ -174,3 +174,20 @@ Experiment 37 repeated the `Default` to `Title` transition on the Stop button.
 Structured property `3729828405` repeated exactly and is promoted to `font`
 for the SP22 Patch 2 profile. Property `663104332` did not change on the Stop
 button and therefore remains an unresolved, preserved color correlation.
+
+Experiment 38 established an explicit custom-font baseline on the Start
+Forward button. The editor displayed Arial, Regular, 14; property
+`3729828405` stored `FontName=Arial`, `DisplayName=Arial`, and `FontSize=19`
+without a named-style `CanonicalName`. No conversion formula is inferred from
+one point. Experiment 39 will change only the editor size.
+
+Experiment 39 actually changed the Stop button from named `Title` style to
+explicit Arial, Regular, 16, which serialized as `FontSize=21`. It therefore
+does not isolate size on the same control. Together with experiment 38 it
+provides two observed UI/archive pairs—14 to 19 and 16 to 21—but TwinForge
+does not infer a conversion formula from the cross-control comparison.
+
+Experiment 40 changed only the Start Forward explicit Arial size. The archive
+changed `FontSize` from 19 to 21, while CODESYS displayed 14.25 pt and
+15.75 pt. This confirms that the SP22 profile stores 96-DPI pixel sizes and
+displays points using `points = pixels × 72 / 96`.

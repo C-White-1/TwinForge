@@ -1,6 +1,7 @@
 """Verified profile-specific mappings for CODESYS native object archives."""
 
 from dataclasses import dataclass
+import math
 from types import MappingProxyType
 from typing import Mapping
 
@@ -12,6 +13,7 @@ class CodesysNativeProfile:
     name: str
     property_names: Mapping[str, str]
     evidence: str
+    font_dpi: int | None = None
 
 
 _SP22_PATCH_2 = CodesysNativeProfile(
@@ -33,6 +35,7 @@ _SP22_PATCH_2 = CodesysNativeProfile(
         "reports/Dev_PF525_Program/"
         "codesys_visualization_property_evidence.md"
     ),
+    font_dpi=96,
 )
 
 CODESYS_NATIVE_PROFILES: Mapping[str, CodesysNativeProfile] = (
@@ -45,3 +48,25 @@ def codesys_native_profile(name: str | None) -> CodesysNativeProfile | None:
     if name is None:
         return None
     return CODESYS_NATIVE_PROFILES.get(name)
+
+
+def codesys_font_points(
+    serialized_size: int,
+    profile: CodesysNativeProfile,
+) -> float:
+    """Convert a verified native pixel font size to typographic points."""
+
+    if profile.font_dpi is None:
+        raise ValueError(f"font DPI is not established for {profile.name}")
+    return serialized_size * 72 / profile.font_dpi
+
+
+def codesys_font_serialized_size(
+    points: float,
+    profile: CodesysNativeProfile,
+) -> int:
+    """Convert points using the verified CODESYS half-up pixel rounding."""
+
+    if profile.font_dpi is None:
+        raise ValueError(f"font DPI is not established for {profile.name}")
+    return math.floor(points * profile.font_dpi / 72 + 0.5)
