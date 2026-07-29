@@ -17,12 +17,21 @@ def main() -> int:
 
     parser = argparse.ArgumentParser()
     parser.add_argument("destination", type=Path)
+    parser.add_argument(
+        "--device-variable",
+        help=(
+            "CODESYS RemoteAdapter_diag object to wire to the binding "
+            "(for example Dev_PF525)"
+        ),
+    )
     args = parser.parse_args()
     result = CodesysIRPLCopenExporter().export(
         build_codesys_sys_module_binding_unit(),
         destination=args.destination,
         project_name="TwinForgeCodesysSysModuleBinding",
-        integration=codesys_sys_module_binding_integration(),
+        integration=codesys_sys_module_binding_integration(
+            args.device_variable
+        ),
     )
     print(f"Wrote {args.destination}")
     for diagnostic in result.diagnostics:

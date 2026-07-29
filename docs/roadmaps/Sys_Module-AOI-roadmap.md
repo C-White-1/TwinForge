@@ -52,6 +52,7 @@ not ordinary IEC logic.
 - [x] Identify CAA Device Diagnosis and bus-specific device IEC objects
 - [x] Establish that runtime enable/disable is bus-driver-specific
 - [x] Define the native CODESYS EtherNet/IP diagnostic experiment
+- [x] Separate the reusable CODESYS EtherNet/IP adapter from device profiles
 - [x] Run the offline native CODESYS EtherNet/IP diagnostic experiment
 - [x] Export its PLCopen XML, native configuration, and library metadata
 - [x] Map supported normalized reads through the target adapter

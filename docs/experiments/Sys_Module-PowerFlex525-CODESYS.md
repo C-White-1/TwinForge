@@ -74,16 +74,17 @@ TwinForge can generate an importable normalized binding shell with:
 
 ```powershell
 uv run python examples/export_codesys_sys_module_binding.py `
-  examples/PLCOpenXML/TF_Codesys_SysModule_Binding.xml
+  examples/PLCOpenXML/TF_Codesys_SysModule_Binding.xml `
+  --device-variable Dev_PF525
 ```
 
 The generated project contains `TF_Codesys_ENIP_ModuleBinding`, `PLC_PRG`,
-and `MainTask`. Wire the generated remote-adapter observations to its
-`Inp_*` variables. Its one-scan `Out_RequestReconfigure` and
-`Out_RequestedEnable` outputs are request intent only; the native helper must
-perform and monitor `DED.Reconfigure`, then return busy, done, and failed
-feedback. The shell contains no unresolved Rockwell `MODULE`, `GSV`, or `SSV`
-constructs.
+and `MainTask`. With `--device-variable`, `PLC_PRG` wires the generated
+remote-adapter observations to its `Inp_*` variables and performs the verified
+single-call `DED.Reconfigure` handshake. The configured device must already
+provide a `RemoteAdapter_diag` object with the supplied variable name.
+Omitting the option generates the earlier target-independent shell. Neither
+form contains unresolved Rockwell `MODULE`, `GSV`, or `SSV` constructs.
 
 ## Deferred hardware observations
 

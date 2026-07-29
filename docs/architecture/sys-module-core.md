@@ -70,3 +70,7 @@ state and diagnostics are not the raw Rockwell `EntryStatus`, `FaultCode`,
 `FaultInfo`, and `Mode` attributes required by the source-equivalent core.
 This separation prevents a normalized target state from being mislabeled as
 lossless Logix behavior.
+
+The reusable target-family boundary and its separation from device profiles
+are documented in
+[`codesys-ethernetip-module-adapter.md`](codesys-ethernetip-module-adapter.md).

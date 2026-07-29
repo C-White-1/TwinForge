@@ -171,6 +171,11 @@ EntryStatus decoding, the shared inhibit/uninhibit edge latch, and explicit
 Prescan assignments while keeping GSV/SSV execution behind the target-adapter
 boundary.
 
+The CODESYS diagnostic and reconfiguration work is not PowerFlex-specific.
+The reusable EtherNet/IP adapter and the separate responsibilities of a
+PowerFlex device profile are documented in
+[`codesys-ethernetip-module-adapter.md`](../architecture/codesys-ethernetip-module-adapter.md).
+
 ## CODESYS native visualization evidence
 
 The user-authored native CODESYS export

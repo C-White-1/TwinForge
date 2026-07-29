@@ -54,6 +54,7 @@ _ELEMENTARY_TYPES = {
     "WORD",
     "WSTRING",
 }
+_BOUNDED_STRING = re.compile(r"(W?STRING)\((\d+)\)\Z", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,16 @@ class CodesysArgumentBinding:
 
 
 @dataclass(frozen=True)
+class CodesysProgramVariable:
+    """Declare one additional program-local variable for target integration."""
+
+    name: str
+    data_type: str
+    dimensions: str | None = None
+    initial_value: str | None = None
+
+
+@dataclass(frozen=True)
 class CodesysProjectIntegration:
     """Explicit program, call, and task configuration for one IR unit."""
 
@@ -105,6 +116,9 @@ class CodesysProjectIntegration:
     instance_name: str = "fbInstance"
     interval_ms: int = 20
     priority: int = 1
+    program_variables: tuple[CodesysProgramVariable, ...] = ()
+    statements_before_call: tuple[str, ...] = ()
+    statements_after_call: tuple[str, ...] = ()
 
 
 def codesys_program_variable_name(parameter: IRParameter) -> str:
@@ -408,11 +422,37 @@ class CodesysIRPLCopenExporter:
                     q(ns, "simpleValue"),
                     {"value": binding.initial_value},
                 )
+        for declaration in integration.program_variables:
+            variable = ET.SubElement(
+                local_variables,
+                q(ns, "variable"),
+                {"name": declaration.name},
+            )
+            type_element = ET.SubElement(variable, q(ns, "type"))
+            self._data_type(
+                type_element,
+                declaration.data_type,
+                declaration.dimensions,
+            )
+            if declaration.initial_value is not None:
+                initial = ET.SubElement(variable, q(ns, "initialValue"))
+                ET.SubElement(
+                    initial,
+                    q(ns, "simpleValue"),
+                    {"value": declaration.initial_value},
+                )
 
         body = ET.SubElement(pou, q(ns, "body"))
         st = ET.SubElement(body, q(ns, "ST"))
         text = ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml"))
-        text.text = self._program_call(unit, integration)
+        statements = (
+            *integration.statements_before_call,
+            self._program_call(unit, integration),
+            *integration.statements_after_call,
+        )
+        text.text = "\n\n".join(
+            statement.strip() for statement in statements if statement.strip()
+        )
         self._profile.append_object_id(
             pou,
             self._profile.object_id(
@@ -655,6 +695,18 @@ class CodesysIRPLCopenExporter:
             return
         if data_type is not None and data_type.upper() in _ELEMENTARY_TYPES:
             ET.SubElement(parent, q(ns, data_type.upper()))
+            return
+        bounded_string = (
+            _BOUNDED_STRING.fullmatch(data_type)
+            if data_type is not None
+            else None
+        )
+        if bounded_string is not None:
+            ET.SubElement(
+                parent,
+                q(ns, bounded_string.group(1).lower()),
+                {"length": bounded_string.group(2)},
+            )
             return
         ET.SubElement(
             parent,

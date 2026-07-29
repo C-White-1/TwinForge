@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from twinforge.ir import (
     IRDirection,
     IRParameter,
@@ -21,11 +23,13 @@ from twinforge.structured_text import (
 
 from .codesys_plcopen_ir import (
     CodesysArgumentBinding,
+    CodesysProgramVariable,
     CodesysProjectIntegration,
     codesys_parameter_initial_value,
     codesys_program_variable_name,
 )
 
+_IEC_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 _INPUTS = (
     ("Inp_Connected", "BOOL"),
@@ -123,11 +127,19 @@ def build_codesys_sys_module_binding_unit() -> IRReusableUnit:
     )
 
 
-def codesys_sys_module_binding_integration() -> CodesysProjectIntegration:
-    """Return a runnable program and task around the normalized binding."""
+def codesys_sys_module_binding_integration(
+    device_variable: str | None = None,
+) -> CodesysProjectIntegration:
+    """Return a runnable program and task around the normalized binding.
+
+    When ``device_variable`` names a generated CODESYS ``RemoteAdapter_diag``
+    object, the program also observes its state and performs the verified
+    single-call DED reconfiguration handshake. Without it, the result remains
+    the portable binding test shell.
+    """
 
     unit = build_codesys_sys_module_binding_unit()
-    return CodesysProjectIntegration(
+    integration = CodesysProjectIntegration(
         instance_name="fbModuleBinding",
         interval_ms=20,
         bindings=tuple(
@@ -137,5 +149,79 @@ def codesys_sys_module_binding_integration() -> CodesysProjectIntegration:
                 initial_value=codesys_parameter_initial_value(parameter),
             )
             for parameter in unit.parameters
+        ),
+    )
+    if device_variable is None:
+        return integration
+    if _IEC_IDENTIFIER.fullmatch(device_variable) is None:
+        raise ValueError(
+            "device_variable must be a simple IEC 61131-3 identifier"
+        )
+    return CodesysProjectIntegration(
+        bindings=integration.bindings,
+        instance_name=integration.instance_name,
+        interval_ms=integration.interval_ms,
+        program_variables=(
+            CodesysProgramVariable("fbReconfigure", "DED.Reconfigure"),
+            CodesysProgramVariable("xObservedEnabled", "BOOL"),
+            CodesysProgramVariable(
+                "xObservedDiagnosticAvailable",
+                "BOOL",
+            ),
+            CodesysProgramVariable(
+                "sObservedDiagnostic",
+                "STRING(255)",
+            ),
+            CodesysProgramVariable(
+                "eObservedDeviceState",
+                "DED.DEVICE_STATE",
+            ),
+            CodesysProgramVariable(
+                "eObservedReconfigureError",
+                "DED.ERROR",
+            ),
+        ),
+        statements_before_call=(
+            f"""\
+xObservedEnabled := {device_variable}.Enable;
+xObservedDiagnosticAvailable := \
+{device_variable}.xDiagnosticAvailable;
+sObservedDiagnostic := {device_variable}.sDiagString;
+eObservedDeviceState := {device_variable}.GetDeviceState();
+
+xInp_CanReconfigure := DED.CanReconfigure(
+    itfNode := {device_variable}
+);
+
+xInp_Connected :=
+    ({device_variable}.eState = \
+IoDrvEtherNetIP.AdapterState.RUNNING)
+    AND
+    (eObservedDeviceState = DED.DEVICE_STATE.RUNNING);
+xInp_Enabled := {device_variable}.Enable;
+xInp_Faulted :=
+    ({device_variable}.eState = \
+IoDrvEtherNetIP.AdapterState.BUS_ERROR)
+    OR
+    ({device_variable}.eState = IoDrvEtherNetIP.AdapterState.ERROR)
+    OR
+    (eObservedDeviceState = DED.DEVICE_STATE.ERROR);
+xInp_DiagnosticAvailable := \
+{device_variable}.xDiagnosticAvailable;
+xInp_ReconfigureBusy := fbReconfigure.xBusy;
+xInp_ReconfigureDone := fbReconfigure.xDone;
+xInp_ReconfigureFailed := fbReconfigure.xError;
+eObservedReconfigureError := fbReconfigure.eError;""",
+        ),
+        statements_after_call=(
+            f"""\
+IF xOut_RequestReconfigure THEN
+    {device_variable}.Enable := xOut_RequestedEnable;
+END_IF;
+
+fbReconfigure(
+    xExecute := xOut_RequestReconfigure,
+    itfNode := {device_variable}
+);""",
         ),
     )
