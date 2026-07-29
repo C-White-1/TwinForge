@@ -153,6 +153,21 @@ contains `TF_PowerFlex525_Core`, a calling `PLC_PRG`, and a cyclic `MainTask`.
 The function-block body contains no `MESSAGE`, `MODULE`, GSV/SSV, CODESYS
 device-tree, or fieldbus API calls.
 
+TwinForge can also package the portable core and normalized CODESYS
+EtherNet/IP module binding into one application:
+
+```powershell
+uv run python examples/export_powerflex525_codesys_application.py `
+  examples/PLCOpenXML/PowerFlex525_codesys_application.xml `
+  --device-variable Dev_PF525
+```
+
+The project contains both function blocks, one `PLC_PRG`, and one `MainTask`.
+It observes the configured `RemoteAdapter_diag` object and performs the
+capability-gated single-call reconfiguration handshake. The native device-tree
+object and its cyclic channel mappings remain deployment dependencies;
+TwinForge does not fabricate them in PLCopen XML.
+
 All generated program inputs start at zero or false. In particular,
 non-bypassable permissive/interlock inputs and maximum speed do not default to
 an operational state. The imported demonstration therefore cannot produce a

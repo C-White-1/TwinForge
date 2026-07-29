@@ -166,16 +166,23 @@ class CodesysIRPLCopenExporter:
         self,
         unit: IRReusableUnit,
         *,
+        additional_units: tuple[IRReusableUnit, ...] = (),
         destination: str | Path | None = None,
         project_name: str = "TwinForgeIR",
         creation_time: datetime | None = None,
         integration: CodesysProjectIntegration | None = None,
     ) -> CodesysPLCopenIRResult:
-        """Serialize a reusable unit and optional scheduled program call."""
+        """Serialize reusable units and an optional scheduled program call."""
 
         self._profile.reset()
         unit = adapt_codesys_runtime(unit)
+        additional_units = tuple(
+            adapt_codesys_runtime(item) for item in additional_units
+        )
         emission = emit_codesys_st_unit(unit)
+        additional_emissions = tuple(
+            emit_codesys_st_unit(item) for item in additional_units
+        )
         prescan = self._mapped_prescan(unit)
         prescan_emission = (
             emit_codesys_st_routine(prescan)
@@ -184,6 +191,7 @@ class CodesysIRPLCopenExporter:
         )
         root = self._build(
             unit,
+            additional_units=additional_units,
             project_name=project_name,
             creation_time=creation_time,
             integration=integration,
@@ -194,6 +202,9 @@ class CodesysIRPLCopenExporter:
             Path(destination).write_text(xml, encoding="utf-8")
         diagnostics = list(emission.diagnostics)
         requirements = set(emission.requirements)
+        for additional_emission in additional_emissions:
+            diagnostics.extend(additional_emission.diagnostics)
+            requirements.update(additional_emission.requirements)
         if prescan_emission is not None:
             diagnostics = [
                 item
@@ -221,6 +232,7 @@ class CodesysIRPLCopenExporter:
         self,
         unit: IRReusableUnit,
         *,
+        additional_units: tuple[IRReusableUnit, ...],
         project_name: str,
         creation_time: datetime | None,
         integration: CodesysProjectIntegration | None,
@@ -279,13 +291,15 @@ class CodesysIRPLCopenExporter:
         if integration is not None:
             wrapper = self._pou_wrapper(resource_add_data)
             self._program(wrapper, unit, integration)
-        wrapper = ET.SubElement(
-            resource_add_data,
-            q(ns, "data"),
-            self._pou_wrapper_attributes(),
-        )
-        self._pou(wrapper, unit)
-        if self._needs_wall_clock_library(unit):
+        units = (unit, *additional_units)
+        for reusable_unit in units:
+            wrapper = ET.SubElement(
+                resource_add_data,
+                q(ns, "data"),
+                self._pou_wrapper_attributes(),
+            )
+            self._pou(wrapper, reusable_unit)
+        if any(self._needs_wall_clock_library(item) for item in units):
             self._wall_clock_libraries(resource_add_data)
         application_id = self._profile.object_id("Application")
         self._profile.append_object_id_data(
@@ -294,7 +308,7 @@ class CodesysIRPLCopenExporter:
         )
         self._project_structure(
             add_data,
-            unit,
+            units,
             application_id,
             integration,
         )
@@ -740,7 +754,7 @@ class CodesysIRPLCopenExporter:
     def _project_structure(
         self,
         add_data: ET.Element,
-        unit: IRReusableUnit,
+        units: tuple[IRReusableUnit, ...],
         application_id: str,
         integration: CodesysProjectIntegration | None,
     ) -> None:
@@ -759,7 +773,7 @@ class CodesysIRPLCopenExporter:
             q(ns, "Object"),
             {"Name": "Application", "ObjectId": application_id},
         )
-        if self._needs_wall_clock_library(unit):
+        if any(self._needs_wall_clock_library(item) for item in units):
             ET.SubElement(
                 application,
                 q(ns, "Object"),
@@ -791,27 +805,28 @@ class CodesysIRPLCopenExporter:
                     ),
                 },
             )
-        unit_object = ET.SubElement(
-            application,
-            q(ns, "Object"),
-            {
-                "Name": unit.name,
-                "ObjectId": self._profile.object_id(
-                    f"Application/pou/{unit.name}"
-                ),
-            },
-        )
-        if self._mapped_prescan(unit) is not None:
-            ET.SubElement(
-                unit_object,
+        for unit in units:
+            unit_object = ET.SubElement(
+                application,
                 q(ns, "Object"),
                 {
-                    "Name": "FB_Init",
+                    "Name": unit.name,
                     "ObjectId": self._profile.object_id(
-                        f"Application/pou/{unit.name}/method/FB_Init"
+                        f"Application/pou/{unit.name}"
                     ),
                 },
             )
+            if self._mapped_prescan(unit) is not None:
+                ET.SubElement(
+                    unit_object,
+                    q(ns, "Object"),
+                    {
+                        "Name": "FB_Init",
+                        "ObjectId": self._profile.object_id(
+                            f"Application/pou/{unit.name}/method/FB_Init"
+                        ),
+                    },
+                )
 
     @staticmethod
     def _mapped_prescan(unit: IRReusableUnit) -> IRRoutine | None:

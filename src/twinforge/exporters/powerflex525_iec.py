@@ -24,9 +24,14 @@ from twinforge.structured_text import (
 
 from .codesys_plcopen_ir import (
     CodesysArgumentBinding,
+    CodesysProgramVariable,
     CodesysProjectIntegration,
     codesys_parameter_initial_value,
     codesys_program_variable_name,
+)
+from .codesys_sys_module_iec import (
+    build_codesys_sys_module_binding_unit,
+    codesys_sys_module_binding_integration,
 )
 
 
@@ -303,5 +308,65 @@ def powerflex525_codesys_integration() -> CodesysProjectIntegration:
                 initial_value=codesys_parameter_initial_value(parameter),
             )
             for parameter in unit.parameters
+        ),
+    )
+
+
+def powerflex525_codesys_application_integration(
+    device_variable: str,
+) -> CodesysProjectIntegration:
+    """Compose the portable drive core with CODESYS module diagnostics.
+
+    Cyclic transport bytes remain explicit program variables; this integration
+    does not fabricate native device-tree channel paths.
+    """
+
+    core = powerflex525_codesys_integration()
+    module_unit = build_codesys_sys_module_binding_unit()
+    module = codesys_sys_module_binding_integration(device_variable)
+    parameters = {item.name: item for item in module_unit.parameters}
+    module_variables = tuple(
+        CodesysProgramVariable(
+            binding.variable_name,
+            parameters[binding.parameter_name].data_type or "BOOL",
+            binding.dimensions,
+            binding.initial_value,
+        )
+        for binding in module.bindings
+    )
+    arguments = []
+    for binding in module.bindings:
+        parameter = parameters[binding.parameter_name]
+        operator = (
+            "=>" if parameter.direction is IRDirection.OUTPUT else ":="
+        )
+        arguments.append(
+            f"    {binding.parameter_name} {operator} "
+            f"{binding.variable_name}"
+        )
+    module_call = (
+        f"{module.instance_name}(\n"
+        + ",\n".join(arguments)
+        + "\n);"
+    )
+    return CodesysProjectIntegration(
+        bindings=core.bindings,
+        program_name=core.program_name,
+        task_name=core.task_name,
+        instance_name=core.instance_name,
+        interval_ms=core.interval_ms,
+        priority=core.priority,
+        program_variables=(
+            CodesysProgramVariable(
+                module.instance_name,
+                module_unit.name,
+            ),
+            *module_variables,
+            *module.program_variables,
+        ),
+        statements_before_call=module.statements_before_call,
+        statements_after_call=(
+            module_call,
+            *module.statements_after_call,
         ),
     )

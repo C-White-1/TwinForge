@@ -80,6 +80,7 @@ from .parameter_report import (
 )
 from .powerflex525_iec import (
     build_powerflex525_iec_unit,
+    powerflex525_codesys_application_integration,
     powerflex525_codesys_integration,
 )
 from .text_report import TextReportBundle, TextReportExporter
@@ -116,6 +117,7 @@ __all__ = [
     "codesys_parameter_initial_value",
     "codesys_program_variable_name",
     "build_powerflex525_iec_unit",
+    "powerflex525_codesys_application_integration",
     "IECRequirement",
     "IECSTDialect",
     "IECSTDiagnostic",
