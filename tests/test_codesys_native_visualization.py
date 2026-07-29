@@ -83,7 +83,12 @@ def test_parser_exposes_confirmed_profile_property_mappings() -> None:
         "<Single><Single Name=\"Id\">550940142</Single>"
         "<Single Name=\"Value\">60</Single></Single>"
         "<Single><Single Name=\"Id\">1473355128</Single>"
-        "<Single Name=\"Value\">35</Single></Single></List></Single>",
+        "<Single Name=\"Value\">35</Single></Single>"
+        "<Single><Single Name=\"Id\">2340015797</Single>"
+        "<Single Name=\"Value\">LEFT</Single></Single>"
+        "<Single><Single Name=\"Id\">3729828405</Single>"
+        "<Single Name=\"Value\">Font-Standard</Single></Single>"
+        "</List></Single>",
         1,
     )
 
@@ -98,6 +103,12 @@ def test_parser_exposes_confirmed_profile_property_mappings() -> None:
     assert element.property_names["550940142"] == "center_x"
     assert element.properties["center_y"] == "35"
     assert element.property_names["1473355128"] == "center_y"
+    assert element.properties["horizontal_alignment"] == "LEFT"
+    assert (
+        element.property_names["2340015797"] == "horizontal_alignment"
+    )
+    assert element.properties["font"] == "Font-Standard"
+    assert element.property_names["3729828405"] == "font"
 
 
 def test_unknown_profile_preserves_numeric_members_without_decoding() -> None:

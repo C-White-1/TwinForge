@@ -231,10 +231,43 @@ def _member_values(node: ET.Element) -> dict[str, str]:
         "List[@Name='VisualElemMemberList']/Single"
     ):
         member_id = _named_value(wrapper, "Id")
-        value = _named_value(wrapper, "Value")
+        value_node = wrapper.find("./*[@Name='Value']")
+        value = _member_value(value_node)
         if member_id is not None and value is not None:
             values[member_id] = value
     return values
+
+
+def _member_value(node: ET.Element | None) -> str | None:
+    """Expose scalar or structured member evidence deterministically."""
+
+    if node is None:
+        return None
+    if not any(
+        child.get("Name") is not None
+        for child in node.iter()
+        if child is not node
+    ):
+        return node.text or ""
+    leaves: list[str] = []
+
+    def visit(current: ET.Element, path: tuple[str, ...]) -> None:
+        name = current.get("Name")
+        next_path = (*path, name) if name else path
+        children = list(current)
+        if not children:
+            if next_path:
+                leaves.append(
+                    f"{'.'.join(next_path)}="
+                    f"{(current.text or '').strip()}"
+                )
+            return
+        for child in children:
+            visit(child, next_path)
+
+    for child in node:
+        visit(child, ())
+    return "; ".join(leaves)
 
 
 def _named_value(node: ET.Element, name: str) -> str | None:

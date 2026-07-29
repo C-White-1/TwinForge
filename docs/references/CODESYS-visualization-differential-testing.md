@@ -144,10 +144,33 @@ buttons so each candidate can be repeated across compatible controls:
 | --- | --- |
 | `34_run_button_horizontal_alignment.export` | Change Run button horizontal text alignment |
 | `35_stop_button_horizontal_alignment.export` | Repeat the same alignment change on Stop |
-| `36_run_button_font_size.export` | Change only Run button font size |
-| `37_stop_button_font_size.export` | Repeat the same font-size change on Stop |
-| `38_run_button_font_name.export` | Change only Run button font name |
-| `39_stop_button_font_name.export` | Repeat the same font-name change on Stop |
+| `36_run_button_font_style.export` | Change Run button font from Default to Title |
+| `37_stop_button_font_style.export` | Repeat the same font-style change on Stop |
+| `38_run_button_custom_font.export` | Establish an explicit custom-font baseline |
+| `39_run_button_custom_font_size.export` | Change only the explicit custom-font size |
 
 These experiments are recommendations, not inferred mappings. Each pair must
 be inspected before any numeric property is promoted into the SP22 profile.
+
+Experiment 34 changed the Start Forward button's horizontal text alignment
+from centered to left. Property `2340015797` changed from `HCENTER` to `LEFT`;
+no other element property, binding, action, or manager setting changed. The
+property is therefore a profile-specific candidate for horizontal text
+alignment, pending repetition on the Stop button in experiment 35.
+
+Experiment 35 repeated the centered-to-left transition on the Stop button.
+Property `2340015797` again changed from `HCENTER` to `LEFT`, with its binding
+and Toggle action unchanged. This satisfies the local repetition rule, so the
+property is promoted to `horizontal_alignment` for the exact SP22 Patch 2
+profile.
+
+Experiment 36 changed the Start Forward button font selection from `Default`
+to `Title`. Structured property `3729828405` changed from `Font-Standard`,
+Arial 12 to `Font-Title`, Arial Narrow 38. Correlated property `663104332`
+changed the resolved `Element-Button-FontColor`. Both remain candidates until
+the Stop button repeats the same style transition in experiment 37.
+
+Experiment 37 repeated the `Default` to `Title` transition on the Stop button.
+Structured property `3729828405` repeated exactly and is promoted to `font`
+for the SP22 Patch 2 profile. Property `663104332` did not change on the Stop
+button and therefore remains an unresolved, preserved color correlation.

@@ -25,6 +25,8 @@ _SP22_PATCH_2 = CodesysNativeProfile(
             "390574330": "text",
             "550940142": "center_x",
             "1473355128": "center_y",
+            "2340015797": "horizontal_alignment",
+            "3729828405": "font",
         }
     ),
     evidence=(

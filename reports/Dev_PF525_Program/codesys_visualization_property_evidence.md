@@ -18,6 +18,9 @@ CODESYS V3.5 SP22 Patch 2
 | 1473355128 | Derived vertical centre (`center_y`) | Experiments 14 and 16 isolated Y and height on the Run Forward button; experiment 24 repeated the Y relationship on the Stop button | Confirmed profile mapping across two controls |
 | 390574330 | Display text | Run Forward changed to Start Forward and the property followed the editor text directly | Known from baseline decoding and confirmed by experiment 17 |
 | 823443203 | Text-dependent derived value | Run Forward to Start Forward changed the value from 712 to 701; other controls carry unrelated values | Unresolved; preserve without assigning semantics |
+| 2340015797 | Horizontal text alignment | Experiments 34 and 35 changed the Run and Stop buttons from centered to left; value changed from `HCENTER` to `LEFT` | Confirmed profile mapping across two controls |
+| 3729828405 | Structured font descriptor | Experiments 36 and 37 changed the Run and Stop buttons from `Font-Standard` to `Font-Title`; resolved values changed from Arial 12 to Arial Narrow 38 | Confirmed profile mapping across two controls |
+| 663104332 | Resolved font color | Run button font-style change altered the associated `Element-Button-FontColor` value, but the Stop button repetition did not | Unresolved correlation; preserve without promotion |
 
 ## Experiment 13
 
@@ -324,3 +327,75 @@ export for the tested SP22 source-backed subset.
 - Runtime verification: keypad displayed
   `TwinForge Speed Setpoint (Hz)`
 - Label verification: widened label displayed without clipping
+
+## Experiment 34
+
+- Baseline: `34_alignment_editor_baseline.export`
+- Variant: `34_run_button_horizontal_alignment.export`
+- Intended change: Start Forward button horizontal alignment from centered to
+  left
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_2`
+- Direct property: `2340015797` changed from `HCENTER` to `LEFT`
+- Other property, binding, action, and manager changes: none
+- Differential report:
+  [`codesys_diff_34_run_button_horizontal_alignment.md`](codesys_diff_34_run_button_horizontal_alignment.md)
+
+The first unsaved export did not contain the alignment change and instead
+captured an unrelated InputBox initialization transition. It was preserved as
+the editor-normalized baseline. The saved variant cleanly isolates the button
+alignment property. This is one-control evidence, so the property remains a
+candidate until experiment 35 repeats it on the Stop button.
+
+## Experiment 35
+
+- Baseline: `34_run_button_horizontal_alignment.export`
+- Variant: `35_stop_button_horizontal_alignment.export`
+- Intended change: Stop button horizontal alignment from centered to left
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_3`
+- Direct property: `2340015797` changed from `HCENTER` to `LEFT`
+- Binding remained `PLC_PRG.xInp_PStop`
+- Action remained `Toggle`
+- Other property and manager changes: none
+- Differential report:
+  [`codesys_diff_35_stop_button_horizontal_alignment.md`](codesys_diff_35_stop_button_horizontal_alignment.md)
+
+This independently repeats experiment 34 on a second button and satisfies the
+local promotion rule. Property `2340015797` is registered as
+`horizontal_alignment` for the exact SP22 Patch 2 profile only.
+
+## Experiment 36
+
+- Baseline: `35_stop_button_horizontal_alignment.export`
+- Variant: `36_run_button_font_style.export`
+- Intended change: Start Forward button font from `Default` to `Title`
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_2`
+- Structured property `3729828405`: `Font-Standard`, Arial 12 to
+  `Font-Title`, Arial Narrow 38
+- Correlated property `663104332`: resolved
+  `Element-Button-FontColor` value changed from `-12171706` to `-1`
+- Other property, binding, action, and manager changes: none
+- Differential report:
+  [`codesys_diff_36_run_button_font_style.md`](codesys_diff_36_run_button_font_style.md)
+
+This experiment also corrected an analysis blind spot: nested `Value` objects
+were preserved in raw XML but previously displayed as whitespace. TwinForge
+now renders their named leaf evidence deterministically. The font property and
+its correlated color remain candidates until repeated on the Stop button.
+
+## Experiment 37
+
+- Baseline: `36_run_button_font_style.export`
+- Variant: `37_stop_button_font_style.export`
+- Intended change: Stop button font from `Default` to `Title`
+- Changed element: `VISU_PowerFlex525_Test / GenElemInst_3`
+- Structured property `3729828405`: `Font-Standard`, Arial 12 to
+  `Font-Title`, Arial Narrow 38
+- Binding remained `PLC_PRG.xInp_PStop`
+- Action remained `Toggle`
+- Other property and manager changes: none
+- Differential report:
+  [`codesys_diff_37_stop_button_font_style.md`](codesys_diff_37_stop_button_font_style.md)
+
+This repeats the font transition on a second button and promotes
+`3729828405` to `font` for the exact SP22 Patch 2 profile. Property
+`663104332` did not repeat and remains unresolved.
