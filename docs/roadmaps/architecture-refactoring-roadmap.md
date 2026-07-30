@@ -179,7 +179,7 @@ Next:
 
 - [x] Extract controller/project structure orchestration
 - [x] Extract variable and datatype emission
-- [ ] Move instruction emitters behind a registry or focused collaborators
+- [x] Move instruction emitters behind a registry or focused collaborators
 - [x] Extract operand preparation and surrogate-symbol management
 - [x] Keep `PLCopenExporter` as the stable façade
 - [x] Preserve deterministic IDs and diagnostic ordering
@@ -207,6 +207,13 @@ and controller resource construction are now owned by
 `exporters.plcopen_project.PLCopenProjectOrchestrator`. Target application
 wrapping is supplied as an optional callback, so CODESYS project metadata
 remains isolated in its existing adapter.
+
+Executable condition and output opcodes now pass through
+`exporters.plcopen_instructions.PLCopenInstructionRegistry`. Typed instruction
+requests carry graph inputs and prepared auxiliary state, while output
+emissions return explicit continuation state. This separates opcode dispatch
+from rung graph ordering without changing existing emitter implementations or
+local-ID allocation.
 
 ### Priority 2: separate CODESYS IR project serialization
 

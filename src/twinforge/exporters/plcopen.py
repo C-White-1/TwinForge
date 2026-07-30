@@ -13,6 +13,12 @@ from twinforge.converters import (
 from twinforge.model import Controller, LadderRung, Program, Tag, Task
 
 from .plcopen_codesys import CodesysProfileSupport
+from .plcopen_instructions import (
+    ConditionInstruction,
+    OutputInstruction,
+    PLCopenInstructionRegistry,
+    build_instruction_registry,
+)
 from .plcopen_rll import (
     COMPARISON_TYPES as _COMPARISON_TYPES,
     SUPPORTED_RLL_INSTRUCTIONS as PLCOPEN_SUPPORTED_RLL_INSTRUCTIONS,
@@ -385,75 +391,78 @@ class PLCopenExporter:
         condition_id = rail_id
         if rung.comment:
             self._comment(ld, rung.comment)
+        registry = self._instruction_registry()
         condition_ids = [condition_id]
         if parsed.branches:
             condition_ids = []
             for branch in parsed.branches:
                 branch_condition = rail_id
                 for opcode, operand in branch:
-                    branch_condition = self._contact(
-                        ld, opcode, operand, [branch_condition]
+                    branch_condition = registry.emit_condition(
+                        ConditionInstruction(
+                            ld=ld,
+                            opcode=opcode,
+                            operand=operand,
+                            condition_ids=(branch_condition,),
+                        )
                     )
                 condition_ids.append(branch_condition)
         comparison_index = 0
         for opcode, operand in parsed.tail_conditions:
-            if opcode in {"XIC", "XIO"}:
-                condition_ids = [self._contact(ld, opcode, operand, condition_ids)]
-            elif opcode == "ONS":
-                condition_ids = [
-                    self._oneshot_block(
-                        ld,
-                        self._operands.oneshots[id(rung)],
-                        condition_ids,
-                    )
-                ]
-            else:
+            auxiliary: object | None = None
+            if opcode == "ONS":
+                auxiliary = self._operands.oneshots[id(rung)]
+            elif opcode in _COMPARISON_TYPES:
                 temp_name = self._operands.comparison_temps[id(rung)][
                     comparison_index
                 ]
                 comparison_index += 1
-                condition_ids = [
-                    self._comparison(ld, opcode, operand, condition_ids, temp_name)
-                ]
+                auxiliary = temp_name
+            condition_ids = [
+                registry.emit_condition(
+                    ConditionInstruction(
+                        ld=ld,
+                        opcode=opcode,
+                        operand=operand,
+                        condition_ids=tuple(condition_ids),
+                        auxiliary=auxiliary,
+                    )
+                )
+            ]
         execution_ids = condition_ids
         execution_from_block = False
         for opcode, operand in parsed.outputs:
-            if opcode == "TON":
-                self._timer_block(ld, operand, execution_ids)
-            elif opcode == "RES":
-                execution_ids = [
-                    self._timer_reset_block(
-                        ld,
-                        operand,
-                        execution_ids,
-                        input_from_block=execution_from_block,
-                    )
-                ]
-                execution_from_block = True
-            elif opcode in _VALUE_BLOCK_TYPES:
-                execution_ids = [
-                    self._value_block(
-                        ld,
-                        opcode,
-                        operand,
-                        execution_ids,
-                        input_from_block=execution_from_block,
-                    )
-                ]
-                execution_from_block = True
-            else:
-                self._coil(
-                    ld,
-                    opcode,
-                    operand,
-                    execution_ids,
-                    formal_parameter="ENO" if execution_from_block else None,
+            emission = registry.emit_output(
+                OutputInstruction(
+                    ld=ld,
+                    opcode=opcode,
+                    operand=operand,
+                    execution_ids=tuple(execution_ids),
+                    input_from_block=execution_from_block,
                 )
+            )
+            execution_ids = list(emission.execution_ids)
+            execution_from_block = emission.execution_from_block
 
         right_id = self._id()
         right = ET.SubElement(ld, _q(ns, "rightPowerRail"), {"localId": str(right_id)})
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
+
+    def _instruction_registry(self) -> PLCopenInstructionRegistry:
+        """Bind supported opcodes to their focused emission strategies."""
+
+        return build_instruction_registry(
+            comparison_opcodes=frozenset(_COMPARISON_TYPES),
+            value_opcodes=frozenset(_VALUE_BLOCK_TYPES),
+            emit_contact=self._contact,
+            emit_comparison=self._comparison,
+            emit_oneshot=self._oneshot_block,
+            emit_coil=self._coil,
+            emit_timer=self._timer_block,
+            emit_timer_reset=self._timer_reset_block,
+            emit_value=self._value_block,
+        )
 
     def _contact(
         self,

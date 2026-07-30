@@ -43,9 +43,11 @@ temporaries, timers and one-shots without constructing XML. A separate
 variable emitter serializes supported tag types, initial values and retained
 source evidence with the target timer type supplied as policy. Generic
 project scaffolding and controller traversal delegate target application
-wrapping through an injected callback. CODESYS project structure and
-extensions are isolated in `exporters.plcopen_codesys`; a future OpenPLC
-adapter should consume the same neutral conversion and emission services.
+wrapping through an injected callback. Typed instruction dispatch separates
+opcode-to-emitter selection from rung graph ordering and carries explicit
+block-continuation state. CODESYS project structure and extensions are
+isolated in `exporters.plcopen_codesys`; a future OpenPLC adapter should
+consume the same neutral conversion and emission services.
 
 AutomationML export is divided into instance-hierarchy construction,
 class-library generation, signal/I/O generation, deterministic identity, CAEX
