@@ -69,6 +69,9 @@ CODESYS lifecycle eligibility and native method emission are isolated in
 for diagnostics, POU content and project-tree metadata.
 CODESYS IR library discovery, native metadata and Library Manager identity
 are isolated in `exporters.codesys_ir_libraries`.
+`CodesysIRPLCopenExporter` remains the stable façade over these collaborators;
+fixed-time regression fixtures protect byte-stable import structure and
+deterministic CODESYS object IDs.
 
 ## Invariants
 

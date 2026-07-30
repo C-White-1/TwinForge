@@ -233,8 +233,8 @@ Next:
 - [x] Separate POU/interface serialization from project/task structure
 - [x] Separate lifecycle-method generation
 - [x] Separate required-library discovery and metadata emission
-- [ ] Keep `CodesysIRPLCopenExporter` as the stable façade
-- [ ] Preserve import-tested XML structure and deterministic object IDs
+- [x] Keep `CodesysIRPLCopenExporter` as the stable façade
+- [x] Preserve import-tested XML structure and deterministic object IDs
 
 Integration bindings, generated program variables, multi-call configuration,
 task defaults, binding-name policy and captured-default translation now live
@@ -256,6 +256,11 @@ Wall-clock runtime type discovery, proven CODESYS library definitions,
 Library Manager identity and navigator membership now live in
 `exporters.codesys_ir_libraries`. Resource metadata and project structure use
 the same requirement policy.
+
+Priority 2 is complete. The package-level and module-level exporter symbols
+remain the same façade. Fixed-time hashes for ordinary AOI, lifecycle-method
+and wall-clock-library documents now enforce byte-stable XML and deterministic
+object IDs alongside the existing CODESYS import-tested fixtures.
 
 ### Priority 3: move PowerFlex CODESYS composition into the target package
 

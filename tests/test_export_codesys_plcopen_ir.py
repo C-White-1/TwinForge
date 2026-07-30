@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -8,6 +9,9 @@ from twinforge.exporters import (
     CodesysArgumentBinding,
     CodesysIRPLCopenExporter,
     CodesysProjectIntegration,
+)
+from twinforge.exporters.codesys_plcopen_ir import (
+    CodesysIRPLCopenExporter as ModuleCodesysIRPLCopenExporter,
 )
 from twinforge.ir import (
     IRNormalizationPolicy,
@@ -92,6 +96,35 @@ def _rtc_unit():
         },
     )
     return apply_aoi_execution_semantics(lowered)
+
+
+def test_public_facade_and_fixed_time_documents_are_byte_stable():
+    assert CodesysIRPLCopenExporter is ModuleCodesysIRPLCopenExporter
+    documents = (
+        _export().xml,
+        CodesysIRPLCopenExporter()
+        .export(
+            _lifecycle_unit(),
+            project_name="Lifecycle",
+            creation_time=FIXED_TIME,
+        )
+        .xml,
+        CodesysIRPLCopenExporter()
+        .export(
+            _rtc_unit(),
+            project_name="RtcPulse",
+            creation_time=FIXED_TIME,
+        )
+        .xml,
+    )
+    assert tuple(
+        hashlib.sha256(document.encode("utf-8")).hexdigest()
+        for document in documents
+    ) == (
+        "e56e2b941ae5c2d19123c557c7c96e1eb0c26560919d2a36420afdbf5ffe481a",
+        "6a9ec36dbb5c41f20fdaf73677b615f7498e76d4b4cb4abd33c2db8f503f37c1",
+        "99c2e1a8b64aec96d1171efc6994d8a4da632cedbc2f031decf81bdc1fb60d3d",
+    )
 
 
 def test_exports_codesys_function_block_with_st_body():
