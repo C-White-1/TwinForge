@@ -82,6 +82,11 @@ Generated Python packaging metadata such as `*.egg-info/` is not source and
 is intentionally excluded from version control. Package configuration is
 owned by `pyproject.toml`.
 
+Architecture tests enforce that neutral model and IR modules do not import
+conversion or target layers. Exporter-to-target imports are restricted to
+documented compatibility surfaces, and public package exports must be unique
+and resolvable.
+
 ## Invariants
 
 - Unknown source data is preserved.

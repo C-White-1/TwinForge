@@ -300,9 +300,9 @@ Deferred until another device profile or target exists:
 
 ## Ongoing architecture work
 
-- [ ] Add dependency-direction tests if accidental reverse imports become a
+- [x] Add dependency-direction tests if accidental reverse imports become a
   recurring problem
-- [ ] Review public `__init__` re-exports as APIs grow
+- [x] Review public `__init__` re-exports as APIs grow
 - [x] Stop tracking generated `*.egg-info` metadata in a dedicated cleanup
   commit
 - [ ] Add an OpenPLC target without importing CODESYS assumptions
@@ -315,6 +315,12 @@ Generated `src/twinforge.egg-info` metadata is no longer tracked.
 `*.egg-info/` was already ignored; authoritative package configuration remains
 in `pyproject.toml` and the resolved development environment remains in
 `uv.lock`.
+
+The PowerFlex target relocation exposed a real reverse-import cycle, meeting
+the threshold for dependency tests. AST checks now protect neutral `model`
+and `ir` layers and restrict exporter-to-target imports to the documented
+package façade and legacy compatibility shim. Public exporter and CODESYS
+target `__all__` surfaces are checked for duplicate or unresolved names.
 
 ## Refactor completion checklist
 
