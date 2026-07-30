@@ -303,13 +303,18 @@ Deferred until another device profile or target exists:
 - [ ] Add dependency-direction tests if accidental reverse imports become a
   recurring problem
 - [ ] Review public `__init__` re-exports as APIs grow
-- [ ] Stop tracking generated `*.egg-info` metadata in a dedicated cleanup
+- [x] Stop tracking generated `*.egg-info` metadata in a dedicated cleanup
   commit
 - [ ] Add an OpenPLC target without importing CODESYS assumptions
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent
   reason to change
+
+Generated `src/twinforge.egg-info` metadata is no longer tracked.
+`*.egg-info/` was already ignored; authoritative package configuration remains
+in `pyproject.toml` and the resolved development environment remains in
+`uv.lock`.
 
 ## Refactor completion checklist
 

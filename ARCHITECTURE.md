@@ -78,6 +78,10 @@ The PowerFlex 525 executable core is target-neutral in
 `targets.codesys.powerflex525`; compatibility aliases preserve the former
 public exporter API while dependency tests protect the neutral boundary.
 
+Generated Python packaging metadata such as `*.egg-info/` is not source and
+is intentionally excluded from version control. Package configuration is
+owned by `pyproject.toml`.
+
 ## Invariants
 
 - Unknown source data is preserved.
