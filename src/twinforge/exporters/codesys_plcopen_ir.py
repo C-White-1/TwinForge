@@ -28,6 +28,7 @@ from .codesys_ir_integration import (
     codesys_program_variable_name as codesys_program_variable_name,
 )
 from .codesys_ir_lifecycle import CodesysIRLifecycleEmitter
+from .codesys_ir_libraries import CodesysIRLibraryEmitter
 from .codesys_ir_pou import (
     CodesysIRInterfaceEmitter,
     CodesysIRPOUEmitter,
@@ -76,6 +77,10 @@ class CodesysIRPLCopenExporter:
         self._interface = CodesysIRInterfaceEmitter()
         self._lifecycle = CodesysIRLifecycleEmitter(
             object_id=self._profile.object_id
+        )
+        self._libraries = CodesysIRLibraryEmitter(
+            object_id=self._profile.object_id,
+            append_object_id=self._profile.append_object_id,
         )
 
     def export(
@@ -219,8 +224,7 @@ class CodesysIRPLCopenExporter:
                 self._pou_wrapper_attributes(),
             )
             self._pou(wrapper, reusable_unit)
-        if any(self._needs_wall_clock_library(item) for item in units):
-            self._wall_clock_libraries(resource_add_data)
+        self._libraries.emit(resource_add_data, units)
         application_id = self._profile.object_id("Application")
         self._profile.append_object_id_data(
             resource_add_data,
@@ -513,17 +517,7 @@ class CodesysIRPLCopenExporter:
             q(ns, "Object"),
             {"Name": "Application", "ObjectId": application_id},
         )
-        if any(self._needs_wall_clock_library(item) for item in units):
-            ET.SubElement(
-                application,
-                q(ns, "Object"),
-                {
-                    "Name": "Library Manager",
-                    "ObjectId": self._profile.object_id(
-                        "Application/Library Manager"
-                    ),
-                },
-            )
+        self._libraries.append_project_object(application, units)
         if integration is not None:
             ET.SubElement(
                 application,
@@ -565,55 +559,3 @@ class CodesysIRPLCopenExporter:
                         "ObjectId": self._lifecycle.method_object_id(unit),
                     },
                 )
-
-    @staticmethod
-    def _needs_wall_clock_library(unit: IRReusableUnit) -> bool:
-        return any(
-            item.data_type in {"SysTime", "SysTypes.RTS_IEC_RESULT"}
-            for item in unit.variables
-        )
-
-    def _wall_clock_libraries(self, parent: ET.Element) -> None:
-        """Emit the libraries proven by native CODESYS RTC exports."""
-
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        data = ET.SubElement(
-            parent,
-            q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/libraries",
-                "handleUnknown": "implementation",
-            },
-        )
-        libraries = ET.SubElement(data, q(ns, "Libraries"))
-        definitions = (
-            {
-                "Name": "#SysTimeRtc",
-                "Namespace": "SysTimeRtc",
-                "DefaultResolution": "SysTimeRtc, * (System)",
-            },
-            {
-                "Name": "SysTime, 3.5.17.0 (System)",
-                "Namespace": "SysTime",
-            },
-            {
-                "Name": "SysTypes2 Interfaces, * (System)",
-                "Namespace": "SysTypes",
-            },
-        )
-        defaults = {
-            "HideWhenReferencedAsDependency": "false",
-            "PublishSymbolsInContainer": "false",
-            "SystemLibrary": "false",
-            "LinkAllContent": "false",
-        }
-        for definition in definitions:
-            ET.SubElement(
-                libraries,
-                q(ns, "Library"),
-                {**definition, **defaults},
-            )
-        self._profile.append_object_id(
-            libraries,
-            self._profile.object_id("Application/Library Manager"),
-        )

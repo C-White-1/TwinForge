@@ -67,6 +67,8 @@ through narrow callbacks.
 CODESYS lifecycle eligibility and native method emission are isolated in
 `exporters.codesys_ir_lifecycle`; the exporter consumes that single policy
 for diagnostics, POU content and project-tree metadata.
+CODESYS IR library discovery, native metadata and Library Manager identity
+are isolated in `exporters.codesys_ir_libraries`.
 
 ## Invariants
 

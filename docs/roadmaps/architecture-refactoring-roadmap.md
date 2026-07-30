@@ -232,7 +232,7 @@ Next:
 - [x] Move integration dataclasses and naming rules into a focused module
 - [x] Separate POU/interface serialization from project/task structure
 - [x] Separate lifecycle-method generation
-- [ ] Separate required-library discovery and metadata emission
+- [x] Separate required-library discovery and metadata emission
 - [ ] Keep `CodesysIRPLCopenExporter` as the stable façade
 - [ ] Preserve import-tested XML structure and deterministic object IDs
 
@@ -251,6 +251,11 @@ Prescan eligibility, native `FB_Init` method serialization and lifecycle
 method identity now live in `exporters.codesys_ir_lifecycle`. The exporter
 uses the same collaborator for diagnostic mapping, POU method emission and
 project-tree membership, preventing those three views from drifting.
+
+Wall-clock runtime type discovery, proven CODESYS library definitions,
+Library Manager identity and navigator membership now live in
+`exporters.codesys_ir_libraries`. Resource metadata and project structure use
+the same requirement policy.
 
 ### Priority 3: move PowerFlex CODESYS composition into the target package
 
