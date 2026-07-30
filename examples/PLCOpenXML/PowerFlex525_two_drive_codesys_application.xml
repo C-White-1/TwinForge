@@ -1,0 +1,1841 @@
+<?xml version='1.0' encoding='utf-8'?>
+<project xmlns="http://www.plcopen.org/xml/tc6_0200" xmlns:html="http://www.w3.org/1999/xhtml">
+  <fileHeader companyName="TwinForge" productName="TwinForge" productVersion="0.1.0" creationDateTime="2026-07-30T05:53:31.111529+00:00" />
+  <contentHeader name="TwinForgePowerFlex525Application">
+    <coordinateInfo>
+      <fbd>
+        <scaling x="1" y="1" />
+      </fbd>
+      <ld>
+        <scaling x="1" y="1" />
+      </ld>
+      <sfc>
+        <scaling x="1" y="1" />
+      </sfc>
+    </coordinateInfo>
+  </contentHeader>
+  <types>
+    <dataTypes />
+    <pous />
+  </types>
+  <instances>
+    <configurations />
+  </instances>
+  <addData>
+    <data name="http://www.3s-software.com/plcopenxml/application" handleUnknown="implementation">
+      <resource name="Application">
+        <task name="MainTask" interval="PT0.02S" priority="1">
+          <pouInstance name="PLC_PRG" typeName="">
+            <documentation>
+              <html:xhtml />
+            </documentation>
+          </pouInstance>
+          <addData>
+            <data name="http://www.3s-software.com/plcopenxml/tasksettings" handleUnknown="implementation">
+              <TaskSettings KindOfTask="Cyclic" Interval="t#20ms" IntervalUnit="ms" WithinSPSTimeSlicing="true">
+                <Watchdog Enabled="false" TimeUnit="ms" Sensitivity="1" />
+              </TaskSettings>
+            </data>
+            <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+              <ObjectId>9c1190ef-2bc4-50aa-85ba-7f377cdac3c2</ObjectId>
+            </data>
+          </addData>
+        </task>
+        <addData>
+          <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+            <pou name="PLC_PRG" pouType="program">
+              <interface>
+                <localVars>
+                  <variable name="fbPowerFlex525_PF525_01">
+                    <type>
+                      <derived name="TF_PowerFlex525_Core" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_diInp_Source">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_PSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ORunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ORunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_OJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_OJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_OStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_OReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_OSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_XReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_XSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_MReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_MSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_diInp_OvCmd">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_OvSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PSetOverride">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_MPSet">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_NBPermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_NBIntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Bypass">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_RunFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_RunRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_JogFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_JogRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Ready">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Active">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ENetLogicCtrl">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_KeypadCtrlSts">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_KeypadCtrlCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_MaxSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rInp_JogSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_diInp_StartDelayMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_diInp_ElapsedMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_uiOut_LogicCommand">
+                    <type>
+                      <UINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_iOut_SpeedCommand">
+                    <type>
+                      <INT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_rOut_RefSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_RunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_RunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_JogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_JogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_Starting">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_Stopping">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_fbModuleBinding">
+                    <type>
+                      <derived name="TF_Codesys_ENIP_ModuleBinding" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_CanReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Inhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xInp_Uninhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_RequestReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_RequestedEnable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_ReconfigureBlocked">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xOut_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="fbPowerFlex525_PF525_02">
+                    <type>
+                      <derived name="TF_PowerFlex525_Core" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_diInp_Source">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_PSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ORunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ORunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_OJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_OJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_OStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_OReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_OSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_XReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_XSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_MReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_MSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_diInp_OvCmd">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_OvSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PSetOverride">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_MPSet">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_NBPermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_NBIntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Bypass">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_RunFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_RunRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_JogFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_JogRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Ready">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Active">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ENetLogicCtrl">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_KeypadCtrlSts">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_KeypadCtrlCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_MaxSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rInp_JogSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_diInp_StartDelayMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_diInp_ElapsedMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_uiOut_LogicCommand">
+                    <type>
+                      <UINT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_iOut_SpeedCommand">
+                    <type>
+                      <INT />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_rOut_RefSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_RunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_RunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_JogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_JogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_Starting">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_Stopping">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_fbModuleBinding">
+                    <type>
+                      <derived name="TF_Codesys_ENIP_ModuleBinding" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_CanReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Inhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xInp_Uninhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_RequestReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_RequestedEnable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_ReconfigureBlocked">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xOut_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_fbReconfigure">
+                    <type>
+                      <derived name="DED.Reconfigure" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xObservedEnabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_xObservedDiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_sObservedDiagnostic">
+                    <type>
+                      <string length="255" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_eObservedDeviceState">
+                    <type>
+                      <derived name="DED.DEVICE_STATE" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_01_eObservedReconfigureError">
+                    <type>
+                      <derived name="DED.ERROR" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_fbReconfigure">
+                    <type>
+                      <derived name="DED.Reconfigure" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xObservedEnabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_xObservedDiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_sObservedDiagnostic">
+                    <type>
+                      <string length="255" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_eObservedDeviceState">
+                    <type>
+                      <derived name="DED.DEVICE_STATE" />
+                    </type>
+                  </variable>
+                  <variable name="PF525_02_eObservedReconfigureError">
+                    <type>
+                      <derived name="DED.ERROR" />
+                    </type>
+                  </variable>
+                </localVars>
+              </interface>
+              <body>
+                <ST>
+                  <html:xhtml>PF525_01_xObservedEnabled := Dev_PF525_01.Enable;
+PF525_01_xObservedDiagnosticAvailable := Dev_PF525_01.xDiagnosticAvailable;
+PF525_01_sObservedDiagnostic := Dev_PF525_01.sDiagString;
+PF525_01_eObservedDeviceState := Dev_PF525_01.GetDeviceState();
+
+PF525_01_xInp_CanReconfigure := DED.CanReconfigure(
+    itfNode := Dev_PF525_01
+);
+
+PF525_01_xInp_Connected :=
+    (Dev_PF525_01.eState = IoDrvEtherNetIP.AdapterState.RUNNING)
+    AND
+    (PF525_01_eObservedDeviceState = DED.DEVICE_STATE.RUNNING);
+PF525_01_xInp_Enabled := Dev_PF525_01.Enable;
+PF525_01_xInp_Faulted :=
+    (Dev_PF525_01.eState = IoDrvEtherNetIP.AdapterState.BUS_ERROR)
+    OR
+    (Dev_PF525_01.eState = IoDrvEtherNetIP.AdapterState.ERROR)
+    OR
+    (PF525_01_eObservedDeviceState = DED.DEVICE_STATE.ERROR);
+PF525_01_xInp_DiagnosticAvailable := Dev_PF525_01.xDiagnosticAvailable;
+PF525_01_xInp_ReconfigureBusy := PF525_01_fbReconfigure.xBusy;
+PF525_01_xInp_ReconfigureDone := PF525_01_fbReconfigure.xDone;
+PF525_01_xInp_ReconfigureFailed := PF525_01_fbReconfigure.xError;
+PF525_01_eObservedReconfigureError := PF525_01_fbReconfigure.eError;
+
+fbPowerFlex525_PF525_01(
+    Inp_Source := PF525_01_diInp_Source,
+    Inp_PRunFwd := PF525_01_xInp_PRunFwd,
+    Inp_PRunRev := PF525_01_xInp_PRunRev,
+    Inp_PJogFwd := PF525_01_xInp_PJogFwd,
+    Inp_PJogRev := PF525_01_xInp_PJogRev,
+    Inp_PStop := PF525_01_xInp_PStop,
+    Inp_PReset := PF525_01_xInp_PReset,
+    Inp_PSpeed := PF525_01_rInp_PSpeed,
+    Inp_ORunFwd := PF525_01_xInp_ORunFwd,
+    Inp_ORunRev := PF525_01_xInp_ORunRev,
+    Inp_OJogFwd := PF525_01_xInp_OJogFwd,
+    Inp_OJogRev := PF525_01_xInp_OJogRev,
+    Inp_OStop := PF525_01_xInp_OStop,
+    Inp_OReset := PF525_01_xInp_OReset,
+    Inp_OSpeed := PF525_01_rInp_OSpeed,
+    Inp_XRunFwd := PF525_01_xInp_XRunFwd,
+    Inp_XRunRev := PF525_01_xInp_XRunRev,
+    Inp_XJogFwd := PF525_01_xInp_XJogFwd,
+    Inp_XJogRev := PF525_01_xInp_XJogRev,
+    Inp_XStop := PF525_01_xInp_XStop,
+    Inp_XReset := PF525_01_xInp_XReset,
+    Inp_XSpeed := PF525_01_rInp_XSpeed,
+    Inp_MRunFwd := PF525_01_xInp_MRunFwd,
+    Inp_MRunRev := PF525_01_xInp_MRunRev,
+    Inp_MJogFwd := PF525_01_xInp_MJogFwd,
+    Inp_MJogRev := PF525_01_xInp_MJogRev,
+    Inp_MStop := PF525_01_xInp_MStop,
+    Inp_MReset := PF525_01_xInp_MReset,
+    Inp_MSpeed := PF525_01_rInp_MSpeed,
+    Inp_OvCmd := PF525_01_diInp_OvCmd,
+    Inp_OvSpeed := PF525_01_rInp_OvSpeed,
+    Inp_PSetOverride := PF525_01_xInp_PSetOverride,
+    Inp_MPSet := PF525_01_rInp_MPSet,
+    Inp_PermOK := PF525_01_xInp_PermOK,
+    Inp_NBPermOK := PF525_01_xInp_NBPermOK,
+    Inp_IntlkOK := PF525_01_xInp_IntlkOK,
+    Inp_NBIntlkOK := PF525_01_xInp_NBIntlkOK,
+    Inp_Bypass := PF525_01_xInp_Bypass,
+    Inp_RunFwdAvail := PF525_01_xInp_RunFwdAvail,
+    Inp_RunRevAvail := PF525_01_xInp_RunRevAvail,
+    Inp_JogFwdAvail := PF525_01_xInp_JogFwdAvail,
+    Inp_JogRevAvail := PF525_01_xInp_JogRevAvail,
+    Inp_Ready := PF525_01_xInp_Ready,
+    Inp_Active := PF525_01_xInp_Active,
+    Inp_ENetLogicCtrl := PF525_01_xInp_ENetLogicCtrl,
+    Inp_KeypadCtrlSts := PF525_01_xInp_KeypadCtrlSts,
+    Inp_KeypadCtrlCmd := PF525_01_xInp_KeypadCtrlCmd,
+    Inp_MaxSpeed := PF525_01_rInp_MaxSpeed,
+    Inp_JogSpeed := PF525_01_rInp_JogSpeed,
+    Inp_StartDelayMs := PF525_01_diInp_StartDelayMs,
+    Inp_ElapsedMs := PF525_01_diInp_ElapsedMs,
+    Out_LogicCommand =&gt; PF525_01_uiOut_LogicCommand,
+    Out_SpeedCommand =&gt; PF525_01_iOut_SpeedCommand,
+    Out_RefSpeed =&gt; PF525_01_rOut_RefSpeed,
+    Out_PermOK =&gt; PF525_01_xOut_PermOK,
+    Out_IntlkOK =&gt; PF525_01_xOut_IntlkOK,
+    Out_RunFwd =&gt; PF525_01_xOut_RunFwd,
+    Out_RunRev =&gt; PF525_01_xOut_RunRev,
+    Out_JogFwd =&gt; PF525_01_xOut_JogFwd,
+    Out_JogRev =&gt; PF525_01_xOut_JogRev,
+    Out_Starting =&gt; PF525_01_xOut_Starting,
+    Out_Stopping =&gt; PF525_01_xOut_Stopping
+);
+
+PF525_01_fbModuleBinding(
+    Inp_Connected := PF525_01_xInp_Connected,
+    Inp_Enabled := PF525_01_xInp_Enabled,
+    Inp_Faulted := PF525_01_xInp_Faulted,
+    Inp_DiagnosticAvailable := PF525_01_xInp_DiagnosticAvailable,
+    Inp_CanReconfigure := PF525_01_xInp_CanReconfigure,
+    Inp_ReconfigureBusy := PF525_01_xInp_ReconfigureBusy,
+    Inp_ReconfigureDone := PF525_01_xInp_ReconfigureDone,
+    Inp_ReconfigureFailed := PF525_01_xInp_ReconfigureFailed,
+    Inp_Inhibit := PF525_01_xInp_Inhibit,
+    Inp_Uninhibit := PF525_01_xInp_Uninhibit,
+    Out_Connected =&gt; PF525_01_xOut_Connected,
+    Out_Enabled =&gt; PF525_01_xOut_Enabled,
+    Out_Faulted =&gt; PF525_01_xOut_Faulted,
+    Out_DiagnosticAvailable =&gt; PF525_01_xOut_DiagnosticAvailable,
+    Out_RequestReconfigure =&gt; PF525_01_xOut_RequestReconfigure,
+    Out_RequestedEnable =&gt; PF525_01_xOut_RequestedEnable,
+    Out_ReconfigureBlocked =&gt; PF525_01_xOut_ReconfigureBlocked,
+    Out_ReconfigureBusy =&gt; PF525_01_xOut_ReconfigureBusy,
+    Out_ReconfigureDone =&gt; PF525_01_xOut_ReconfigureDone,
+    Out_ReconfigureFailed =&gt; PF525_01_xOut_ReconfigureFailed
+);
+
+IF PF525_01_xOut_RequestReconfigure THEN
+    Dev_PF525_01.Enable := PF525_01_xOut_RequestedEnable;
+END_IF;
+
+PF525_01_fbReconfigure(
+    xExecute := PF525_01_xOut_RequestReconfigure,
+    itfNode := Dev_PF525_01
+);
+
+PF525_02_xObservedEnabled := Dev_PF525_02.Enable;
+PF525_02_xObservedDiagnosticAvailable := Dev_PF525_02.xDiagnosticAvailable;
+PF525_02_sObservedDiagnostic := Dev_PF525_02.sDiagString;
+PF525_02_eObservedDeviceState := Dev_PF525_02.GetDeviceState();
+
+PF525_02_xInp_CanReconfigure := DED.CanReconfigure(
+    itfNode := Dev_PF525_02
+);
+
+PF525_02_xInp_Connected :=
+    (Dev_PF525_02.eState = IoDrvEtherNetIP.AdapterState.RUNNING)
+    AND
+    (PF525_02_eObservedDeviceState = DED.DEVICE_STATE.RUNNING);
+PF525_02_xInp_Enabled := Dev_PF525_02.Enable;
+PF525_02_xInp_Faulted :=
+    (Dev_PF525_02.eState = IoDrvEtherNetIP.AdapterState.BUS_ERROR)
+    OR
+    (Dev_PF525_02.eState = IoDrvEtherNetIP.AdapterState.ERROR)
+    OR
+    (PF525_02_eObservedDeviceState = DED.DEVICE_STATE.ERROR);
+PF525_02_xInp_DiagnosticAvailable := Dev_PF525_02.xDiagnosticAvailable;
+PF525_02_xInp_ReconfigureBusy := PF525_02_fbReconfigure.xBusy;
+PF525_02_xInp_ReconfigureDone := PF525_02_fbReconfigure.xDone;
+PF525_02_xInp_ReconfigureFailed := PF525_02_fbReconfigure.xError;
+PF525_02_eObservedReconfigureError := PF525_02_fbReconfigure.eError;
+
+fbPowerFlex525_PF525_02(
+    Inp_Source := PF525_02_diInp_Source,
+    Inp_PRunFwd := PF525_02_xInp_PRunFwd,
+    Inp_PRunRev := PF525_02_xInp_PRunRev,
+    Inp_PJogFwd := PF525_02_xInp_PJogFwd,
+    Inp_PJogRev := PF525_02_xInp_PJogRev,
+    Inp_PStop := PF525_02_xInp_PStop,
+    Inp_PReset := PF525_02_xInp_PReset,
+    Inp_PSpeed := PF525_02_rInp_PSpeed,
+    Inp_ORunFwd := PF525_02_xInp_ORunFwd,
+    Inp_ORunRev := PF525_02_xInp_ORunRev,
+    Inp_OJogFwd := PF525_02_xInp_OJogFwd,
+    Inp_OJogRev := PF525_02_xInp_OJogRev,
+    Inp_OStop := PF525_02_xInp_OStop,
+    Inp_OReset := PF525_02_xInp_OReset,
+    Inp_OSpeed := PF525_02_rInp_OSpeed,
+    Inp_XRunFwd := PF525_02_xInp_XRunFwd,
+    Inp_XRunRev := PF525_02_xInp_XRunRev,
+    Inp_XJogFwd := PF525_02_xInp_XJogFwd,
+    Inp_XJogRev := PF525_02_xInp_XJogRev,
+    Inp_XStop := PF525_02_xInp_XStop,
+    Inp_XReset := PF525_02_xInp_XReset,
+    Inp_XSpeed := PF525_02_rInp_XSpeed,
+    Inp_MRunFwd := PF525_02_xInp_MRunFwd,
+    Inp_MRunRev := PF525_02_xInp_MRunRev,
+    Inp_MJogFwd := PF525_02_xInp_MJogFwd,
+    Inp_MJogRev := PF525_02_xInp_MJogRev,
+    Inp_MStop := PF525_02_xInp_MStop,
+    Inp_MReset := PF525_02_xInp_MReset,
+    Inp_MSpeed := PF525_02_rInp_MSpeed,
+    Inp_OvCmd := PF525_02_diInp_OvCmd,
+    Inp_OvSpeed := PF525_02_rInp_OvSpeed,
+    Inp_PSetOverride := PF525_02_xInp_PSetOverride,
+    Inp_MPSet := PF525_02_rInp_MPSet,
+    Inp_PermOK := PF525_02_xInp_PermOK,
+    Inp_NBPermOK := PF525_02_xInp_NBPermOK,
+    Inp_IntlkOK := PF525_02_xInp_IntlkOK,
+    Inp_NBIntlkOK := PF525_02_xInp_NBIntlkOK,
+    Inp_Bypass := PF525_02_xInp_Bypass,
+    Inp_RunFwdAvail := PF525_02_xInp_RunFwdAvail,
+    Inp_RunRevAvail := PF525_02_xInp_RunRevAvail,
+    Inp_JogFwdAvail := PF525_02_xInp_JogFwdAvail,
+    Inp_JogRevAvail := PF525_02_xInp_JogRevAvail,
+    Inp_Ready := PF525_02_xInp_Ready,
+    Inp_Active := PF525_02_xInp_Active,
+    Inp_ENetLogicCtrl := PF525_02_xInp_ENetLogicCtrl,
+    Inp_KeypadCtrlSts := PF525_02_xInp_KeypadCtrlSts,
+    Inp_KeypadCtrlCmd := PF525_02_xInp_KeypadCtrlCmd,
+    Inp_MaxSpeed := PF525_02_rInp_MaxSpeed,
+    Inp_JogSpeed := PF525_02_rInp_JogSpeed,
+    Inp_StartDelayMs := PF525_02_diInp_StartDelayMs,
+    Inp_ElapsedMs := PF525_02_diInp_ElapsedMs,
+    Out_LogicCommand =&gt; PF525_02_uiOut_LogicCommand,
+    Out_SpeedCommand =&gt; PF525_02_iOut_SpeedCommand,
+    Out_RefSpeed =&gt; PF525_02_rOut_RefSpeed,
+    Out_PermOK =&gt; PF525_02_xOut_PermOK,
+    Out_IntlkOK =&gt; PF525_02_xOut_IntlkOK,
+    Out_RunFwd =&gt; PF525_02_xOut_RunFwd,
+    Out_RunRev =&gt; PF525_02_xOut_RunRev,
+    Out_JogFwd =&gt; PF525_02_xOut_JogFwd,
+    Out_JogRev =&gt; PF525_02_xOut_JogRev,
+    Out_Starting =&gt; PF525_02_xOut_Starting,
+    Out_Stopping =&gt; PF525_02_xOut_Stopping
+);
+
+PF525_02_fbModuleBinding(
+    Inp_Connected := PF525_02_xInp_Connected,
+    Inp_Enabled := PF525_02_xInp_Enabled,
+    Inp_Faulted := PF525_02_xInp_Faulted,
+    Inp_DiagnosticAvailable := PF525_02_xInp_DiagnosticAvailable,
+    Inp_CanReconfigure := PF525_02_xInp_CanReconfigure,
+    Inp_ReconfigureBusy := PF525_02_xInp_ReconfigureBusy,
+    Inp_ReconfigureDone := PF525_02_xInp_ReconfigureDone,
+    Inp_ReconfigureFailed := PF525_02_xInp_ReconfigureFailed,
+    Inp_Inhibit := PF525_02_xInp_Inhibit,
+    Inp_Uninhibit := PF525_02_xInp_Uninhibit,
+    Out_Connected =&gt; PF525_02_xOut_Connected,
+    Out_Enabled =&gt; PF525_02_xOut_Enabled,
+    Out_Faulted =&gt; PF525_02_xOut_Faulted,
+    Out_DiagnosticAvailable =&gt; PF525_02_xOut_DiagnosticAvailable,
+    Out_RequestReconfigure =&gt; PF525_02_xOut_RequestReconfigure,
+    Out_RequestedEnable =&gt; PF525_02_xOut_RequestedEnable,
+    Out_ReconfigureBlocked =&gt; PF525_02_xOut_ReconfigureBlocked,
+    Out_ReconfigureBusy =&gt; PF525_02_xOut_ReconfigureBusy,
+    Out_ReconfigureDone =&gt; PF525_02_xOut_ReconfigureDone,
+    Out_ReconfigureFailed =&gt; PF525_02_xOut_ReconfigureFailed
+);
+
+IF PF525_02_xOut_RequestReconfigure THEN
+    Dev_PF525_02.Enable := PF525_02_xOut_RequestedEnable;
+END_IF;
+
+PF525_02_fbReconfigure(
+    xExecute := PF525_02_xOut_RequestReconfigure,
+    itfNode := Dev_PF525_02
+);</html:xhtml>
+                </ST>
+              </body>
+              <addData>
+                <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                  <ObjectId>2b037817-2774-5931-9ff3-3ee039e3ee41</ObjectId>
+                </data>
+              </addData>
+            </pou>
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+            <pou name="TF_PowerFlex525_Core" pouType="functionBlock">
+              <interface>
+                <inputVars>
+                  <variable name="Inp_Source">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ORunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ORunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_XSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MRunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MRunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MJogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MJogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MStop">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MReset">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OvCmd">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="Inp_OvSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PSetOverride">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MPSet">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_NBPermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_NBIntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Bypass">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_RunFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_RunRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_JogFwdAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_JogRevAvail">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Ready">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Active">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ENetLogicCtrl">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_KeypadCtrlSts">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_KeypadCtrlCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_MaxSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_JogSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_StartDelayMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ElapsedMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                </inputVars>
+                <outputVars>
+                  <variable name="Out_LogicCommand">
+                    <type>
+                      <UINT />
+                    </type>
+                  </variable>
+                  <variable name="Out_SpeedCommand">
+                    <type>
+                      <INT />
+                    </type>
+                  </variable>
+                  <variable name="Out_RefSpeed">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                  <variable name="Out_PermOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_IntlkOK">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_RunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_RunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_JogFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_JogRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_Starting">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_Stopping">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                </outputVars>
+                <localVars>
+                  <variable name="RunFwd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="RunRev">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="StartElapsedMs">
+                    <type>
+                      <DINT />
+                    </type>
+                  </variable>
+                  <variable name="TimerDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="StopCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="StartCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="JogCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="ResetCmd">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="SpeedRef">
+                    <type>
+                      <REAL />
+                    </type>
+                  </variable>
+                </localVars>
+              </interface>
+              <body>
+                <ST>
+                  <html:xhtml>Out_PermOK := ((Inp_PermOK OR Inp_Bypass) AND Inp_NBPermOK);
+Out_IntlkOK := ((Inp_IntlkOK OR Inp_Bypass) AND Inp_NBIntlkOK);
+IF (Inp_Source = 1) THEN
+    IF Inp_PSetOverride THEN
+        Out_RefSpeed := Inp_MPSet;
+    ELSE
+        Out_RefSpeed := Inp_PSpeed;
+    END_IF;
+    RunFwd := (((Inp_PRunFwd AND (Out_PermOK OR RunFwd)) AND Out_IntlkOK) AND NOT (Inp_PStop));
+    RunRev := (((Inp_PRunRev AND (Out_PermOK OR RunRev)) AND Out_IntlkOK) AND NOT (Inp_PStop));
+ELSIF (Inp_Source = 2) THEN
+    Out_RefSpeed := Inp_OSpeed;
+    RunFwd := (((RunFwd OR (((Inp_ORunFwd AND Inp_RunFwdAvail) AND Out_PermOK) AND NOT (Inp_ORunRev))) AND Out_IntlkOK) AND NOT (Inp_OStop));
+    RunRev := (((RunRev OR (((Inp_ORunRev AND Inp_RunRevAvail) AND Out_PermOK) AND NOT (Inp_ORunFwd))) AND Out_IntlkOK) AND NOT (Inp_OStop));
+ELSIF (Inp_Source = 3) THEN
+    Out_RefSpeed := Inp_XSpeed;
+    RunFwd := (((RunFwd OR (((Inp_XRunFwd AND Inp_RunFwdAvail) AND Out_PermOK) AND NOT (Inp_XRunRev))) AND Out_IntlkOK) AND NOT (Inp_XStop));
+    RunRev := (((RunRev OR (((Inp_XRunRev AND Inp_RunRevAvail) AND Out_PermOK) AND NOT (Inp_XRunFwd))) AND Out_IntlkOK) AND NOT (Inp_XStop));
+ELSIF (Inp_Source = 4) THEN
+    Out_RefSpeed := Inp_OvSpeed;
+    IF ((Inp_OvCmd = 1) OR NOT (Out_IntlkOK)) THEN
+        RunFwd := FALSE;
+        RunRev := FALSE;
+    ELSIF ((Inp_OvCmd = 2) AND Out_PermOK) THEN
+        RunRev := FALSE;
+        RunFwd := TRUE;
+    ELSIF ((Inp_OvCmd = 3) AND Out_PermOK) THEN
+        RunFwd := FALSE;
+        RunRev := TRUE;
+    END_IF;
+ELSIF (Inp_Source = 5) THEN
+    Out_RefSpeed := Inp_MSpeed;
+    RunFwd := (((RunFwd OR (((Inp_MRunFwd AND Inp_RunFwdAvail) AND Out_PermOK) AND NOT (Inp_MRunRev))) AND Out_IntlkOK) AND NOT (Inp_MStop));
+    RunRev := (((RunRev OR (((Inp_MRunRev AND Inp_RunRevAvail) AND Out_PermOK) AND NOT (Inp_MRunFwd))) AND Out_IntlkOK) AND NOT (Inp_MStop));
+ELSE
+    Out_RefSpeed := 0.0;
+    RunFwd := FALSE;
+    RunRev := FALSE;
+END_IF;
+Out_JogFwd := (((Inp_JogFwdAvail AND Out_PermOK) AND (((((Inp_Source = 2) AND Inp_OJogFwd) AND NOT (Inp_OJogRev)) OR (((Inp_Source = 3) AND Inp_XJogFwd) AND NOT (Inp_XJogRev))) OR (((Inp_Source = 5) AND Inp_MJogFwd) AND NOT (Inp_MJogRev)))) OR (((Inp_Source = 1) AND Inp_PJogFwd) AND NOT (Inp_PJogRev)));
+Out_JogRev := (((Inp_JogRevAvail AND Out_PermOK) AND (((((Inp_Source = 2) AND Inp_OJogRev) AND NOT (Inp_OJogFwd)) OR (((Inp_Source = 3) AND Inp_XJogRev) AND NOT (Inp_XJogFwd))) OR (((Inp_Source = 5) AND Inp_MJogRev) AND NOT (Inp_MJogFwd)))) OR (((Inp_Source = 1) AND Inp_PJogRev) AND NOT (Inp_PJogFwd)));
+IF (RunFwd OR RunRev) THEN
+    StartElapsedMs := (StartElapsedMs + Inp_ElapsedMs);
+    IF (StartElapsedMs &gt;= Inp_StartDelayMs) THEN
+        StartElapsedMs := Inp_StartDelayMs;
+        TimerDone := TRUE;
+    ELSE
+        TimerDone := FALSE;
+    END_IF;
+ELSE
+    StartElapsedMs := 0;
+    TimerDone := FALSE;
+END_IF;
+Out_Starting := ((RunFwd OR RunRev) AND NOT (TimerDone));
+StopCmd := ((Inp_Active AND Inp_ENetLogicCtrl) AND NOT (((((Inp_KeypadCtrlSts OR RunFwd) OR RunRev) OR Out_JogFwd) OR Out_JogRev)));
+StartCmd := (((Inp_Ready AND TimerDone) AND NOT (StopCmd)) AND (((RunFwd OR RunRev) OR Out_JogFwd) OR Out_JogRev));
+JogCmd := ((Inp_Ready AND NOT (((StopCmd OR RunFwd) OR RunRev))) AND (Out_JogFwd OR Out_JogRev));
+ResetCmd := (((Inp_PReset OR Inp_OReset) OR Inp_XReset) OR Inp_MReset);
+Out_LogicCommand := 0;
+IF StopCmd THEN
+    Out_LogicCommand := (Out_LogicCommand + 1);
+END_IF;
+IF StartCmd THEN
+    Out_LogicCommand := (Out_LogicCommand + 2);
+END_IF;
+IF JogCmd THEN
+    Out_LogicCommand := (Out_LogicCommand + 4);
+END_IF;
+IF ResetCmd THEN
+    Out_LogicCommand := (Out_LogicCommand + 8);
+END_IF;
+IF (RunFwd OR Out_JogFwd) THEN
+    Out_LogicCommand := (Out_LogicCommand + 16);
+END_IF;
+IF (RunRev OR Out_JogRev) THEN
+    Out_LogicCommand := (Out_LogicCommand + 32);
+END_IF;
+IF Inp_KeypadCtrlCmd THEN
+    Out_LogicCommand := (Out_LogicCommand + 64);
+END_IF;
+IF (Out_JogFwd OR Out_JogRev) THEN
+    SpeedRef := Inp_JogSpeed;
+ELSE
+    SpeedRef := Out_RefSpeed;
+END_IF;
+IF (SpeedRef &lt; 0.0) THEN
+    SpeedRef := 0.0;
+ELSIF (SpeedRef &gt; Inp_MaxSpeed) THEN
+    SpeedRef := Inp_MaxSpeed;
+END_IF;
+Out_SpeedCommand := REAL_TO_INT((SpeedRef * 100.0));
+Out_RunFwd := RunFwd;
+Out_RunRev := RunRev;
+Out_Stopping := (Inp_Active AND NOT ((((RunFwd OR RunRev) OR Out_JogFwd) OR Out_JogRev)));</html:xhtml>
+                </ST>
+              </body>
+              <addData>
+                <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                  <ObjectId>c164c527-b23d-53a3-8338-6000fc290432</ObjectId>
+                </data>
+              </addData>
+            </pou>
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/pou" handleUnknown="implementation">
+            <pou name="TF_Codesys_ENIP_ModuleBinding" pouType="functionBlock">
+              <interface>
+                <inputVars>
+                  <variable name="Inp_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_CanReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Inhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Inp_Uninhibit">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                </inputVars>
+                <outputVars>
+                  <variable name="Out_Connected">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_Enabled">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_Faulted">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_DiagnosticAvailable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_RequestReconfigure">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_RequestedEnable">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_ReconfigureBlocked">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_ReconfigureBusy">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_ReconfigureDone">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                  <variable name="Out_ReconfigureFailed">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                </outputVars>
+                <localVars>
+                  <variable name="CommandLatch">
+                    <type>
+                      <BOOL />
+                    </type>
+                  </variable>
+                </localVars>
+              </interface>
+              <body>
+                <ST>
+                  <html:xhtml>Out_Connected := Inp_Connected;
+Out_Enabled := Inp_Enabled;
+Out_Faulted := Inp_Faulted;
+Out_DiagnosticAvailable := Inp_DiagnosticAvailable;
+Out_ReconfigureBusy := Inp_ReconfigureBusy;
+Out_ReconfigureDone := Inp_ReconfigureDone;
+Out_ReconfigureFailed := Inp_ReconfigureFailed;
+Out_RequestReconfigure := FALSE;
+IF ((Inp_Inhibit OR Inp_Uninhibit) AND NOT (CommandLatch)) THEN
+    IF (Inp_CanReconfigure AND NOT (Inp_ReconfigureBusy)) THEN
+        Out_RequestedEnable := NOT (Inp_Inhibit);
+        Out_RequestReconfigure := TRUE;
+        Out_ReconfigureBlocked := FALSE;
+    ELSE
+        Out_ReconfigureBlocked := TRUE;
+    END_IF;
+END_IF;
+IF Inp_ReconfigureDone THEN
+    Out_ReconfigureBlocked := FALSE;
+END_IF;
+CommandLatch := (Inp_Inhibit OR Inp_Uninhibit);</html:xhtml>
+                </ST>
+              </body>
+              <addData>
+                <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+                  <ObjectId>f0e05162-0629-585e-976f-831f6454e7ee</ObjectId>
+                </data>
+              </addData>
+            </pou>
+          </data>
+          <data name="http://www.3s-software.com/plcopenxml/objectid" handleUnknown="discard">
+            <ObjectId>a0e1cb15-29df-5f03-8855-b9bbf3404e60</ObjectId>
+          </data>
+        </addData>
+      </resource>
+    </data>
+    <data name="http://www.3s-software.com/plcopenxml/projectstructure" handleUnknown="discard">
+      <ProjectStructure>
+        <Object Name="Application" ObjectId="a0e1cb15-29df-5f03-8855-b9bbf3404e60">
+          <Object Name="PLC_PRG" ObjectId="2b037817-2774-5931-9ff3-3ee039e3ee41" />
+          <Object Name="MainTask" ObjectId="9c1190ef-2bc4-50aa-85ba-7f377cdac3c2" />
+          <Object Name="TF_PowerFlex525_Core" ObjectId="c164c527-b23d-53a3-8338-6000fc290432" />
+          <Object Name="TF_Codesys_ENIP_ModuleBinding" ObjectId="f0e05162-0629-585e-976f-831f6454e7ee" />
+        </Object>
+      </ProjectStructure>
+    </data>
+  </addData>
+</project>

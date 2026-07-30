@@ -107,6 +107,17 @@ class CodesysProgramVariable:
 
 
 @dataclass(frozen=True)
+class CodesysProgramCall:
+    """Call one reusable unit instance from a generated program."""
+
+    unit_name: str
+    instance_name: str
+    bindings: tuple[CodesysArgumentBinding, ...]
+    statements_before_call: tuple[str, ...] = ()
+    statements_after_call: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class CodesysProjectIntegration:
     """Explicit program, call, and task configuration for one IR unit."""
 
@@ -119,6 +130,7 @@ class CodesysProjectIntegration:
     program_variables: tuple[CodesysProgramVariable, ...] = ()
     statements_before_call: tuple[str, ...] = ()
     statements_after_call: tuple[str, ...] = ()
+    calls: tuple[CodesysProgramCall, ...] = ()
 
 
 def codesys_program_variable_name(parameter: IRParameter) -> str:
@@ -290,7 +302,11 @@ class CodesysIRPLCopenExporter:
         resource_add_data = ET.SubElement(resource, q(ns, "addData"))
         if integration is not None:
             wrapper = self._pou_wrapper(resource_add_data)
-            self._program(wrapper, unit, integration)
+            self._program(
+                wrapper,
+                (unit, *additional_units),
+                integration,
+            )
         units = (unit, *additional_units)
         for reusable_unit in units:
             wrapper = ET.SubElement(
@@ -391,7 +407,7 @@ class CodesysIRPLCopenExporter:
     def _program(
         self,
         parent: ET.Element,
-        unit: IRReusableUnit,
+        units: tuple[IRReusableUnit, ...],
         integration: CodesysProjectIntegration,
     ) -> None:
         ns = PLCOPEN_CODESYS_NAMESPACE
@@ -405,65 +421,59 @@ class CodesysIRPLCopenExporter:
             interface,
             q(ns, "localVars"),
         )
-        instance = ET.SubElement(
-            local_variables,
-            q(ns, "variable"),
-            {"name": integration.instance_name},
-        )
-        instance_type = ET.SubElement(instance, q(ns, "type"))
-        self._data_type(instance_type, unit.name, None)
-        parameters = {item.name: item for item in unit.parameters}
-        for binding in integration.bindings:
-            parameter = parameters[binding.parameter_name]
-            variable = ET.SubElement(
-                local_variables,
-                q(ns, "variable"),
-                {"name": binding.variable_name},
-            )
-            type_element = ET.SubElement(variable, q(ns, "type"))
-            self._data_type(
-                type_element,
-                parameter.data_type,
-                binding.dimensions,
-            )
-            if binding.initial_value is not None:
-                initial = ET.SubElement(
-                    variable,
-                    q(ns, "initialValue"),
+        units_by_name = {item.name: item for item in units}
+        calls = self._program_calls(units[0], integration)
+        declared_names: set[str] = set()
+        for call in calls:
+            call_unit = units_by_name.get(call.unit_name)
+            if call_unit is None:
+                raise ValueError(
+                    f"program call references unknown unit {call.unit_name!r}"
                 )
-                ET.SubElement(
-                    initial,
-                    q(ns, "simpleValue"),
-                    {"value": binding.initial_value},
+            self._declare_program_variable(
+                local_variables,
+                CodesysProgramVariable(
+                    call.instance_name,
+                    call.unit_name,
+                ),
+                declared_names,
+            )
+            parameters = {item.name: item for item in call_unit.parameters}
+            for binding in call.bindings:
+                parameter = parameters.get(binding.parameter_name)
+                if parameter is None:
+                    raise ValueError(
+                        f"{call.unit_name!r} has no parameter "
+                        f"{binding.parameter_name!r}"
+                    )
+                self._declare_program_variable(
+                    local_variables,
+                    CodesysProgramVariable(
+                        binding.variable_name,
+                        parameter.data_type or "BOOL",
+                        binding.dimensions,
+                        binding.initial_value,
+                    ),
+                    declared_names,
                 )
         for declaration in integration.program_variables:
-            variable = ET.SubElement(
+            self._declare_program_variable(
                 local_variables,
-                q(ns, "variable"),
-                {"name": declaration.name},
+                declaration,
+                declared_names,
             )
-            type_element = ET.SubElement(variable, q(ns, "type"))
-            self._data_type(
-                type_element,
-                declaration.data_type,
-                declaration.dimensions,
-            )
-            if declaration.initial_value is not None:
-                initial = ET.SubElement(variable, q(ns, "initialValue"))
-                ET.SubElement(
-                    initial,
-                    q(ns, "simpleValue"),
-                    {"value": declaration.initial_value},
-                )
 
         body = ET.SubElement(pou, q(ns, "body"))
         st = ET.SubElement(body, q(ns, "ST"))
         text = ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml"))
-        statements = (
-            *integration.statements_before_call,
-            self._program_call(unit, integration),
-            *integration.statements_after_call,
-        )
+        statements = list(integration.statements_before_call)
+        for call in calls:
+            statements.extend(call.statements_before_call)
+            statements.append(
+                self._program_call(units_by_name[call.unit_name], call)
+            )
+            statements.extend(call.statements_after_call)
+        statements.extend(integration.statements_after_call)
         text.text = "\n\n".join(
             statement.strip() for statement in statements if statement.strip()
         )
@@ -474,14 +484,64 @@ class CodesysIRPLCopenExporter:
             ),
         )
 
+    def _declare_program_variable(
+        self,
+        parent: ET.Element,
+        declaration: CodesysProgramVariable,
+        declared_names: set[str],
+    ) -> None:
+        """Append one unique program-local declaration."""
+
+        if declaration.name in declared_names:
+            raise ValueError(
+                f"duplicate program variable {declaration.name!r}"
+            )
+        declared_names.add(declaration.name)
+        ns = PLCOPEN_CODESYS_NAMESPACE
+        variable = ET.SubElement(
+            parent,
+            q(ns, "variable"),
+            {"name": declaration.name},
+        )
+        type_element = ET.SubElement(variable, q(ns, "type"))
+        self._data_type(
+            type_element,
+            declaration.data_type,
+            declaration.dimensions,
+        )
+        if declaration.initial_value is not None:
+            initial = ET.SubElement(variable, q(ns, "initialValue"))
+            ET.SubElement(
+                initial,
+                q(ns, "simpleValue"),
+                {"value": declaration.initial_value},
+            )
+
+    @staticmethod
+    def _program_calls(
+        unit: IRReusableUnit,
+        integration: CodesysProjectIntegration,
+    ) -> tuple[CodesysProgramCall, ...]:
+        """Return explicit calls or the backwards-compatible primary call."""
+
+        if integration.calls:
+            return integration.calls
+        return (
+            CodesysProgramCall(
+                unit.name,
+                integration.instance_name,
+                integration.bindings,
+            ),
+        )
+
     @staticmethod
     def _program_call(
         unit: IRReusableUnit,
-        integration: CodesysProjectIntegration,
+        call: CodesysProgramCall,
     ) -> str:
         parameters = {item.name: item for item in unit.parameters}
         arguments = []
-        for binding in integration.bindings:
+        for binding in call.bindings:
             operator = (
                 "=>"
                 if parameters[binding.parameter_name].direction
@@ -493,7 +553,7 @@ class CodesysIRPLCopenExporter:
                 f"{binding.variable_name}"
             )
         joined = ",\n".join(arguments)
-        return f"{integration.instance_name}(\n{joined}\n);"
+        return f"{call.instance_name}(\n{joined}\n);"
 
     def _pou(self, parent: ET.Element, unit: IRReusableUnit) -> None:
         ns = PLCOPEN_CODESYS_NAMESPACE

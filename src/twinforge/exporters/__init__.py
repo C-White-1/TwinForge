@@ -49,6 +49,7 @@ from .codesys_plcopen_ir import (
     CodesysArgumentBinding,
     CodesysIRPLCopenExporter,
     CodesysPLCopenIRResult,
+    CodesysProgramCall,
     CodesysProgramVariable,
     CodesysProjectIntegration,
     codesys_parameter_initial_value,
@@ -79,9 +80,11 @@ from .parameter_report import (
     ParameterReportMarkdownExporter,
 )
 from .powerflex525_iec import (
+    PowerFlex525CodesysDevice,
     build_powerflex525_iec_unit,
     powerflex525_codesys_application_integration,
     powerflex525_codesys_integration,
+    powerflex525_codesys_multi_application_integration,
 )
 from .text_report import TextReportBundle, TextReportExporter
 
@@ -112,12 +115,15 @@ __all__ = [
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",
     "CodesysArgumentBinding",
+    "CodesysProgramCall",
     "CodesysProgramVariable",
     "CodesysProjectIntegration",
     "codesys_parameter_initial_value",
     "codesys_program_variable_name",
     "build_powerflex525_iec_unit",
+    "PowerFlex525CodesysDevice",
     "powerflex525_codesys_application_integration",
+    "powerflex525_codesys_multi_application_integration",
     "IECRequirement",
     "IECSTDialect",
     "IECSTDiagnostic",

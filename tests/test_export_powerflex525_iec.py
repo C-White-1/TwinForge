@@ -1,14 +1,18 @@
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
+import pytest
+
 from twinforge.exporters import (
     PLCOPEN_CODESYS_NAMESPACE,
     CodesysIRPLCopenExporter,
+    PowerFlex525CodesysDevice,
     build_codesys_sys_module_binding_unit,
     build_powerflex525_iec_unit,
     emit_iec_st_unit,
     powerflex525_codesys_application_integration,
     powerflex525_codesys_integration,
+    powerflex525_codesys_multi_application_integration,
 )
 
 
@@ -138,3 +142,55 @@ def test_composed_application_calls_core_and_module_binding():
         "p:Object[@Name='TF_Codesys_ENIP_ModuleBinding']",
         NS,
     ) is not None
+
+
+def test_composed_application_supports_two_isolated_drive_instances():
+    integration = powerflex525_codesys_multi_application_integration(
+        (
+            PowerFlex525CodesysDevice("PF525_01", "Dev_PF525_01"),
+            PowerFlex525CodesysDevice("PF525_02", "Dev_PF525_02"),
+        )
+    )
+    result = CodesysIRPLCopenExporter().export(
+        build_powerflex525_iec_unit(),
+        additional_units=(build_codesys_sys_module_binding_unit(),),
+        project_name="TwoPowerFlexDrives",
+        creation_time=FIXED_TIME,
+        integration=integration,
+    )
+    root = ET.fromstring(result.xml)
+    program = root.find(".//p:pou[@name='PLC_PRG']", NS)
+    assert program is not None
+    body = program.findtext("./p:body/p:ST/x:xhtml", namespaces=NS)
+    assert body is not None
+
+    assert body.count("fbPowerFlex525_PF525_01(") == 1
+    assert body.count("fbPowerFlex525_PF525_02(") == 1
+    assert body.count("PF525_01_fbModuleBinding(") == 1
+    assert body.count("PF525_02_fbModuleBinding(") == 1
+    assert "Dev_PF525_01.GetDeviceState()" in body
+    assert "Dev_PF525_02.GetDeviceState()" in body
+    assert "PF525_01_diInp_Source" in body
+    assert "PF525_02_diInp_Source" in body
+    assert len(
+        root.findall(
+            ".//p:pou[@name='TF_PowerFlex525_Core']",
+            NS,
+        )
+    ) == 1
+    assert len(
+        root.findall(
+            ".//p:pou[@name='TF_Codesys_ENIP_ModuleBinding']",
+            NS,
+        )
+    ) == 1
+
+
+def test_multi_drive_integration_rejects_ambiguous_instances():
+    with pytest.raises(ValueError, match="names must be unique"):
+        powerflex525_codesys_multi_application_integration(
+            (
+                PowerFlex525CodesysDevice("PF525_01", "Dev_PF525_01"),
+                PowerFlex525CodesysDevice("pf525_01", "Dev_PF525_02"),
+            )
+        )

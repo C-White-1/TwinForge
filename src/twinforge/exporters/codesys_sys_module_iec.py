@@ -129,6 +129,8 @@ def build_codesys_sys_module_binding_unit() -> IRReusableUnit:
 
 def codesys_sys_module_binding_integration(
     device_variable: str | None = None,
+    *,
+    symbol_prefix: str = "",
 ) -> CodesysProjectIntegration:
     """Return a runnable program and task around the normalized binding.
 
@@ -138,14 +140,24 @@ def codesys_sys_module_binding_integration(
     the portable binding test shell.
     """
 
+    if symbol_prefix and _IEC_IDENTIFIER.fullmatch(
+        f"{symbol_prefix}Value"
+    ) is None:
+        raise ValueError(
+            "symbol_prefix must form valid IEC 61131-3 identifiers"
+        )
+
+    def scoped(name: str) -> str:
+        return f"{symbol_prefix}{name}"
+
     unit = build_codesys_sys_module_binding_unit()
     integration = CodesysProjectIntegration(
-        instance_name="fbModuleBinding",
+        instance_name=scoped("fbModuleBinding"),
         interval_ms=20,
         bindings=tuple(
             CodesysArgumentBinding(
                 parameter.name,
-                codesys_program_variable_name(parameter),
+                scoped(codesys_program_variable_name(parameter)),
                 initial_value=codesys_parameter_initial_value(parameter),
             )
             for parameter in unit.parameters
@@ -157,70 +169,88 @@ def codesys_sys_module_binding_integration(
         raise ValueError(
             "device_variable must be a simple IEC 61131-3 identifier"
         )
+    fb_reconfigure = scoped("fbReconfigure")
+    observed_enabled = scoped("xObservedEnabled")
+    observed_diagnostic_available = scoped(
+        "xObservedDiagnosticAvailable"
+    )
+    observed_diagnostic = scoped("sObservedDiagnostic")
+    observed_device_state = scoped("eObservedDeviceState")
+    observed_reconfigure_error = scoped("eObservedReconfigureError")
+    inp_can_reconfigure = scoped("xInp_CanReconfigure")
+    inp_connected = scoped("xInp_Connected")
+    inp_enabled = scoped("xInp_Enabled")
+    inp_faulted = scoped("xInp_Faulted")
+    inp_diagnostic_available = scoped("xInp_DiagnosticAvailable")
+    inp_reconfigure_busy = scoped("xInp_ReconfigureBusy")
+    inp_reconfigure_done = scoped("xInp_ReconfigureDone")
+    inp_reconfigure_failed = scoped("xInp_ReconfigureFailed")
+    out_request_reconfigure = scoped("xOut_RequestReconfigure")
+    out_requested_enable = scoped("xOut_RequestedEnable")
     return CodesysProjectIntegration(
         bindings=integration.bindings,
         instance_name=integration.instance_name,
         interval_ms=integration.interval_ms,
         program_variables=(
-            CodesysProgramVariable("fbReconfigure", "DED.Reconfigure"),
-            CodesysProgramVariable("xObservedEnabled", "BOOL"),
+            CodesysProgramVariable(fb_reconfigure, "DED.Reconfigure"),
+            CodesysProgramVariable(observed_enabled, "BOOL"),
             CodesysProgramVariable(
-                "xObservedDiagnosticAvailable",
+                observed_diagnostic_available,
                 "BOOL",
             ),
             CodesysProgramVariable(
-                "sObservedDiagnostic",
+                observed_diagnostic,
                 "STRING(255)",
             ),
             CodesysProgramVariable(
-                "eObservedDeviceState",
+                observed_device_state,
                 "DED.DEVICE_STATE",
             ),
             CodesysProgramVariable(
-                "eObservedReconfigureError",
+                observed_reconfigure_error,
                 "DED.ERROR",
             ),
         ),
         statements_before_call=(
             f"""\
-xObservedEnabled := {device_variable}.Enable;
-xObservedDiagnosticAvailable := \
+{observed_enabled} := {device_variable}.Enable;
+{observed_diagnostic_available} := \
 {device_variable}.xDiagnosticAvailable;
-sObservedDiagnostic := {device_variable}.sDiagString;
-eObservedDeviceState := {device_variable}.GetDeviceState();
+{observed_diagnostic} := {device_variable}.sDiagString;
+{observed_device_state} := {device_variable}.GetDeviceState();
 
-xInp_CanReconfigure := DED.CanReconfigure(
+{inp_can_reconfigure} := DED.CanReconfigure(
     itfNode := {device_variable}
 );
 
-xInp_Connected :=
+{inp_connected} :=
     ({device_variable}.eState = \
 IoDrvEtherNetIP.AdapterState.RUNNING)
     AND
-    (eObservedDeviceState = DED.DEVICE_STATE.RUNNING);
-xInp_Enabled := {device_variable}.Enable;
-xInp_Faulted :=
+    ({observed_device_state} = DED.DEVICE_STATE.RUNNING);
+{inp_enabled} := {device_variable}.Enable;
+{inp_faulted} :=
     ({device_variable}.eState = \
 IoDrvEtherNetIP.AdapterState.BUS_ERROR)
     OR
     ({device_variable}.eState = IoDrvEtherNetIP.AdapterState.ERROR)
     OR
-    (eObservedDeviceState = DED.DEVICE_STATE.ERROR);
-xInp_DiagnosticAvailable := \
+    ({observed_device_state} = DED.DEVICE_STATE.ERROR);
+{inp_diagnostic_available} := \
 {device_variable}.xDiagnosticAvailable;
-xInp_ReconfigureBusy := fbReconfigure.xBusy;
-xInp_ReconfigureDone := fbReconfigure.xDone;
-xInp_ReconfigureFailed := fbReconfigure.xError;
-eObservedReconfigureError := fbReconfigure.eError;""",
+{inp_reconfigure_busy} := {fb_reconfigure}.xBusy;
+{inp_reconfigure_done} := {fb_reconfigure}.xDone;
+{inp_reconfigure_failed} := {fb_reconfigure}.xError;
+{observed_reconfigure_error} := {fb_reconfigure}.eError;""",
         ),
         statements_after_call=(
             f"""\
-IF xOut_RequestReconfigure THEN
-    {device_variable}.Enable := xOut_RequestedEnable;
+IF {out_request_reconfigure} THEN
+    {device_variable}.Enable := {out_requested_enable};
 END_IF;
 
-fbReconfigure(
-    xExecute := xOut_RequestReconfigure,
+{fb_reconfigure}(
+    xExecute := {out_request_reconfigure},
     itfNode := {device_variable}
 );""",
         ),

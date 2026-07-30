@@ -168,6 +168,23 @@ capability-gated single-call reconfiguration handshake. The native device-tree
 object and its cyclic channel mappings remain deployment dependencies;
 TwinForge does not fabricate them in PLCopen XML.
 
+Multiple physical drives share the same reusable function-block types while
+receiving isolated program instances and variables. Supply one `--drive`
+argument per configured native CODESYS device:
+
+```powershell
+uv run python examples/export_powerflex525_codesys_application.py `
+  examples/PLCOpenXML/PowerFlex525_two_drive_codesys_application.xml `
+  --drive PF525_01=Dev_PF525_01 `
+  --drive PF525_02=Dev_PF525_02
+```
+
+`PF525_01` and `PF525_02` are deployment instance names, not inferred process
+equipment names. TwinForge emits `TF_PowerFlex525_Core` and
+`TF_Codesys_ENIP_ModuleBinding` once, then creates independent core, diagnostic
+binding, reconfiguration, command, status, and cyclic-I/O variables for each
+drive. Device names and CODESYS symbols must be unique IEC identifiers.
+
 All generated program inputs start at zero or false. In particular,
 non-bypassable permissive/interlock inputs and maximum speed do not default to
 an operational state. The imported demonstration therefore cannot produce a
