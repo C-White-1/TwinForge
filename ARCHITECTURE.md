@@ -59,6 +59,8 @@ criteria are maintained in the
 [architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md).
 The general PLCopen and CODESYS IR exporters are established boundaries but
 remain active decomposition targets as their supported behavior expands.
+CODESYS IR project-integration configuration and naming/default policies are
+kept separately from XML serialization in `exporters.codesys_ir_integration`.
 
 ## Invariants
 

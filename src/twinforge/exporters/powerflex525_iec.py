@@ -25,7 +25,7 @@ from twinforge.structured_text import (
     parse_structured_text,
 )
 
-from .codesys_plcopen_ir import (
+from .codesys_ir_integration import (
     CodesysArgumentBinding,
     CodesysProgramCall,
     CodesysProgramVariable,

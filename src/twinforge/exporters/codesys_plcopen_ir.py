@@ -24,6 +24,14 @@ from .codesys_st import (
     emit_codesys_st_routine,
     emit_codesys_st_unit,
 )
+from .codesys_ir_integration import (
+    CodesysArgumentBinding as CodesysArgumentBinding,
+    CodesysProgramCall,
+    CodesysProgramVariable,
+    CodesysProjectIntegration,
+    codesys_parameter_initial_value as codesys_parameter_initial_value,
+    codesys_program_variable_name as codesys_program_variable_name,
+)
 from .iec_st import IECRequirement, IECSTDiagnostic
 from .plcopen_codesys import CODESYS_NAMESPACE, CodesysProfileSupport
 from .plcopen_types import PLCOPEN_CODESYS_NAMESPACE
@@ -84,88 +92,6 @@ class CodesysPLCopenIRResult:
         return not self.requirements and not any(
             item.code in blocking for item in self.diagnostics
         )
-
-
-@dataclass(frozen=True)
-class CodesysArgumentBinding:
-    """Bind one reusable-unit parameter to a program-local variable."""
-
-    parameter_name: str
-    variable_name: str
-    dimensions: str | None = None
-    initial_value: str | None = None
-
-
-@dataclass(frozen=True)
-class CodesysProgramVariable:
-    """Declare one additional program-local variable for target integration."""
-
-    name: str
-    data_type: str
-    dimensions: str | None = None
-    initial_value: str | None = None
-
-
-@dataclass(frozen=True)
-class CodesysProgramCall:
-    """Call one reusable unit instance from a generated program."""
-
-    unit_name: str
-    instance_name: str
-    bindings: tuple[CodesysArgumentBinding, ...]
-    statements_before_call: tuple[str, ...] = ()
-    statements_after_call: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class CodesysProjectIntegration:
-    """Explicit program, call, and task configuration for one IR unit."""
-
-    bindings: tuple[CodesysArgumentBinding, ...]
-    program_name: str = "PLC_PRG"
-    task_name: str = "MainTask"
-    instance_name: str = "fbInstance"
-    interval_ms: int = 20
-    priority: int = 1
-    program_variables: tuple[CodesysProgramVariable, ...] = ()
-    statements_before_call: tuple[str, ...] = ()
-    statements_after_call: tuple[str, ...] = ()
-    calls: tuple[CodesysProgramCall, ...] = ()
-
-
-def codesys_program_variable_name(parameter: IRParameter) -> str:
-    """Generate a case-distinct, type-oriented program binding name."""
-
-    prefixes = {
-        "BOOL": "x",
-        "DINT": "di",
-        "INT": "i",
-        "LINT": "li",
-        "REAL": "r",
-        "LREAL": "lr",
-        "SINT": "si",
-        "UDINT": "udi",
-        "UINT": "ui",
-        "ULINT": "uli",
-        "USINT": "usi",
-    }
-    prefix = prefixes.get((parameter.data_type or "").upper(), "v")
-    identifier = re.sub(r"\W+", "_", parameter.name).strip("_") or "Value"
-    return f"{prefix}{identifier}"
-
-
-def codesys_parameter_initial_value(
-    parameter: IRParameter,
-) -> str | None:
-    """Translate a captured scalar default to PLCopen lexical form."""
-
-    if parameter.default_value is not None:
-        if isinstance(parameter.default_value, bool):
-            return "TRUE" if parameter.default_value else "FALSE"
-        return parameter.default_lexical_value
-    if parameter.name.casefold() == "enablein":
-        return "TRUE"
-    return None
 
 
 class CodesysIRPLCopenExporter:

@@ -45,15 +45,17 @@ from .diagnostic_markdown import DeviceDiagnosticMarkdownExporter
 from .functional_description_markdown import (
     FunctionalDescriptionMarkdownExporter,
 )
-from .codesys_plcopen_ir import (
+from .codesys_ir_integration import (
     CodesysArgumentBinding,
-    CodesysIRPLCopenExporter,
-    CodesysPLCopenIRResult,
     CodesysProgramCall,
     CodesysProgramVariable,
     CodesysProjectIntegration,
     codesys_parameter_initial_value,
     codesys_program_variable_name,
+)
+from .codesys_plcopen_ir import (
+    CodesysIRPLCopenExporter,
+    CodesysPLCopenIRResult,
 )
 from .iec_st import (
     IECRequirement,
