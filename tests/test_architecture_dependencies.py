@@ -85,6 +85,7 @@ def test_exporter_to_target_imports_are_compatibility_only() -> None:
     [
         "twinforge.exporters",
         "twinforge.targets.codesys",
+        "twinforge.targets.openplc",
     ],
 )
 def test_public_exports_are_unique_and_resolvable(module_name: str) -> None:

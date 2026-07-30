@@ -305,7 +305,9 @@ Deferred until another device profile or target exists:
 - [x] Review public `__init__` re-exports as APIs grow
 - [x] Stop tracking generated `*.egg-info` metadata in a dedicated cleanup
   commit
-- [ ] Add an OpenPLC target without importing CODESYS assumptions
+- [x] Add an OpenPLC target without importing CODESYS assumptions
+- [ ] Validate generated standard PLCopen XML through a native OpenPLC import
+  and runtime smoke test
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent
@@ -321,6 +323,12 @@ the threshold for dependency tests. AST checks now protect neutral `model`
 and `ir` layers and restrict exporter-to-target imports to the documented
 package façade and legacy compatibility shim. Public exporter and CODESYS
 target `__all__` surfaces are checked for duplicate or unresolved names.
+
+`targets.openplc.OpenPLCExporter` now provides a minimal standards-based
+target façade over PLCopen XML 2.01. It emits no CODESYS extensions and is
+byte-identical to the generic standard profile. This is an architecture
+foundation, not yet a claim of native OpenPLC import compatibility; that
+requires an external import and runtime smoke test.
 
 ## Refactor completion checklist
 
