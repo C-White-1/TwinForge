@@ -21,7 +21,6 @@ from .plcopen_rll import (
     split_arguments as _split_arguments,
 )
 from .plcopen_operands import (
-    PLCOPEN_PRIMITIVE_TYPES as _PRIMITIVE_TYPES,
     PLCopenOneShotExport,
     PLCopenOperandPlan,
     PLCopenOperandPlanner,
@@ -37,12 +36,11 @@ from .plcopen_validation import (
     PLCopenValidationUnavailable,
     validate_plcopen_xml,
 )
+from .plcopen_variables import PLCopenVariableEmitter
 from .plcopen_xml import (
     milliseconds_duration as _milliseconds_duration,
     milliseconds_time_literal as _milliseconds_time_literal,
-    plcopen_scalar_value as _plcopen_scalar_value,
     qualified_name as _q,
-    variable_add_data as _variable_add_data,
 )
 
 __all__ = [
@@ -59,12 +57,6 @@ __all__ = [
 
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
 TWINFORGE_RLL_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-rll"
-TWINFORGE_ALIAS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-alias"
-TWINFORGE_ONS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-ons"
-TWINFORGE_ENGINEERING_UNIT_EXTENSION = (
-    "https://twinforge.dev/plcopenxml/engineering-unit"
-)
-
 _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
 
 
@@ -324,144 +316,18 @@ class PLCopenExporter:
         *,
         attributes: dict[str, str] | None = None,
     ) -> ET.Element | None:
-        supported: list[Tag] = []
-        for tag in tags:
-            data_type = self._tag_export_type(tag)
-            if tag.alias_for:
-                self._diagnostic(
-                    "alias_exported_as_surrogate",
-                    "Rockwell alias was exported as a portable variable without an I/O binding",
-                    tag.name,
-                    raw_value=tag.alias_for,
-                )
-            derived_type = tag.metadata.get("plcopen_derived_type")
-            if (
-                data_type not in _PRIMITIVE_TYPES
-                and data_type != "TIMER"
-                and derived_type is None
-            ):
-                self._diagnostic(
-                    "unsupported_variable_type",
-                    "variable is preserved in the source model but not declared in this PLCopen milestone",
-                    tag.name,
-                    raw_value=tag.data_type,
-                )
-                continue
-            if tag.dimensions:
-                self._diagnostic(
-                    "array_variable_not_exported",
-                    "array variable export is not implemented",
-                    tag.name,
-                    raw_value=tag.dimensions,
-                )
-                continue
-            supported.append(tag)
-        if not supported:
-            return None
         ns = self.profile.namespace
-        variable_list = ET.SubElement(
-            parent, _q(ns, list_name), attributes if attributes is not None else {}
+        timer_type = (
+            self._codesys.library_type("TON")
+            if self.profile is PLCopenProfile.CODESYS
+            else "TON"
         )
-        for tag in supported:
-            derived_type = tag.metadata.get("plcopen_derived_type")
-            variable = ET.SubElement(
-                variable_list, _q(ns, "variable"), {"name": tag.name}
-            )
-            type_element = ET.SubElement(variable, _q(ns, "type"))
-            if derived_type is not None:
-                ET.SubElement(
-                    type_element,
-                    _q(ns, "derived"),
-                    {"name": str(derived_type)},
-                )
-            elif self._tag_export_type(tag) == "TIMER":
-                timer_type = (
-                    self._codesys.library_type("TON")
-                    if self.profile is PLCopenProfile.CODESYS
-                    else "TON"
-                )
-                ET.SubElement(type_element, _q(ns, "derived"), {"name": timer_type})
-            else:
-                ET.SubElement(type_element, _q(ns, self._tag_export_type(tag)))
-            if tag.initial_value is not None:
-                initial_value = ET.SubElement(variable, _q(ns, "initialValue"))
-                ET.SubElement(
-                    initial_value,
-                    _q(ns, "simpleValue"),
-                    {"value": _plcopen_scalar_value(tag)},
-                )
-            source_operand = tag.alias_for or tag.metadata.get("plcopen_source_operand")
-            if source_operand:
-                add_data = _variable_add_data(variable, ns)
-                data = ET.SubElement(
-                    add_data,
-                    _q(ns, "data"),
-                    {
-                        "name": TWINFORGE_ALIAS_EXTENSION,
-                        "handleUnknown": "preserve",
-                    },
-                )
-                alias_for = ET.SubElement(data, "AliasFor", {"xmlns": ""})
-                alias_for.text = source_operand
-            ons_storage = tag.metadata.get("rockwell_ons_storage")
-            if ons_storage:
-                add_data = _variable_add_data(variable, ns)
-                data = ET.SubElement(
-                    add_data,
-                    _q(ns, "data"),
-                    {
-                        "name": TWINFORGE_ONS_EXTENSION,
-                        "handleUnknown": "preserve",
-                    },
-                )
-                storage = ET.SubElement(data, "StorageOperand", {"xmlns": ""})
-                storage.text = str(ons_storage)
-            if tag.engineering_unit is not None:
-                add_data = _variable_add_data(variable, ns)
-                data = ET.SubElement(
-                    add_data,
-                    _q(ns, "data"),
-                    {
-                        "name": TWINFORGE_ENGINEERING_UNIT_EXTENSION,
-                        "handleUnknown": "preserve",
-                    },
-                )
-                unit = ET.SubElement(
-                    data,
-                    "EngineeringUnit",
-                    {
-                        "xmlns": "",
-                        "Symbol": tag.engineering_unit.symbol,
-                        "Source": tag.engineering_unit.source.value,
-                        "Confidence": tag.engineering_unit.confidence.value,
-                    },
-                )
-                if tag.engineering_unit.source_operand:
-                    unit.set(
-                        "SourceOperand",
-                        tag.engineering_unit.source_operand,
-                    )
-                if tag.engineering_unit.inherited_from:
-                    unit.set(
-                        "InheritedFrom",
-                        tag.engineering_unit.inherited_from,
-                    )
-                for evidence in tag.engineering_unit_evidence:
-                    attributes = {
-                        "Symbol": evidence.symbol,
-                        "Source": evidence.source.value,
-                        "Confidence": evidence.confidence.value,
-                    }
-                    if evidence.source_operand:
-                        attributes["SourceOperand"] = evidence.source_operand
-                    if evidence.inherited_from:
-                        attributes["InheritedFrom"] = evidence.inherited_from
-                    ET.SubElement(unit, "Evidence", attributes)
-            if tag.description:
-                documentation = ET.SubElement(variable, _q(ns, "documentation"))
-                xhtml = ET.SubElement(documentation, _q(XHTML_NAMESPACE, "xhtml"))
-                xhtml.text = tag.description
-        return variable_list
+        return PLCopenVariableEmitter(
+            namespace=ns,
+            tag_export_type=self._tag_export_type,
+            timer_type=timer_type,
+            report_diagnostic=self._diagnostic,
+        ).emit(parent, list_name, tags, attributes=attributes)
 
     def _rung(
         self,

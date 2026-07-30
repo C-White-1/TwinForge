@@ -178,7 +178,7 @@ Evidence:
 Next:
 
 - [ ] Extract controller/project structure orchestration
-- [ ] Extract variable and datatype emission
+- [x] Extract variable and datatype emission
 - [ ] Move instruction emitters behind a registry or focused collaborators
 - [x] Extract operand preparation and surrogate-symbol management
 - [x] Keep `PLCopenExporter` as the stable façade
@@ -195,6 +195,12 @@ timer state and one-shot state are now prepared by
 its immutable plan and retains the existing public exporter API. Fixed-time
 standard and CODESYS fixture hashes protect serialization stability, while
 focused planner tests protect symbol and diagnostic ordering.
+
+Variable filtering, scalar and derived type declarations, initial values,
+source-evidence extensions, engineering-unit evidence and documentation are
+now owned by `exporters.plcopen_variables.PLCopenVariableEmitter`. Target
+timer naming remains an injected policy, keeping this emitter reusable by
+future target profiles.
 
 ### Priority 2: separate CODESYS IR project serialization
 
