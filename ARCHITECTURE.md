@@ -37,11 +37,13 @@ PLCopen XML | AutomationML | reports
 | `transport`, `discovery` | CIP communication and live acquisition |
 
 PLCopen export is divided into target-neutral types, RLL parsing, XML/value
-helpers and validation, plus target adapters. A pre-serialization operand
-planner discovers portable symbols, comparison temporaries, timers and
-one-shots without constructing XML. A separate variable emitter serializes
-supported tag types, initial values and retained source evidence with the
-target timer type supplied as policy. CODESYS project structure and
+helpers and validation, project orchestration, plus target adapters. A
+pre-serialization operand planner discovers portable symbols, comparison
+temporaries, timers and one-shots without constructing XML. A separate
+variable emitter serializes supported tag types, initial values and retained
+source evidence with the target timer type supplied as policy. Generic
+project scaffolding and controller traversal delegate target application
+wrapping through an injected callback. CODESYS project structure and
 extensions are isolated in `exporters.plcopen_codesys`; a future OpenPLC
 adapter should consume the same neutral conversion and emission services.
 

@@ -177,7 +177,7 @@ Evidence:
 
 Next:
 
-- [ ] Extract controller/project structure orchestration
+- [x] Extract controller/project structure orchestration
 - [x] Extract variable and datatype emission
 - [ ] Move instruction emitters behind a registry or focused collaborators
 - [x] Extract operand preparation and surrogate-symbol management
@@ -201,6 +201,12 @@ source-evidence extensions, engineering-unit evidence and documentation are
 now owned by `exporters.plcopen_variables.PLCopenVariableEmitter`. Target
 timer naming remains an injected policy, keeping this emitter reusable by
 future target profiles.
+
+Project headers, PLCopen document scaffolding, standard program/task traversal
+and controller resource construction are now owned by
+`exporters.plcopen_project.PLCopenProjectOrchestrator`. Target application
+wrapping is supplied as an optional callback, so CODESYS project metadata
+remains isolated in its existing adapter.
 
 ### Priority 2: separate CODESYS IR project serialization
 

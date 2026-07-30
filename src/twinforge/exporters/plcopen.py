@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -25,6 +26,7 @@ from .plcopen_operands import (
     PLCopenOperandPlan,
     PLCopenOperandPlanner,
 )
+from .plcopen_project import PLCopenProjectOrchestrator
 from .plcopen_types import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
@@ -87,35 +89,32 @@ class PLCopenExporter:
             rising_trigger_type=trigger_type
         ).prepare(controller)
         self.diagnostics.extend(self._operands.diagnostics)
-        namespace = self.profile.namespace
-        ET.register_namespace("", namespace)
-        root = ET.Element(_q(namespace, "project"))
-        timestamp = (creation_time or datetime.now(timezone.utc)).isoformat()
-        ET.SubElement(
-            root,
-            _q(namespace, "fileHeader"),
-            {
-                "companyName": "TwinForge",
-                "productName": "TwinForge",
-                "productVersion": "0.1.0",
-                "creationDateTime": timestamp,
-            },
+        target_application = (
+            self._codesys_application
+            if self.profile is PLCopenProfile.CODESYS
+            else None
         )
-        self._content_header(root, project_name or controller.name or "TwinForge")
-
-        types = ET.SubElement(root, _q(namespace, "types"))
-        ET.SubElement(types, _q(namespace, "dataTypes"))
-        pous = ET.SubElement(types, _q(namespace, "pous"))
-        instances = ET.SubElement(root, _q(namespace, "instances"))
-        configurations = ET.SubElement(instances, _q(namespace, "configurations"))
-
-        if self.profile is PLCopenProfile.CODESYS:
-            self._codesys_application(root, controller)
-        else:
-            for program in controller.iter_programs():
-                self._program(pous, program)
-            self._standard_configuration(configurations, controller)
-        return root
+        return PLCopenProjectOrchestrator(
+            namespace=self.profile.namespace,
+            emit_program=lambda parent, program: self._program(
+                parent,
+                program,
+            ),
+            emit_task=lambda parent, task: self._task(parent, task),
+            emit_global_variables=lambda parent, tags: self._variables(
+                parent,
+                "globalVars",
+                tags,
+            ),
+            emit_target_application=target_application,
+        ).build(
+            controller,
+            self._operands.generated_tags,
+            project_name=project_name
+            or controller.name
+            or "TwinForge",
+            creation_time=creation_time or datetime.now(timezone.utc),
+        )
 
     def export(
         self,
@@ -136,39 +135,18 @@ class PLCopenExporter:
             Path(destination).write_text(xml, encoding="utf-8")
         return PLCopenExportResult(xml=xml, diagnostics=list(self.diagnostics))
 
-    def _content_header(self, root: ET.Element, name: str) -> None:
-        ns = self.profile.namespace
-        header = ET.SubElement(root, _q(ns, "contentHeader"), {"name": name})
-        coordinate = ET.SubElement(header, _q(ns, "coordinateInfo"))
-        for language in ("fbd", "ld", "sfc"):
-            element = ET.SubElement(coordinate, _q(ns, language))
-            ET.SubElement(element, _q(ns, "scaling"), {"x": "1", "y": "1"})
-
-    def _standard_configuration(
-        self, configurations: ET.Element, controller: Controller
+    def _codesys_application(
+        self,
+        root: ET.Element,
+        controller: Controller,
+        generated_tags: Sequence[Tag],
     ) -> None:
-        ns = self.profile.namespace
-        configuration = ET.SubElement(
-            configurations, _q(ns, "configuration"), {"name": controller.name or "PLC"}
-        )
-        resource = ET.SubElement(
-            configuration, _q(ns, "resource"), {"name": "Application"}
-        )
-        for task in controller.iter_tasks():
-            self._task(resource, task)
-        self._variables(
-            resource,
-            "globalVars",
-            [*controller.tags.values(), *self._operands.generated_tags],
-        )
-
-    def _codesys_application(self, root: ET.Element, controller: Controller) -> None:
         """Delegate CODESYS project wrapping to the target adapter."""
 
         self._codesys.emit_application(
             root,
             controller,
-            self._operands.generated_tags,
+            generated_tags,
             needs_standard_library=bool(
                 self._operands.timers or self._operands.oneshots
             ),
