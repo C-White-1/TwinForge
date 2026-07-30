@@ -73,6 +73,11 @@ are isolated in `exporters.codesys_ir_libraries`.
 fixed-time regression fixtures protect byte-stable import structure and
 deterministic CODESYS object IDs.
 
+The PowerFlex 525 executable core is target-neutral in
+`exporters.powerflex525_core`. CODESYS device composition is owned by
+`targets.codesys.powerflex525`; compatibility aliases preserve the former
+public exporter API while dependency tests protect the neutral boundary.
+
 ## Invariants
 
 - Unknown source data is preserved.

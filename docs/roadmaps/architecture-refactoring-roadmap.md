@@ -269,13 +269,20 @@ and CODESYS project composition helpers.
 
 Next:
 
-- [ ] Retain neutral PowerFlex IR construction in the exporter or a neutral
+- [x] Retain neutral PowerFlex IR construction in the exporter or a neutral
   profile module
-- [ ] Move `PowerFlex525CodesysDevice` and CODESYS integration builders under
+- [x] Move `PowerFlex525CodesysDevice` and CODESYS integration builders under
   `targets.codesys`
-- [ ] Keep compatibility re-exports while callers migrate
-- [ ] Confirm the neutral unit has no CODESYS imports
-- [ ] Preserve single-drive and multi-drive generated output
+- [x] Keep compatibility re-exports while callers migrate
+- [x] Confirm the neutral unit has no CODESYS imports
+- [x] Preserve single-drive and multi-drive generated output
+
+Priority 3 is complete. Neutral PowerFlex executable construction now lives
+in `exporters.powerflex525_core`; CODESYS device descriptors and application
+composition live in `targets.codesys.powerflex525`. Package-level and former
+`exporters.powerflex525_iec` imports remain compatibility aliases. An AST
+boundary test prevents CODESYS dependencies from returning to the neutral
+core, and fixed-time hashes protect single- and multi-drive documents.
 
 ### Priority 4: split deployment packaging after a second profile
 

@@ -81,13 +81,13 @@ from .parameter_report import (
     ParameterReportCSVExporter,
     ParameterReportMarkdownExporter,
 )
-from .powerflex525_iec import (
+from twinforge.targets.codesys.powerflex525 import (
     PowerFlex525CodesysDevice,
-    build_powerflex525_iec_unit,
     powerflex525_codesys_application_integration,
     powerflex525_codesys_integration,
     powerflex525_codesys_multi_application_integration,
 )
+from .powerflex525_core import build_powerflex525_iec_unit
 from .text_report import TextReportBundle, TextReportExporter
 
 __all__ = [

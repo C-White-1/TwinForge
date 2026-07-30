@@ -13,11 +13,14 @@ import xml.etree.ElementTree as ET
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from twinforge.exporters import (
-    CodesysIRPLCopenExporter,
-    PowerFlex525CodesysDevice,
+from twinforge.exporters.codesys_plcopen_ir import CodesysIRPLCopenExporter
+from twinforge.exporters.codesys_sys_module_iec import (
     build_codesys_sys_module_binding_unit,
-    build_powerflex525_iec_unit,
+)
+from twinforge.exporters.powerflex525_core import build_powerflex525_iec_unit
+
+from .powerflex525 import (
+    PowerFlex525CodesysDevice,
     powerflex525_codesys_multi_application_integration,
 )
 

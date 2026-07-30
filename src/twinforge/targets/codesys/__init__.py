@@ -13,6 +13,12 @@ from .module_service import (
     CodesysEtherNetIPProvider,
     CodesysModuleAdapterError,
 )
+from .powerflex525 import (
+    PowerFlex525CodesysDevice,
+    powerflex525_codesys_application_integration,
+    powerflex525_codesys_integration,
+    powerflex525_codesys_multi_application_integration,
+)
 
 __all__ = [
     "CodesysDeploymentBundle",
@@ -23,5 +29,9 @@ __all__ = [
     "CodesysPowerFlex525BundleExporter",
     "CodesysPowerFlex525DeploymentManifest",
     "CodesysPowerFlex525DeviceManifest",
+    "PowerFlex525CodesysDevice",
     "load_codesys_powerflex525_manifest",
+    "powerflex525_codesys_application_integration",
+    "powerflex525_codesys_integration",
+    "powerflex525_codesys_multi_application_integration",
 ]
