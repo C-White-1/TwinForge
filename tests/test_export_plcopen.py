@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import hashlib
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -80,6 +81,23 @@ def _export(profile: PLCopenProfile):
     return PLCopenExporter(profile).export(
         _controller(), project_name="TestProject", creation_time=FIXED_TIME
     )
+
+
+def test_fixed_time_profile_exports_are_byte_stable() -> None:
+    """Protect the public façade and deterministic serialization contract."""
+
+    expected_hashes = {
+        PLCopenProfile.STANDARD_201: (
+            "bde3a3888a947a95119e4afd29941266bd9595f50d23f3067fcb6e13050dc346"
+        ),
+        PLCopenProfile.CODESYS: (
+            "ab7ea8f042138bfb9bfee62b15ce7f0061309b52ccd5627ec0fd5a48a3927a0f"
+        ),
+    }
+
+    for profile, expected_hash in expected_hashes.items():
+        xml = _export(profile).xml.encode("utf-8")
+        assert hashlib.sha256(xml).hexdigest() == expected_hash
 
 
 def test_standard_profile_exports_program_variables_task_and_ld() -> None:

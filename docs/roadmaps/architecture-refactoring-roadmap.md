@@ -180,14 +180,21 @@ Next:
 - [ ] Extract controller/project structure orchestration
 - [ ] Extract variable and datatype emission
 - [ ] Move instruction emitters behind a registry or focused collaborators
-- [ ] Extract operand preparation and surrogate-symbol management
-- [ ] Keep `PLCopenExporter` as the stable façade
-- [ ] Preserve deterministic IDs and diagnostic ordering
-- [ ] Prove byte-stable output for existing fixtures where timestamps are
+- [x] Extract operand preparation and surrogate-symbol management
+- [x] Keep `PLCopenExporter` as the stable façade
+- [x] Preserve deterministic IDs and diagnostic ordering
+- [x] Prove byte-stable output for existing fixtures where timestamps are
   fixed
 
 This is the highest-value next refactor because every new RLL instruction
 currently increases pressure on the same class.
+
+Operand discovery, IEC-safe surrogate generation, comparison temporaries,
+timer state and one-shot state are now prepared by
+`exporters.plcopen_operands.PLCopenOperandPlanner`. The serializer consumes
+its immutable plan and retains the existing public exporter API. Fixed-time
+standard and CODESYS fixture hashes protect serialization stability, while
+focused planner tests protect symbol and diagnostic ordering.
 
 ### Priority 2: separate CODESYS IR project serialization
 

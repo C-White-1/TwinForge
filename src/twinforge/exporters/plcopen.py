@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,6 +20,12 @@ from .plcopen_rll import (
     parse_supported_rung as _parse_supported_rung,
     split_arguments as _split_arguments,
 )
+from .plcopen_operands import (
+    PLCOPEN_PRIMITIVE_TYPES as _PRIMITIVE_TYPES,
+    PLCopenOneShotExport,
+    PLCopenOperandPlan,
+    PLCopenOperandPlanner,
+)
 from .plcopen_types import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
@@ -37,8 +42,6 @@ from .plcopen_xml import (
     milliseconds_time_literal as _milliseconds_time_literal,
     plcopen_scalar_value as _plcopen_scalar_value,
     qualified_name as _q,
-    timer_member_integer as _timer_member_integer,
-    unique_portable_name as _unique_portable_name,
     variable_add_data as _variable_add_data,
 )
 
@@ -62,47 +65,7 @@ TWINFORGE_ENGINEERING_UNIT_EXTENSION = (
     "https://twinforge.dev/plcopenxml/engineering-unit"
 )
 
-_PRIMITIVE_TYPES = {
-    "BOOL",
-    "BYTE",
-    "WORD",
-    "DWORD",
-    "LWORD",
-    "SINT",
-    "INT",
-    "DINT",
-    "LINT",
-    "USINT",
-    "UINT",
-    "UDINT",
-    "ULINT",
-    "REAL",
-    "LREAL",
-    "STRING",
-    "WSTRING",
-    "TIME",
-    "DATE",
-    "TIME_OF_DAY",
-    "DATE_AND_TIME",
-}
 _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
-_IEC_OPERAND = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*")
-_NUMERIC_LITERAL = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)")
-@dataclass(frozen=True)
-class _TimerExport:
-    preset_ms: int
-    input_name: str
-    done_name: str
-    elapsed_name: str
-    executed_name: str
-
-
-@dataclass(frozen=True)
-class _OneShotExport:
-    instance_name: str
-    input_name: str
-    pulse_name: str
-    executed_name: str
 
 
 class PLCopenExporter:
@@ -111,15 +74,7 @@ class PLCopenExporter:
         self.diagnostics: list[ConversionDiagnostic] = []
         self._next_local_id = 1
         self._codesys = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
-        self._operand_names: dict[str, str] = {}
-        self._boolean_operands: set[str] = set()
-        self._generated_tags: list[Tag] = []
-        self._comparison_tags: dict[str, list[Tag]] = {}
-        self._comparison_temps: dict[int, list[str]] = {}
-        self._unsupported_comparison_rungs: set[int] = set()
-        self._timers: dict[str, _TimerExport] = {}
-        self._oneshots: dict[int, _OneShotExport] = {}
-        self._oneshot_tags: dict[str, list[Tag]] = {}
+        self._operands = PLCopenOperandPlan.empty()
 
     def build(
         self,
@@ -131,18 +86,15 @@ class PLCopenExporter:
         self.diagnostics = []
         self._next_local_id = 1
         self._codesys.reset()
-        self._operand_names = {}
-        self._boolean_operands = set()
-        self._generated_tags = []
-        self._comparison_tags = {}
-        self._comparison_temps = {}
-        self._unsupported_comparison_rungs = set()
-        self._timers = {}
-        self._oneshots = {}
-        self._oneshot_tags = {}
-        self._prepare_operands(controller)
-        self._prepare_timers(controller)
-        self._prepare_oneshots(controller)
+        trigger_type = (
+            self._codesys.library_type("R_TRIG")
+            if self.profile is PLCopenProfile.CODESYS
+            else "R_TRIG"
+        )
+        self._operands = PLCopenOperandPlanner(
+            rising_trigger_type=trigger_type
+        ).prepare(controller)
+        self.diagnostics.extend(self._operands.diagnostics)
         namespace = self.profile.namespace
         ET.register_namespace("", namespace)
         root = ET.Element(_q(namespace, "project"))
@@ -215,7 +167,7 @@ class PLCopenExporter:
         self._variables(
             resource,
             "globalVars",
-            [*controller.tags.values(), *self._generated_tags],
+            [*controller.tags.values(), *self._operands.generated_tags],
         )
 
     def _codesys_application(self, root: ET.Element, controller: Controller) -> None:
@@ -224,8 +176,10 @@ class PLCopenExporter:
         self._codesys.emit_application(
             root,
             controller,
-            self._generated_tags,
-            needs_standard_library=bool(self._timers or self._oneshots),
+            self._operands.generated_tags,
+            needs_standard_library=bool(
+                self._operands.timers or self._operands.oneshots
+            ),
             emit_task=lambda parent, task: self._task(
                 parent,
                 task,
@@ -286,8 +240,8 @@ class PLCopenExporter:
             "localVars",
             [
                 *program.tags.values(),
-                *self._comparison_tags.get(program.name, []),
-                *self._oneshot_tags.get(program.name, []),
+                *self._operands.comparison_tags.get(program.name, ()),
+                *self._operands.oneshot_tags.get(program.name, ()),
             ],
         )
         routine = program.main_routine
@@ -526,7 +480,7 @@ class PLCopenExporter:
                 raw_rll=rung.text,
             )
             return
-        if id(rung) in self._unsupported_comparison_rungs:
+        if id(rung) in self._operands.unsupported_comparison_rungs:
             raw = rung.text or ""
             self._diagnostic(
                 "unsupported_comparison_operand_type",
@@ -566,7 +520,10 @@ class PLCopenExporter:
             for opcode, operand in parsed.outputs
             if opcode in {"TON", "RES"}
         ]
-        if any(operand not in self._timers for operand in timer_operands):
+        if any(
+            operand not in self._operands.timers
+            for operand in timer_operands
+        ):
             raw = rung.text or ""
             self._diagnostic(
                 "unsupported_timer_operand",
@@ -602,12 +559,14 @@ class PLCopenExporter:
                 condition_ids = [
                     self._oneshot_block(
                         ld,
-                        self._oneshots[id(rung)],
+                        self._operands.oneshots[id(rung)],
                         condition_ids,
                     )
                 ]
             else:
-                temp_name = self._comparison_temps[id(rung)][comparison_index]
+                temp_name = self._operands.comparison_temps[id(rung)][
+                    comparison_index
+                ]
                 comparison_index += 1
                 condition_ids = [
                     self._comparison(ld, opcode, operand, condition_ids, temp_name)
@@ -768,7 +727,7 @@ class PLCopenExporter:
     ) -> int:
         ns = self.profile.namespace
         timer_name = _split_arguments(operand_text)[0]
-        timer = self._timers[timer_name]
+        timer = self._operands.timers[timer_name]
         self._coil(ld, "OTE", timer.input_name, condition_ids)
         condition_right_id = self._id()
         condition_right = ET.SubElement(
@@ -862,7 +821,7 @@ class PLCopenExporter:
         input_from_block: bool = False,
     ) -> int:
         ns = self.profile.namespace
-        timer = self._timers[timer_name]
+        timer = self._operands.timers[timer_name]
         value_ids: list[int] = []
         for value in ("FALSE", _milliseconds_time_literal(timer.preset_ms)):
             local_id = self._id()
@@ -924,7 +883,7 @@ class PLCopenExporter:
     def _oneshot_block(
         self,
         ld: ET.Element,
-        oneshot: _OneShotExport,
+        oneshot: PLCopenOneShotExport,
         condition_ids: list[int],
     ) -> int:
         ns = self.profile.namespace
@@ -1159,260 +1118,14 @@ class PLCopenExporter:
             parent, _q(self.profile.namespace, "position"), {"x": "0", "y": "0"}
         )
 
-    def _prepare_operands(self, controller: Controller) -> None:
-        tags = list(controller.tags.values())
-        for program in controller.iter_programs():
-            tags.extend(program.tags.values())
-        names = {tag.name for tag in tags}
-        aliases_by_target = {tag.alias_for: tag.name for tag in tags if tag.alias_for}
-        for program in controller.iter_programs():
-            tags_by_name = dict(controller.tags)
-            tags_by_name.update(program.tags)
-            for routine in program.iter_routines():
-                for rung in routine.ladder_rungs:
-                    parsed = _parse_supported_rung(rung.text)
-                    if parsed is None:
-                        continue
-                    comparisons = [
-                        operand_text
-                        for opcode, operand_text in parsed.tail_conditions
-                        if opcode in _COMPARISON_TYPES
-                    ]
-                    if any(
-                        self._comparison_uses_unsupported_type(
-                            operand_text, tags_by_name
-                        )
-                        for operand_text in comparisons
-                    ):
-                        self._unsupported_comparison_rungs.add(id(rung))
-                        continue
-                    if comparisons:
-                        temp_names: list[str] = []
-                        for index in range(len(comparisons)):
-                            base = (
-                                f"Cmp_{program.name}_{routine.name}_"
-                                f"{rung.number if rung.number is not None else 'N'}_{index + 1}"
-                            )
-                            temp_name = _unique_portable_name(base, names)
-                            names.add(temp_name)
-                            temp_names.append(temp_name)
-                            self._comparison_tags.setdefault(program.name, []).append(
-                                Tag(
-                                    name=temp_name,
-                                    data_type="BOOL",
-                                    description=(
-                                        "TwinForge comparison result for "
-                                        f"{routine.name} rung {rung.number}"
-                                    ),
-                                )
-                            )
-                        self._comparison_temps[id(rung)] = temp_names
-                    for opcode, operand_text in parsed.instructions:
-                        operands = (
-                            _split_arguments(operand_text)
-                            if opcode
-                            in {
-                                *_COMPARISON_TYPES,
-                                *_VALUE_BLOCK_TYPES,
-                            }
-                            else [operand_text]
-                        )
-                        if opcode == "TON":
-                            operands = [_split_arguments(operand_text)[0]]
-                        for operand in operands:
-                            is_boolean = opcode in {
-                                "XIC",
-                                "XIO",
-                                "OTE",
-                                "OTL",
-                                "OTU",
-                            }
-                            if is_boolean:
-                                self._boolean_operands.add(operand)
-                            if _IEC_OPERAND.fullmatch(
-                                operand
-                            ) or _NUMERIC_LITERAL.fullmatch(operand):
-                                continue
-                            portable = aliases_by_target.get(operand)
-                            if portable is None:
-                                portable = _unique_portable_name(operand, names)
-                                names.add(portable)
-                                self._generated_tags.append(
-                                    Tag(
-                                        name=portable,
-                                        data_type="BOOL" if is_boolean else "REAL",
-                                        description=(
-                                            f"Portable surrogate for Rockwell operand {operand}"
-                                        ),
-                                        metadata={"plcopen_source_operand": operand},
-                                    )
-                                )
-                                self._diagnostic(
-                                    "raw_operand_rewritten",
-                                    "raw Rockwell operand was replaced by an IEC-safe surrogate variable",
-                                    portable,
-                                    raw_value=operand,
-                                )
-                            self._operand_names[operand] = portable
-
-    def _prepare_timers(self, controller: Controller) -> None:
-        tags = [
-            *controller.tags.values(),
-            *(
-                tag
-                for program in controller.iter_programs()
-                for tag in program.tags.values()
-            ),
-        ]
-        names = {tag.name for tag in tags}
-        names.update(tag.name for tag in self._generated_tags)
-        for tag in tags:
-            if (tag.data_type or "").upper() != "TIMER":
-                continue
-            preset_ms = _timer_member_integer(tag, "PRE")
-            if preset_ms is None:
-                self._diagnostic(
-                    "timer_preset_missing",
-                    "TIMER has no readable decorated PRE value; zero milliseconds was used",
-                    tag.name,
-                )
-                preset_ms = 0
-            generated: list[str] = []
-            for suffix, data_type in (
-                ("IN", "BOOL"),
-                ("DN", "BOOL"),
-                ("ET", "TIME"),
-                ("Executed", "BOOL"),
-            ):
-                name = _unique_portable_name(f"{tag.name}_{suffix}", names)
-                names.add(name)
-                generated.append(name)
-                self._generated_tags.append(
-                    Tag(
-                        name=name,
-                        data_type=data_type,
-                        description=f"TwinForge IEC timer {suffix} for {tag.name}",
-                    )
-                )
-            self._timers[tag.name] = _TimerExport(
-                preset_ms=preset_ms,
-                input_name=generated[0],
-                done_name=generated[1],
-                elapsed_name=generated[2],
-                executed_name=generated[3],
-            )
-
-    def _prepare_oneshots(self, controller: Controller) -> None:
-        names = set(controller.tags)
-        names.update(tag.name for tag in self._generated_tags)
-        for program in controller.iter_programs():
-            names.update(program.tags)
-            names.update(
-                tag.name for tag in self._comparison_tags.get(program.name, [])
-            )
-            for routine in program.iter_routines():
-                for rung in routine.ladder_rungs:
-                    parsed = _parse_supported_rung(rung.text)
-                    if parsed is None:
-                        continue
-                    instructions = [
-                        operand
-                        for opcode, operand in parsed.tail_conditions
-                        if opcode == "ONS"
-                    ]
-                    if not instructions:
-                        continue
-                    storage_operand = instructions[0]
-                    base = (
-                        f"ONS_{program.name}_{routine.name}_"
-                        f"{rung.number if rung.number is not None else 'N'}"
-                    )
-                    generated: list[str] = []
-                    for suffix in ("FB", "IN", "Pulse", "Executed"):
-                        name = _unique_portable_name(f"{base}_{suffix}", names)
-                        names.add(name)
-                        generated.append(name)
-                    tags = self._oneshot_tags.setdefault(program.name, [])
-                    tags.append(
-                        Tag(
-                            name=generated[0],
-                            data_type="R_TRIG",
-                            description=(
-                                "TwinForge rising-edge instance for Rockwell "
-                                f"ONS storage operand {storage_operand}"
-                            ),
-                            metadata={
-                                "plcopen_derived_type": (
-                                    self._codesys.library_type("R_TRIG")
-                                    if self.profile is PLCopenProfile.CODESYS
-                                    else "R_TRIG"
-                                ),
-                                "rockwell_ons_storage": storage_operand,
-                            },
-                        )
-                    )
-                    for name, description in (
-                        (generated[1], "input"),
-                        (generated[2], "one-scan pulse"),
-                        (generated[3], "execution"),
-                    ):
-                        tags.append(
-                            Tag(
-                                name=name,
-                                data_type="BOOL",
-                                description=(
-                                    f"TwinForge ONS {description} for {storage_operand}"
-                                ),
-                            )
-                        )
-                    self._oneshots[id(rung)] = _OneShotExport(
-                        instance_name=generated[0],
-                        input_name=generated[1],
-                        pulse_name=generated[2],
-                        executed_name=generated[3],
-                    )
-
-    def _comparison_uses_unsupported_type(
-        self, operand_text: str, tags_by_name: dict[str, Tag]
-    ) -> bool:
-        for operand in _split_arguments(operand_text):
-            root_name = operand.split(".", 1)[0]
-            tag = tags_by_name.get(root_name)
-            if tag is None:
-                continue
-            if self._tag_export_type(tag) == "TIMER" and operand == f"{root_name}.ACC":
-                continue
-            if self._tag_export_type(tag) not in _PRIMITIVE_TYPES:
-                return True
-        return False
-
     def _comparison_operands(self, operands: list[str]) -> list[str]:
-        if not any(operand.endswith(".ACC") for operand in operands):
-            return [self._portable_operand(operand) for operand in operands]
-        converted: list[str] = []
-        for operand in operands:
-            if operand.endswith(".ACC"):
-                timer = self._timers.get(operand[:-4])
-                converted.append(timer.elapsed_name if timer is not None else operand)
-            elif _NUMERIC_LITERAL.fullmatch(operand):
-                converted.append(_milliseconds_time_literal(int(float(operand))))
-            else:
-                converted.append(f"DINT_TO_TIME({self._portable_operand(operand)})")
-        return converted
+        return self._operands.comparison_operands(operands)
 
     def _tag_export_type(self, tag: Tag) -> str:
-        if tag.data_type:
-            return tag.data_type.upper()
-        if tag.alias_for:
-            if tag.name in self._boolean_operands:
-                return "BOOL"
-            if (tag.radix or "").lower() == "float":
-                return "REAL"
-            return "BOOL"
-        return ""
+        return self._operands.tag_export_type(tag)
 
     def _portable_operand(self, operand: str) -> str:
-        return self._operand_names.get(operand, operand)
+        return self._operands.portable_operand(operand)
 
     def _id(self) -> int:
         value = self._next_local_id
