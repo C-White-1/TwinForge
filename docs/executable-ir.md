@@ -20,7 +20,7 @@ Resolved semantics
 Executable IR
     |
     +--> canonical IEC Structured Text emitter
-    +--> future CODESYS PLCopen adapter
+    +--> CODESYS PLCopen adapter
     +--> future OpenPLC adapter
 ```
 

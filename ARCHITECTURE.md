@@ -28,8 +28,13 @@ PLCopen XML | AutomationML | reports
 | `converters.l5x` | Source-specific conversion and reference resolution |
 | `model` | Vendor-neutral domain objects and source provenance |
 | `analysis` | Coverage and relationship analysis |
-| `exporters` | PLCopen XML and AutomationML generation and validation |
-| `cip`, `discovery` | Future/live controller and network acquisition |
+| `structured_text` | Lossless ST syntax and semantic analysis |
+| `ir` | Typed, vendor-neutral executable representation and normalization |
+| `runtime` | Vendor-neutral runtime contracts and executable reference behavior |
+| `exporters` | Generic IEC, PLCopen XML, AutomationML and report generation |
+| `targets` | Runtime-specific adapters and deployment packaging |
+| `assembly` | Multi-document/controller assembly and software-device resolution |
+| `transport`, `discovery` | CIP communication and live acquisition |
 
 PLCopen export is divided into target-neutral types, RLL parsing, XML/value
 helpers and validation, plus target adapters. CODESYS project structure and
@@ -40,6 +45,12 @@ AutomationML export is divided into instance-hierarchy construction,
 class-library generation, signal/I/O generation, deterministic identity, CAEX
 XSD validation and semantic-reference validation. `AutomationMLExporter`
 remains the serialization and filesystem façade.
+
+Architecture status, active hotspots, dependency rules and refactor completion
+criteria are maintained in the
+[architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md).
+The general PLCopen and CODESYS IR exporters are established boundaries but
+remain active decomposition targets as their supported behavior expands.
 
 ## Invariants
 

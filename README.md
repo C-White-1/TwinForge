@@ -14,7 +14,7 @@ tests/data/basic/BoosterCompressor_20260128.L5X
 
 Current results:
 
-- 192 automated tests pass;
+- the full automated test suite passes locally and in CI;
 - all 134 RLL rungs and 474 instruction occurrences in the fixture convert;
 - generated CODESYS PLCopen XML imports and precompiles with zero errors;
 - standard PLCopen XML validates against the PLCopen 2.01 XSD;
@@ -175,6 +175,7 @@ schemas must be obtained from their official publishers and supplied locally.
 ## Detailed documentation
 
 - [Architecture](ARCHITECTURE.md)
+- [Architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md)
 - [Domain model](MODEL.md)
 - [Roadmap](ROADMAP.md)
 - [Parameter and setpoint reports](docs/parameter-reports.md)

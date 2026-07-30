@@ -4,6 +4,11 @@ TwinForge is evolving from an L5X parser into a vendor-neutral industrial
 automation engineering toolkit. The roadmap distinguishes verified capability
 from intended work.
 
+Architecture and technical-debt work is tracked separately in the
+[architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md).
+Capability changes and structural changes must update the relevant roadmap in
+the same commit.
+
 ## Current foundation
 
 - [x] Specification-driven, lossless L5X capture
@@ -23,6 +28,15 @@ from intended work.
 - [x] Nominal, configured, unavailable, assigned and spare I/O reporting
 - [x] Manual-backed semantics for all 163 PowerFlex 525 parameters observed by
   the reference AOI bulk-read implementation
+- [x] Typed executable IR and tested Structured Text AOI conversion for
+  `Str_Capacity` and `RTC_PulseGen`
+- [x] CODESYS lifecycle, wall-clock, EtherNet/IP diagnostic, and
+  reconfiguration target adapters
+- [x] Single-drive and multi-drive PowerFlex 525 CODESYS applications
+- [x] Pydantic-validated CODESYS deployment manifests and reproducible
+  native-device/PLCopen bundles
+- [x] Responsibility-focused L5X module and AutomationML components
+- [x] Pyright, Ruff, and automated test checks in CI
 
 The current fixture converts all 134 rungs and 474 instruction occurrences.
 That is a project-specific result, not universal Logix coverage.
@@ -50,13 +64,17 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] Complex and nested branches
 - [ ] TOF, RTO, counters and sequencers
 - [ ] Additional comparison, bit, file and data-handling instructions
-- [ ] Structured Text, Function Block Diagram and SFC bodies
+- [x] Executable Structured Text subset through typed, vendor-neutral IR
+- [ ] Broaden Structured Text beyond the tested AOI subset
+- [ ] Function Block Diagram and SFC bodies
 - [ ] UDT, array and AOI representation
-- [ ] General AOI-to-IEC Structured Text transformation and target-runtime
-  adapter boundary
-- [ ] Convert `RTC_PulseGen` using the general AOI pipeline and the CODESYS
+- [x] General AOI-to-IEC Structured Text pipeline and target-runtime adapter
+  boundary established with two successful AOIs
+- [x] Convert `RTC_PulseGen` using the general AOI pipeline and the CODESYS
   high-resolution wall-clock adapter; see the
   [RTC_PulseGen AOI roadmap](docs/roadmaps/RTC_PulseGen-AOI-roadmap.md)
+- [ ] Broaden AOI conversion to additional instructions, datatypes, nested
+  calls, and lifecycle combinations
 - [ ] Add optional PLCopen Common Behaviour wrappers after underlying AOI
   translation is semantically validated
 - [ ] Produced/consumed and physical I/O binding strategies
@@ -66,10 +84,25 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] I/O list
 - [ ] Alarm and trip list
 - [ ] Cause-and-effect matrix
-- [ ] Functional-description draft
-- [ ] Setpoint and engineering-unit report
+- [x] PowerFlex device functional-description draft
+- [x] Parameter, setpoint, and engineering-unit reports
+- [x] PowerFlex cyclic-I/O, diagnostic, and conversion-readiness reports
+- [ ] General controller-level functional-description generation
 - [ ] Module and spare-I/O schedule
 - [ ] Signal and program dependency reports
+
+### Architecture maintenance
+
+The immediate structural priorities are maintained in the
+[architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md):
+
+- split instruction, operand, variable, and project responsibilities out of
+  the general PLCopen exporter;
+- divide CODESYS IR POU serialization from task, project, lifecycle, and
+  library metadata;
+- move PowerFlex-specific CODESYS composition beneath `targets.codesys`; and
+- generalize deployment packaging only after a second real device profile
+  establishes the reusable boundary.
 
 ## Next: communication modelling
 

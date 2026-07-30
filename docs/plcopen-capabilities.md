@@ -24,10 +24,10 @@ Its generated CODESYS document:
 - contains zero unsupported RLL rungs;
 - preserves five intentional `NOP()` rungs as no-operations.
 
-The automated suite currently contains 94 passing tests. The standard profile
-is also validated against the PLCopen XML 2.01 XSD. CODESYS-specific output
-uses the `tc6_0200` namespace and structures learned from native CODESYS
-exports.
+The full automated suite passes locally and in CI; the workflow records the
+current exact count. The standard profile is also validated against the
+PLCopen XML 2.01 XSD. CODESYS-specific output uses the `tc6_0200` namespace
+and structures learned from native CODESYS exports.
 
 The exporter keeps target-neutral RLL parsing, XML/value helpers and XSD
 validation separate from target adapters. CODESYS application metadata,
