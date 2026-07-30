@@ -185,6 +185,39 @@ equipment names. TwinForge emits `TF_PowerFlex525_Core` and
 binding, reconfiguration, command, status, and cyclic-I/O variables for each
 drive. Device names and CODESYS symbols must be unique IEC identifiers.
 
+For a reproducible deployment package, validate the checked-in JSON manifest
+and generate a self-contained CODESYS bundle:
+
+```powershell
+uv run python examples/export_powerflex525_codesys_bundle.py `
+  examples/deployment/powerflex525_two_drive.json `
+  build/powerflex525_two_drive
+```
+
+The bundle contains `manifest.json`, `native-device-template.export`,
+`application.xml`, and `IMPORT.md`. Pydantic validates external manifest
+syntax, IEC identifiers, unique names, unique addresses, RPI, image sizes, and
+connection-path bytes. The exporter then verifies those values against the
+native CODESYS fixture before writing anything. Pydantic remains an input
+boundary; TwinForge's internal domain model and executable IR remain ordinary
+typed dataclasses.
+
+Export 45 remains the verified complete two-drive project baseline. Export 46
+contains only the native Ethernet scanner, its generated scanner tasks, and
+the two configured device objects. The deployment manifest therefore declares
+export 46 as `device_configuration`, enabling the clean two-stage workflow:
+import the native template at the top-level device, then select `PLC Logic`
+and import the generated PLCopen application. CODESYS creates a second
+application whose POUs and `MainTask` must be consolidated into the original
+application containing the scanner tasks.
+
+That workflow was manually verified with a fresh CODESYS Control Win V3 x64
+project. Importing export 46 created both native devices and the two scanner
+tasks without application POUs. Importing the generated PLCopen XML at
+`PLC Logic` created `Application_1`; moving its three POUs and `MainTask` into
+the original application, deleting the empty imported application, running
+Clean All, and building completed successfully.
+
 All generated program inputs start at zero or false. In particular,
 non-bypassable permissive/interlock inputs and maximum speed do not default to
 an operational state. The imported demonstration therefore cannot produce a

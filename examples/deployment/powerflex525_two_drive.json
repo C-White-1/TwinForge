@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "project_name": "TwinForgePowerFlex525TwoDriveApplication",
+  "native_template": "../CODESYS/46_powerflex525_two_drive_device_template.export",
+  "native_template_scope": "device_configuration",
+  "devices": [
+    {
+      "name": "PF525_01",
+      "device_variable": "Dev_PF525_01",
+      "ip_address": "192.168.1.80",
+      "rpi_ms": 10,
+      "output_bytes": 4,
+      "input_bytes": 8,
+      "connection_path": [32, 4, 36, 6, 44, 2, 44, 1]
+    },
+    {
+      "name": "PF525_02",
+      "device_variable": "Dev_PF525_02",
+      "ip_address": "192.168.1.81",
+      "rpi_ms": 10,
+      "output_bytes": 4,
+      "input_bytes": 8,
+      "connection_path": [32, 4, 36, 6, 44, 2, 44, 1]
+    }
+  ]
+}

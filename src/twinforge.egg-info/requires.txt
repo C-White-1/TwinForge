@@ -1,4 +1,5 @@
 pycomm3>=1.2.16
+pydantic>=2.13.4
 
 [validation]
 lxml>=6.1.1

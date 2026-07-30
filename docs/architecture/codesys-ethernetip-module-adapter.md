@@ -96,6 +96,14 @@ interfaces belong to a deployment instance. The example address
 `192.168.1.80` and 10 ms RPI came from the source L5X and must not be copied
 blindly into another installation.
 
+The CODESYS deployment bundle keeps this installation evidence in a validated
+external manifest. Target-specific fields such as the generated
+`RemoteAdapter_diag` variable and native `.export` template remain in
+`twinforge.targets.codesys`; they do not enter the neutral runtime model. The
+bundle exporter verifies each configured device name, address, RPI, connection
+path, and cyclic image size against the native template before combining it
+with generated PLCopen application logic.
+
 Electronic keying is also deployment evidence. The captured Logix module had
 keying disabled, so its generic identity values do not establish the actual
 identity of every compatible drive.
