@@ -61,6 +61,9 @@ The general PLCopen and CODESYS IR exporters are established boundaries but
 remain active decomposition targets as their supported behavior expands.
 CODESYS IR project-integration configuration and naming/default policies are
 kept separately from XML serialization in `exporters.codesys_ir_integration`.
+Reusable-unit POU interfaces and datatype encoding are isolated in
+`exporters.codesys_ir_pou`, with lifecycle and identity behavior supplied
+through narrow callbacks.
 
 ## Invariants
 

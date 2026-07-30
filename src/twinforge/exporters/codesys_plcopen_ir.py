@@ -5,17 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-import re
 import xml.etree.ElementTree as ET
 
 from twinforge.ir import (
     IRDirection,
-    IRParameter,
     IRReusableUnit,
     IRRoutine,
     IRRoutineRole,
     IRUnitKind,
-    IRVariable,
 )
 from twinforge.structured_text import SourceSpan
 
@@ -32,6 +29,10 @@ from .codesys_ir_integration import (
     codesys_parameter_initial_value as codesys_parameter_initial_value,
     codesys_program_variable_name as codesys_program_variable_name,
 )
+from .codesys_ir_pou import (
+    CodesysIRInterfaceEmitter,
+    CodesysIRPOUEmitter,
+)
 from .iec_st import IECRequirement, IECSTDiagnostic
 from .plcopen_codesys import CODESYS_NAMESPACE, CodesysProfileSupport
 from .plcopen_types import PLCOPEN_CODESYS_NAMESPACE
@@ -39,32 +40,6 @@ from .plcopen_xml import qualified_name as q
 
 
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
-_ELEMENTARY_TYPES = {
-    "BOOL",
-    "BYTE",
-    "DATE",
-    "DINT",
-    "DWORD",
-    "INT",
-    "LINT",
-    "LREAL",
-    "LWORD",
-    "REAL",
-    "SINT",
-    "STRING",
-    "TIME",
-    "TIME_OF_DAY",
-    "TOD",
-    "UDINT",
-    "UINT",
-    "ULINT",
-    "USINT",
-    "WORD",
-    "WSTRING",
-}
-_BOUNDED_STRING = re.compile(r"(W?STRING)\((\d+)\)\Z", re.IGNORECASE)
-
-
 @dataclass(frozen=True)
 class CodesysPLCopenIRResult:
     """Serialized CODESYS PLCopen document and executable diagnostics."""
@@ -99,6 +74,7 @@ class CodesysIRPLCopenExporter:
 
     def __init__(self) -> None:
         self._profile = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
+        self._interface = CodesysIRInterfaceEmitter()
 
     def export(
         self,
@@ -430,7 +406,7 @@ class CodesysIRPLCopenExporter:
             {"name": declaration.name},
         )
         type_element = ET.SubElement(variable, q(ns, "type"))
-        self._data_type(
+        self._interface.data_type(
             type_element,
             declaration.data_type,
             declaration.dimensions,
@@ -482,34 +458,22 @@ class CodesysIRPLCopenExporter:
         return f"{call.instance_name}(\n{joined}\n);"
 
     def _pou(self, parent: ET.Element, unit: IRReusableUnit) -> None:
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        pou = ET.SubElement(
-            parent,
-            q(ns, "pou"),
-            {
-                "name": unit.name,
-                "pouType": (
-                    "functionBlock"
-                    if unit.kind is IRUnitKind.FUNCTION_BLOCK
-                    else "function"
-                ),
-            },
-        )
-        interface = ET.SubElement(pou, q(ns, "interface"))
-        self._parameters(interface, unit.parameters)
-        self._variables(interface, unit.variables)
-        body = ET.SubElement(pou, q(ns, "body"))
-        st = ET.SubElement(body, q(ns, "ST"))
-        text = ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml"))
-        text.text = self._body_text(unit)
-        add_data = ET.SubElement(pou, q(ns, "addData"))
+        CodesysIRPOUEmitter(
+            interface_emitter=self._interface,
+            body_text=self._body_text,
+            emit_lifecycle=self._emit_lifecycle,
+            object_id=self._profile.object_id,
+            append_object_id=self._profile.append_object_id_data,
+        ).emit(parent, unit)
+
+    def _emit_lifecycle(
+        self,
+        add_data: ET.Element,
+        unit: IRReusableUnit,
+    ) -> None:
         prescan = self._mapped_prescan(unit)
         if prescan is not None:
             self._prescan_method(add_data, unit, prescan)
-        self._profile.append_object_id_data(
-            add_data,
-            self._profile.object_id(f"Application/pou/{unit.name}"),
-        )
 
     def _prescan_method(
         self,
@@ -556,163 +520,6 @@ class CodesysIRPLCopenExporter:
         emitted = emit_codesys_st_routine(routine).text.rstrip()
         text.text = f"{emitted}\nFB_Init := TRUE;"
         ET.SubElement(method, q(ns, "addData"))
-
-    def _parameters(
-        self,
-        interface: ET.Element,
-        parameters: tuple[IRParameter, ...],
-    ) -> None:
-        groups = (
-            (IRDirection.INPUT, "inputVars"),
-            (IRDirection.OUTPUT, "outputVars"),
-            (IRDirection.INOUT, "inOutVars"),
-            (IRDirection.UNKNOWN, "localVars"),
-        )
-        for direction, element_name in groups:
-            members = [
-                item
-                for item in parameters
-                if item.direction is direction
-            ]
-            ordinary = [
-                item for item in members if not item.generic_dimensions
-            ]
-            generic = [
-                item for item in members if item.generic_dimensions
-            ]
-            if ordinary:
-                variable_list = ET.SubElement(
-                    interface,
-                    q(PLCOPEN_CODESYS_NAMESPACE, element_name),
-                )
-                for parameter in ordinary:
-                    self._variable(variable_list, parameter)
-            for parameter in generic:
-                self._generic_array_parameter(interface, parameter)
-
-    def _variables(
-        self,
-        interface: ET.Element,
-        variables: tuple[IRVariable, ...],
-    ) -> None:
-        if not variables:
-            return
-        local_variables = ET.SubElement(
-            interface,
-            q(PLCOPEN_CODESYS_NAMESPACE, "localVars"),
-        )
-        for variable in variables:
-            self._variable(local_variables, variable)
-
-    def _variable(
-        self,
-        parent: ET.Element,
-        declaration: IRParameter | IRVariable,
-    ) -> None:
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        variable = ET.SubElement(
-            parent,
-            q(ns, "variable"),
-            {"name": declaration.name},
-        )
-        type_element = ET.SubElement(variable, q(ns, "type"))
-        self._data_type(
-            type_element,
-            declaration.data_type,
-            declaration.dimensions,
-        )
-
-    def _generic_array_parameter(
-        self,
-        interface: ET.Element,
-        parameter: IRParameter,
-    ) -> None:
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        # Native CODESYS exports encode variable-length InOut arrays as an
-        # input pointer plus attributes that reconstruct the original scope.
-        variables = ET.SubElement(interface, q(ns, "inputVars"))
-        variable = ET.SubElement(
-            variables,
-            q(ns, "variable"),
-            {"name": parameter.name},
-        )
-        type_element = ET.SubElement(variable, q(ns, "type"))
-        pointer = ET.SubElement(type_element, q(ns, "pointer"))
-        base_type = ET.SubElement(pointer, q(ns, "baseType"))
-        self._data_type(base_type, parameter.data_type, None)
-
-        add_data = ET.SubElement(variable, q(ns, "addData"))
-        data = ET.SubElement(
-            add_data,
-            q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/attributes",
-                "handleUnknown": "implementation",
-            },
-        )
-        attributes = ET.SubElement(data, q(ns, "Attributes"))
-        dimension_count = len((parameter.dimensions or "").split(","))
-        array_shape = ", ".join("*" for _ in range(dimension_count))
-        scope = {
-            IRDirection.INPUT: "Input",
-            IRDirection.OUTPUT: "Output",
-            IRDirection.INOUT: "Inout",
-            IRDirection.UNKNOWN: "Local",
-        }[parameter.direction]
-        values = (
-            ("variable_length_array_original_scope", scope),
-            (
-                "variable_length_array",
-                f"ARRAY[{array_shape}] OF {parameter.data_type}",
-            ),
-            ("Dimensions", str(dimension_count)),
-        )
-        for name, value in values:
-            ET.SubElement(
-                attributes,
-                q(ns, "Attribute"),
-                {"Name": name, "Value": value},
-            )
-
-    def _data_type(
-        self,
-        parent: ET.Element,
-        data_type: str | None,
-        dimensions: str | None,
-    ) -> None:
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        if dimensions is not None:
-            array = ET.SubElement(parent, q(ns, "array"))
-            for dimension in dimensions.split(","):
-                length = int(dimension)
-                ET.SubElement(
-                    array,
-                    q(ns, "dimension"),
-                    {"lower": "0", "upper": str(max(length - 1, 0))},
-                )
-            base_type = ET.SubElement(array, q(ns, "baseType"))
-            self._data_type(base_type, data_type, None)
-            return
-        if data_type is not None and data_type.upper() in _ELEMENTARY_TYPES:
-            ET.SubElement(parent, q(ns, data_type.upper()))
-            return
-        bounded_string = (
-            _BOUNDED_STRING.fullmatch(data_type)
-            if data_type is not None
-            else None
-        )
-        if bounded_string is not None:
-            ET.SubElement(
-                parent,
-                q(ns, bounded_string.group(1).lower()),
-                {"length": bounded_string.group(2)},
-            )
-            return
-        ET.SubElement(
-            parent,
-            q(ns, "derived"),
-            {"name": data_type or "TF_UNRESOLVED_TYPE"},
-        )
 
     @staticmethod
     def _body_text(unit: IRReusableUnit) -> str:

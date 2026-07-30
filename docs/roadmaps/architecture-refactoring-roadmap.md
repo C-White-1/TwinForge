@@ -230,7 +230,7 @@ local-ID allocation.
 Next:
 
 - [x] Move integration dataclasses and naming rules into a focused module
-- [ ] Separate POU/interface serialization from project/task structure
+- [x] Separate POU/interface serialization from project/task structure
 - [ ] Separate lifecycle-method generation
 - [ ] Separate required-library discovery and metadata emission
 - [ ] Keep `CodesysIRPLCopenExporter` as the stable façade
@@ -240,6 +240,12 @@ Integration bindings, generated program variables, multi-call configuration,
 task defaults, binding-name policy and captured-default translation now live
 in `exporters.codesys_ir_integration`. The public exporter package and the
 former `codesys_plcopen_ir` import path retain compatibility re-exports.
+
+Reusable-unit POU structure, interface direction groups, local declarations,
+generic-array evidence and IEC datatype encoding now live in
+`exporters.codesys_ir_pou`. Lifecycle emission and deterministic identity are
+injected callbacks, keeping method generation and project metadata outside
+the POU serializer.
 
 ### Priority 3: move PowerFlex CODESYS composition into the target package
 
