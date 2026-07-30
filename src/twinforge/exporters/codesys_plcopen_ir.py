@@ -10,9 +10,7 @@ import xml.etree.ElementTree as ET
 from twinforge.ir import (
     IRDirection,
     IRReusableUnit,
-    IRRoutine,
     IRRoutineRole,
-    IRUnitKind,
 )
 from twinforge.structured_text import SourceSpan
 
@@ -29,6 +27,7 @@ from .codesys_ir_integration import (
     codesys_parameter_initial_value as codesys_parameter_initial_value,
     codesys_program_variable_name as codesys_program_variable_name,
 )
+from .codesys_ir_lifecycle import CodesysIRLifecycleEmitter
 from .codesys_ir_pou import (
     CodesysIRInterfaceEmitter,
     CodesysIRPOUEmitter,
@@ -75,6 +74,9 @@ class CodesysIRPLCopenExporter:
     def __init__(self) -> None:
         self._profile = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
         self._interface = CodesysIRInterfaceEmitter()
+        self._lifecycle = CodesysIRLifecycleEmitter(
+            object_id=self._profile.object_id
+        )
 
     def export(
         self,
@@ -97,7 +99,7 @@ class CodesysIRPLCopenExporter:
         additional_emissions = tuple(
             emit_codesys_st_unit(item) for item in additional_units
         )
-        prescan = self._mapped_prescan(unit)
+        prescan = self._lifecycle.mapped_prescan(unit)
         prescan_emission = (
             emit_codesys_st_routine(prescan)
             if prescan is not None
@@ -461,65 +463,10 @@ class CodesysIRPLCopenExporter:
         CodesysIRPOUEmitter(
             interface_emitter=self._interface,
             body_text=self._body_text,
-            emit_lifecycle=self._emit_lifecycle,
+            emit_lifecycle=self._lifecycle.emit,
             object_id=self._profile.object_id,
             append_object_id=self._profile.append_object_id_data,
         ).emit(parent, unit)
-
-    def _emit_lifecycle(
-        self,
-        add_data: ET.Element,
-        unit: IRReusableUnit,
-    ) -> None:
-        prescan = self._mapped_prescan(unit)
-        if prescan is not None:
-            self._prescan_method(add_data, unit, prescan)
-
-    def _prescan_method(
-        self,
-        add_data: ET.Element,
-        unit: IRReusableUnit,
-        routine: IRRoutine,
-    ) -> None:
-        """Emit enabled Prescan logic as the native CODESYS FB_Init method."""
-
-        ns = PLCOPEN_CODESYS_NAMESPACE
-        data = ET.SubElement(
-            add_data,
-            q(ns, "data"),
-            {
-                "name": f"{CODESYS_NAMESPACE}/method",
-                "handleUnknown": "implementation",
-            },
-        )
-        method = ET.SubElement(
-            data,
-            q(ns, "Method"),
-            {
-                "name": "FB_Init",
-                "ObjectId": self._profile.object_id(
-                    f"Application/pou/{unit.name}/method/FB_Init"
-                ),
-            },
-        )
-        interface = ET.SubElement(method, q(ns, "interface"))
-        return_type = ET.SubElement(interface, q(ns, "returnType"))
-        ET.SubElement(return_type, q(ns, "BOOL"))
-        inputs = ET.SubElement(interface, q(ns, "inputVars"))
-        for name in ("bInitRetains", "bInCopyCode"):
-            variable = ET.SubElement(
-                inputs,
-                q(ns, "variable"),
-                {"name": name},
-            )
-            type_element = ET.SubElement(variable, q(ns, "type"))
-            ET.SubElement(type_element, q(ns, "BOOL"))
-        body = ET.SubElement(method, q(ns, "body"))
-        st = ET.SubElement(body, q(ns, "ST"))
-        text = ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml"))
-        emitted = emit_codesys_st_routine(routine).text.rstrip()
-        text.text = f"{emitted}\nFB_Init := TRUE;"
-        ET.SubElement(method, q(ns, "addData"))
 
     @staticmethod
     def _body_text(unit: IRReusableUnit) -> str:
@@ -609,35 +556,15 @@ class CodesysIRPLCopenExporter:
                     ),
                 },
             )
-            if self._mapped_prescan(unit) is not None:
+            if self._lifecycle.has_mapped_prescan(unit):
                 ET.SubElement(
                     unit_object,
                     q(ns, "Object"),
                     {
                         "Name": "FB_Init",
-                        "ObjectId": self._profile.object_id(
-                            f"Application/pou/{unit.name}/method/FB_Init"
-                        ),
+                        "ObjectId": self._lifecycle.method_object_id(unit),
                     },
                 )
-
-    @staticmethod
-    def _mapped_prescan(unit: IRReusableUnit) -> IRRoutine | None:
-        """Return the enabled captured Prescan routine, when target-mappable."""
-
-        if (
-            unit.kind is not IRUnitKind.FUNCTION_BLOCK
-            or unit.lifecycle.prescan_enabled is not True
-        ):
-            return None
-        return next(
-            (
-                routine
-                for routine in unit.routines
-                if routine.role is IRRoutineRole.PRESCAN
-            ),
-            None,
-        )
 
     @staticmethod
     def _needs_wall_clock_library(unit: IRReusableUnit) -> bool:

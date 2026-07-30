@@ -64,6 +64,9 @@ kept separately from XML serialization in `exporters.codesys_ir_integration`.
 Reusable-unit POU interfaces and datatype encoding are isolated in
 `exporters.codesys_ir_pou`, with lifecycle and identity behavior supplied
 through narrow callbacks.
+CODESYS lifecycle eligibility and native method emission are isolated in
+`exporters.codesys_ir_lifecycle`; the exporter consumes that single policy
+for diagnostics, POU content and project-tree metadata.
 
 ## Invariants
 
