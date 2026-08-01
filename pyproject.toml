@@ -32,6 +32,10 @@ include = [
     "examples",
 ]
 exclude = [
+    # Preserve Pyright's default excludes when supplying project exclusions.
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
     # Legacy live-discovery example for an API that is not implemented yet.
     "examples/build_twin.py",
     "reference",
