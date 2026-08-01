@@ -87,8 +87,11 @@ conversion or target layers. Exporter-to-target imports are restricted to
 documented compatibility surfaces, and public package exports must be unique
 and resolvable.
 
-`targets.openplc` exposes a standards-only PLCopen 2.01 façade with no direct
-CODESYS dependency or emitted CODESYS metadata. Native OpenPLC import/runtime
+`targets.openplc` exposes a standards-only PLCopen 2.01 façade and a separate
+native project-directory packager, with no direct CODESYS dependency or
+emitted CODESYS metadata. The native packager currently accepts only the
+evidenced local-BOOL, serial-XIC-to-OTE Ladder subset and rejects other
+semantics before writing a partial project. Native OpenPLC editor/runtime
 compatibility remains an evidence milestone rather than an inferred claim.
 
 ## Invariants

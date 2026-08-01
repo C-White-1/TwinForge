@@ -306,8 +306,13 @@ Deferred until another device profile or target exists:
 - [x] Stop tracking generated `*.egg-info` metadata in a dedicated cleanup
   commit
 - [x] Add an OpenPLC target without importing CODESYS assumptions
-- [ ] Validate generated standard PLCopen XML through a native OpenPLC import
-  and runtime smoke test
+- [x] Determine whether the observed OpenPLC editor exposes PLCopen XML import
+- [x] Validate a generated native OpenPLC project through editor load, build,
+  and runtime smoke tests
+- [x] Add a deterministic OpenPLC smoke fixture workflow and native validation
+  checklist
+- [x] Add native OpenPLC project-directory packaging after ladder source
+  evidence establishes the `.ld` JSON schema
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent
@@ -326,9 +331,26 @@ target `__all__` surfaces are checked for duplicate or unresolved names.
 
 `targets.openplc.OpenPLCExporter` now provides a minimal standards-based
 target façade over PLCopen XML 2.01. It emits no CODESYS extensions and is
-byte-identical to the generic standard profile. This is an architecture
-foundation, not yet a claim of native OpenPLC import compatibility; that
-requires an external import and runtime smoke test.
+byte-identical to the generic standard profile. The observed OpenPLC editor
+offers PLCopen XML and CODESYS XML export but no corresponding import
+operation, so this is an exchange/comparison artifact rather than a native
+project loader.
+
+The native validation workflow is documented in
+`docs/experiments/OpenPLC-native-project-compatibility.md`. It deliberately
+starts with a two-tag, one-rung deterministic fixture before testing a
+representative L5X conversion, so target compatibility can be distinguished
+from instruction coverage.
+
+Native OpenPLC evidence established that its working-project format is a
+directory containing scheduling metadata, language-specific POU files, device
+configuration, and pin mappings. The Ladder Diagram `.ld` file uses an IEC
+declaration envelope around an OpenPLC JSON rung model. A separate native
+packager now implements the evidenced local-BOOL, serial-XIC-to-OTE subset
+with deterministic identities and fail-fast rejection of unsupported
+semantics. The generated fixture has opened, compiled, uploaded, run, and
+passed its false/true/false located-variable behavior test on OpenPLC Runtime
+v3. The packager remains separate from the generic PLCopen exporter.
 
 ## Refactor completion checklist
 
