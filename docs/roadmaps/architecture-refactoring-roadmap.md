@@ -313,6 +313,18 @@ Deferred until another device profile or target exists:
   checklist
 - [x] Add native OpenPLC project-directory packaging after ladder source
   evidence establishes the `.ld` JSON schema
+- [x] Validate native OpenPLC serial, parallel, seal-in, and canonical `TON`
+  lowering through editor, compiler, and runtime tests
+- [x] Expose optional `TON.ET` telemetry through an explicitly configured
+  `%MD` location and the runtime-verified `TIME_TO_DINT` conversion
+- [x] Capture native OpenPLC `TOF` editor output and validate immediate-on,
+  delayed-off, and cancellation behavior at runtime
+- [x] Implement canonical Rockwell `TOF`/`.DN` lowering with a distinct IEC
+  `TOF` declaration and block type
+- [x] Validate the TwinForge-generated `TOF` fixture through OpenPLC compile
+  and runtime behavior tests
+- [ ] Establish the required retentive state and reset semantics before
+  implementing Rockwell `RTO`/`RES` lowering
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent
@@ -346,11 +358,15 @@ Native OpenPLC evidence established that its working-project format is a
 directory containing scheduling metadata, language-specific POU files, device
 configuration, and pin mappings. The Ladder Diagram `.ld` file uses an IEC
 declaration envelope around an OpenPLC JSON rung model. A separate native
-packager now implements the evidenced local-BOOL, serial-XIC-to-OTE subset
-with deterministic identities and fail-fast rejection of unsupported
-semantics. The generated fixture has opened, compiled, uploaded, run, and
-passed its false/true/false located-variable behavior test on OpenPLC Runtime
-v3. The packager remains separate from the generic PLCopen exporter.
+packager now implements the evidenced local-BOOL serial and two-path parallel
+subset, seal-in branches, canonical Rockwell `TON`/`.DN` lowering, and
+canonical Rockwell `TOF`/`.DN` lowering. Optional `TON` elapsed-time telemetry
+is exposed through a located `%MD` `DINT`; `TOF` telemetry remains blocked
+until separately runtime-tested. The packager uses
+deterministic identities and fail-fast rejection of unsupported semantics.
+Generated fixtures have opened, compiled, uploaded, and passed their runtime
+truth-table, seal-in, timer, and elapsed-value tests on OpenPLC Runtime v3.
+The packager remains separate from the generic PLCopen exporter.
 
 ## Refactor completion checklist
 

@@ -80,10 +80,10 @@ def _seal_in_controller() -> Controller:
     return controller
 
 
-def _timer_controller() -> Controller:
-    """Build a canonical Rockwell TON rung followed by its DN consumer."""
+def _timer_controller(instruction: str = "TON") -> Controller:
+    """Build a canonical Rockwell timer rung followed by its DN consumer."""
 
-    controller = _controller("XIC(Enable)TON(DelayTimer,?,?);")
+    controller = _controller(f"XIC(Enable){instruction}(DelayTimer,?,?);")
     program = next(iter(controller.programs.values()))
     program.tags.clear()
     program.add_tag(Tag(name="Enable", data_type="BOOL"))
@@ -434,6 +434,29 @@ def test_lowers_canonical_rockwell_timer_pair_to_iec_ton(tmp_path: Path) -> None
     ]
 
 
+def test_lowers_canonical_rockwell_tof_pair_to_iec_tof(tmp_path: Path) -> None:
+    destination = tmp_path / "off-delay-timer"
+
+    OpenPLCNativeProjectExporter().export(
+        _timer_controller("TOF"),
+        destination=destination,
+        locations={"Enable": "%QX0.0", "Output": "%QX0.1"},
+    )
+
+    path = destination / "pous/programs/main.ld"
+    text = path.read_text()
+    assert "DelayTimer : TOF;" in text
+    ladder = _ladder_json(path)
+    assert len(ladder["rungs"]) == 1
+    block = next(
+        node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block"
+    )
+    assert block["data"]["variant"]["name"] == "TOF"
+    assert block["data"]["variable"]["name"] == "DelayTimer"
+    assert block["data"]["variable"]["type"]["value"] == "TOF"
+    assert block["data"]["connectedVariables"][0]["variable"]["name"] == ("TIME#5000ms")
+
+
 def test_exposes_timer_elapsed_seconds_at_explicit_md_location(
     tmp_path: Path,
 ) -> None:
@@ -488,6 +511,20 @@ def test_rejects_unknown_timer_or_unevidenced_elapsed_location(
             _timer_controller(),
             destination=tmp_path / "invalid-timer-elapsed",
             timer_elapsed_locations=timer_elapsed_locations,
+        )
+
+
+def test_rejects_tof_elapsed_telemetry_until_runtime_evidenced(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(
+        OpenPLCNativeUnsupportedError,
+        match="runtime-evidenced only for TON",
+    ):
+        OpenPLCNativeProjectExporter().export(
+            _timer_controller("TOF"),
+            destination=tmp_path / "unevidenced-tof-elapsed",
+            timer_elapsed_locations={"DelayTimer": "%MD0"},
         )
 
 

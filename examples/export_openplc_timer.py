@@ -1,4 +1,4 @@
-"""Generate the first native OpenPLC Rockwell-TON lowering fixture."""
+"""Generate an evidenced native OpenPLC non-retentive timer fixture."""
 
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from twinforge.model import (
 from twinforge.targets.openplc import OpenPLCNativeProjectExporter
 
 
-def build_timer_controller() -> Controller:
-    """Build a 5-second Rockwell TON and its canonical DN consumer rung."""
+def build_timer_controller(instruction: str = "TON") -> Controller:
+    """Build a 5-second Rockwell timer and its canonical DN consumer rung."""
 
     controller = Controller(name="OpenPLCTimer", identity=Identity())
     program = Program(name="PLC_PRG")
@@ -63,7 +63,10 @@ def build_timer_controller() -> Controller:
     routine = Routine(name="MainRoutine", language="RLL")
     routine.ladder_rungs.extend(
         [
-            LadderRung(number=0, text="XIC(Enable)TON(DelayTimer,?,?);"),
+            LadderRung(
+                number=0,
+                text=f"XIC(Enable){instruction}(DelayTimer,?,?);",
+            ),
             LadderRung(number=1, text="XIC(DelayTimer.DN)OTE(Output);"),
         ]
     )
@@ -87,14 +90,22 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
+    parser.add_argument(
+        "--instruction",
+        choices=("TON", "TOF"),
+        default="TON",
+        help="Evidenced non-retentive Rockwell timer instruction",
+    )
     args = parser.parse_args()
     result = OpenPLCNativeProjectExporter().export(
-        build_timer_controller(),
+        build_timer_controller(args.instruction),
         destination=args.destination,
-        project_name="TwinForge OpenPLC TON",
+        project_name=f"TwinForge OpenPLC {args.instruction}",
         compile_only=True,
         locations={"Enable": "%QX0.0", "Output": "%QX0.1"},
-        timer_elapsed_locations={"DelayTimer": "%MD0"},
+        timer_elapsed_locations=(
+            {"DelayTimer": "%MD0"} if args.instruction == "TON" else None
+        ),
     )
     print(f"Exported native OpenPLC timer project to {result.destination}")
 

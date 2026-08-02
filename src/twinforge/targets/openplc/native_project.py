@@ -43,6 +43,18 @@ class OpenPLCNativeProjectResult:
     native_program_name: str = OPENPLC_MAIN_PROGRAM
 
 
+@dataclass(frozen=True)
+class _NativeTimerPair:
+    """One evidenced Rockwell timer rung and its `.DN` consumer."""
+
+    instruction: str
+    enable_name: str
+    timer_name: str
+    preset_ms: int
+    output_name: str
+    comment: str
+
+
 class OpenPLCNativeProjectExporter:
     """Package the proven local-BOOL, serial-XIC-to-OTE Ladder subset."""
 
@@ -77,13 +89,19 @@ class OpenPLCNativeProjectExporter:
         resolved_locations = dict(locations or {})
         _validate_locations(program, resolved_locations)
         elapsed_locations = dict(timer_elapsed_locations or {})
-        _validate_timer_elapsed_locations(operands, elapsed_locations)
+        timer_types = _timer_instruction_types(program, operands)
+        _validate_timer_elapsed_locations(
+            operands,
+            elapsed_locations,
+            timer_types,
+        )
         ladder = _ladder_document(
             program,
             OPENPLC_MAIN_PROGRAM,
             resolved_locations,
             operands,
             elapsed_locations,
+            timer_types,
         )
         device = _device_document(compile_only=compile_only)
         documents = {
@@ -211,6 +229,7 @@ def _validate_locations(program: Program, locations: Mapping[str, str]) -> None:
 def _validate_timer_elapsed_locations(
     operands: PLCopenOperandPlan,
     locations: Mapping[str, str],
+    timer_types: Mapping[str, str],
 ) -> None:
     unknown = sorted(set(locations).difference(operands.timers))
     if unknown:
@@ -226,6 +245,12 @@ def _validate_timer_elapsed_locations(
         raise OpenPLCNativeUnsupportedError(
             "timer elapsed telemetry requires evidenced %MD DINT locations: "
             + ", ".join(unsupported)
+        )
+    unevidenced = [name for name in locations if timer_types.get(name) != "TON"]
+    if unevidenced:
+        raise OpenPLCNativeUnsupportedError(
+            "elapsed telemetry is currently runtime-evidenced only for TON: "
+            + ", ".join(unevidenced)
         )
 
 
@@ -303,9 +328,17 @@ def _ladder_document(
     locations: Mapping[str, str],
     operands: PLCopenOperandPlan,
     elapsed_locations: Mapping[str, str],
+    timer_types: Mapping[str, str],
 ) -> str:
+    routine = program.main_routine
+    assert routine is not None
     declaration_lines = [
-        _variable_declaration(tag.name, tag.data_type, locations.get(tag.name))
+        _variable_declaration(
+            tag.name,
+            tag.data_type,
+            locations.get(tag.name),
+            timer_types.get(tag.name, "TON"),
+        )
         for tag in program.iter_tags()
     ]
     for timer_name, location in elapsed_locations.items():
@@ -317,20 +350,18 @@ def _ladder_document(
         )
     declarations = "\n".join(declaration_lines)
     header = f"PROGRAM {native_name}\nVAR\n{declarations}\nEND_VAR\n\n"
-    routine = program.main_routine
-    assert routine is not None
     rungs: list[dict[str, object]] = []
     source_index = 0
     while source_index < len(routine.ladder_rungs):
         pair = _timer_pair(program, source_index, operands)
         if pair is not None:
-            elapsed_location = elapsed_locations.get(pair[1])
-            elapsed_name = f"{pair[1]}_ET" if elapsed_location else None
+            elapsed_location = elapsed_locations.get(pair.timer_name)
+            elapsed_name = f"{pair.timer_name}_ET" if elapsed_location else None
             rungs.append(
                 _native_timer_rung(
                     native_name,
                     len(rungs),
-                    *pair,
+                    pair,
                     elapsed_name=elapsed_name,
                 )
             )
@@ -339,7 +370,7 @@ def _ladder_document(
                     _native_elapsed_conversion_rung(
                         native_name,
                         len(rungs),
-                        pair[1],
+                        pair.timer_name,
                         elapsed_location,
                     )
                 )
@@ -358,20 +389,48 @@ def _variable_declaration(
     name: str,
     data_type: str | None,
     location: str | None,
+    timer_type: str,
 ) -> str:
     if (data_type or "").upper() == "TIMER":
-        return f"\t{name} : TON;"
+        return f"\t{name} : {timer_type};"
     if location is None:
         return f"\t{name} : BOOL;"
     return f"\t{name} : bool AT {location};"
+
+
+def _timer_instruction_types(
+    program: Program,
+    operands: PLCopenOperandPlan,
+) -> dict[str, str]:
+    """Resolve native timer instance types from evidenced source rungs."""
+
+    routine = program.main_routine
+    if routine is None:
+        return {}
+    resolved: dict[str, str] = {}
+    index = 0
+    while index < len(routine.ladder_rungs):
+        pair = _timer_pair(program, index, operands)
+        if pair is None:
+            index += 1
+            continue
+        prior = resolved.get(pair.timer_name)
+        if prior is not None and prior != pair.instruction:
+            raise OpenPLCNativeUnsupportedError(
+                f"timer {pair.timer_name!r} is used by both {prior} and "
+                f"{pair.instruction}"
+            )
+        resolved[pair.timer_name] = pair.instruction
+        index += 2
+    return resolved
 
 
 def _timer_pair(
     program: Program,
     index: int,
     operands: PLCopenOperandPlan,
-) -> tuple[str, str, int, str, str] | None:
-    """Recognize one canonical TON rung followed by its DN output rung."""
+) -> _NativeTimerPair | None:
+    """Recognize a canonical non-retentive timer and `.DN` output pair."""
 
     routine = program.main_routine
     if routine is None or index + 1 >= len(routine.ladder_rungs):
@@ -387,7 +446,7 @@ def _timer_pair(
         or len(timer_parsed.tail_conditions) != 1
         or timer_parsed.tail_conditions[0][0] != "XIC"
         or len(timer_parsed.outputs) != 1
-        or timer_parsed.outputs[0][0] != "TON"
+        or timer_parsed.outputs[0][0] not in {"TON", "TOF"}
         or done_parsed.branches
         or len(done_parsed.tail_conditions) != 1
         or len(done_parsed.outputs) != 1
@@ -403,27 +462,24 @@ def _timer_pair(
     timer = operands.timers.get(timer_name)
     if timer is None:
         return None
-    return (
-        timer_parsed.tail_conditions[0][1],
-        timer_name,
-        timer.preset_ms,
-        done_parsed.outputs[0][1],
-        timer_rung.comment or done_rung.comment or "",
+    return _NativeTimerPair(
+        instruction=timer_parsed.outputs[0][0],
+        enable_name=timer_parsed.tail_conditions[0][1],
+        timer_name=timer_name,
+        preset_ms=timer.preset_ms,
+        output_name=done_parsed.outputs[0][1],
+        comment=timer_rung.comment or done_rung.comment or "",
     )
 
 
 def _native_timer_rung(
     program_name: str,
     index: int,
-    enable_name: str,
-    timer_name: str,
-    preset_ms: int,
-    output_name: str,
-    comment: str,
+    pair: _NativeTimerPair,
     *,
     elapsed_name: str | None = None,
 ) -> dict[str, object]:
-    """Lower a canonical Rockwell TON/DN pair to one IEC TON network."""
+    """Lower a canonical Rockwell timer pair to one IEC timer network."""
 
     rung_id = f"rung_{program_name}_{_stable_uuid(f'{program_name}/rung/{index}')}"
     left_id = f"left-rail-{rung_id}"
@@ -437,9 +493,14 @@ def _native_timer_rung(
     right_x = 626 if elapsed_name else 491
     nodes = [
         _rail_node(left_id, left=True),
-        _instruction_node(contact_id, "contact", enable_name, 68, 24),
-        _timer_preset_node(preset_id, block_id, preset_ms),
-        _timer_block_node(block_id, timer_name, preset_ms),
+        _instruction_node(contact_id, "contact", pair.enable_name, 68, 24),
+        _timer_preset_node(preset_id, block_id, pair.preset_ms),
+        _timer_block_node(
+            block_id,
+            pair.timer_name,
+            pair.preset_ms,
+            pair.instruction,
+        ),
     ]
     if elapsed_name:
         nodes.append(
@@ -456,7 +517,7 @@ def _native_timer_rung(
         )
     nodes.extend(
         [
-            _instruction_node(coil_id, "coil", output_name, coil_x, 28),
+            _instruction_node(coil_id, "coil", pair.output_name, coil_x, 28),
             _rail_node(right_id, left=False, x=right_x),
         ]
     )
@@ -471,7 +532,7 @@ def _native_timer_rung(
         edges.append(_edge(block_id, "ET", elapsed_id, "input"))
     return {
         "id": rung_id,
-        "comment": comment,
+        "comment": pair.comment,
         "defaultBounds": [300, 100],
         "reactFlowViewport": [629 if elapsed_name else 491, 134],
         "nodes": nodes,
@@ -483,8 +544,9 @@ def _timer_block_node(
     identifier: str,
     timer_name: str,
     preset_ms: int,
+    timer_type: str,
 ) -> dict[str, object]:
-    """Create the native IEC TON block metadata required by OpenPLC Editor."""
+    """Create native IEC timer metadata required by OpenPLC Editor."""
 
     handles = [
         _block_connector("IN", 257, 50, "left", "target", 0, 36),
@@ -515,15 +577,19 @@ def _timer_block_node(
             "outputConnector": handles[2],
             "numericId": _numeric_id(identifier),
             "variant": {
-                "name": "TON",
+                "name": timer_type,
                 "type": "function-block",
                 "language": "st",
                 "variables": variables,
-                "documentation": "IEC on-delay timer",
+                "documentation": (
+                    "IEC on-delay timer"
+                    if timer_type == "TON"
+                    else "IEC off-delay timer"
+                ),
             },
             "variable": {
                 "name": timer_name,
-                "type": {"definition": "derived", "value": "TON"},
+                "type": {"definition": "derived", "value": timer_type},
                 "class": "local",
                 "location": "",
                 "documentation": "",

@@ -120,7 +120,8 @@ confirm that OpenPLC treats these values as opaque identities.
 - local `BOOL` variables and IEC `TON` instances;
 - serial `XIC` conditions driving one `OTE`;
 - two-path parallel `XIC` branches, with an optional trailing `XIC` or `XIO`;
-- canonical Rockwell `TON`/`.DN` rung pairs lowered to one IEC `TON` network;
+- canonical Rockwell `TON`/`.DN` and `TOF`/`.DN` rung pairs lowered to their
+  corresponding IEC timer networks;
   and
 - optional timer elapsed-time telemetry at an explicit `%MD` location.
 
@@ -247,6 +248,27 @@ TwinForge keeps this mapping target-specific. Callers opt in with
 `timer_elapsed_locations={"DelayTimer": "%MD0"}`; no located telemetry tag is
 invented in the neutral controller model. Unknown timer names and locations
 outside the evidenced `%MD<number>` form are rejected before files are written.
+The current elapsed-time option is restricted to `TON`; it will not be claimed
+for `TOF` until the generated ET path is independently runtime-tested.
+
+### Off-delay timer evidence
+
+An OpenPLC Editor project using `DelayTimer : TOF` compiled on 3 August 2026.
+Runtime tests confirmed all three defining behaviors:
+
+- `Q` becomes true immediately when `IN` becomes true;
+- `Q` remains true for the five-second preset after `IN` becomes false; and
+- returning `IN` true during that interval cancels the pending off-delay.
+
+The captured native graph uses the same `IN`, `PT`, `Q`, and `ET` connector
+shape as `TON`, while preserving `TOF` in both the IEC declaration and block
+metadata. TwinForge therefore shares graph construction but carries the timer
+instruction kind explicitly; it does not rewrite `TOF` as `TON`.
+
+The independently generated `native-tof-generated` fixture subsequently
+opened and compiled successfully in OpenPLC. Its runtime behavior also passed
+the immediate-on, five-second delayed-off, and cancellation checks without
+manual changes, validating the complete TwinForge generation path.
 
 The native project's PLCopen XML export should also be retained as comparison
 evidence. It can reveal semantic differences between TwinForge's generic XML

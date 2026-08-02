@@ -39,12 +39,10 @@ SUPPORTED_RLL_INSTRUCTIONS = frozenset(
 )
 
 _RLL_INSTRUCTION = re.compile(
-    r"\s*(XIC|XIO|OTE|OTL|OTU|EQU|NEQ|GRT|GEQ|LES|LEQ|TON|RES|"
+    r"\s*(XIC|XIO|OTE|OTL|OTU|EQU|NEQ|GRT|GEQ|LES|LEQ|TON|TOF|RES|"
     r"MOV|ADD|SUB|MUL|DIV|ONS)\s*\(([^()]*)\)"
 )
-_JSR_INSTRUCTION = re.compile(
-    r"\s*JSR\s*\(\s*([^,()]+)\s*,\s*0\s*\)\s*;\s*"
-)
+_JSR_INSTRUCTION = re.compile(r"\s*JSR\s*\(\s*([^,()]+)\s*,\s*0\s*\)\s*;\s*")
 
 
 @dataclass(frozen=True)
@@ -85,9 +83,7 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
         parsed_branches: list[tuple[tuple[str, str], ...]] = []
         for part in branch_parts:
             branch = _parse_instruction_sequence(part)
-            if not branch or any(
-                opcode not in {"XIC", "XIO"} for opcode, _ in branch
-            ):
+            if not branch or any(opcode not in {"XIC", "XIO"} for opcode, _ in branch):
                 return None
             parsed_branches.append(tuple(branch))
         branches = tuple(parsed_branches)
@@ -99,7 +95,15 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
     tail_conditions: list[tuple[str, str]] = []
     outputs: list[tuple[str, str]] = []
     output_seen = False
-    output_opcodes = {"OTE", "OTL", "OTU", "TON", "RES", *VALUE_BLOCK_TYPES}
+    output_opcodes = {
+        "OTE",
+        "OTL",
+        "OTU",
+        "TON",
+        "TOF",
+        "RES",
+        *VALUE_BLOCK_TYPES,
+    }
     for opcode, operand in instructions:
         if opcode in {"XIC", "XIO"} and output_seen:
             return None
@@ -146,7 +150,7 @@ def _parse_instruction_sequence(text: str) -> list[tuple[str, str]] | None:
         opcode = match.group(1)
         if opcode in COMPARISON_TYPES and len(split_arguments(operand)) != 2:
             return None
-        if opcode == "TON" and len(split_arguments(operand)) != 3:
+        if opcode in {"TON", "TOF"} and len(split_arguments(operand)) != 3:
             return None
         if opcode in {"RES", "ONS"} and "," in operand:
             return None
