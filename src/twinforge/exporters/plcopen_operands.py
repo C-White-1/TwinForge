@@ -123,17 +123,11 @@ class PLCopenOperandPlan:
         for operand in operands:
             if operand.endswith(".ACC"):
                 timer = self.timers.get(operand[:-4])
-                converted.append(
-                    timer.elapsed_name if timer is not None else operand
-                )
+                converted.append(timer.elapsed_name if timer is not None else operand)
             elif _NUMERIC_LITERAL.fullmatch(operand):
-                converted.append(
-                    milliseconds_time_literal(int(float(operand)))
-                )
+                converted.append(milliseconds_time_literal(int(float(operand))))
             else:
-                converted.append(
-                    f"DINT_TO_TIME({self.portable_operand(operand)})"
-                )
+                converted.append(f"DINT_TO_TIME({self.portable_operand(operand)})")
         return converted
 
 
@@ -165,21 +159,16 @@ class PLCopenOperandPlanner:
             boolean_operands=frozenset(self._boolean_operands),
             generated_tags=tuple(self._generated_tags),
             comparison_tags={
-                name: tuple(tags)
-                for name, tags in self._comparison_tags.items()
+                name: tuple(tags) for name, tags in self._comparison_tags.items()
             },
             comparison_temps={
-                rung: tuple(names)
-                for rung, names in self._comparison_temps.items()
+                rung: tuple(names) for rung, names in self._comparison_temps.items()
             },
-            unsupported_comparison_rungs=frozenset(
-                self._unsupported_comparison_rungs
-            ),
+            unsupported_comparison_rungs=frozenset(self._unsupported_comparison_rungs),
             timers=dict(self._timers),
             oneshots=dict(self._oneshots),
             oneshot_tags={
-                name: tuple(tags)
-                for name, tags in self._oneshot_tags.items()
+                name: tuple(tags) for name, tags in self._oneshot_tags.items()
             },
             diagnostics=tuple(self._diagnostics),
         )
@@ -201,9 +190,7 @@ class PLCopenOperandPlanner:
         for program in controller.iter_programs():
             tags.extend(program.tags.values())
         names = {tag.name for tag in tags}
-        aliases_by_target = {
-            tag.alias_for: tag.name for tag in tags if tag.alias_for
-        }
+        aliases_by_target = {tag.alias_for: tag.name for tag in tags if tag.alias_for}
         for program in controller.iter_programs():
             tags_by_name = dict(controller.tags)
             tags_by_name.update(program.tags)
@@ -261,7 +248,7 @@ class PLCopenOperandPlanner:
                             }
                             else [operand_text]
                         )
-                        if opcode == "TON":
+                        if opcode in {"TON", "TOF", "RTO"}:
                             operands = [split_arguments(operand_text)[0]]
                         for operand in operands:
                             is_boolean = opcode in {
@@ -287,16 +274,12 @@ class PLCopenOperandPlanner:
                                 self._generated_tags.append(
                                     Tag(
                                         name=portable,
-                                        data_type=(
-                                            "BOOL" if is_boolean else "REAL"
-                                        ),
+                                        data_type=("BOOL" if is_boolean else "REAL"),
                                         description=(
                                             "Portable surrogate for Rockwell "
                                             f"operand {operand}"
                                         ),
-                                        metadata={
-                                            "plcopen_source_operand": operand
-                                        },
+                                        metadata={"plcopen_source_operand": operand},
                                     )
                                 )
                                 self._diagnostic(
@@ -345,9 +328,7 @@ class PLCopenOperandPlanner:
                     Tag(
                         name=name,
                         data_type=data_type,
-                        description=(
-                            f"TwinForge IEC timer {suffix} for {tag.name}"
-                        ),
+                        description=(f"TwinForge IEC timer {suffix} for {tag.name}"),
                     )
                 )
             self._timers[tag.name] = PLCopenTimerExport(
@@ -364,8 +345,7 @@ class PLCopenOperandPlanner:
         for program in controller.iter_programs():
             names.update(program.tags)
             names.update(
-                tag.name
-                for tag in self._comparison_tags.get(program.name, [])
+                tag.name for tag in self._comparison_tags.get(program.name, [])
             )
             for routine in program.iter_routines():
                 for rung in routine.ladder_rungs:
@@ -402,9 +382,7 @@ class PLCopenOperandPlanner:
                                 f"ONS storage operand {storage_operand}"
                             ),
                             metadata={
-                                "plcopen_derived_type": (
-                                    self._rising_trigger_type
-                                ),
+                                "plcopen_derived_type": (self._rising_trigger_type),
                                 "rockwell_ons_storage": storage_operand,
                             },
                         )
@@ -419,8 +397,7 @@ class PLCopenOperandPlanner:
                                 name=name,
                                 data_type="BOOL",
                                 description=(
-                                    f"TwinForge ONS {description} for "
-                                    f"{storage_operand}"
+                                    f"TwinForge ONS {description} for {storage_operand}"
                                 ),
                             )
                         )

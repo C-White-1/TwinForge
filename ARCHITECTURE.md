@@ -92,7 +92,8 @@ native project-directory packager, with no direct CODESYS dependency or
 emitted CODESYS metadata. The native packager currently accepts only the
 evidenced local-BOOL serial and two-path parallel Ladder subset, canonical
 Rockwell `TON` and `TOF`/`.DN` pairs, and optional `%MD` `TON` elapsed-time
-telemetry. It
+telemetry. The evidenced adjacent Rockwell `RTO`/`.DN`/`RES` group is lowered
+through a generated, target-owned `TF_RTO` compatibility function block. It
 rejects other semantics before writing a partial project. Native OpenPLC
 editor/runtime compatibility is expanded only after editor, compiler, and
 runtime evidence—not by inferring that superficially similar blocks are

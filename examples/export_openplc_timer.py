@@ -70,6 +70,11 @@ def build_timer_controller(instruction: str = "TON") -> Controller:
             LadderRung(number=1, text="XIC(DelayTimer.DN)OTE(Output);"),
         ]
     )
+    if instruction == "RTO":
+        program.add_tag(Tag(name="ResetTimer", data_type="BOOL"))
+        routine.ladder_rungs.append(
+            LadderRung(number=2, text="XIC(ResetTimer)RES(DelayTimer);")
+        )
     program.add_routine(routine)
     controller.add_program(program)
     controller.add_task(
@@ -92,9 +97,9 @@ def main() -> None:
     parser.add_argument("destination", type=Path)
     parser.add_argument(
         "--instruction",
-        choices=("TON", "TOF"),
+        choices=("TON", "TOF", "RTO"),
         default="TON",
-        help="Evidenced non-retentive Rockwell timer instruction",
+        help="Evidenced Rockwell timer instruction",
     )
     args = parser.parse_args()
     result = OpenPLCNativeProjectExporter().export(
@@ -102,7 +107,11 @@ def main() -> None:
         destination=args.destination,
         project_name=f"TwinForge OpenPLC {args.instruction}",
         compile_only=True,
-        locations={"Enable": "%QX0.0", "Output": "%QX0.1"},
+        locations={
+            "Enable": "%QX0.0",
+            "Output": "%QX0.1",
+            **({"ResetTimer": "%QX0.2"} if args.instruction == "RTO" else {}),
+        },
         timer_elapsed_locations=(
             {"DelayTimer": "%MD0"} if args.instruction == "TON" else None
         ),

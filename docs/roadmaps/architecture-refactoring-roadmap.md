@@ -323,8 +323,11 @@ Deferred until another device profile or target exists:
   `TOF` declaration and block type
 - [x] Validate the TwinForge-generated `TOF` fixture through OpenPLC compile
   and runtime behavior tests
-- [ ] Establish the required retentive state and reset semantics before
-  implementing Rockwell `RTO`/`RES` lowering
+- [x] Establish retained accumulator, enable, timing, done, pause/resume, and
+  reset semantics for Rockwell `RTO`/`RES`
+- [x] Implement the evidenced adjacent `RTO`/`.DN`/`RES` pattern through the
+  generated OpenPLC `TF_RTO` compatibility function block
+- [x] Compile and runtime-test the TwinForge-generated `RTO/RES` fixture
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent

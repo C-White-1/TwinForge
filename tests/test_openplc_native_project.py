@@ -127,6 +127,11 @@ def _timer_controller(instruction: str = "TON") -> Controller:
     routine.ladder_rungs.append(
         LadderRung(number=1, text="XIC(DelayTimer.DN)OTE(Output);")
     )
+    if instruction == "RTO":
+        program.add_tag(Tag(name="ResetTimer", data_type="BOOL"))
+        routine.ladder_rungs.append(
+            LadderRung(number=2, text="XIC(ResetTimer)RES(DelayTimer);")
+        )
     return controller
 
 
@@ -455,6 +460,57 @@ def test_lowers_canonical_rockwell_tof_pair_to_iec_tof(tmp_path: Path) -> None:
     assert block["data"]["variable"]["name"] == "DelayTimer"
     assert block["data"]["variable"]["type"]["value"] == "TOF"
     assert block["data"]["connectedVariables"][0]["variable"]["name"] == ("TIME#5000ms")
+
+
+def test_lowers_canonical_rto_dn_res_group_to_tf_rto(tmp_path: Path) -> None:
+    destination = tmp_path / "retentive-timer"
+
+    result = OpenPLCNativeProjectExporter().export(
+        _timer_controller("RTO"),
+        destination=destination,
+        locations={
+            "Enable": "%QX0.0",
+            "ResetTimer": "%QX0.1",
+            "Output": "%QX0.2",
+        },
+    )
+
+    path = destination / "pous/programs/main.ld"
+    assert "DelayTimer : TF_RTO;" in path.read_text()
+    ladder = _ladder_json(path)
+    assert len(ladder["rungs"]) == 1
+    block = next(
+        node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block"
+    )
+    assert block["data"]["variant"]["name"] == "TF_RTO"
+    assert block["data"]["variable"]["name"] == "DelayTimer"
+    assert [
+        item["variable"]["name"] for item in block["data"]["connectedVariables"]
+    ] == ["ResetTimer", "TIME#5000ms"]
+
+    function_block = destination / "pous/function-blocks/TF_RTO.st"
+    assert function_block in result.files
+    source = function_block.read_text()
+    assert source.count("FUNCTION_BLOCK TF_RTO") == 1
+    assert "RetainedTime := RetainedTime + SegmentTimer.ET;" in source
+    assert "IF RESET THEN" in source
+
+
+def test_rejects_rto_without_adjacent_res_rung(tmp_path: Path) -> None:
+    controller = _timer_controller("RTO")
+    program = next(iter(controller.programs.values()))
+    routine = program.main_routine
+    assert routine is not None
+    routine.ladder_rungs.pop()
+
+    with pytest.raises(
+        OpenPLCNativeUnsupportedError,
+        match="outside the evidenced",
+    ):
+        OpenPLCNativeProjectExporter().export(
+            controller,
+            destination=tmp_path / "rto-without-reset",
+        )
 
 
 def test_exposes_timer_elapsed_seconds_at_explicit_md_location(

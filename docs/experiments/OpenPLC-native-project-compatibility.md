@@ -270,6 +270,40 @@ opened and compiled successfully in OpenPLC. Its runtime behavior also passed
 the immediate-on, five-second delayed-off, and cancellation checks without
 manual changes, validating the complete TwinForge generation path.
 
+### Retentive timer and reset evidence
+
+OpenPLC does not provide Rockwell's Ladder-only `RTO` and `RES` instructions
+as native IEC blocks. TwinForge therefore lowers the evidenced source group to
+a target-specific `TF_RTO` Structured Text function block. Its interface maps
+Rockwell timer members without adding target behavior to the neutral model:
+
+| Rockwell | `TF_RTO` |
+| --- | --- |
+| `.EN` | `Enabled` |
+| `.TT` | `TT` |
+| `.DN` | `Q` |
+| `.ACC` | `ET` |
+| `.PRE` | `PT` |
+| `RES(timer)` | `RESET` |
+
+The reference and independently generated projects compiled successfully.
+Runtime tests confirmed partial accumulation, retention while disabled,
+resumption from the retained value, latched completion, `Enabled` and `TT`
+state, and clearing of elapsed time and status through reset.
+
+The initial lowering deliberately requires adjacent canonical source rungs:
+
+```text
+XIC(enable)RTO(timer,?,?);
+XIC(timer.DN)OTE(output);
+XIC(reset)RES(timer);
+```
+
+Other ordering or shared-reset arrangements are rejected rather than guessed.
+The source still contains genuine Rockwell `RTO` and `RES` instructions; the
+generated `TF_RTO` block is an explicitly identified compatibility mapping,
+not a claim that OpenPLC implements those Rockwell instructions natively.
+
 The native project's PLCopen XML export should also be retained as comparison
 evidence. It can reveal semantic differences between TwinForge's generic XML
 and OpenPLC's serialization, even though it cannot currently be loaded through

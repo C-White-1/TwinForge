@@ -27,6 +27,78 @@ OPENPLC_ID_NAMESPACE = uuid.UUID("1be06132-d6f7-52dc-930d-b0ad9a554449")
 OPENPLC_MAIN_PROGRAM = "main"
 _EVIDENCED_BOOL_LOCATION = re.compile(r"%[IQ]X\d+\.\d+")
 _EVIDENCED_DINT_MEMORY_LOCATION = re.compile(r"%MD\d+")
+_TF_RTO_BODY = """Enabled := IN;
+
+IF RESET THEN
+    SegmentTimer(IN := FALSE, PT := T#0s);
+    RetainedTime := T#0s;
+    RemainingTime := T#0s;
+    ET := T#0s;
+    Q := FALSE;
+    Enabled := FALSE;
+    TT := FALSE;
+    WasEnabled := FALSE;
+ELSIF IN AND NOT Q THEN
+    IF RetainedTime >= PT THEN
+        RetainedTime := PT;
+        ET := PT;
+        Q := TRUE;
+        TT := FALSE;
+        SegmentTimer(IN := FALSE, PT := T#0s);
+    ELSE
+        RemainingTime := PT - RetainedTime;
+        SegmentTimer(IN := TRUE, PT := RemainingTime);
+        ET := RetainedTime + SegmentTimer.ET;
+        IF SegmentTimer.Q THEN
+            RetainedTime := PT;
+            ET := PT;
+            Q := TRUE;
+        END_IF;
+        TT := NOT Q;
+    END_IF;
+ELSIF NOT IN THEN
+    IF WasEnabled AND NOT Q THEN
+        RetainedTime := RetainedTime + SegmentTimer.ET;
+        IF RetainedTime >= PT THEN
+            RetainedTime := PT;
+            Q := TRUE;
+        END_IF;
+    END_IF;
+    SegmentTimer(IN := FALSE, PT := T#0s);
+    ET := RetainedTime;
+    TT := FALSE;
+ELSE
+    SegmentTimer(IN := FALSE, PT := T#0s);
+    ET := RetainedTime;
+    TT := FALSE;
+END_IF;
+
+WasEnabled := IN;"""
+_TF_RTO_SOURCE = f"""FUNCTION_BLOCK TF_RTO
+VAR_INPUT
+    IN : BOOL;
+    RESET : BOOL;
+    PT : TIME;
+END_VAR
+
+VAR_OUTPUT
+    Q : BOOL;
+    ET : TIME;
+    Enabled : BOOL;
+    TT : BOOL;
+END_VAR
+
+VAR
+    SegmentTimer : TON;
+    RetainedTime : TIME := T#0s;
+    RemainingTime : TIME := T#0s;
+    WasEnabled : BOOL := FALSE;
+END_VAR
+
+{_TF_RTO_BODY}
+
+END_FUNCTION_BLOCK
+"""
 
 
 class OpenPLCNativeUnsupportedError(ValueError):
@@ -53,6 +125,8 @@ class _NativeTimerPair:
     preset_ms: int
     output_name: str
     comment: str
+    reset_name: str | None = None
+    source_rung_count: int = 2
 
 
 class OpenPLCNativeProjectExporter:
@@ -110,6 +184,8 @@ class OpenPLCNativeProjectExporter:
             Path("devices/pin-mapping.json"): "[]\n",
             Path(f"pous/programs/{OPENPLC_MAIN_PROGRAM}.ld"): ladder,
         }
+        if "RTO" in timer_types.values():
+            documents[Path("pous/function-blocks/TF_RTO.st")] = _TF_RTO_SOURCE
         written: list[Path] = []
         for relative, text in documents.items():
             path = root / relative
@@ -176,8 +252,9 @@ def _validate_program(
             raise OpenPLCNativeUnsupportedError(
                 f"rung {rung.number!r} is outside the evidenced XIC-to-OTE subset"
             )
-        if _timer_pair(program, rung_index, operands) is not None:
-            rung_index += 2
+        timer_pair = _timer_pair(program, rung_index, operands)
+        if timer_pair is not None:
+            rung_index += timer_pair.source_rung_count
             continue
         serial_supported = (
             not parsed.branches
@@ -374,7 +451,7 @@ def _ladder_document(
                         elapsed_location,
                     )
                 )
-            source_index += 2
+            source_index += pair.source_rung_count
             continue
         rung = routine.ladder_rungs[source_index]
         rungs.append(
@@ -392,7 +469,8 @@ def _variable_declaration(
     timer_type: str,
 ) -> str:
     if (data_type or "").upper() == "TIMER":
-        return f"\t{name} : {timer_type};"
+        native_type = "TF_RTO" if timer_type == "RTO" else timer_type
+        return f"\t{name} : {native_type};"
     if location is None:
         return f"\t{name} : BOOL;"
     return f"\t{name} : bool AT {location};"
@@ -421,7 +499,7 @@ def _timer_instruction_types(
                 f"{pair.instruction}"
             )
         resolved[pair.timer_name] = pair.instruction
-        index += 2
+        index += pair.source_rung_count
     return resolved
 
 
@@ -446,7 +524,7 @@ def _timer_pair(
         or len(timer_parsed.tail_conditions) != 1
         or timer_parsed.tail_conditions[0][0] != "XIC"
         or len(timer_parsed.outputs) != 1
-        or timer_parsed.outputs[0][0] not in {"TON", "TOF"}
+        or timer_parsed.outputs[0][0] not in {"TON", "TOF", "RTO"}
         or done_parsed.branches
         or len(done_parsed.tail_conditions) != 1
         or len(done_parsed.outputs) != 1
@@ -462,6 +540,22 @@ def _timer_pair(
     timer = operands.timers.get(timer_name)
     if timer is None:
         return None
+    reset_name: str | None = None
+    source_rung_count = 2
+    if timer_parsed.outputs[0][0] == "RTO":
+        if index + 2 >= len(routine.ladder_rungs):
+            return None
+        reset_parsed = parse_supported_rung(routine.ladder_rungs[index + 2].text)
+        if (
+            reset_parsed is None
+            or reset_parsed.branches
+            or len(reset_parsed.tail_conditions) != 1
+            or reset_parsed.tail_conditions[0][0] != "XIC"
+            or reset_parsed.outputs != (("RES", timer_name),)
+        ):
+            return None
+        reset_name = reset_parsed.tail_conditions[0][1]
+        source_rung_count = 3
     return _NativeTimerPair(
         instruction=timer_parsed.outputs[0][0],
         enable_name=timer_parsed.tail_conditions[0][1],
@@ -469,6 +563,8 @@ def _timer_pair(
         preset_ms=timer.preset_ms,
         output_name=done_parsed.outputs[0][1],
         comment=timer_rung.comment or done_rung.comment or "",
+        reset_name=reset_name,
+        source_rung_count=source_rung_count,
     )
 
 
@@ -480,6 +576,9 @@ def _native_timer_rung(
     elapsed_name: str | None = None,
 ) -> dict[str, object]:
     """Lower a canonical Rockwell timer pair to one IEC timer network."""
+
+    if pair.instruction == "RTO":
+        return _native_rto_rung(program_name, index, pair)
 
     rung_id = f"rung_{program_name}_{_stable_uuid(f'{program_name}/rung/{index}')}"
     left_id = f"left-rail-{rung_id}"
@@ -613,6 +712,138 @@ def _timer_block_node(
     }
 
 
+def _native_rto_rung(
+    program_name: str,
+    index: int,
+    pair: _NativeTimerPair,
+) -> dict[str, object]:
+    """Lower the evidenced RTO/DN/RES group to the TF_RTO wrapper."""
+
+    assert pair.reset_name is not None
+    rung_id = f"rung_{program_name}_{_stable_uuid(f'{program_name}/rung/{index}')}"
+    left_id = f"left-rail-{rung_id}"
+    contact_id = f"CONTACT_{_stable_uuid(f'{rung_id}/contact/0')}"
+    block_id = f"BLOCK_{_stable_uuid(f'{rung_id}/timer')}"
+    reset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/timer/RESET')}"
+    preset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/timer/PT')}"
+    coil_id = f"COIL_{_stable_uuid(f'{rung_id}/coil')}"
+    right_id = f"right-rail-{rung_id}"
+    return {
+        "id": rung_id,
+        "comment": pair.comment,
+        "defaultBounds": [300, 100],
+        "reactFlowViewport": [725, 214],
+        "nodes": [
+            _rail_node(left_id, left=True),
+            _instruction_node(contact_id, "contact", pair.enable_name, 68, 38),
+            _block_variable_node(
+                reset_id,
+                block_id,
+                "RESET",
+                pair.reset_name,
+                "BOOL",
+                "input",
+                147,
+                74,
+            ),
+            _timer_preset_node(
+                preset_id,
+                block_id,
+                pair.preset_ms,
+                y=114,
+            ),
+            _rto_block_node(block_id, pair),
+            _instruction_node(coil_id, "coil", pair.output_name, 584, 38),
+            _rail_node(right_id, left=False, x=722),
+        ],
+        "edges": [
+            _edge(left_id, "left-rail", contact_id, "input"),
+            _edge(contact_id, "output", block_id, "IN"),
+            _edge(reset_id, "output", block_id, "RESET"),
+            _edge(preset_id, "output", block_id, "PT"),
+            _edge(block_id, "Q", coil_id, "input"),
+            _edge(coil_id, "output", right_id, "right-rail"),
+        ],
+    }
+
+
+def _rto_block_node(
+    identifier: str,
+    pair: _NativeTimerPair,
+) -> dict[str, object]:
+    handles = [
+        _block_connector("IN", 257, 50, "left", "target", 0, 36),
+        _block_connector("RESET", 257, 90, "left", "target", 0, 76),
+        _block_connector("PT", 257, 130, "left", "target", 0, 116),
+        _block_connector("Q", 419, 50, "right", "source", 162, 36),
+        _block_connector("ET", 419, 90, "right", "source", 162, 76),
+        _block_connector("Enabled", 419, 130, "right", "source", 162, 116),
+        _block_connector("TT", 419, 170, "right", "source", 162, 156),
+    ]
+    variables = [
+        _block_variable("IN", "input", "BOOL"),
+        _block_variable("RESET", "input", "BOOL"),
+        _block_variable("PT", "input", "TIME"),
+        _block_variable("Q", "output", "BOOL"),
+        _block_variable("ET", "output", "TIME"),
+        _block_variable("Enabled", "output", "BOOL"),
+        _block_variable("TT", "output", "BOOL"),
+    ]
+    return {
+        "id": identifier,
+        "type": "block",
+        "position": {"x": 257, "y": 14},
+        "height": 180,
+        "width": 162,
+        "measured": {"width": 162, "height": 180},
+        "draggable": True,
+        "selectable": True,
+        "data": {
+            "handles": handles,
+            "inputHandles": handles[:3],
+            "outputHandles": handles[3:],
+            "inputConnector": handles[0],
+            "outputConnector": handles[3],
+            "numericId": _numeric_id(identifier),
+            "variant": {
+                "name": "TF_RTO",
+                "type": "function-block",
+                "language": "st",
+                "variables": variables,
+                "body": _TF_RTO_BODY,
+                "documentation": "TwinForge Rockwell-compatible retentive timer",
+            },
+            "variable": {
+                "name": pair.timer_name,
+                "type": {"definition": "derived", "value": "TF_RTO"},
+                "class": "local",
+                "location": "",
+                "documentation": "",
+                "debug": False,
+            },
+            "executionOrder": 0,
+            "executionControl": False,
+            "lockExecutionControl": False,
+            "connectedVariables": [
+                {
+                    "handleId": "RESET",
+                    "type": "input",
+                    "variable": _native_variable(pair.reset_name or "", "bool"),
+                },
+                {
+                    "handleId": "PT",
+                    "type": "input",
+                    "variable": {"name": milliseconds_time_literal(pair.preset_ms)},
+                },
+            ],
+            "draggable": True,
+            "selectable": True,
+            "deletable": True,
+            "hasDivergence": False,
+        },
+    }
+
+
 def _block_variable(
     name: str, variable_class: str, data_type: str
 ) -> dict[str, object]:
@@ -644,11 +875,15 @@ def _block_connector(
 
 
 def _timer_preset_node(
-    identifier: str, block_id: str, preset_ms: int
+    identifier: str,
+    block_id: str,
+    preset_ms: int,
+    *,
+    y: int = 74,
 ) -> dict[str, object]:
     literal = milliseconds_time_literal(preset_ms)
     connector = {
-        "glbPosition": {"x": 227, "y": 90},
+        "glbPosition": {"x": 227, "y": y + 16},
         "relPosition": {"x": 80, "y": 16},
         "id": "output",
         "position": "right",
@@ -658,7 +893,7 @@ def _timer_preset_node(
     return {
         "id": identifier,
         "type": "variable",
-        "position": {"x": 147, "y": 74},
+        "position": {"x": 147, "y": y},
         "height": 32,
         "width": 80,
         "measured": {"width": 80, "height": 32},
