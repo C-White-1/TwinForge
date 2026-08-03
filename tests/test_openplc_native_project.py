@@ -135,6 +135,59 @@ def _timer_controller(instruction: str = "TON") -> Controller:
     return controller
 
 
+def _counter_controller() -> Controller:
+    """Build the runtime-proven Rockwell CTU/DN/RES sequence."""
+
+    controller = _controller("XIC(CountPulse)CTU(PartCounter,?,?);")
+    program = next(iter(controller.programs.values()))
+    program.tags.clear()
+    for name in ("CountPulse", "ResetCounter", "Done"):
+        program.add_tag(Tag(name=name, data_type="BOOL"))
+    program.add_tag(
+        Tag(
+            name="PartCounter",
+            data_type="COUNTER",
+            source_extensions=[
+                SourceExtension(
+                    format="l5x",
+                    root=SourceNode(
+                        name="Tag",
+                        children=[
+                            SourceNode(
+                                name="Data",
+                                attributes={"Format": "Decorated"},
+                                children=[
+                                    SourceNode(
+                                        name="Structure",
+                                        children=[
+                                            SourceNode(
+                                                name="DataValueMember",
+                                                attributes={
+                                                    "Name": "PRE",
+                                                    "Value": "3",
+                                                },
+                                            )
+                                        ],
+                                    )
+                                ],
+                            )
+                        ],
+                    ),
+                )
+            ],
+        )
+    )
+    routine = program.main_routine
+    assert routine is not None
+    routine.ladder_rungs.extend(
+        [
+            LadderRung(number=1, text="XIC(PartCounter.DN)OTE(Done);"),
+            LadderRung(number=2, text="XIC(ResetCounter)RES(PartCounter);"),
+        ]
+    )
+    return controller
+
+
 def _ladder_json(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     start = text.index("{")
@@ -494,6 +547,55 @@ def test_lowers_canonical_rto_dn_res_group_to_tf_rto(tmp_path: Path) -> None:
     assert source.count("FUNCTION_BLOCK TF_RTO") == 1
     assert "RetainedTime := RetainedTime + SegmentTimer.ET;" in source
     assert "IF RESET THEN" in source
+
+
+def test_lowers_canonical_ctu_dn_res_group_to_tf_ctu(tmp_path: Path) -> None:
+    destination = tmp_path / "count-up"
+
+    result = OpenPLCNativeProjectExporter().export(
+        _counter_controller(),
+        destination=destination,
+        locations={
+            "CountPulse": "%QX0.0",
+            "ResetCounter": "%QX0.1",
+            "Done": "%QX0.2",
+        },
+        counter_accumulator_locations={"PartCounter": "%MD0"},
+    )
+
+    path = destination / "pous/programs/main.ld"
+    text = path.read_text()
+    assert "PartCounter : TF_CTU;" in text
+    assert "PartCounter_ACC : DINT AT %MD0;" in text
+    ladder = _ladder_json(path)
+    assert len(ladder["rungs"]) == 1
+    block = next(node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block")
+    assert block["data"]["variant"]["name"] == "TF_CTU"
+    assert block["data"]["variable"]["name"] == "PartCounter"
+    assert [
+        item["variable"]["name"] for item in block["data"]["connectedVariables"]
+    ] == ["ResetCounter", "3", "PartCounter_ACC"]
+
+    function_block = destination / "pous/function-blocks/TF_CTU.st"
+    assert function_block in result.files
+    source = function_block.read_text()
+    assert "CV := CV + 1;" in source
+    assert "CV := -2147483647 - 1;" in source
+    assert "IF CV >= PV THEN" in source
+
+
+def test_rejects_ctu_without_adjacent_res_rung(tmp_path: Path) -> None:
+    controller = _counter_controller()
+    program = next(iter(controller.programs.values()))
+    routine = program.main_routine
+    assert routine is not None
+    routine.ladder_rungs.pop()
+
+    with pytest.raises(OpenPLCNativeUnsupportedError, match="outside the evidenced"):
+        OpenPLCNativeProjectExporter().export(
+            controller,
+            destination=tmp_path / "ctu-without-reset",
+        )
 
 
 def test_rejects_rto_without_adjacent_res_rung(tmp_path: Path) -> None:

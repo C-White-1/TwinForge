@@ -248,7 +248,7 @@ class PLCopenOperandPlanner:
                             }
                             else [operand_text]
                         )
-                        if opcode in {"TON", "TOF", "RTO"}:
+                        if opcode in {"TON", "TOF", "RTO", "CTU"}:
                             operands = [split_arguments(operand_text)[0]]
                         for operand in operands:
                             is_boolean = opcode in {

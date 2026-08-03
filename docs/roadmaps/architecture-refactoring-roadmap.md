@@ -328,6 +328,16 @@ Deferred until another device profile or target exists:
 - [x] Implement the evidenced adjacent `RTO`/`.DN`/`RES` pattern through the
   generated OpenPLC `TF_RTO` compatibility function block
 - [x] Compile and runtime-test the TwinForge-generated `RTO/RES` fixture
+- [x] Establish that native OpenPLC `CTU_DINT` saturates at its preset while
+  Rockwell `CTU.ACC` continues counting
+- [x] Implement canonical Rockwell `CTU`/`.DN`/`RES` lowering through the
+  generated `TF_CTU` compatibility function block with optional `%MD`
+  accumulator telemetry
+- [x] Compile and runtime-test the independently generated `TF_CTU` project,
+  including rising-edge accumulation, done state, continued counting, reset,
+  and count-enable behavior
+- [ ] Exercise the `TF_CTU` signed-DINT rollover boundary in a dedicated test
+  fixture without exposing test initialization through its production API
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent

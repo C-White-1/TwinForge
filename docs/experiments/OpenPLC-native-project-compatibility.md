@@ -309,6 +309,45 @@ evidence. It can reveal semantic differences between TwinForge's generic XML
 and OpenPLC's serialization, even though it cannot currently be loaded through
 the editor.
 
+### Count-up counter evidence
+
+OpenPLC's native `CTU_DINT` saturates its current value at the preset. A
+Rockwell `CTU` instead continues incrementing `.ACC` after `.DN` becomes true,
+so the native block is not a behaviorally faithful general replacement.
+TwinForge lowers the evidenced source group to a target-specific `TF_CTU`
+Structured Text function block:
+
+| Rockwell | `TF_CTU` |
+| --- | --- |
+| count rung continuity | `CU` |
+| `RES(counter)` | `RESET` |
+| `.PRE` | `PV` |
+| `.DN` | `Q` |
+| `.ACC` | `CV` |
+| `.CU` | `CountEnabled` |
+| `.OV` | `OV` |
+
+The reference project and independently generated `native-ctu-generated`
+project compiled in OpenPLC Runtime v3. Runtime observation of the generated
+project confirmed rising-edge accumulation, assertion of `Q` at a preset of 3,
+continued counting beyond the preset, reset of `CV`, `Q`, and `OV`, and the
+`CountEnabled` state following the count input. `OV` correctly remained false
+at ordinary values: Rockwell overflow means signed-DINT rollover beyond
+2,147,483,647, not merely exceeding the preset. The near-limit rollover path
+remains a dedicated boundary test rather than a production function-block
+input.
+
+The initial lowering requires this adjacent canonical sequence:
+
+```text
+XIC(count)CTU(counter,?,?);
+XIC(counter.DN)OTE(done);
+XIC(reset)RES(counter);
+```
+
+Optional accumulator monitoring is explicitly assigned to a `%MD` location.
+Other counter arrangements are rejected until independently evidenced.
+
 ## Stage 2: representative L5X conversion
 
 After Stage 1 succeeds, generate a real L5X conversion:

@@ -19,7 +19,10 @@ from twinforge.exporters.plcopen_rll import (
     parse_supported_rung,
     split_arguments,
 )
-from twinforge.exporters.plcopen_xml import milliseconds_time_literal
+from twinforge.exporters.plcopen_xml import (
+    milliseconds_time_literal,
+    timer_member_integer,
+)
 from twinforge.model import Controller, Program
 
 
@@ -99,6 +102,50 @@ END_VAR
 
 END_FUNCTION_BLOCK
 """
+_TF_CTU_BODY = """CountEnabled := CU;
+
+IF RESET THEN
+    CV := 0;
+    Q := FALSE;
+    OV := FALSE;
+    CountEnabled := FALSE;
+    WasCU := FALSE;
+ELSE
+    IF CU AND NOT WasCU THEN
+        IF CV = 2147483647 THEN
+            CV := -2147483647 - 1;
+            OV := TRUE;
+        ELSE
+            CV := CV + 1;
+        END_IF;
+        IF CV >= PV THEN
+            Q := TRUE;
+        END_IF;
+    END_IF;
+    WasCU := CU;
+END_IF;"""
+_TF_CTU_SOURCE = f"""FUNCTION_BLOCK TF_CTU
+VAR_INPUT
+    CU : BOOL;
+    RESET : BOOL;
+    PV : DINT;
+END_VAR
+
+VAR_OUTPUT
+    Q : BOOL;
+    CV : DINT;
+    CountEnabled : BOOL;
+    OV : BOOL;
+END_VAR
+
+VAR
+    WasCU : BOOL := FALSE;
+END_VAR
+
+{_TF_CTU_BODY}
+
+END_FUNCTION_BLOCK
+"""
 
 
 class OpenPLCNativeUnsupportedError(ValueError):
@@ -129,6 +176,19 @@ class _NativeTimerPair:
     source_rung_count: int = 2
 
 
+@dataclass(frozen=True)
+class _NativeCounterGroup:
+    """One Rockwell CTU, its `.DN` consumer, and adjacent reset rung."""
+
+    count_name: str
+    counter_name: str
+    preset: int
+    output_name: str
+    reset_name: str
+    comment: str
+    source_rung_count: int = 3
+
+
 class OpenPLCNativeProjectExporter:
     """Package the proven local-BOOL, serial-XIC-to-OTE Ladder subset."""
 
@@ -141,6 +201,7 @@ class OpenPLCNativeProjectExporter:
         compile_only: bool = False,
         locations: Mapping[str, str] | None = None,
         timer_elapsed_locations: Mapping[str, str] | None = None,
+        counter_accumulator_locations: Mapping[str, str] | None = None,
     ) -> OpenPLCNativeProjectResult:
         """Write a native OpenPLC project or reject unsupported semantics."""
 
@@ -169,6 +230,12 @@ class OpenPLCNativeProjectExporter:
             elapsed_locations,
             timer_types,
         )
+        accumulator_locations = dict(counter_accumulator_locations or {})
+        counter_names = _counter_names(program)
+        _validate_counter_accumulator_locations(
+            counter_names,
+            accumulator_locations,
+        )
         ladder = _ladder_document(
             program,
             OPENPLC_MAIN_PROGRAM,
@@ -176,6 +243,7 @@ class OpenPLCNativeProjectExporter:
             operands,
             elapsed_locations,
             timer_types,
+            accumulator_locations,
         )
         device = _device_document(compile_only=compile_only)
         documents = {
@@ -186,6 +254,8 @@ class OpenPLCNativeProjectExporter:
         }
         if "RTO" in timer_types.values():
             documents[Path("pous/function-blocks/TF_RTO.st")] = _TF_RTO_SOURCE
+        if counter_names:
+            documents[Path("pous/function-blocks/TF_CTU.st")] = _TF_CTU_SOURCE
         written: list[Path] = []
         for relative, text in documents.items():
             path = root / relative
@@ -235,7 +305,7 @@ def _validate_program(
     unsupported = [
         tag.name
         for tag in program.iter_tags()
-        if (tag.data_type or "").casefold() not in {"bool", "timer"}
+        if (tag.data_type or "").casefold() not in {"bool", "timer", "counter"}
     ]
     if unsupported:
         raise OpenPLCNativeUnsupportedError(
@@ -255,6 +325,10 @@ def _validate_program(
         timer_pair = _timer_pair(program, rung_index, operands)
         if timer_pair is not None:
             rung_index += timer_pair.source_rung_count
+            continue
+        counter_group = _counter_group(program, rung_index)
+        if counter_group is not None:
+            rung_index += counter_group.source_rung_count
             continue
         serial_supported = (
             not parsed.branches
@@ -328,6 +402,28 @@ def _validate_timer_elapsed_locations(
         raise OpenPLCNativeUnsupportedError(
             "elapsed telemetry is currently runtime-evidenced only for TON: "
             + ", ".join(unevidenced)
+        )
+
+
+def _validate_counter_accumulator_locations(
+    counter_names: set[str],
+    locations: Mapping[str, str],
+) -> None:
+    unknown = sorted(set(locations).difference(counter_names))
+    if unknown:
+        raise OpenPLCNativeUnsupportedError(
+            "accumulator locations reference unknown COUNTER tags: "
+            + ", ".join(unknown)
+        )
+    unsupported = [
+        f"{name}={location}"
+        for name, location in locations.items()
+        if _EVIDENCED_DINT_MEMORY_LOCATION.fullmatch(location) is None
+    ]
+    if unsupported:
+        raise OpenPLCNativeUnsupportedError(
+            "counter accumulator telemetry requires evidenced %MD DINT locations: "
+            + ", ".join(unsupported)
         )
 
 
@@ -406,6 +502,7 @@ def _ladder_document(
     operands: PLCopenOperandPlan,
     elapsed_locations: Mapping[str, str],
     timer_types: Mapping[str, str],
+    accumulator_locations: Mapping[str, str],
 ) -> str:
     routine = program.main_routine
     assert routine is not None
@@ -425,11 +522,29 @@ def _ladder_document(
                 f"\t{timer_name}_ElapsedSeconds : DINT AT {location};",
             ]
         )
+    for counter_name, location in accumulator_locations.items():
+        declaration_lines.append(f"\t{counter_name}_ACC : DINT AT {location};")
     declarations = "\n".join(declaration_lines)
     header = f"PROGRAM {native_name}\nVAR\n{declarations}\nEND_VAR\n\n"
     rungs: list[dict[str, object]] = []
     source_index = 0
     while source_index < len(routine.ladder_rungs):
+        counter_group = _counter_group(program, source_index)
+        if counter_group is not None:
+            rungs.append(
+                _native_counter_rung(
+                    native_name,
+                    len(rungs),
+                    counter_group,
+                    accumulator_name=(
+                        f"{counter_group.counter_name}_ACC"
+                        if counter_group.counter_name in accumulator_locations
+                        else None
+                    ),
+                )
+            )
+            source_index += counter_group.source_rung_count
+            continue
         pair = _timer_pair(program, source_index, operands)
         if pair is not None:
             elapsed_location = elapsed_locations.get(pair.timer_name)
@@ -471,6 +586,8 @@ def _variable_declaration(
     if (data_type or "").upper() == "TIMER":
         native_type = "TF_RTO" if timer_type == "RTO" else timer_type
         return f"\t{name} : {native_type};"
+    if (data_type or "").upper() == "COUNTER":
+        return f"\t{name} : TF_CTU;"
     if location is None:
         return f"\t{name} : BOOL;"
     return f"\t{name} : bool AT {location};"
@@ -501,6 +618,71 @@ def _timer_instruction_types(
         resolved[pair.timer_name] = pair.instruction
         index += pair.source_rung_count
     return resolved
+
+
+def _counter_names(program: Program) -> set[str]:
+    """Return the local Rockwell COUNTER tags used by the native adapter."""
+
+    return {
+        tag.name
+        for tag in program.iter_tags()
+        if (tag.data_type or "").upper() == "COUNTER"
+    }
+
+
+def _counter_group(program: Program, index: int) -> _NativeCounterGroup | None:
+    """Recognize the evidenced CTU, `.DN`, and adjacent `RES` sequence."""
+
+    routine = program.main_routine
+    if routine is None or index + 2 >= len(routine.ladder_rungs):
+        return None
+    count_rung = routine.ladder_rungs[index]
+    done_rung = routine.ladder_rungs[index + 1]
+    reset_rung = routine.ladder_rungs[index + 2]
+    count_parsed = parse_supported_rung(count_rung.text)
+    done_parsed = parse_supported_rung(done_rung.text)
+    reset_parsed = parse_supported_rung(reset_rung.text)
+    if count_parsed is None or done_parsed is None or reset_parsed is None:
+        return None
+    if (
+        count_parsed.branches
+        or len(count_parsed.tail_conditions) != 1
+        or count_parsed.tail_conditions[0][0] != "XIC"
+        or len(count_parsed.outputs) != 1
+        or count_parsed.outputs[0][0] != "CTU"
+    ):
+        return None
+    arguments = split_arguments(count_parsed.outputs[0][1])
+    if len(arguments) != 3:
+        return None
+    counter_name = arguments[0]
+    if (
+        done_parsed.branches
+        or done_parsed.tail_conditions != (("XIC", f"{counter_name}.DN"),)
+        or len(done_parsed.outputs) != 1
+        or done_parsed.outputs[0][0] != "OTE"
+        or reset_parsed.branches
+        or len(reset_parsed.tail_conditions) != 1
+        or reset_parsed.tail_conditions[0][0] != "XIC"
+        or reset_parsed.outputs != (("RES", counter_name),)
+    ):
+        return None
+    tag = program.tags.get(counter_name)
+    if tag is None or (tag.data_type or "").upper() != "COUNTER":
+        return None
+    preset = timer_member_integer(tag, "PRE")
+    if preset is None:
+        raise OpenPLCNativeUnsupportedError(
+            f"COUNTER {counter_name!r} has no readable decorated PRE value"
+        )
+    return _NativeCounterGroup(
+        count_name=count_parsed.tail_conditions[0][1],
+        counter_name=counter_name,
+        preset=preset,
+        output_name=done_parsed.outputs[0][1],
+        reset_name=reset_parsed.tail_conditions[0][1],
+        comment=count_rung.comment or done_rung.comment or reset_rung.comment or "",
+    )
 
 
 def _timer_pair(
@@ -636,6 +818,177 @@ def _native_timer_rung(
         "reactFlowViewport": [629 if elapsed_name else 491, 134],
         "nodes": nodes,
         "edges": edges,
+    }
+
+
+def _native_counter_rung(
+    program_name: str,
+    index: int,
+    group: _NativeCounterGroup,
+    *,
+    accumulator_name: str | None = None,
+) -> dict[str, object]:
+    """Lower the proven Rockwell CTU/DN/RES group to `TF_CTU`."""
+
+    rung_id = f"rung_{program_name}_{_stable_uuid(f'{program_name}/rung/{index}')}"
+    left_id = f"left-rail-{rung_id}"
+    contact_id = f"CONTACT_{_stable_uuid(f'{rung_id}/contact/0')}"
+    block_id = f"BLOCK_{_stable_uuid(f'{rung_id}/counter')}"
+    reset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/RESET')}"
+    preset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/PV')}"
+    accumulator_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/CV')}"
+    coil_id = f"COIL_{_stable_uuid(f'{rung_id}/coil')}"
+    right_id = f"right-rail-{rung_id}"
+    nodes = [
+        _rail_node(left_id, left=True),
+        _instruction_node(contact_id, "contact", group.count_name, 68, 38),
+        _block_variable_node(
+            reset_id,
+            block_id,
+            "RESET",
+            group.reset_name,
+            "BOOL",
+            "input",
+            147,
+            74,
+        ),
+        _block_variable_node(
+            preset_id,
+            block_id,
+            "PV",
+            str(group.preset),
+            "DINT",
+            "input",
+            147,
+            114,
+        ),
+        _counter_block_node(block_id, group, accumulator_name),
+    ]
+    if accumulator_name:
+        nodes.append(
+            _block_variable_node(
+                accumulator_id,
+                block_id,
+                "CV",
+                accumulator_name,
+                "DINT",
+                "output",
+                449,
+                74,
+            )
+        )
+    nodes.extend(
+        [
+            _instruction_node(coil_id, "coil", group.output_name, 584, 38),
+            _rail_node(right_id, left=False, x=722),
+        ]
+    )
+    edges = [
+        _edge(left_id, "left-rail", contact_id, "input"),
+        _edge(contact_id, "output", block_id, "CU"),
+        _edge(reset_id, "output", block_id, "RESET"),
+        _edge(preset_id, "output", block_id, "PV"),
+        _edge(block_id, "Q", coil_id, "input"),
+        _edge(coil_id, "output", right_id, "right-rail"),
+    ]
+    if accumulator_name:
+        edges.append(_edge(block_id, "CV", accumulator_id, "input"))
+    return {
+        "id": rung_id,
+        "comment": group.comment,
+        "defaultBounds": [300, 100],
+        "reactFlowViewport": [725, 214],
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+def _counter_block_node(
+    identifier: str,
+    group: _NativeCounterGroup,
+    accumulator_name: str | None,
+) -> dict[str, object]:
+    """Create OpenPLC Editor metadata for the compatibility counter."""
+
+    handles = [
+        _block_connector("CU", 257, 50, "left", "target", 0, 36),
+        _block_connector("RESET", 257, 90, "left", "target", 0, 76),
+        _block_connector("PV", 257, 130, "left", "target", 0, 116),
+        _block_connector("Q", 419, 50, "right", "source", 162, 36),
+        _block_connector("CV", 419, 90, "right", "source", 162, 76),
+        _block_connector("CountEnabled", 419, 130, "right", "source", 162, 116),
+        _block_connector("OV", 419, 170, "right", "source", 162, 156),
+    ]
+    variables = [
+        _block_variable("CU", "input", "BOOL"),
+        _block_variable("RESET", "input", "BOOL"),
+        _block_variable("PV", "input", "DINT"),
+        _block_variable("Q", "output", "BOOL"),
+        _block_variable("CV", "output", "DINT"),
+        _block_variable("CountEnabled", "output", "BOOL"),
+        _block_variable("OV", "output", "BOOL"),
+    ]
+    connected = [
+        {
+            "handleId": "RESET",
+            "type": "input",
+            "variable": _native_variable(group.reset_name, "bool"),
+        },
+        {
+            "handleId": "PV",
+            "type": "input",
+            "variable": {"name": str(group.preset)},
+        },
+    ]
+    if accumulator_name:
+        connected.append(
+            {
+                "handleId": "CV",
+                "type": "output",
+                "variable": _native_variable(accumulator_name, "DINT"),
+            }
+        )
+    return {
+        "id": identifier,
+        "type": "block",
+        "position": {"x": 257, "y": 14},
+        "height": 180,
+        "width": 162,
+        "measured": {"width": 162, "height": 180},
+        "draggable": True,
+        "selectable": True,
+        "data": {
+            "handles": handles,
+            "inputHandles": handles[:3],
+            "outputHandles": handles[3:],
+            "inputConnector": handles[0],
+            "outputConnector": handles[3],
+            "numericId": _numeric_id(identifier),
+            "variant": {
+                "name": "TF_CTU",
+                "type": "function-block",
+                "language": "st",
+                "variables": variables,
+                "body": _TF_CTU_BODY,
+                "documentation": "TwinForge Rockwell-compatible count-up counter",
+            },
+            "variable": {
+                "name": group.counter_name,
+                "type": {"definition": "derived", "value": "TF_CTU"},
+                "class": "local",
+                "location": "",
+                "documentation": "",
+                "debug": False,
+            },
+            "executionOrder": 0,
+            "executionControl": False,
+            "lockExecutionControl": False,
+            "connectedVariables": connected,
+            "draggable": True,
+            "selectable": True,
+            "deletable": True,
+            "hasDivergence": False,
+        },
     }
 
 

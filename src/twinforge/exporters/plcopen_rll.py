@@ -39,7 +39,7 @@ SUPPORTED_RLL_INSTRUCTIONS = frozenset(
 )
 
 _RLL_INSTRUCTION = re.compile(
-    r"\s*(XIC|XIO|OTE|OTL|OTU|EQU|NEQ|GRT|GEQ|LES|LEQ|TON|TOF|RTO|RES|"
+    r"\s*(XIC|XIO|OTE|OTL|OTU|EQU|NEQ|GRT|GEQ|LES|LEQ|TON|TOF|RTO|CTU|RES|"
     r"MOV|ADD|SUB|MUL|DIV|ONS)\s*\(([^()]*)\)"
 )
 _JSR_INSTRUCTION = re.compile(r"\s*JSR\s*\(\s*([^,()]+)\s*,\s*0\s*\)\s*;\s*")
@@ -102,6 +102,7 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
         "TON",
         "TOF",
         "RTO",
+        "CTU",
         "RES",
         *VALUE_BLOCK_TYPES,
     }
@@ -151,7 +152,7 @@ def _parse_instruction_sequence(text: str) -> list[tuple[str, str]] | None:
         opcode = match.group(1)
         if opcode in COMPARISON_TYPES and len(split_arguments(operand)) != 2:
             return None
-        if opcode in {"TON", "TOF", "RTO"} and len(split_arguments(operand)) != 3:
+        if opcode in {"TON", "TOF", "RTO", "CTU"} and len(split_arguments(operand)) != 3:
             return None
         if opcode in {"RES", "ONS"} and "," in operand:
             return None
