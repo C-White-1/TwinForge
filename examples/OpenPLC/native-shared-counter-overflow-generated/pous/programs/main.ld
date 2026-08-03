@@ -5,7 +5,9 @@ VAR
 	ResetCounter : bool AT %QX0.2;
 	Done : bool AT %QX0.3;
 	PartCounter : TF_COUNTER;
-	PartCounter_ACC : dint AT %MD0;
+	PartCounter_ACC : DINT AT %MD0;
+	PartCounter_OV : BOOL AT %QX0.4;
+	PartCounter_UN : BOOL AT %QX0.5;
 END_VAR
 
 {
@@ -320,7 +322,7 @@ END_VAR
             },
             "numericId": "1395101",
             "variable": {
-              "name": "FALSE",
+              "name": "CountDown",
               "class": "local",
               "type": {
                 "definition": "base-type",
@@ -421,11 +423,10 @@ END_VAR
                 "definition": "base-type",
                 "value": "bool"
               },
-              "location": "%QX0.2",
+              "location": "",
               "initialValue": null,
               "documentation": "",
-              "debug": false,
-              "id": "broken-VARIABLE_cd4ccccc-b186-542e-a489-af705dcd3a3c"
+              "debug": false
             },
             "executionOrder": 0,
             "variant": "input",
@@ -443,8 +444,7 @@ END_VAR
             },
             "draggable": false,
             "selectable": true,
-            "deletable": false,
-            "wrongVariable": true
+            "deletable": false
           }
         },
         {
@@ -607,7 +607,7 @@ END_VAR
             },
             "numericId": "7493949",
             "variable": {
-              "name": "0",
+              "name": "2147483647",
               "class": "local",
               "type": {
                 "definition": "base-type",
@@ -1764,7 +1764,7 @@ END_VAR
                 "handleId": "CD",
                 "type": "input",
                 "variable": {
-                  "name": "FALSE",
+                  "name": "CountDown",
                   "class": "local",
                   "type": {
                     "definition": "base-type",
@@ -1812,7 +1812,7 @@ END_VAR
                 "handleId": "INITIAL_ACC",
                 "type": "input",
                 "variable": {
-                  "name": "0",
+                  "name": "2147483647",
                   "class": "local",
                   "type": {
                     "definition": "base-type",
@@ -1903,6 +1903,38 @@ END_VAR
                   "documentation": "",
                   "debug": false
                 }
+              },
+              {
+                "handleId": "OV",
+                "type": "output",
+                "variable": {
+                  "name": "PartCounter_OV",
+                  "class": "local",
+                  "type": {
+                    "definition": "base-type",
+                    "value": "BOOL"
+                  },
+                  "location": "",
+                  "initialValue": null,
+                  "documentation": "",
+                  "debug": false
+                }
+              },
+              {
+                "handleId": "UN",
+                "type": "output",
+                "variable": {
+                  "name": "PartCounter_UN",
+                  "class": "local",
+                  "type": {
+                    "definition": "base-type",
+                    "value": "BOOL"
+                  },
+                  "location": "",
+                  "initialValue": null,
+                  "documentation": "",
+                  "debug": false
+                }
               }
             ],
             "draggable": true,
@@ -1982,11 +2014,10 @@ END_VAR
                 "definition": "base-type",
                 "value": "dint"
               },
-              "location": "%MD0",
+              "location": "",
               "initialValue": null,
               "documentation": "",
-              "debug": false,
-              "id": "broken-VARIABLE_06f54b09-b3fa-589a-a8ab-e7a108b43161"
+              "debug": false
             },
             "executionOrder": 0,
             "variant": "output",
@@ -2004,8 +2035,197 @@ END_VAR
             },
             "draggable": false,
             "selectable": true,
-            "deletable": false,
-            "wrongVariable": true
+            "deletable": false
+          }
+        },
+        {
+          "id": "VARIABLE_6ad0a3ce-4f8f-5ff7-a08e-29bfab0c0e3f",
+          "type": "variable",
+          "position": {
+            "x": 487,
+            "y": 114
+          },
+          "height": 32,
+          "width": 80,
+          "measured": {
+            "width": 80,
+            "height": 32
+          },
+          "draggable": false,
+          "selectable": true,
+          "data": {
+            "handles": [
+              {
+                "glbPosition": {
+                  "x": 487,
+                  "y": 130
+                },
+                "relPosition": {
+                  "x": 0,
+                  "y": 16
+                },
+                "id": "input",
+                "position": "left",
+                "isConnectable": false,
+                "type": "target"
+              }
+            ],
+            "inputHandles": [
+              {
+                "glbPosition": {
+                  "x": 487,
+                  "y": 130
+                },
+                "relPosition": {
+                  "x": 0,
+                  "y": 16
+                },
+                "id": "input",
+                "position": "left",
+                "isConnectable": false,
+                "type": "target"
+              }
+            ],
+            "outputHandles": [],
+            "inputConnector": {
+              "glbPosition": {
+                "x": 487,
+                "y": 130
+              },
+              "relPosition": {
+                "x": 0,
+                "y": 16
+              },
+              "id": "input",
+              "position": "left",
+              "isConnectable": false,
+              "type": "target"
+            },
+            "numericId": "7186975",
+            "variable": {
+              "name": "PartCounter_OV",
+              "class": "local",
+              "type": {
+                "definition": "base-type",
+                "value": "bool"
+              },
+              "location": "",
+              "initialValue": null,
+              "documentation": "",
+              "debug": false
+            },
+            "executionOrder": 0,
+            "variant": "output",
+            "block": {
+              "id": "BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad",
+              "handleId": "OV",
+              "variableType": {
+                "name": "OV",
+                "class": "output",
+                "type": {
+                  "definition": "base-type",
+                  "value": "BOOL"
+                }
+              }
+            },
+            "draggable": false,
+            "selectable": true,
+            "deletable": false
+          }
+        },
+        {
+          "id": "VARIABLE_be1eadba-2950-504f-8704-743f0d9347a8",
+          "type": "variable",
+          "position": {
+            "x": 487,
+            "y": 154
+          },
+          "height": 32,
+          "width": 80,
+          "measured": {
+            "width": 80,
+            "height": 32
+          },
+          "draggable": false,
+          "selectable": true,
+          "data": {
+            "handles": [
+              {
+                "glbPosition": {
+                  "x": 487,
+                  "y": 170
+                },
+                "relPosition": {
+                  "x": 0,
+                  "y": 16
+                },
+                "id": "input",
+                "position": "left",
+                "isConnectable": false,
+                "type": "target"
+              }
+            ],
+            "inputHandles": [
+              {
+                "glbPosition": {
+                  "x": 487,
+                  "y": 170
+                },
+                "relPosition": {
+                  "x": 0,
+                  "y": 16
+                },
+                "id": "input",
+                "position": "left",
+                "isConnectable": false,
+                "type": "target"
+              }
+            ],
+            "outputHandles": [],
+            "inputConnector": {
+              "glbPosition": {
+                "x": 487,
+                "y": 170
+              },
+              "relPosition": {
+                "x": 0,
+                "y": 16
+              },
+              "id": "input",
+              "position": "left",
+              "isConnectable": false,
+              "type": "target"
+            },
+            "numericId": "9907327",
+            "variable": {
+              "name": "PartCounter_UN",
+              "class": "local",
+              "type": {
+                "definition": "base-type",
+                "value": "bool"
+              },
+              "location": "",
+              "initialValue": null,
+              "documentation": "",
+              "debug": false
+            },
+            "executionOrder": 0,
+            "variant": "output",
+            "block": {
+              "id": "BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad",
+              "handleId": "UN",
+              "variableType": {
+                "name": "UN",
+                "class": "output",
+                "type": {
+                  "definition": "base-type",
+                  "value": "BOOL"
+                }
+              }
+            },
+            "draggable": false,
+            "selectable": true,
+            "deletable": false
           }
         },
         {
@@ -2316,6 +2536,20 @@ END_VAR
           "source": "BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad",
           "sourceHandle": "CV",
           "target": "VARIABLE_06f54b09-b3fa-589a-a8ab-e7a108b43161",
+          "targetHandle": "input"
+        },
+        {
+          "id": "e_BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad_VARIABLE_6ad0a3ce-4f8f-5ff7-a08e-29bfab0c0e3f__OV_input",
+          "source": "BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad",
+          "sourceHandle": "OV",
+          "target": "VARIABLE_6ad0a3ce-4f8f-5ff7-a08e-29bfab0c0e3f",
+          "targetHandle": "input"
+        },
+        {
+          "id": "e_BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad_VARIABLE_be1eadba-2950-504f-8704-743f0d9347a8__UN_input",
+          "source": "BLOCK_44be8ed2-9d64-579a-8f94-451152d753ad",
+          "sourceHandle": "UN",
+          "target": "VARIABLE_be1eadba-2950-504f-8704-743f0d9347a8",
           "targetHandle": "input"
         },
         {

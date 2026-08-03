@@ -314,10 +314,10 @@ the editor.
 OpenPLC's native `CTU_DINT` saturates its current value at the preset. A
 Rockwell `CTU` instead continues incrementing `.ACC` after `.DN` becomes true,
 so the native block is not a behaviorally faithful general replacement.
-TwinForge lowers the evidenced source group to a target-specific `TF_CTU`
+TwinForge lowers the evidenced source group to a target-specific `TF_COUNTER`
 Structured Text function block:
 
-| Rockwell | `TF_CTU` |
+| Rockwell | `TF_COUNTER` |
 | --- | --- |
 | count rung continuity | `CU` |
 | `RES(counter)` | `RESET` |
@@ -347,6 +347,58 @@ XIC(reset)RES(counter);
 
 Optional accumulator monitoring is explicitly assigned to a `%MD` location.
 Other counter arrangements are rejected until independently evidenced.
+
+The first CTU experiment used a narrower `TF_CTU` block. After shared CTU/CTD
+state and both signed-DINT boundaries were proven, TwinForge consolidated the
+CTU-only path onto `TF_COUNTER`. This removes duplicate rollover logic and adds
+decorated initial accumulator and status preservation to CTU-only conversion.
+The regenerated `native-ctu-generated` project subsequently compiled and
+passed its runtime count, done, continued-counting, and reset checks using only
+`TF_COUNTER`, validating the consolidation rather than merely the source-code
+refactor.
+
+### Count-down counter evidence
+
+The native OpenPLC `CTD_DINT` reference uses `CD`, `LD`, and `PV` inputs with
+`Q` and `CV` outputs. Runtime testing on 4 August 2026 confirmed that `CV`
+saturates at zero: further rising edges on `CD` do not produce negative
+values. This differs from Rockwell `CTD`, which continues decrementing a
+signed-DINT `.ACC` and sets `.UN` only when it rolls below -2,147,483,648.
+
+The native block is also not a direct status mapping. IEC `CTD_DINT.Q`
+indicates that its current value has reached zero, whereas Rockwell `.DN`
+tracks the counter's accumulated value relative to `.PRE`. A direct block
+substitution would therefore change both accumulator and done-bit behavior.
+
+Rockwell documents CTD as commonly sharing one `COUNTER` structure with CTU.
+TwinForge must preserve that shared `.ACC`, `.PRE`, `.DN`, `.OV`, and `.UN`
+state. TwinForge now generates one target-specific `TF_COUNTER` state owner for
+the canonical standalone CTD and paired CTU/CTD shapes. It initializes from
+retained decorated tag evidence, preserves whether CTU or CTD appeared first,
+and maps reset once. A standalone `TF_CTD` with private state is deliberately
+not generated.
+
+The independently generated `native-shared-counter-generated` project compiled
+and ran successfully in OpenPLC Runtime v3 on 4 August 2026. Runtime testing
+confirmed decorated accumulator initialization, decrement and increment paths,
+done-state changes at the preset, continued counting above the preset, reset to
+zero, and decrement below zero without IEC saturation. Simultaneous rising
+edges remain a separate scan-order test because ordinary monitoring writes do
+not guarantee that both changes reach one PLC scan together.
+
+The generated `native-shared-counter-simultaneous-generated` fixture resolves
+that limitation by connecting both CTU and CTD source conditions to the same
+Boolean stimulus. Runtime testing confirmed that one rising edge executed both
+operations in CTU-then-CTD order: the accumulator returned to its initial value
+of 3 and the final done state was true. This establishes that the grouped state
+owner does not discard either transition when both occur in one scan.
+
+Two generated boundary fixtures then exercised signed-DINT rollover directly.
+Starting at 2,147,483,647, one CTU edge produced -2,147,483,648 and latched
+`OV` without setting `UN`. Starting at -2,147,483,648, one CTD edge produced
+2,147,483,647 and latched `UN` without setting `OV`. Both fixtures compiled
+and ran successfully in OpenPLC Runtime v3. This validates the `TF_COUNTER`
+rollover implementation and its explicitly mapped `%QX` status telemetry.
 
 ## Stage 2: representative L5X conversion
 

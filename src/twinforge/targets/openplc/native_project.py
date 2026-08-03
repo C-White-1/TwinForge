@@ -19,11 +19,10 @@ from twinforge.exporters.plcopen_rll import (
     parse_supported_rung,
     split_arguments,
 )
-from twinforge.exporters.plcopen_xml import (
-    milliseconds_time_literal,
-    timer_member_integer,
-)
+from twinforge.exporters.plcopen_xml import milliseconds_time_literal
 from twinforge.model import Controller, Program
+
+from .counter import CounterOrder, OpenPLCCounterGroup, match_counter_group
 
 
 OPENPLC_ID_NAMESPACE = uuid.UUID("1be06132-d6f7-52dc-930d-b0ad9a554449")
@@ -102,47 +101,103 @@ END_VAR
 
 END_FUNCTION_BLOCK
 """
-_TF_CTU_BODY = """CountEnabled := CU;
+_TF_COUNTER_BODY = """IF NOT Initialized THEN
+    CV := INITIAL_ACC;
+    Q := INITIAL_DN;
+    OV := INITIAL_OV;
+    UN := INITIAL_UN;
+    WasCU := CU;
+    WasCD := CD;
+    Initialized := TRUE;
+END_IF;
+
+CUEnabled := CU;
+CDEnabled := CD;
+UpEdge := CU AND NOT WasCU;
+DownEdge := CD AND NOT WasCD;
 
 IF RESET THEN
     CV := 0;
     Q := FALSE;
     OV := FALSE;
-    CountEnabled := FALSE;
+    UN := FALSE;
+    CUEnabled := FALSE;
+    CDEnabled := FALSE;
     WasCU := FALSE;
+    WasCD := FALSE;
 ELSE
-    IF CU AND NOT WasCU THEN
-        IF CV = 2147483647 THEN
-            CV := -2147483647 - 1;
-            OV := TRUE;
-        ELSE
-            CV := CV + 1;
+    IF UP_FIRST THEN
+        IF UpEdge THEN
+            IF CV = 2147483647 THEN
+                CV := -2147483647 - 1;
+                OV := TRUE;
+            ELSE
+                CV := CV + 1;
+            END_IF;
         END_IF;
-        IF CV >= PV THEN
-            Q := TRUE;
+        IF DownEdge THEN
+            IF CV = -2147483647 - 1 THEN
+                CV := 2147483647;
+                UN := TRUE;
+            ELSE
+                CV := CV - 1;
+            END_IF;
+        END_IF;
+    ELSE
+        IF DownEdge THEN
+            IF CV = -2147483647 - 1 THEN
+                CV := 2147483647;
+                UN := TRUE;
+            ELSE
+                CV := CV - 1;
+            END_IF;
+        END_IF;
+        IF UpEdge THEN
+            IF CV = 2147483647 THEN
+                CV := -2147483647 - 1;
+                OV := TRUE;
+            ELSE
+                CV := CV + 1;
+            END_IF;
         END_IF;
     END_IF;
+    IF UpEdge OR DownEdge THEN
+        Q := CV >= PV;
+    END_IF;
     WasCU := CU;
+    WasCD := CD;
 END_IF;"""
-_TF_CTU_SOURCE = f"""FUNCTION_BLOCK TF_CTU
+_TF_COUNTER_SOURCE = f"""FUNCTION_BLOCK TF_COUNTER
 VAR_INPUT
     CU : BOOL;
+    CD : BOOL;
     RESET : BOOL;
     PV : DINT;
+    INITIAL_ACC : DINT;
+    INITIAL_DN : BOOL;
+    INITIAL_OV : BOOL;
+    INITIAL_UN : BOOL;
+    UP_FIRST : BOOL;
 END_VAR
 
 VAR_OUTPUT
     Q : BOOL;
     CV : DINT;
-    CountEnabled : BOOL;
+    CUEnabled : BOOL;
+    CDEnabled : BOOL;
     OV : BOOL;
+    UN : BOOL;
 END_VAR
 
 VAR
     WasCU : BOOL := FALSE;
+    WasCD : BOOL := FALSE;
+    UpEdge : BOOL := FALSE;
+    DownEdge : BOOL := FALSE;
+    Initialized : BOOL := FALSE;
 END_VAR
 
-{_TF_CTU_BODY}
+{_TF_COUNTER_BODY}
 
 END_FUNCTION_BLOCK
 """
@@ -176,19 +231,6 @@ class _NativeTimerPair:
     source_rung_count: int = 2
 
 
-@dataclass(frozen=True)
-class _NativeCounterGroup:
-    """One Rockwell CTU, its `.DN` consumer, and adjacent reset rung."""
-
-    count_name: str
-    counter_name: str
-    preset: int
-    output_name: str
-    reset_name: str
-    comment: str
-    source_rung_count: int = 3
-
-
 class OpenPLCNativeProjectExporter:
     """Package the proven local-BOOL, serial-XIC-to-OTE Ladder subset."""
 
@@ -202,6 +244,7 @@ class OpenPLCNativeProjectExporter:
         locations: Mapping[str, str] | None = None,
         timer_elapsed_locations: Mapping[str, str] | None = None,
         counter_accumulator_locations: Mapping[str, str] | None = None,
+        counter_status_locations: Mapping[str, Mapping[str, str]] | None = None,
     ) -> OpenPLCNativeProjectResult:
         """Write a native OpenPLC project or reject unsupported semantics."""
 
@@ -232,9 +275,18 @@ class OpenPLCNativeProjectExporter:
         )
         accumulator_locations = dict(counter_accumulator_locations or {})
         counter_names = _counter_names(program)
+        shared_counter_names = _shared_counter_names(program)
         _validate_counter_accumulator_locations(
             counter_names,
             accumulator_locations,
+        )
+        status_locations = {
+            counter: {member.upper(): location for member, location in members.items()}
+            for counter, members in (counter_status_locations or {}).items()
+        }
+        _validate_counter_status_locations(
+            shared_counter_names,
+            status_locations,
         )
         ladder = _ladder_document(
             program,
@@ -244,6 +296,8 @@ class OpenPLCNativeProjectExporter:
             elapsed_locations,
             timer_types,
             accumulator_locations,
+            shared_counter_names,
+            status_locations,
         )
         device = _device_document(compile_only=compile_only)
         documents = {
@@ -254,8 +308,10 @@ class OpenPLCNativeProjectExporter:
         }
         if "RTO" in timer_types.values():
             documents[Path("pous/function-blocks/TF_RTO.st")] = _TF_RTO_SOURCE
-        if counter_names:
-            documents[Path("pous/function-blocks/TF_CTU.st")] = _TF_CTU_SOURCE
+        if shared_counter_names:
+            documents[Path("pous/function-blocks/TF_COUNTER.st")] = (
+                _TF_COUNTER_SOURCE
+            )
         written: list[Path] = []
         for relative, text in documents.items():
             path = root / relative
@@ -326,9 +382,9 @@ def _validate_program(
         if timer_pair is not None:
             rung_index += timer_pair.source_rung_count
             continue
-        counter_group = _counter_group(program, rung_index)
-        if counter_group is not None:
-            rung_index += counter_group.source_rung_count
+        shared_group = _shared_counter_group(program, rung_index)
+        if shared_group is not None:
+            rung_index += shared_group.source_rung_count
             continue
         serial_supported = (
             not parsed.branches
@@ -427,6 +483,40 @@ def _validate_counter_accumulator_locations(
         )
 
 
+def _validate_counter_status_locations(
+    counter_names: set[str],
+    locations: Mapping[str, Mapping[str, str]],
+) -> None:
+    unknown = sorted(set(locations).difference(counter_names))
+    if unknown:
+        raise OpenPLCNativeUnsupportedError(
+            "status locations reference counters without shared state: "
+            + ", ".join(unknown)
+        )
+    unsupported_members = sorted(
+        f"{counter}.{member}"
+        for counter, members in locations.items()
+        for member in members
+        if member not in {"OV", "UN"}
+    )
+    if unsupported_members:
+        raise OpenPLCNativeUnsupportedError(
+            "only OV/UN counter status telemetry is evidenced: "
+            + ", ".join(unsupported_members)
+        )
+    unsupported_locations = sorted(
+        f"{counter}.{member}={location}"
+        for counter, members in locations.items()
+        for member, location in members.items()
+        if _EVIDENCED_BOOL_LOCATION.fullmatch(location) is None
+    )
+    if unsupported_locations:
+        raise OpenPLCNativeUnsupportedError(
+            "counter status telemetry requires evidenced %IX/%QX locations: "
+            + ", ".join(unsupported_locations)
+        )
+
+
 def _project_document(
     project_name: str,
     task_name: str,
@@ -503,6 +593,8 @@ def _ladder_document(
     elapsed_locations: Mapping[str, str],
     timer_types: Mapping[str, str],
     accumulator_locations: Mapping[str, str],
+    shared_counter_names: set[str],
+    status_locations: Mapping[str, Mapping[str, str]],
 ) -> str:
     routine = program.main_routine
     assert routine is not None
@@ -512,6 +604,7 @@ def _ladder_document(
             tag.data_type,
             locations.get(tag.name),
             timer_types.get(tag.name, "TON"),
+            tag.name in shared_counter_names,
         )
         for tag in program.iter_tags()
     ]
@@ -524,26 +617,38 @@ def _ladder_document(
         )
     for counter_name, location in accumulator_locations.items():
         declaration_lines.append(f"\t{counter_name}_ACC : DINT AT {location};")
+    for counter_name, members in status_locations.items():
+        declaration_lines.extend(
+            f"\t{counter_name}_{member} : BOOL AT {location};"
+            for member, location in members.items()
+        )
     declarations = "\n".join(declaration_lines)
     header = f"PROGRAM {native_name}\nVAR\n{declarations}\nEND_VAR\n\n"
     rungs: list[dict[str, object]] = []
     source_index = 0
     while source_index < len(routine.ladder_rungs):
-        counter_group = _counter_group(program, source_index)
-        if counter_group is not None:
+        shared_group = _shared_counter_group(program, source_index)
+        if shared_group is not None:
             rungs.append(
-                _native_counter_rung(
+                _native_shared_counter_rung(
                     native_name,
                     len(rungs),
-                    counter_group,
+                    shared_group,
                     accumulator_name=(
-                        f"{counter_group.counter_name}_ACC"
-                        if counter_group.counter_name in accumulator_locations
+                        f"{shared_group.counter_name}_ACC"
+                        if shared_group.counter_name in accumulator_locations
                         else None
                     ),
+                    status_names={
+                        member: f"{shared_group.counter_name}_{member}"
+                        for member in status_locations.get(
+                            shared_group.counter_name,
+                            {},
+                        )
+                    },
                 )
             )
-            source_index += counter_group.source_rung_count
+            source_index += shared_group.source_rung_count
             continue
         pair = _timer_pair(program, source_index, operands)
         if pair is not None:
@@ -582,12 +687,17 @@ def _variable_declaration(
     data_type: str | None,
     location: str | None,
     timer_type: str,
+    shared_counter: bool,
 ) -> str:
     if (data_type or "").upper() == "TIMER":
         native_type = "TF_RTO" if timer_type == "RTO" else timer_type
         return f"\t{name} : {native_type};"
     if (data_type or "").upper() == "COUNTER":
-        return f"\t{name} : TF_CTU;"
+        if not shared_counter:
+            raise OpenPLCNativeUnsupportedError(
+                f"COUNTER {name!r} has no supported canonical instruction group"
+            )
+        return f"\t{name} : TF_COUNTER;"
     if location is None:
         return f"\t{name} : BOOL;"
     return f"\t{name} : bool AT {location};"
@@ -630,59 +740,35 @@ def _counter_names(program: Program) -> set[str]:
     }
 
 
-def _counter_group(program: Program, index: int) -> _NativeCounterGroup | None:
-    """Recognize the evidenced CTU, `.DN`, and adjacent `RES` sequence."""
+def _shared_counter_group(
+    program: Program,
+    index: int,
+) -> OpenPLCCounterGroup | None:
+    """Return canonical groups lowered through shared counter state."""
+
+    return match_counter_group(program, index)
+
+
+def _shared_counter_names(program: Program) -> set[str]:
+    """Resolve counter tags lowered through one `TF_COUNTER` state owner."""
 
     routine = program.main_routine
-    if routine is None or index + 2 >= len(routine.ladder_rungs):
-        return None
-    count_rung = routine.ladder_rungs[index]
-    done_rung = routine.ladder_rungs[index + 1]
-    reset_rung = routine.ladder_rungs[index + 2]
-    count_parsed = parse_supported_rung(count_rung.text)
-    done_parsed = parse_supported_rung(done_rung.text)
-    reset_parsed = parse_supported_rung(reset_rung.text)
-    if count_parsed is None or done_parsed is None or reset_parsed is None:
-        return None
-    if (
-        count_parsed.branches
-        or len(count_parsed.tail_conditions) != 1
-        or count_parsed.tail_conditions[0][0] != "XIC"
-        or len(count_parsed.outputs) != 1
-        or count_parsed.outputs[0][0] != "CTU"
-    ):
-        return None
-    arguments = split_arguments(count_parsed.outputs[0][1])
-    if len(arguments) != 3:
-        return None
-    counter_name = arguments[0]
-    if (
-        done_parsed.branches
-        or done_parsed.tail_conditions != (("XIC", f"{counter_name}.DN"),)
-        or len(done_parsed.outputs) != 1
-        or done_parsed.outputs[0][0] != "OTE"
-        or reset_parsed.branches
-        or len(reset_parsed.tail_conditions) != 1
-        or reset_parsed.tail_conditions[0][0] != "XIC"
-        or reset_parsed.outputs != (("RES", counter_name),)
-    ):
-        return None
-    tag = program.tags.get(counter_name)
-    if tag is None or (tag.data_type or "").upper() != "COUNTER":
-        return None
-    preset = timer_member_integer(tag, "PRE")
-    if preset is None:
-        raise OpenPLCNativeUnsupportedError(
-            f"COUNTER {counter_name!r} has no readable decorated PRE value"
-        )
-    return _NativeCounterGroup(
-        count_name=count_parsed.tail_conditions[0][1],
-        counter_name=counter_name,
-        preset=preset,
-        output_name=done_parsed.outputs[0][1],
-        reset_name=reset_parsed.tail_conditions[0][1],
-        comment=count_rung.comment or done_rung.comment or reset_rung.comment or "",
-    )
+    if routine is None:
+        return set()
+    names: set[str] = set()
+    index = 0
+    while index < len(routine.ladder_rungs):
+        group = _shared_counter_group(program, index)
+        if group is None:
+            index += 1
+            continue
+        if group.counter_name in names:
+            raise OpenPLCNativeUnsupportedError(
+                f"COUNTER {group.counter_name!r} has multiple canonical groups"
+            )
+        names.add(group.counter_name)
+        index += group.source_rung_count
+    return names
 
 
 def _timer_pair(
@@ -821,50 +907,62 @@ def _native_timer_rung(
     }
 
 
-def _native_counter_rung(
+def _native_shared_counter_rung(
     program_name: str,
     index: int,
-    group: _NativeCounterGroup,
+    group: OpenPLCCounterGroup,
     *,
     accumulator_name: str | None = None,
+    status_names: Mapping[str, str] | None = None,
 ) -> dict[str, object]:
-    """Lower the proven Rockwell CTU/DN/RES group to `TF_CTU`."""
+    """Lower a CTD or paired CTU/CTD group to one shared state owner."""
 
     rung_id = f"rung_{program_name}_{_stable_uuid(f'{program_name}/rung/{index}')}"
     left_id = f"left-rail-{rung_id}"
     contact_id = f"CONTACT_{_stable_uuid(f'{rung_id}/contact/0')}"
-    block_id = f"BLOCK_{_stable_uuid(f'{rung_id}/counter')}"
-    reset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/RESET')}"
-    preset_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/PV')}"
-    accumulator_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/CV')}"
+    block_id = f"BLOCK_{_stable_uuid(f'{rung_id}/shared-counter')}"
     coil_id = f"COIL_{_stable_uuid(f'{rung_id}/coil')}"
     right_id = f"right-rail-{rung_id}"
-    nodes = [
+    primary_handle = "CU" if group.count_up_name is not None else "CD"
+    primary_name = group.count_up_name or group.count_down_name
+    assert primary_name is not None
+    inputs = _shared_counter_inputs(group, primary_handle)
+    nodes: list[dict[str, object]] = [
         _rail_node(left_id, left=True),
-        _instruction_node(contact_id, "contact", group.count_name, 68, 38),
-        _block_variable_node(
-            reset_id,
-            block_id,
-            "RESET",
-            group.reset_name,
-            "BOOL",
-            "input",
-            147,
-            74,
-        ),
-        _block_variable_node(
-            preset_id,
-            block_id,
-            "PV",
-            str(group.preset),
-            "DINT",
-            "input",
-            147,
-            114,
-        ),
-        _counter_block_node(block_id, group, accumulator_name),
+        _instruction_node(contact_id, "contact", primary_name, 68, 38),
     ]
+    edges = [
+        _edge(left_id, "left-rail", contact_id, "input"),
+        _edge(contact_id, "output", block_id, primary_handle),
+    ]
+    for offset, (handle, name, data_type) in enumerate(inputs):
+        node_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/{handle}')}"
+        nodes.append(
+            _block_variable_node(
+                node_id,
+                block_id,
+                handle,
+                name,
+                data_type,
+                "input",
+                147,
+                74 + offset * 40,
+            )
+        )
+        edges.append(_edge(node_id, "output", block_id, handle))
+    resolved_status_names = dict(status_names or {})
+    nodes.append(
+        _shared_counter_block_node(
+            block_id,
+            group,
+            accumulator_name,
+            resolved_status_names,
+        )
+    )
     if accumulator_name:
+        accumulator_id = (
+            f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/CV')}"
+        )
         nodes.append(
             _block_variable_node(
                 accumulator_id,
@@ -873,72 +971,141 @@ def _native_counter_rung(
                 accumulator_name,
                 "DINT",
                 "output",
-                449,
+                487,
                 74,
             )
         )
+        edges.append(_edge(block_id, "CV", accumulator_id, "input"))
+    for offset, member in enumerate(("OV", "UN"), start=1):
+        status_name = resolved_status_names.get(member)
+        if status_name is None:
+            continue
+        status_id = f"VARIABLE_{_stable_uuid(f'{rung_id}/counter/{member}')}"
+        nodes.append(
+            _block_variable_node(
+                status_id,
+                block_id,
+                member,
+                status_name,
+                "BOOL",
+                "output",
+                487,
+                74 + offset * 40,
+            )
+        )
+        edges.append(_edge(block_id, member, status_id, "input"))
     nodes.extend(
         [
-            _instruction_node(coil_id, "coil", group.output_name, 584, 38),
-            _rail_node(right_id, left=False, x=722),
+            _instruction_node(coil_id, "coil", group.output_name, 622, 38),
+            _rail_node(right_id, left=False, x=760),
         ]
     )
-    edges = [
-        _edge(left_id, "left-rail", contact_id, "input"),
-        _edge(contact_id, "output", block_id, "CU"),
-        _edge(reset_id, "output", block_id, "RESET"),
-        _edge(preset_id, "output", block_id, "PV"),
-        _edge(block_id, "Q", coil_id, "input"),
-        _edge(coil_id, "output", right_id, "right-rail"),
-    ]
-    if accumulator_name:
-        edges.append(_edge(block_id, "CV", accumulator_id, "input"))
+    edges.extend(
+        [
+            _edge(block_id, "Q", coil_id, "input"),
+            _edge(coil_id, "output", right_id, "right-rail"),
+        ]
+    )
     return {
         "id": rung_id,
         "comment": group.comment,
         "defaultBounds": [300, 100],
-        "reactFlowViewport": [725, 214],
+        "reactFlowViewport": [763, 454],
         "nodes": nodes,
         "edges": edges,
     }
 
 
-def _counter_block_node(
-    identifier: str,
-    group: _NativeCounterGroup,
-    accumulator_name: str | None,
-) -> dict[str, object]:
-    """Create OpenPLC Editor metadata for the compatibility counter."""
+def _shared_counter_inputs(
+    group: OpenPLCCounterGroup,
+    primary_handle: str,
+) -> list[tuple[str, str, str]]:
+    values = {
+        "CU": group.count_up_name or "FALSE",
+        "CD": group.count_down_name or "FALSE",
+        "RESET": group.reset_name,
+        "PV": str(group.preset),
+        "INITIAL_ACC": str(group.initial_accumulator),
+        "INITIAL_DN": str(group.initial_done).upper(),
+        "INITIAL_OV": str(group.initial_overflow).upper(),
+        "INITIAL_UN": str(group.initial_underflow).upper(),
+        "UP_FIRST": str(
+            group.order in {CounterOrder.UP_ONLY, CounterOrder.UP_THEN_DOWN}
+        ).upper(),
+    }
+    bool_handles = {
+        "CU",
+        "CD",
+        "RESET",
+        "INITIAL_DN",
+        "INITIAL_OV",
+        "INITIAL_UN",
+        "UP_FIRST",
+    }
+    return [
+        (handle, value, "BOOL" if handle in bool_handles else "DINT")
+        for handle, value in values.items()
+        if handle != primary_handle
+    ]
 
+
+def _shared_counter_block_node(
+    identifier: str,
+    group: OpenPLCCounterGroup,
+    accumulator_name: str | None,
+    status_names: Mapping[str, str],
+) -> dict[str, object]:
+    input_names = [
+        "CU",
+        "CD",
+        "RESET",
+        "PV",
+        "INITIAL_ACC",
+        "INITIAL_DN",
+        "INITIAL_OV",
+        "INITIAL_UN",
+        "UP_FIRST",
+    ]
+    output_names = ["Q", "CV", "CUEnabled", "CDEnabled", "OV", "UN"]
     handles = [
-        _block_connector("CU", 257, 50, "left", "target", 0, 36),
-        _block_connector("RESET", 257, 90, "left", "target", 0, 76),
-        _block_connector("PV", 257, 130, "left", "target", 0, 116),
-        _block_connector("Q", 419, 50, "right", "source", 162, 36),
-        _block_connector("CV", 419, 90, "right", "source", 162, 76),
-        _block_connector("CountEnabled", 419, 130, "right", "source", 162, 116),
-        _block_connector("OV", 419, 170, "right", "source", 162, 156),
+        *[
+            _block_connector(name, 257, 50 + i * 40, "left", "target", 0, 36 + i * 40)
+            for i, name in enumerate(input_names)
+        ],
+        *[
+            _block_connector(name, 457, 50 + i * 40, "right", "source", 200, 36 + i * 40)
+            for i, name in enumerate(output_names)
+        ],
     ]
     variables = [
-        _block_variable("CU", "input", "BOOL"),
-        _block_variable("RESET", "input", "BOOL"),
-        _block_variable("PV", "input", "DINT"),
-        _block_variable("Q", "output", "BOOL"),
-        _block_variable("CV", "output", "DINT"),
-        _block_variable("CountEnabled", "output", "BOOL"),
-        _block_variable("OV", "output", "BOOL"),
+        *[
+            _block_variable(
+                name,
+                "input",
+                "DINT" if name in {"PV", "INITIAL_ACC"} else "BOOL",
+            )
+            for name in input_names
+        ],
+        *[
+            _block_variable(
+                name,
+                "output",
+                "DINT" if name == "CV" else "BOOL",
+            )
+            for name in output_names
+        ],
     ]
+    primary_handle = "CU" if group.count_up_name is not None else "CD"
     connected = [
         {
-            "handleId": "RESET",
+            "handleId": handle,
             "type": "input",
-            "variable": _native_variable(group.reset_name, "bool"),
-        },
-        {
-            "handleId": "PV",
-            "type": "input",
-            "variable": {"name": str(group.preset)},
-        },
+            "variable": _native_variable(value, data_type),
+        }
+        for handle, value, data_type in _shared_counter_inputs(
+            group,
+            primary_handle,
+        )
     ]
     if accumulator_name:
         connected.append(
@@ -948,33 +1115,41 @@ def _counter_block_node(
                 "variable": _native_variable(accumulator_name, "DINT"),
             }
         )
+    connected.extend(
+        {
+            "handleId": member,
+            "type": "output",
+            "variable": _native_variable(name, "BOOL"),
+        }
+        for member, name in status_names.items()
+    )
     return {
         "id": identifier,
         "type": "block",
         "position": {"x": 257, "y": 14},
-        "height": 180,
-        "width": 162,
-        "measured": {"width": 162, "height": 180},
+        "height": 380,
+        "width": 200,
+        "measured": {"width": 200, "height": 380},
         "draggable": True,
         "selectable": True,
         "data": {
             "handles": handles,
-            "inputHandles": handles[:3],
-            "outputHandles": handles[3:],
+            "inputHandles": handles[: len(input_names)],
+            "outputHandles": handles[len(input_names) :],
             "inputConnector": handles[0],
-            "outputConnector": handles[3],
+            "outputConnector": handles[len(input_names)],
             "numericId": _numeric_id(identifier),
             "variant": {
-                "name": "TF_CTU",
+                "name": "TF_COUNTER",
                 "type": "function-block",
                 "language": "st",
                 "variables": variables,
-                "body": _TF_CTU_BODY,
-                "documentation": "TwinForge Rockwell-compatible count-up counter",
+                "body": _TF_COUNTER_BODY,
+                "documentation": "TwinForge shared Rockwell counter state",
             },
             "variable": {
                 "name": group.counter_name,
-                "type": {"definition": "derived", "value": "TF_CTU"},
+                "type": {"definition": "derived", "value": "TF_COUNTER"},
                 "class": "local",
                 "location": "",
                 "documentation": "",

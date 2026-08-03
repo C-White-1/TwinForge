@@ -19,12 +19,15 @@ from twinforge.model import (
 from twinforge.targets.openplc import OpenPLCNativeProjectExporter
 
 
-def build_counter_controller() -> Controller:
-    """Build the canonical CTU, DN consumer, and reset source sequence."""
+def build_counter_controller(
+    mode: str = "CTU",
+    initial_accumulator: int | None = None,
+) -> Controller:
+    """Build a canonical CTU, CTD, or paired counter source sequence."""
 
     controller = Controller(name="OpenPLCCounter", identity=Identity())
     program = Program(name="PLC_PRG")
-    for name in ("CountPulse", "ResetCounter", "Done"):
+    for name in ("CountPulse", "CountDown", "ResetCounter", "Done"):
         program.add_tag(Tag(name=name, data_type="BOOL"))
     program.add_tag(
         Tag(
@@ -49,7 +52,19 @@ def build_counter_controller() -> Controller:
                                                     "Name": "PRE",
                                                     "Value": "3",
                                                 },
-                                            )
+                                            ),
+                                            SourceNode(
+                                                name="DataValueMember",
+                                                attributes={
+                                                    "Name": "ACC",
+                                                    "Value": str(
+                                                        initial_accumulator
+                                                        if initial_accumulator
+                                                        is not None
+                                                        else (3 if mode != "CTU" else 0)
+                                                    ),
+                                                },
+                                            ),
                                         ],
                                     )
                                 ],
@@ -61,12 +76,25 @@ def build_counter_controller() -> Controller:
         )
     )
     routine = Routine(name="MainRoutine", language="RLL")
+    count_rungs = []
+    if mode in {"CTU", "CTUD", "CTUD_SIMULTANEOUS"}:
+        count_rungs.append(
+            LadderRung(number=0, text="XIC(CountPulse)CTU(PartCounter,?,?);")
+        )
+    if mode in {"CTD", "CTUD", "CTUD_SIMULTANEOUS"}:
+        count_rungs.append(
+            LadderRung(
+                number=1,
+                text=(
+                    "XIC(CountPulse)CTD(PartCounter,?,?);"
+                    if mode == "CTUD_SIMULTANEOUS"
+                    else "XIC(CountDown)CTD(PartCounter,?,?);"
+                ),
+            )
+        )
     routine.ladder_rungs.extend(
         [
-            LadderRung(
-                number=0,
-                text="XIC(CountPulse)CTU(PartCounter,?,?);",
-            ),
+            *count_rungs,
             LadderRung(number=1, text="XIC(PartCounter.DN)OTE(Done);"),
             LadderRung(number=2, text="XIC(ResetCounter)RES(PartCounter);"),
         ]
@@ -87,22 +115,39 @@ def build_counter_controller() -> Controller:
 
 
 def main() -> None:
-    """Write a native OpenPLC project using the `TF_CTU` compatibility block."""
+    """Write a native OpenPLC project using the shared counter state block."""
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("destination", type=Path)
+    parser.add_argument(
+        "--mode",
+        choices=("CTU", "CTD", "CTUD", "CTUD_SIMULTANEOUS"),
+        default="CTU",
+        help="Canonical Rockwell counter source shape",
+    )
+    parser.add_argument(
+        "--initial-accumulator",
+        type=int,
+        help="Decorated Rockwell COUNTER.ACC fixture value",
+    )
     args = parser.parse_args()
     result = OpenPLCNativeProjectExporter().export(
-        build_counter_controller(),
+        build_counter_controller(args.mode, args.initial_accumulator),
         destination=args.destination,
         project_name="TwinForge OpenPLC CTU",
         compile_only=True,
         locations={
             "CountPulse": "%QX0.0",
-            "ResetCounter": "%QX0.1",
-            "Done": "%QX0.2",
+            "CountDown": "%QX0.1",
+            "ResetCounter": "%QX0.2",
+            "Done": "%QX0.3",
         },
         counter_accumulator_locations={"PartCounter": "%MD0"},
+        counter_status_locations=(
+            {"PartCounter": {"OV": "%QX0.4", "UN": "%QX0.5"}}
+            if args.mode != "CTU"
+            else None
+        ),
     )
     print(f"Exported native OpenPLC counter project to {result.destination}")
 

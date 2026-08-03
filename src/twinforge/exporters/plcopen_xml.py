@@ -64,8 +64,8 @@ def plcopen_scalar_value(tag: Tag) -> str:
     return initial_value.lexical_value
 
 
-def timer_member_integer(tag: Tag, member_name: str) -> int | None:
-    """Read a decorated L5X timer member retained in source extensions."""
+def decorated_member_integer(tag: Tag, member_name: str) -> int | None:
+    """Read an integer member from retained decorated L5X tag data."""
 
     for extension in tag.source_extensions:
         if extension.format.lower() != "l5x":
@@ -89,3 +89,9 @@ def timer_member_integer(tag: Tag, member_name: str) -> int | None:
                         except (KeyError, ValueError):
                             return None
     return None
+
+
+def timer_member_integer(tag: Tag, member_name: str) -> int | None:
+    """Read a decorated L5X timer member retained in source extensions."""
+
+    return decorated_member_integer(tag, member_name)

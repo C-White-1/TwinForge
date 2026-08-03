@@ -331,13 +331,32 @@ Deferred until another device profile or target exists:
 - [x] Establish that native OpenPLC `CTU_DINT` saturates at its preset while
   Rockwell `CTU.ACC` continues counting
 - [x] Implement canonical Rockwell `CTU`/`.DN`/`RES` lowering through the
-  generated `TF_CTU` compatibility function block with optional `%MD`
+  generated counter compatibility function block with optional `%MD`
   accumulator telemetry
-- [x] Compile and runtime-test the independently generated `TF_CTU` project,
+- [x] Compile and runtime-test the independently generated CTU project,
   including rising-edge accumulation, done state, continued counting, reset,
   and count-enable behavior
-- [ ] Exercise the `TF_CTU` signed-DINT rollover boundary in a dedicated test
-  fixture without exposing test initialization through its production API
+- [x] Capture and runtime-test native OpenPLC `CTD_DINT`; confirm that it
+  saturates at zero and is not a faithful Rockwell `CTD` replacement
+- [x] Design shared Rockwell `COUNTER` state for paired CTU/CTD use, including
+  `.ACC`, `.PRE`, `.DN`, `.OV`, `.UN`, source scan order, initial accumulator
+  evidence, and `RES`
+- [x] Specify the shared counter state, execution rules, evidence boundary,
+  and initial supported source shapes in
+  `docs/architecture/counter-execution.md`
+- [x] Implement canonical standalone CTD and paired CTU/CTD lowering through
+  one generated `TF_COUNTER` state owner
+- [x] Compile and runtime-test the generated paired `TF_COUNTER` OpenPLC
+  fixture, including initialization, both count directions, done state,
+  continued counting, negative accumulation, and reset
+- [x] Runtime-test simultaneous CTU/CTD rising edges with a deterministic
+  in-program stimulus so source-order behavior is exercised within one scan
+- [x] Runtime-test `TF_COUNTER` signed-DINT overflow and underflow rollover,
+  including the independent `OV` and `UN` status latches
+- [x] Consolidate CTU-only, CTD-only, and paired CTU/CTD lowering onto the
+  single proven `TF_COUNTER` state owner
+- [x] Recompile and runtime-test the regenerated CTU-only project after
+  retiring the duplicate `TF_CTU` implementation
 - [ ] Revisit physical channel and CIP assembly entities when EDS or live
   evidence supports them
 - [ ] Review this document whenever a module gains a second independent

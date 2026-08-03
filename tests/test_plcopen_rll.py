@@ -35,3 +35,15 @@ def test_parses_ctu_without_claiming_generic_support():
 
 def test_rejects_ctu_with_wrong_argument_count():
     assert parse_supported_rung("XIC(CountPulse)CTU(PartCounter,?);") is None
+
+
+def test_parses_ctd_without_claiming_generic_support():
+    parsed = parse_supported_rung("XIC(CountPulse)CTD(PartCounter,?,?);")
+
+    assert parsed is not None
+    assert parsed.outputs == (("CTD", "PartCounter,?,?"),)
+    assert "CTD" not in SUPPORTED_RLL_INSTRUCTIONS
+
+
+def test_rejects_ctd_with_wrong_argument_count():
+    assert parse_supported_rung("XIC(CountPulse)CTD(PartCounter,?);") is None

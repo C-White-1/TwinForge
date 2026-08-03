@@ -188,6 +188,39 @@ def _counter_controller() -> Controller:
     return controller
 
 
+def _shared_counter_controller(
+    *,
+    paired: bool = False,
+    down_first: bool = False,
+) -> Controller:
+    """Build standalone CTD or paired CTU/CTD specification evidence."""
+
+    controller = _counter_controller()
+    program = next(iter(controller.programs.values()))
+    program.add_tag(Tag(name="CountDown", data_type="BOOL"))
+    counter = program.tags["PartCounter"]
+    structure = counter.source_extensions[0].root.children[0].children[0]
+    structure.children.append(
+        SourceNode(
+            name="DataValueMember",
+            attributes={"Name": "ACC", "Value": "3"},
+        )
+    )
+    routine = program.main_routine
+    assert routine is not None
+    up = LadderRung(number=0, text="XIC(CountPulse)CTU(PartCounter,?,?);")
+    down = LadderRung(number=1, text="XIC(CountDown)CTD(PartCounter,?,?);")
+    counts = [down]
+    if paired:
+        counts = [down, up] if down_first else [up, down]
+    routine.ladder_rungs[:] = [
+        *counts,
+        LadderRung(number=2, text="XIC(PartCounter.DN)OTE(Done);"),
+        LadderRung(number=3, text="XIC(ResetCounter)RES(PartCounter);"),
+    ]
+    return controller
+
+
 def _ladder_json(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     start = text.index("{")
@@ -549,7 +582,7 @@ def test_lowers_canonical_rto_dn_res_group_to_tf_rto(tmp_path: Path) -> None:
     assert "IF RESET THEN" in source
 
 
-def test_lowers_canonical_ctu_dn_res_group_to_tf_ctu(tmp_path: Path) -> None:
+def test_lowers_canonical_ctu_dn_res_group_to_tf_counter(tmp_path: Path) -> None:
     destination = tmp_path / "count-up"
 
     result = OpenPLCNativeProjectExporter().export(
@@ -561,27 +594,39 @@ def test_lowers_canonical_ctu_dn_res_group_to_tf_ctu(tmp_path: Path) -> None:
             "Done": "%QX0.2",
         },
         counter_accumulator_locations={"PartCounter": "%MD0"},
+        counter_status_locations={
+            "PartCounter": {"OV": "%QX0.4", "UN": "%QX0.5"}
+        },
     )
 
     path = destination / "pous/programs/main.ld"
     text = path.read_text()
-    assert "PartCounter : TF_CTU;" in text
+    assert "PartCounter : TF_COUNTER;" in text
     assert "PartCounter_ACC : DINT AT %MD0;" in text
     ladder = _ladder_json(path)
     assert len(ladder["rungs"]) == 1
-    block = next(node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block")
-    assert block["data"]["variant"]["name"] == "TF_CTU"
+    block = next(
+        node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block"
+    )
+    assert block["data"]["variant"]["name"] == "TF_COUNTER"
     assert block["data"]["variable"]["name"] == "PartCounter"
-    assert [
-        item["variable"]["name"] for item in block["data"]["connectedVariables"]
-    ] == ["ResetCounter", "3", "PartCounter_ACC"]
+    connected = {
+        item["handleId"]: item["variable"]["name"]
+        for item in block["data"]["connectedVariables"]
+    }
+    assert connected["CD"] == "FALSE"
+    assert connected["RESET"] == "ResetCounter"
+    assert connected["PV"] == "3"
+    assert connected["INITIAL_ACC"] == "0"
+    assert connected["UP_FIRST"] == "TRUE"
+    assert connected["CV"] == "PartCounter_ACC"
 
-    function_block = destination / "pous/function-blocks/TF_CTU.st"
+    function_block = destination / "pous/function-blocks/TF_COUNTER.st"
     assert function_block in result.files
     source = function_block.read_text()
     assert "CV := CV + 1;" in source
     assert "CV := -2147483647 - 1;" in source
-    assert "IF CV >= PV THEN" in source
+    assert "Q := CV >= PV;" in source
 
 
 def test_rejects_ctu_without_adjacent_res_rung(tmp_path: Path) -> None:
@@ -595,6 +640,80 @@ def test_rejects_ctu_without_adjacent_res_rung(tmp_path: Path) -> None:
         OpenPLCNativeProjectExporter().export(
             controller,
             destination=tmp_path / "ctu-without-reset",
+        )
+
+
+@pytest.mark.parametrize(
+    "paired, down_first", [(False, False), (True, False), (True, True)]
+)
+def test_lowers_ctd_and_paired_counter_to_one_shared_state_owner(
+    tmp_path: Path,
+    paired: bool,
+    down_first: bool,
+) -> None:
+    destination = tmp_path / "shared-counter"
+
+    result = OpenPLCNativeProjectExporter().export(
+        _shared_counter_controller(paired=paired, down_first=down_first),
+        destination=destination,
+        locations={
+            "CountPulse": "%QX0.0",
+            "CountDown": "%QX0.1",
+            "ResetCounter": "%QX0.2",
+            "Done": "%QX0.3",
+        },
+        counter_accumulator_locations={"PartCounter": "%MD0"},
+        counter_status_locations={"PartCounter": {"OV": "%QX0.4", "UN": "%QX0.5"}},
+    )
+
+    path = destination / "pous/programs/main.ld"
+    assert "PartCounter : TF_COUNTER;" in path.read_text()
+    assert "PartCounter_OV : BOOL AT %QX0.4;" in path.read_text()
+    assert "PartCounter_UN : BOOL AT %QX0.5;" in path.read_text()
+    ladder = _ladder_json(path)
+    assert len(ladder["rungs"]) == 1
+    block = next(
+        node for node in ladder["rungs"][0]["nodes"] if node["type"] == "block"
+    )
+    assert block["data"]["variant"]["name"] == "TF_COUNTER"
+    assert block["data"]["variable"]["name"] == "PartCounter"
+    connected = {
+        item["handleId"]: item["variable"]["name"]
+        for item in block["data"]["connectedVariables"]
+    }
+    assert connected["INITIAL_ACC"] == "3"
+    assert connected["PV"] == "3"
+    assert connected["CV"] == "PartCounter_ACC"
+    assert connected["OV"] == "PartCounter_OV"
+    assert connected["UN"] == "PartCounter_UN"
+    assert connected["UP_FIRST"] == str(paired and not down_first).upper()
+
+    function_block = destination / "pous/function-blocks/TF_COUNTER.st"
+    assert function_block in result.files
+    source = function_block.read_text()
+    assert "IF UP_FIRST THEN" in source
+    assert "CV := CV - 1;" in source
+    assert "Q := CV >= PV;" in source
+
+
+@pytest.mark.parametrize(
+    "status_locations, message",
+    [
+        ({"Missing": {"OV": "%QX0.4"}}, "without shared state"),
+        ({"PartCounter": {"DN": "%QX0.4"}}, "only OV/UN"),
+        ({"PartCounter": {"OV": "%MD1"}}, "requires evidenced"),
+    ],
+)
+def test_rejects_unsupported_counter_status_telemetry(
+    tmp_path: Path,
+    status_locations: dict[str, dict[str, str]],
+    message: str,
+) -> None:
+    with pytest.raises(OpenPLCNativeUnsupportedError, match=message):
+        OpenPLCNativeProjectExporter().export(
+            _shared_counter_controller(),
+            destination=tmp_path / "invalid-counter-status",
+            counter_status_locations=status_locations,
         )
 
 
