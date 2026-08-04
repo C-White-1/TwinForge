@@ -1,0 +1,37 @@
+@startuml twinforge_conversion_pipeline
+
+title TwinForge conversion pipeline
+left to right direction
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+rectangle "L5X specifications" as Specification
+rectangle "Lossless XML capture" as Capture
+rectangle "CapturedSection\nsource evidence" as Captured
+rectangle "L5X parser and\nsource converters" as Parser
+rectangle "Vendor-neutral\nmodel" as Model
+rectangle "Analysis and\nenrichment" as Analysis
+rectangle "Typed executable IR" as IR
+rectangle "Target selection" as Target
+
+Specification --> Capture : drives
+Capture --> Captured : preserves all content
+Captured --> Parser : interprets
+Parser --> Model : resolves identity\nand relationships
+Model --> Analysis
+Analysis --> IR : executable semantics
+Analysis --> Target : descriptive outputs
+IR --> Target : executable outputs
+
+note bottom of Captured
+  Unknown attributes, elements, and
+  source extensions remain available.
+end note
+
+note bottom of Model
+  No CODESYS or OpenPLC
+  representation types.
+end note
+
+@enduml

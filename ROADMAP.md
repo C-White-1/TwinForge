@@ -139,6 +139,23 @@ The immediate structural priorities are maintained in the
 - [ ] Generalize deployment packaging only after a second real device profile
   establishes the reusable boundary
 
+### User-facing command line
+
+- [ ] Add an installed `twinforge` command with `inspect`, `report`, and
+  `export` subcommands
+- [ ] Preserve the example scripts as focused demonstrations or thin CLI
+  wrappers
+- [ ] Add Pydantic-validated target configuration files and explicit command
+  overrides
+- [ ] Report conversion readiness and unsupported semantics before writing
+  target output
+- [ ] Provide stable process exit codes and optional machine-readable
+  diagnostics for automation and CI
+- [ ] Add deterministic CLI integration tests for PLCopen XML, CODESYS,
+  native OpenPLC, AutomationML, and reports
+- [ ] Document installation and offline operation without an AI or network
+  service
+
 ## Next: communication modelling
 
 Introduce vendor-neutral communication endpoints and mappings rather than

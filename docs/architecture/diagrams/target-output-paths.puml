@@ -1,0 +1,87 @@
+@startuml twinforge_target_output_paths
+
+title TwinForge target output paths
+left to right direction
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+rectangle "Vendor-neutral model" as Model
+rectangle "Typed executable IR\nand operand planning" as IR
+
+package "Standards-based outputs" {
+  component "Generic PLCopen XML\nexporter" as PLCopen
+  artifact "PLCopen XML 2.01" as PLCopenDocument
+  component "AutomationML\nexporter" as AML
+  artifact "CAEX / AutomationML" as AMLDocument
+  component "Engineering report\ngenerators" as Reports
+  artifact "Markdown / CSV / PlantUML" as ReportDocuments
+}
+
+package "CODESYS target" {
+  component "CODESYS PLCopen adapter\nStructured Text and Ladder Diagram" as CodesysPLCopen
+  component "CODESYS deployment\nand native packaging" as CodesysDeploy
+  component "Reusable EtherNet/IP module service\ndiagnostics, enable, reconfiguration" as CodesysENIP
+  component "PowerFlex 525 device profile\nassemblies, scaling, drive semantics" as PowerFlexProfile
+  component "Device-profile explicit messaging\nevidence-gated work in progress" as ExplicitMessaging
+  artifact "CODESYS-importable ST and LD\nartifacts" as CodesysArtifacts
+}
+
+package "OpenPLC target" {
+  component "Standards-only\nPLCopen profile" as OpenPLCStandard
+  artifact "OpenPLC comparison\nPLCopen XML" as OpenPLCXML
+  component "Native OpenPLC\nproject exporter" as OpenPLCNative
+  artifact "Native project directory\nand .ld Ladder graph" as OpenPLCProject
+}
+
+Model --> IR
+IR --> PLCopen
+PLCopen --> PLCopenDocument
+
+IR --> CodesysPLCopen
+CodesysPLCopen --> CodesysDeploy
+CodesysDeploy --> CodesysENIP
+CodesysDeploy --> PowerFlexProfile
+PowerFlexProfile --> CodesysENIP : uses
+ExplicitMessaging ..> CodesysENIP : planned extension
+CodesysDeploy --> CodesysArtifacts
+
+IR --> OpenPLCStandard
+OpenPLCStandard --> OpenPLCXML
+IR --> OpenPLCNative
+OpenPLCNative --> OpenPLCProject
+
+Model --> AML
+AML --> AMLDocument
+Model --> Reports
+Reports --> ReportDocuments
+
+note bottom of OpenPLCXML
+  Exchange and comparison artifact;
+  the observed editor has no matching
+  PLCopen XML import workflow.
+end note
+
+note bottom of OpenPLCProject
+  Practical OpenPLC load/build path,
+  based on editor and runtime evidence.
+end note
+
+note bottom of IR
+  Instruction and function coverage is a work in progress.
+  New semantics are added only with source and target evidence.
+  This diagram shows architecture, not an exhaustive capability list.
+end note
+
+note bottom of CodesysENIP
+  Reusable for drives, remote I/O, valve manifolds,
+  instruments, and other EtherNet/IP devices when
+  the required CODESYS diagnostic object is available.
+end note
+
+note bottom of PowerFlexProfile
+  PowerFlex is the first proven profile, not the
+  identity of the reusable EtherNet/IP infrastructure.
+end note
+
+@enduml

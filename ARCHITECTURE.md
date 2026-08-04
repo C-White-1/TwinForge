@@ -3,6 +3,33 @@
 TwinForge separates source-specific capture from its vendor-neutral model and
 output formats.
 
+## Architecture diagrams
+
+### End-to-end conversion pipeline
+
+![TwinForge conversion pipeline](docs/architecture/diagrams/twinforge_conversion_pipeline.svg)
+
+[PlantUML source](docs/architecture/diagrams/conversion-pipeline.puml)
+
+### Target-specific output paths
+
+![TwinForge target output paths](docs/architecture/diagrams/twinforge_target_output_paths.svg)
+
+[PlantUML source](docs/architecture/diagrams/target-output-paths.puml)
+
+### Native OpenPLC façade and collaborators
+
+![Native OpenPLC façade and collaborators](docs/architecture/diagrams/twinforge_openplc_native_facade.svg)
+
+[PlantUML source](docs/architecture/diagrams/openplc-native-facade.puml)
+
+The `.puml` sources are authoritative. The adjacent SVG files are tracked so
+GitHub can render the diagrams without a PlantUML service or browser plugin.
+The diagrams describe responsibility and data-flow boundaries rather than a
+fixed feature inventory. CODESYS conversion is validated for both Structured
+Text and Ladder Diagram, while instruction and function coverage continues to
+expand through evidence-backed implementation and testing.
+
 ```text
 L5X specification tables
         ↓
@@ -30,10 +57,10 @@ PLCopen XML | AutomationML | reports
 | `analysis` | Coverage and relationship analysis |
 | `structured_text` | Lossless ST syntax and semantic analysis |
 | `ir` | Typed, vendor-neutral executable representation and normalization |
-| `runtime` | Vendor-neutral runtime contracts and executable reference behavior |
+| `runtime` | Runtime contracts and executable reference behavior |
 | `exporters` | Generic IEC, PLCopen XML, AutomationML and report generation |
 | `targets` | Runtime-specific adapters and deployment packaging |
-| `assembly` | Multi-document/controller assembly and software-device resolution |
+| `assembly` | Controller/document assembly and software-device resolution |
 | `transport`, `discovery` | CIP communication and live acquisition |
 
 PLCopen export is divided into target-neutral types, RLL parsing, XML/value
@@ -77,6 +104,16 @@ The PowerFlex 525 executable core is target-neutral in
 `exporters.powerflex525_core`. CODESYS device composition is owned by
 `targets.codesys.powerflex525`; compatibility aliases preserve the former
 public exporter API while dependency tests protect the neutral boundary.
+
+The CODESYS EtherNet/IP module-service adapter is reusable infrastructure, not
+a PowerFlex-only implementation. Its validated boundary normalizes remote
+adapter diagnostics, enable state, fault state, diagnostic text, and
+capability-gated reconfiguration. Device profiles separately own assembly
+instances and sizes, cyclic data layouts, scaling, command/status semantics,
+and electronic keying. The PowerFlex 525 profile is the first proven consumer
+of that infrastructure. Device-specific parameter access and explicit
+messaging remain evidence-gated profile work; they are not yet asserted as a
+generic EtherNet/IP messaging implementation.
 
 Generated Python packaging metadata such as `*.egg-info/` is not source and
 is intentionally excluded from version control. Package configuration is

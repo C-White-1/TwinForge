@@ -1,6 +1,6 @@
-@startuml
+@startuml twinforge_domain_model
 
-title pyRockwell Domain Model
+title TwinForge Domain Model
 
 class Plant
 class Controller

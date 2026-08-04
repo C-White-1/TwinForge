@@ -1,0 +1,67 @@
+@startuml twinforge_openplc_native_facade
+
+title Native OpenPLC facade and collaborators
+left to right direction
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "TwinForge caller" as Caller
+component "OpenPLCNativeProjectExporter\npublic facade" as Facade
+
+package "Admission and planning" {
+  component "native_semantics\nentrypoint and supported subset" as Semantics
+  component "native_validation\nlocations and telemetry" as Validation
+  component "PLCopen operand planner" as Operands
+}
+
+package "Program lowering" {
+  component "native_program\nordered assembly" as Program
+  component "native_ladder\ncontacts, branches, coils" as Ladder
+  component "native_timer\nTON, TOF, RTO" as Timer
+  component "counter\nCTU, CTD, shared state" as Counter
+  component "native_declarations\nvariables and compatibility blocks" as Declarations
+}
+
+package "OpenPLC graph primitives" {
+  component "native_blocks\nblock pins and variables" as Blocks
+  component "native_graph\nnodes, edges, stable identity" as Graph
+}
+
+package "Project output" {
+  component "native_packaging\nproject/device/pin documents" as Packaging
+  artifact "Native OpenPLC\nproject directory" as Output
+}
+
+Caller --> Facade : export(...)
+Facade --> Operands
+Facade --> Semantics
+Facade --> Validation
+Facade --> Program
+Facade --> Packaging
+
+Program --> Declarations
+Program --> Ladder
+Program --> Timer
+Program --> Counter
+
+Ladder --> Graph
+Timer --> Blocks
+Timer --> Graph
+Counter --> Blocks
+Counter --> Graph
+Blocks --> Graph
+
+Packaging --> Output
+
+note bottom of Facade
+  Stable public entrance. Callers do not
+  coordinate the internal collaborators.
+end note
+
+note bottom of Graph
+  "Graph" is OpenPLC's native Ladder
+  node/edge representation, not Graphviz.
+end note
+
+@enduml

@@ -30,20 +30,11 @@ claim of universal L5X or IEC 61131-3 compatibility.
 
 ## Processing architecture
 
-```text
-Specification
-    ↓
-Capture
-    ↓
-CapturedSection
-    ↓
-L5X converters
-    ↓
-Vendor-neutral model
-    ├── analysis and enrichment
-    ├── PLCopen XML exporter
-    └── AutomationML exporter
-```
+![TwinForge conversion pipeline](docs/architecture/diagrams/twinforge_conversion_pipeline.svg)
+
+See the complete [architecture diagrams](ARCHITECTURE.md#architecture-diagrams)
+and the maintained
+[PlantUML source](docs/architecture/diagrams/conversion-pipeline.puml).
 
 Unknown L5X attributes and elements are preserved as source extensions.
 Exporters consume the model and never parse L5X directly.
@@ -63,6 +54,59 @@ Exporters consume the model and never parse L5X directly.
 - Vendor-neutral and Rockwell catalog SystemUnitClasses
 - Model-driven controller, tag, datatype, module, task and program reports
 - Vendor-neutral device parameter and setpoint reports in Markdown and CSV
+
+## Using TwinForge without AI
+
+TwinForge is a deterministic engineering toolkit. AI has assisted its
+development and can help explain unfamiliar source logic, but AI is not a
+runtime dependency and must not decide PLC semantics during conversion.
+
+Today, users can inspect an L5X file and generate supported outputs through
+the maintained scripts documented below. A typical script-based workflow is:
+
+```powershell
+uv run python examples\parse_l5x.py project.L5X
+
+uv run python examples\export_reports.py `
+  project.L5X reports\project
+
+uv run python examples\export_plcopen.py `
+  project.L5X build\project.xml `
+  --profile codesys
+```
+
+These commands parse the source into the same lossless model used by the test
+suite and exporters. Unsupported target semantics must be reported rather
+than silently discarded or guessed.
+
+### Planned unified command line
+
+The example scripts are currently developer-oriented entry points. The
+planned installed CLI will provide one consistent interface:
+
+```powershell
+twinforge inspect project.L5X
+twinforge report project.L5X --output reports
+twinforge export project.L5X --target plcopen --output project.xml
+twinforge export project.L5X --target codesys --output build\codesys
+twinforge export project.L5X --target openplc --output build\openplc
+twinforge export project.L5X --target automationml --output plant.aml
+```
+
+Those `twinforge` commands document the intended interface; they are not yet
+installed entry points. Until the unified CLI is implemented, use the
+corresponding `examples/` scripts.
+
+The CLI is expected to provide conversion-readiness results before export,
+clear unsupported-instruction diagnostics, deterministic output, meaningful
+process exit codes, and optional machine-readable diagnostics. Target choices
+such as OpenPLC located variables or CODESYS deployment settings will come
+from validated configuration files or explicit command options.
+
+AI may remain useful for explaining diagnostics, reviewing AOIs, suggesting
+manually approved mappings, or drafting engineering prose. Every supported
+parse, analysis, validation, and export operation must remain usable without
+AI or a network service.
 
 ## Quick start
 
@@ -165,7 +209,8 @@ uv run python examples\export_automationml.py `
   tests\data\basic\BoosterCompressor_20260128.L5X `
   examples\AutomationML\BoosterCompressor.aml `
   --plcopen ..\PLCOpenXML\BoosterCompressor_codesys.xml `
-  --base-library ..\..\reference\AutomationML\AutomationML2.10BaseLibraries.aml `
+  --base-library `
+  ..\..\reference\AutomationML\AutomationML2.10BaseLibraries.aml `
   --xsd reference\AutomationML\CAEX_ClassModel_V.3.0.xsd
 ```
 

@@ -423,7 +423,7 @@ move functioning code merely to make the directory tree look smaller.
 
 Planned sequence:
 
-- [ ] Add authoritative PlantUML sources under
+- [x] Add authoritative PlantUML sources under
   `docs/architecture/diagrams/` for the end-to-end conversion pipeline,
   target-specific output paths, and the native OpenPLC façade/collaborators
 - [ ] Add `docs/README.md` as the documentation landing page, covering getting
