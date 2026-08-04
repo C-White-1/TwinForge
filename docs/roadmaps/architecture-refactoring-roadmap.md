@@ -298,6 +298,165 @@ Deferred until another device profile or target exists:
 - [ ] Avoid abstract base classes until two real implementations establish
   the common behavior
 
+### Priority 5: split native OpenPLC project generation
+
+`targets/openplc/native_project.py` grew from a deliberately small format
+probe into the implementation boundary for project files, declarations,
+location validation, ladder graphs, timer lowering, retained timers, shared
+counters, telemetry, and deterministic identities. At more than 2,000 lines,
+it now has multiple independently evidenced reasons to change. The counter
+source-shape matcher is already separated in `targets/openplc/counter.py`,
+which establishes a practical extraction seam.
+
+Next:
+
+- [x] Keep `OpenPLCNativeProjectExporter` and its result/error types as the
+  stable public façade
+- [x] Extract project, device, pin-mapping, and POU document packaging
+- [x] Extract located-address and telemetry-request validation
+- [x] Extract variable and compatibility-block declarations
+- [x] Extract deterministic native graph identities and low-level node/edge
+  serialization
+- [x] Move ordinary contact, coil, serial, parallel, and seal-in lowering
+  behind a focused ladder-graph collaborator
+- [x] Move TON/TOF/RTO lowering and elapsed-time telemetry behind a timer
+  collaborator
+- [x] Complete the existing counter boundary by moving `TF_COUNTER` graph
+  emission, telemetry, and compatibility-block source beside counter matching
+- [x] Preserve fail-fast unsupported-semantics diagnostics and their ordering
+- [x] Preserve byte-stable generated fixtures and the runtime-validated
+  project-directory schema
+- [x] Avoid a generic instruction-plugin abstraction until a second lowering
+  family demonstrates the required interface
+
+This refactor is now evidence-backed rather than speculative: timer and
+counter support have changed the same module independently, and their native
+graph construction can be tested without changing project packaging. It
+should precede broad additions such as comparisons, arithmetic, moves, and
+one-shots.
+
+The first slice moved the runtime-verified project scheduling envelope,
+device configuration, empty pin map, deterministic JSON formatting, document
+writing, and required POU-directory creation into
+`targets.openplc.native_packaging`. Existing integration and determinism tests
+continue to exercise the stable exporter façade and generated file set.
+
+The second slice moved local Boolean locations, timer elapsed telemetry,
+counter accumulator telemetry, and counter status telemetry validation into
+`targets.openplc.native_validation`. The shared unsupported-semantics exception
+now lives in `targets.openplc.native_errors` while remaining available from
+the original public import paths. Existing diagnostic tests protect message
+text and ordering.
+
+The third slice moved native local-variable declarations, COUNTER discovery,
+required compatibility-block selection, and the byte-stable compatibility
+sources into `targets.openplc.native_declarations`. The later counter boundary
+became the semantic owner of `TF_COUNTER`; declaration packaging consumes that
+source without depending on the exporter façade. `TF_RTO` remains with the
+declaration boundary pending evidence that another timer implementation needs
+the same separation.
+
+The fourth slice moved deterministic UUID and numeric identifiers plus shared
+connector, rail, contact, coil, parallel-node, and edge serialization into
+`targets.openplc.native_graph`. Instruction-specific block geometry remains
+with timer, counter, and conversion lowering until those collaborators move;
+the graph module therefore contains only primitives shared by independent
+lowering families.
+
+The fifth slice moved ordinary serial contact chains, coils, two-path parallel
+branches, optional XIO stop tails, and seal-in graph geometry into
+`targets.openplc.native_ladder`. The façade still validates source shapes and
+dispatches timer and counter groups before ordinary Boolean rungs, preserving
+diagnostic and source-order behavior.
+
+The sixth slice moved function-block interface variables and connectors plus
+connected input/output variable nodes into `targets.openplc.native_blocks`.
+This shared primitive boundary lets timer and counter collaborators depend on
+graph serialization directly instead of importing private helpers from the
+exporter façade.
+
+The seventh slice established `targets.openplc.native_timer` as the owner of
+canonical TON/TOF plus RTO/DN/RES source-group recognition and timer instance
+type discovery. Timer graph emission and elapsed-time telemetry remain in the
+façade until the next slice, so the timer-lowering checklist item remains
+open rather than overstating completion.
+
+The eighth slice completed that boundary by moving TON/TOF timer blocks, RTO
+wrapper graphs, preset nodes, and runtime-verified TIME-to-DINT elapsed
+telemetry into `targets.openplc.native_timer`. The façade now only asks the
+collaborator to recognize and lower timer groups, while byte-stable fixture
+tests continue to protect the native graph representation.
+
+The ninth slice completed the counter boundary in
+`targets.openplc.counter`. Canonical CTU/CTD recognition, duplicate-state
+diagnostics, shared-state graph emission, accumulator and OV/UN telemetry,
+and the byte-stable `TF_COUNTER` Structured Text source now have one semantic
+owner. The façade retains only ordered dispatch and project assembly.
+
+The tenth slice completed the façade boundary. Entrypoint selection and
+fail-fast source admission now live in `targets.openplc.native_semantics`,
+while ordered declaration and rung assembly live in
+`targets.openplc.native_program`. `native_project.py` retains the stable public
+exporter/result API and coordinates planning, validation, packaging, and
+writing. The full regression suite protects diagnostic ordering and the
+byte-stable runtime-validated project schema; no speculative instruction
+plugin abstraction was introduced.
+
+Priority 5 is complete. The original 2,032-line implementation is now a
+114-line public façade over focused packaging, validation, declaration,
+semantic-admission, graph, ladder, timer, counter, and program-assembly
+modules. Further extraction is not warranted without a new independent reason
+to change one of those responsibilities.
+
+### Priority 6: improve repository navigation and artifact boundaries
+
+TwinForge is not currently too large as a Git repository. The August 2026
+baseline is approximately 674 tracked files and 11.5 MiB. Its maintainability
+risk is conceptual breadth: parsing, neutral modelling, analysis, PLCopen XML,
+CODESYS, OpenPLC, AutomationML, device knowledge, reports, and experiments are
+all legitimate parts of the toolkit, but their relationships are not yet
+obvious to a new contributor.
+
+The objective is to make the existing architecture discoverable before
+considering additional repositories or package splits. This work must not
+move functioning code merely to make the directory tree look smaller.
+
+Planned sequence:
+
+- [ ] Add authoritative PlantUML sources under
+  `docs/architecture/diagrams/` for the end-to-end conversion pipeline,
+  target-specific output paths, and the native OpenPLC façade/collaborators
+- [ ] Add `docs/README.md` as the documentation landing page, covering getting
+  started, architecture, capabilities, target guides, experiments, roadmaps,
+  and reference provenance
+- [ ] Add a concise repository and package-responsibility map to
+  `ARCHITECTURE.md`, including explicit ownership and prohibited dependencies
+- [ ] Document an artifact policy for product source, tests, executable
+  examples, external reference material, curated reports, generated output,
+  and temporary files
+- [ ] Add a cross-target capability matrix covering parse, model, generic
+  PLCopen XML, CODESYS, native OpenPLC, and AutomationML support
+- [ ] Review tracked `examples/` and `reports/` content against the artifact
+  policy without deleting evidence or moving licensed material into Git
+- [ ] Consolidate disposable test output beneath one ignored location, or use
+  pytest-managed temporary directories, while preserving failure artifacts
+  needed for diagnosis
+- [ ] Reassess repository splitting only if independent release cycles,
+  incompatible dependencies, or materially separate contributor groups emerge
+
+Acceptance criteria:
+
+- A new contributor can identify the shared pipeline and target branch points
+  from the documentation index and diagrams.
+- Every top-level artifact category has a documented purpose and tracking
+  policy.
+- Generated and temporary content cannot be mistaken for authoritative source
+  or curated evidence.
+- The capability matrix distinguishes implemented, partially supported,
+  evidence-gated, and unsupported behavior.
+- No source-data preservation, public import, fixture, or generated-output
+  behavior changes as a consequence of this organizational work.
+
 ## Ongoing architecture work
 
 - [x] Add dependency-direction tests if accidental reverse imports become a
@@ -391,14 +550,17 @@ directory containing scheduling metadata, language-specific POU files, device
 configuration, and pin mappings. The Ladder Diagram `.ld` file uses an IEC
 declaration envelope around an OpenPLC JSON rung model. A separate native
 packager now implements the evidenced local-BOOL serial and two-path parallel
-subset, seal-in branches, canonical Rockwell `TON`/`.DN` lowering, and
-canonical Rockwell `TOF`/`.DN` lowering. Optional `TON` elapsed-time telemetry
-is exposed through a located `%MD` `DINT`; `TOF` telemetry remains blocked
-until separately runtime-tested. The packager uses
-deterministic identities and fail-fast rejection of unsupported semantics.
-Generated fixtures have opened, compiled, uploaded, and passed their runtime
-truth-table, seal-in, timer, and elapsed-value tests on OpenPLC Runtime v3.
-The packager remains separate from the generic PLCopen exporter.
+subset, seal-in branches; canonical Rockwell `TON`, `TOF`, and `RTO`
+lowering; and standalone or paired `CTU`/`CTD` lowering through one shared
+`TF_COUNTER` state owner. Optional `TON` elapsed-time telemetry is exposed
+through a located `%MD` `DINT`. Counter telemetry can expose the accumulator
+and the independent overflow and underflow latches through explicitly
+configured locations. The packager uses deterministic identities and
+fail-fast rejection of unsupported semantics. Generated fixtures have opened,
+compiled, uploaded, and passed runtime truth-table, seal-in, timer,
+retained-timer, counter, simultaneous-edge, overflow, and underflow tests on
+OpenPLC Runtime v3. The packager remains separate from the generic PLCopen
+exporter.
 
 ## Refactor completion checklist
 

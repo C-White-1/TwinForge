@@ -32,6 +32,8 @@ the same commit.
   `Str_Capacity` and `RTC_PulseGen`
 - [x] CODESYS lifecycle, wall-clock, EtherNet/IP diagnostic, and
   reconfiguration target adapters
+- [x] Native OpenPLC project generation with runtime-validated Boolean,
+  branch, seal-in, timer, retained-timer, and shared-counter semantics
 - [x] Single-drive and multi-drive PowerFlex 525 CODESYS applications
 - [x] Pydantic-validated CODESYS deployment manifests and reproducible
   native-device/PLCopen bundles
@@ -62,7 +64,7 @@ That is a project-specific result, not universal Logix coverage.
 ### PLCopen conversion
 
 - [ ] Complex and nested branches
-- [ ] TOF, RTO, counters and sequencers
+- [ ] Generic PLCopen lowering for TOF, RTO, counters and sequencers
 - [ ] Additional comparison, bit, file and data-handling instructions
 - [x] Executable Structured Text subset through typed, vendor-neutral IR
 - [ ] Broaden Structured Text beyond the tested AOI subset
@@ -78,6 +80,34 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] Add optional PLCopen Common Behaviour wrappers after underlying AOI
   translation is semantically validated
 - [ ] Produced/consumed and physical I/O binding strategies
+
+This section describes the portable PLCopen XML exporter. Native OpenPLC
+project generation is a separate target path because the observed OpenPLC
+editor does not import PLCopen XML and instead stores ladder programs in its
+own project-directory and `.ld` JSON representation.
+
+### Native OpenPLC conversion
+
+- [x] Generate deterministic OpenPLC project directories and ladder POUs
+- [x] Validate serial contacts, parallel paths, coils and seal-in circuits
+- [x] Lower and runtime-test Rockwell `TON`, `TOF`, `RTO`, and adjacent `RES`
+- [x] Expose runtime-tested `TON.ET` telemetry through an optional `%MD`
+  location
+- [x] Lower standalone and paired Rockwell `CTU`/`CTD` instructions through
+  one shared `TF_COUNTER` state owner
+- [x] Preserve counter preset, accumulator, done, overflow, underflow, reset,
+  source order, and signed-DINT rollover semantics for the supported shapes
+- [x] Compile and runtime-test CTU-only, paired, simultaneous-edge, overflow,
+  and underflow fixtures
+- [ ] Acquire legally shareable, authentic Logix counter fixtures for
+  independent source-shape validation
+- [ ] Support additional timer and counter arrangements only when source
+  evidence defines their execution and reset boundaries
+- [ ] Add comparison, arithmetic, move, one-shot, and further data-handling
+  instructions
+- [ ] Broaden nested and multi-leg branch lowering
+- [ ] Establish an OpenPLC wall-clock adapter for `RTC_PulseGen`
+- [ ] Publish per-fixture native OpenPLC conversion coverage
 
 ### Automatic engineering documents
 
@@ -96,13 +126,18 @@ That is a project-specific result, not universal Logix coverage.
 The immediate structural priorities are maintained in the
 [architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md):
 
-- split instruction, operand, variable, and project responsibilities out of
-  the general PLCopen exporter;
-- divide CODESYS IR POU serialization from task, project, lifecycle, and
-  library metadata;
-- move PowerFlex-specific CODESYS composition beneath `targets.codesys`; and
-- generalize deployment packaging only after a second real device profile
-  establishes the reusable boundary.
+- [x] Split instruction, operand, variable, and project responsibilities out
+  of the general PLCopen exporter
+- [x] Divide CODESYS IR POU serialization from task, project, lifecycle, and
+  library metadata
+- [x] Move PowerFlex-specific CODESYS composition beneath `targets.codesys`
+- [x] Split native OpenPLC validation, declaration, instruction lowering,
+  graph serialization, and project-file packaging behind its stable exporter
+  façade
+- [ ] Improve repository navigation with architecture diagrams, a
+  documentation index, directory responsibilities, and an artifact policy
+- [ ] Generalize deployment packaging only after a second real device profile
+  establishes the reusable boundary
 
 ## Next: communication modelling
 
