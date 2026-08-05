@@ -10,9 +10,15 @@ dependencies = [
     "pydantic>=2.13.4",
 ]
 
+[project.scripts]
+twinforge = "twinforge.cli:main"
+
 [project.optional-dependencies]
 validation = [
     "lxml>=6.1.1",
+]
+snmp = [
+    "pysnmp>=7.1.27,<7.1.28",
 ]
 
 [build-system]
@@ -51,4 +57,9 @@ dev = [
     "pyright>=1.1.411",
     "pytest>=8.4.1",
     "ruff>=0.15.20",
+]
+snmp-sim = [
+    "cryptography>=43,<44",
+    "pysmi-lextudio>=1.4.3",
+    "snmpsim>=1.2.2",
 ]

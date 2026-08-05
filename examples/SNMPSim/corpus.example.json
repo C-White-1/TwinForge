@@ -1,0 +1,13 @@
+{
+  "schema_version": "1",
+  "entries": [
+    {
+      "identifier": "twinforge-switch",
+      "path": "data/twinforge-switch.snmprec",
+      "source_url": "https://github.com/C-White-1/TwinForge",
+      "license": "TwinForge project license",
+      "device_category": "fictional managed switch",
+      "sanitized": true
+    }
+  ]
+}

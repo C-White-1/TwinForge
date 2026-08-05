@@ -79,23 +79,50 @@ These commands parse the source into the same lossless model used by the test
 suite and exporters. Unsupported target semantics must be reported rather
 than silently discarded or guessed.
 
-### Planned unified command line
+### Installed command line
 
-The example scripts are currently developer-oriented entry points. The
-planned installed CLI will provide one consistent interface:
+TwinForge installs a `twinforge` command. Its first stable command group manages
+versioned discovery lifecycle and promotion state without performing live
+network discovery:
 
 ```powershell
+twinforge state init inventory\discovery.json
+twinforge state validate inventory\discovery.json
+twinforge state inspect inventory\discovery.json
+twinforge state inspect inventory\discovery.json --format json
 twinforge inspect project.L5X
+twinforge inspect project.L5X --format json
 twinforge report project.L5X --output reports
+```
+
+`state init` refuses to overwrite an existing path. Validation and inspection
+are read-only, return non-zero status for invalid state, and do not require AI
+or network access. The same interface is available through
+`python -m twinforge`.
+
+`inspect` accepts controller, standalone module, program, and Add-On Instruction
+L5X exports. It reports a deterministic model summary and all conversion
+diagnostics without modifying the source. Missing, malformed, and unsupported
+documents return a non-zero status.
+
+`report` accepts a Controller L5X export and writes the seven supported
+engineering reports: controller, tags, datatypes, Add-On Instructions, modules,
+tasks, and programs. Existing files with those deterministic names are replaced;
+unrelated files in the destination are left untouched.
+
+The example scripts remain developer-oriented entry points for L5X exports.
+Future command groups will unify their current interfaces:
+
+```powershell
 twinforge export project.L5X --target plcopen --output project.xml
 twinforge export project.L5X --target codesys --output build\codesys
 twinforge export project.L5X --target openplc --output build\openplc
 twinforge export project.L5X --target automationml --output plant.aml
 ```
 
-Those `twinforge` commands document the intended interface; they are not yet
-installed entry points. Until the unified CLI is implemented, use the
-corresponding `examples/` scripts.
+Those L5X `export` forms document the intended next interface and are not
+implemented yet. Continue using the corresponding `examples/` scripts for
+those operations.
 
 The CLI is expected to provide conversion-readiness results before export,
 clear unsupported-instruction diagnostics, deterministic output, meaningful

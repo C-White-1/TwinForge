@@ -141,8 +141,10 @@ The immediate structural priorities are maintained in the
 
 ### User-facing command line
 
-- [ ] Add an installed `twinforge` command with `inspect`, `report`, and
-  `export` subcommands
+- [x] Add an installed `twinforge` command and module entry point
+- [x] Add safe discovery-state initialize, validate, and inspect commands
+- [x] Add L5X `inspect` and controller engineering `report` subcommands
+- [ ] Add L5X target `export` subcommands
 - [ ] Preserve the example scripts as focused demonstrations or thin CLI
   wrappers
 - [ ] Add Pydantic-validated target configuration files and explicit command
@@ -175,12 +177,27 @@ source explicitly supplies them.
 
 ## Online discovery and reconciliation
 
-- [ ] CIP Identity and chassis/slot discovery
+- [x] Offline Discovery Snapshot v1 contracts, fake provider and stable JSON
+- [x] Offline SNMP node, interface, LLDP and forwarding evidence contracts
+- [x] Local SNMPSim fixture and bounded read-only SNMP adapter
+- [x] SNMPREC and Net-SNMP walk ingestion with retained unknown evidence
+- [x] RFC 6933 physical inventory, containment validation, and candidates
+- [x] CIP, physical-entity, and explicitly bound L5X module reconciliation
+- [x] Auditable acceptance staging without direct core-model mutation
+- [x] Cross-capture generations and explicit supersede, merge, and split events
+- [x] Explicit reversible promotion into vendor-neutral assets and devices
+- [x] Atomic Plant promotion repository boundary with idempotent replay
+- [x] Versioned atomic JSON persistence for lifecycle and promotion state
+- [ ] Bounded `pycomm3` CIP Identity adapter
+- [ ] CIP chassis/slot discovery
 - [ ] Controller, program, routine and tag discovery
 - [ ] Assembly and connection-manager discovery
 - [ ] EtherNet/IP topology and bridge discovery
-- [ ] Compare online state with offline L5X
+- [x] Compare discovered CIP identity with explicitly bound offline L5X modules
 - [ ] Detect hardware, firmware and network drift
+
+The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
+[Authorized Online Discovery Roadmap](docs/roadmaps/online-discovery-roadmap.md).
 
 ## Additional inputs and outputs
 
