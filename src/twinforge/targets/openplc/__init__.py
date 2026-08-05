@@ -3,6 +3,7 @@
 from .exporter import OpenPLCExporter
 from .native_project import (
     OpenPLCNativeProjectExporter,
+    OpenPLCNativeProjectPlan,
     OpenPLCNativeProjectResult,
     OpenPLCNativeUnsupportedError,
 )
@@ -10,6 +11,7 @@ from .native_project import (
 __all__ = [
     "OpenPLCExporter",
     "OpenPLCNativeProjectExporter",
+    "OpenPLCNativeProjectPlan",
     "OpenPLCNativeProjectResult",
     "OpenPLCNativeUnsupportedError",
 ]

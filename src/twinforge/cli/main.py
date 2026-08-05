@@ -71,8 +71,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_l5x_command.add_argument(
         "--compile-only",
-        action="store_true",
-        help="Set compile-only mode in a native OpenPLC project.",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Override native OpenPLC compile-only mode.",
+    )
+    export_l5x_command.add_argument(
+        "--config",
+        type=Path,
+        help="Versioned JSON target configuration file.",
     )
     export_l5x_command.add_argument(
         "--base-library",
@@ -83,6 +89,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--plcopen-reference",
         type=Path,
         help="Optional PLCopen document referenced by AutomationML.",
+    )
+    export_l5x_command.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate and plan the export without writing output.",
     )
 
     state = commands.add_parser(
@@ -147,8 +158,10 @@ def main(
                 destination=arguments.output,
                 schema_path=arguments.xsd,
                 compile_only=arguments.compile_only,
+                config_path=arguments.config,
                 base_library_path=arguments.base_library,
                 plcopen_reference=arguments.plcopen_reference,
+                dry_run=arguments.dry_run,
                 stdout=output,
             )
         elif arguments.state_command == "init":

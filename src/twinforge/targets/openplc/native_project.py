@@ -43,6 +43,15 @@ class OpenPLCNativeProjectResult:
     native_program_name: str = OPENPLC_MAIN_PROGRAM
 
 
+@dataclass(frozen=True)
+class OpenPLCNativeProjectPlan:
+    """Validated native project documents before filesystem output."""
+
+    documents: Mapping[Path, str]
+    source_program_name: str
+    native_program_name: str = OPENPLC_MAIN_PROGRAM
+
+
 class OpenPLCNativeProjectExporter:
     """Package the proven local-BOOL, serial-XIC-to-OTE Ladder subset."""
 
@@ -59,8 +68,35 @@ class OpenPLCNativeProjectExporter:
         counter_status_locations: Mapping[str, Mapping[str, str]] | None = None,
     ) -> OpenPLCNativeProjectResult:
         """Write a native OpenPLC project or reject unsupported semantics."""
-
         root = Path(destination)
+        plan = self.plan(
+            controller,
+            project_name=project_name,
+            compile_only=compile_only,
+            locations=locations,
+            timer_elapsed_locations=timer_elapsed_locations,
+            counter_accumulator_locations=counter_accumulator_locations,
+            counter_status_locations=counter_status_locations,
+        )
+        written = write_native_project_documents(root, plan.documents)
+        return OpenPLCNativeProjectResult(
+            root,
+            written,
+            source_program_name=plan.source_program_name,
+        )
+
+    def plan(
+        self,
+        controller: Controller,
+        *,
+        project_name: str | None = None,
+        compile_only: bool = False,
+        locations: Mapping[str, str] | None = None,
+        timer_elapsed_locations: Mapping[str, str] | None = None,
+        counter_accumulator_locations: Mapping[str, str] | None = None,
+        counter_status_locations: Mapping[str, Mapping[str, str]] | None = None,
+    ) -> OpenPLCNativeProjectPlan:
+        """Validate and build native documents without writing files."""
         program, task_name, interval, priority = select_entrypoint(controller)
         operands = PLCopenOperandPlanner().prepare(controller)
         validate_program(controller, program, operands)
@@ -120,9 +156,7 @@ class OpenPLCNativeProjectExporter:
                 resolved_shared_counter_names,
             )
         )
-        written = write_native_project_documents(root, documents)
-        return OpenPLCNativeProjectResult(
-            root,
-            written,
+        return OpenPLCNativeProjectPlan(
+            documents=documents,
             source_program_name=program.name,
         )

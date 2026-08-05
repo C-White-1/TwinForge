@@ -99,8 +99,11 @@ twinforge export project.L5X --target plcopen --output project.xml `
 twinforge export project.L5X --target codesys --output codesys.xml
 twinforge export project.L5X --target openplc --output build\openplc `
   --compile-only
+twinforge export project.L5X --target openplc --output build\openplc `
+  --config openplc-export.json
 twinforge export project.L5X --target automationml --output plant.aml `
   --base-library reference\AutomationML\AutomationML2.10BaseLibraries.aml
+twinforge export project.L5X --target plcopen --output project.xml --dry-run
 ```
 
 `state init` refuses to overwrite an existing path. Validation and inspection
@@ -131,13 +134,20 @@ directory. It currently admits one scheduled program with one RLL routine and
 the tested Boolean, timer, and counter subset; unsupported semantics fail before
 project files are written. `--compile-only` sets that device configuration mode.
 Advanced located-variable and telemetry mappings remain available through the
-Python API pending a validated CLI configuration document.
+Python API and a strict, versioned JSON configuration supplied with `--config`.
+See `examples/OpenPLC/openplc-export.example.json`. Explicit
+`--compile-only` or `--no-compile-only` options override the configured value.
 
 `export --target automationml` writes AutomationML 2.1 / CAEX 3.0 and requires
 the official AutomationML base-library file. An optional `--plcopen-reference`
 links the controller to an existing PLCopen document, while `--xsd` performs
 CAEX validation. File references are made relative to the output document and
 are semantically resolved before anything is written.
+
+Add `--dry-run` to any export target to execute parsing, target planning,
+configuration validation, XSD or semantic validation, and diagnostic reporting
+without writing the requested output. Native OpenPLC planning is performed
+entirely in memory rather than through a disposable project directory.
 
 The example scripts remain useful as focused developer demonstrations of the
 same parser, analysis, and exporter APIs.

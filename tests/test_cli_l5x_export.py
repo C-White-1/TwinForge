@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import xml.etree.ElementTree as ET
 from io import StringIO
 from pathlib import Path
@@ -241,6 +242,130 @@ def test_automationml_requires_base_library_before_writing(
     assert result == 1
     assert not destination.exists()
     assert "--base-library is required" in errors.getvalue()
+
+
+def test_openplc_config_maps_locations_and_cli_overrides_mode(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "openplc-project"
+    config = tmp_path / "openplc.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "target": "openplc",
+                "compile_only": True,
+                "locations": {
+                    "Enable": "%QX0.0",
+                    "Output": "%QX0.1",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = main(
+        (
+            "export",
+            str(DATA / "openplc/native_boolean.L5X"),
+            "--target",
+            "openplc",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+            "--no-compile-only",
+        )
+    )
+
+    assert result == 0
+    ladder = (destination / "pous/programs/main.ld").read_text(
+        encoding="utf-8"
+    )
+    assert "Enable : bool AT %QX0.0;" in ladder
+    assert "Output : bool AT %QX0.1;" in ladder
+    device = (destination / "devices/configuration.json").read_text(
+        encoding="utf-8"
+    )
+    assert '"compileOnly": false' in device
+
+
+def test_openplc_config_rejects_unknown_fields_without_writing(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "openplc-project"
+    config = tmp_path / "invalid.json"
+    config.write_text(
+        '{"schema_version":"1.0","target":"openplc","guess":true}',
+        encoding="utf-8",
+    )
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(DATA / "openplc/native_boolean.L5X"),
+            "--target",
+            "openplc",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+        ),
+        stderr=errors,
+    )
+
+    assert result == 1
+    assert not destination.exists()
+    assert "invalid OpenPLC export configuration" in errors.getvalue()
+
+
+def test_plcopen_dry_run_reports_diagnostics_without_writing(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    output = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--dry-run",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    assert not destination.exists()
+    assert "Ready to export PLCopen XML 2.01" in output.getvalue()
+    assert "WARNING" in output.getvalue()
+
+
+def test_openplc_dry_run_plans_files_without_writing(tmp_path: Path) -> None:
+    destination = tmp_path / "openplc-project"
+    output = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(DATA / "openplc/native_boolean.L5X"),
+            "--target",
+            "openplc",
+            "--output",
+            str(destination),
+            "--dry-run",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    assert not destination.exists()
+    assert "Ready to export native OpenPLC project" in output.getvalue()
+    assert "pous\\programs\\main.ld" in output.getvalue()
 
 
 def test_export_validation_failure_does_not_write_output(

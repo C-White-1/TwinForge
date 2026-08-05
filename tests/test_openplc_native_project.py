@@ -273,6 +273,24 @@ def test_exports_evidenced_native_openplc_project(tmp_path: Path) -> None:
     ]
 
 
+def test_plans_native_project_without_writing_files(tmp_path: Path) -> None:
+    destination = tmp_path / "project"
+
+    plan = OpenPLCNativeProjectExporter().plan(_controller())
+
+    assert not destination.exists()
+    assert plan.source_program_name == "main"
+    assert set(plan.documents) == {
+        Path("project.json"),
+        Path("devices/configuration.json"),
+        Path("devices/pin-mapping.json"),
+        Path("pous/programs/main.ld"),
+    }
+    assert '"type": "contact"' in plan.documents[
+        Path("pous/programs/main.ld")
+    ]
+
+
 def test_native_openplc_project_is_deterministic(tmp_path: Path) -> None:
     first = tmp_path / "first"
     second = tmp_path / "second"

@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "target": "openplc",
+  "compile_only": true,
+  "locations": {
+    "Enable": "%QX0.0",
+    "Output": "%QX0.1"
+  },
+  "timer_elapsed_locations": {},
+  "counter_accumulator_locations": {},
+  "counter_status_locations": {}
+}

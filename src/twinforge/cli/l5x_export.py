@@ -26,6 +26,8 @@ from twinforge.targets.openplc import (
     OpenPLCNativeUnsupportedError,
 )
 
+from .export_config import OpenPLCExportConfig, load_openplc_export_config
+
 
 class L5XExportError(RuntimeError):
     """Raised when an installed L5X export operation cannot complete."""
@@ -43,22 +45,42 @@ def export_l5x_target(
     target: str,
     destination: Path,
     schema_path: Path | None,
-    compile_only: bool,
+    compile_only: bool | None,
+    config_path: Path | None,
     base_library_path: Path | None,
     plcopen_reference: Path | None,
+    dry_run: bool,
     stdout: TextIO,
 ) -> None:
     """Export a Controller L5X using one explicit target adapter."""
     try:
         if target == "openplc":
+            config = (
+                load_openplc_export_config(config_path)
+                if config_path is not None
+                else OpenPLCExportConfig(
+                    schema_version="1.0",
+                    target="openplc",
+                )
+            )
             _export_openplc_native(
                 source,
                 destination=destination,
                 schema_path=schema_path,
-                compile_only=compile_only,
+                compile_only=(
+                    compile_only
+                    if compile_only is not None
+                    else config.compile_only
+                ),
+                config=config,
+                dry_run=dry_run,
                 stdout=stdout,
             )
             return
+        if config_path is not None:
+            raise L5XExportError(
+                "--config currently applies only to --target openplc"
+            )
         if target == "automationml":
             _export_automationml(
                 source,
@@ -67,6 +89,7 @@ def export_l5x_target(
                 compile_only=compile_only,
                 base_library_path=base_library_path,
                 plcopen_reference=plcopen_reference,
+                dry_run=dry_run,
                 stdout=stdout,
             )
             return
@@ -78,7 +101,7 @@ def export_l5x_target(
             )
 
         profile = _PROFILES[target]
-        if compile_only:
+        if compile_only is not None:
             raise L5XExportError(
                 "--compile-only applies only to --target openplc"
             )
@@ -101,8 +124,9 @@ def export_l5x_target(
         if schema_path is not None:
             validate_plcopen_xml(result.xml, schema_path)
 
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(result.xml, encoding="utf-8")
+        if not dry_run:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(result.xml, encoding="utf-8")
     except L5XExportError:
         raise
     except (
@@ -124,7 +148,8 @@ def export_l5x_target(
         if profile is PLCopenProfile.STANDARD_201
         else "CODESYS PLCopen XML"
     )
-    stdout.write(f"Exported {label} to {destination}\n")
+    verb = "Ready to export" if dry_run else "Exported"
+    stdout.write(f"{verb} {label} to {destination}\n")
     for diagnostic in [*document.diagnostics, *result.diagnostics]:
         object_name = (
             f" [{diagnostic.object_name}]" if diagnostic.object_name else ""
@@ -140,13 +165,14 @@ def _export_automationml(
     *,
     destination: Path,
     schema_path: Path | None,
-    compile_only: bool,
+    compile_only: bool | None,
     base_library_path: Path | None,
     plcopen_reference: Path | None,
+    dry_run: bool,
     stdout: TextIO,
 ) -> None:
     """Write a semantically validated AutomationML 2.1 document."""
-    if compile_only:
+    if compile_only is not None:
         raise L5XExportError(
             "--compile-only applies only to --target openplc"
         )
@@ -181,10 +207,12 @@ def _export_automationml(
     if schema_path is not None:
         validate_automationml_xml(result.xml, schema_path)
     validate_automationml_references(result.xml, destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(result.xml, encoding="utf-8")
+    if not dry_run:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(result.xml, encoding="utf-8")
 
-    stdout.write(f"Exported AutomationML 2.1 to {destination}\n")
+    verb = "Ready to export" if dry_run else "Exported"
+    stdout.write(f"{verb} AutomationML 2.1 to {destination}\n")
     stdout.write(f"Base library reference: {base_reference}\n")
     if plcopen_path is not None:
         stdout.write(f"PLCopen document reference: {plcopen_path}\n")
@@ -209,6 +237,8 @@ def _export_openplc_native(
     destination: Path,
     schema_path: Path | None,
     compile_only: bool,
+    config: OpenPLCExportConfig,
+    dry_run: bool,
     stdout: TextIO,
 ) -> None:
     """Write the runtime-evidenced native OpenPLC project structure."""
@@ -222,19 +252,40 @@ def _export_openplc_native(
         raise L5XExportError(
             "openplc export currently requires a Controller L5X target; "
             f"found {document.target_type.value}"
-        )
-    result = OpenPLCNativeProjectExporter().export(
+    )
+    exporter = OpenPLCNativeProjectExporter()
+    plan = exporter.plan(
         document.target,
-        destination=destination,
         project_name=document.target_name,
         compile_only=compile_only,
+        locations=config.locations,
+        timer_elapsed_locations=config.timer_elapsed_locations,
+        counter_accumulator_locations=config.counter_accumulator_locations,
+        counter_status_locations=config.counter_status_locations,
     )
-    stdout.write(f"Exported native OpenPLC project to {result.destination}\n")
+    if dry_run:
+        files = tuple(destination / path for path in plan.documents)
+    else:
+        result = exporter.export(
+            document.target,
+            destination=destination,
+            project_name=document.target_name,
+            compile_only=compile_only,
+            locations=config.locations,
+            timer_elapsed_locations=config.timer_elapsed_locations,
+            counter_accumulator_locations=(
+                config.counter_accumulator_locations
+            ),
+            counter_status_locations=config.counter_status_locations,
+        )
+        files = result.files
+    verb = "Ready to export" if dry_run else "Exported"
+    stdout.write(f"{verb} native OpenPLC project to {destination}\n")
     stdout.write(
-        f"Source program {result.source_program_name} was lowered as "
-        f"{result.native_program_name}.\n"
+        f"Source program {plan.source_program_name} was lowered as "
+        f"{plan.native_program_name}.\n"
     )
-    for path in result.files:
+    for path in files:
         stdout.write(f"- {path}\n")
     for diagnostic in document.diagnostics:
         object_name = (
