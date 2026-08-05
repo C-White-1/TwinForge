@@ -53,6 +53,7 @@ class AutomationMLExporter:
         plcopen_path: str | Path | None = None,
         base_library_path: str | Path | None = None,
         destination: str | Path | None = None,
+        file_name: str | None = None,
         last_writing_time: datetime | None = None,
     ) -> AutomationMLExportResult:
         """Build, serialize, and optionally write one AutomationML document."""
@@ -72,7 +73,7 @@ class AutomationMLExporter:
             file_name=(
                 destination_path.name
                 if destination_path is not None
-                else f"{name}.aml"
+                else file_name or f"{name}.aml"
             ),
             plcopen_path=plcopen_path,
             base_library_path=base_library_path,

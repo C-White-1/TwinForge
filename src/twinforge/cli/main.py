@@ -11,6 +11,7 @@ from typing import TextIO
 from twinforge.discovery import DiscoveryStatePersistenceError
 
 from .discovery_state import initialise_state, inspect_state, validate_state
+from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
 
@@ -44,6 +45,44 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Directory in which to write the report bundle.",
+    )
+
+    export_l5x_command = commands.add_parser(
+        "export",
+        help="Export a Controller L5X document to a target format.",
+    )
+    export_l5x_command.add_argument("path", type=Path)
+    export_l5x_command.add_argument(
+        "--target",
+        required=True,
+        choices=("plcopen", "codesys", "openplc", "automationml"),
+        help="Export target.",
+    )
+    export_l5x_command.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Destination file.",
+    )
+    export_l5x_command.add_argument(
+        "--xsd",
+        type=Path,
+        help="Optional PLCopen XML 2.01 schema used for validation.",
+    )
+    export_l5x_command.add_argument(
+        "--compile-only",
+        action="store_true",
+        help="Set compile-only mode in a native OpenPLC project.",
+    )
+    export_l5x_command.add_argument(
+        "--base-library",
+        type=Path,
+        help="AutomationML 2.1 base-library AML file.",
+    )
+    export_l5x_command.add_argument(
+        "--plcopen-reference",
+        type=Path,
+        help="Optional PLCopen document referenced by AutomationML.",
     )
 
     state = commands.add_parser(
@@ -101,6 +140,17 @@ def main(
                 destination=arguments.output,
                 stdout=output,
             )
+        elif arguments.command == "export":
+            export_l5x_target(
+                arguments.path,
+                target=arguments.target,
+                destination=arguments.output,
+                schema_path=arguments.xsd,
+                compile_only=arguments.compile_only,
+                base_library_path=arguments.base_library,
+                plcopen_reference=arguments.plcopen_reference,
+                stdout=output,
+            )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -113,6 +163,7 @@ def main(
             )
     except (
         DiscoveryStatePersistenceError,
+        L5XExportError,
         L5XInspectionError,
         L5XReportError,
     ) as error:

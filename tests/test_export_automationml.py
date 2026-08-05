@@ -2,9 +2,12 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from twinforge.exporters import (
     CAEX_NAMESPACE,
     AutomationMLExporter,
+    AutomationMLValidationError,
     validate_automationml_references,
     validate_automationml_xml,
 )
@@ -13,6 +16,16 @@ from twinforge.parsers import L5XParser
 
 SAMPLE_L5X = Path(__file__).parent / "data/basic/BoosterCompressor_20260128.L5X"
 FIXED_TIME = datetime(2026, 7, 25, tzinfo=timezone.utc)
+
+
+def test_validation_wraps_malformed_caex_schema_as_public_error(
+    tmp_path: Path,
+) -> None:
+    schema = tmp_path / "malformed.xsd"
+    schema.write_text("not an XML schema", encoding="utf-8")
+
+    with pytest.raises(AutomationMLValidationError):
+        validate_automationml_xml("<CAEXFile/>", schema)
 
 
 def _find(

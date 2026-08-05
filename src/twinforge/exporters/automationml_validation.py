@@ -25,10 +25,13 @@ def validate_automationml_xml(
         raise AutomationMLValidationUnavailable(
             "CAEX XSD validation requires the optional 'lxml' package"
         ) from error
-    schema = etree.XMLSchema(etree.parse(str(schema_path)))
-    document = etree.fromstring(
-        xml.encode("utf-8") if isinstance(xml, str) else xml
-    )
+    try:
+        schema = etree.XMLSchema(etree.parse(str(schema_path)))
+        document = etree.fromstring(
+            xml.encode("utf-8") if isinstance(xml, str) else xml
+        )
+    except (etree.XMLSchemaParseError, etree.XMLSyntaxError) as error:
+        raise AutomationMLValidationError(str(error)) from error
     if not schema.validate(document):
         messages = "; ".join(
             f"line {entry.line}: {entry.message}"

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="NativeBoolean" TargetType="Controller">
+  <Controller Use="Target" Name="NativeBoolean" ProcessorType="1756-L82E"
+   MajorRev="35" MinorRev="1">
+    <DataTypes/>
+    <Modules/>
+    <AddOnInstructionDefinitions/>
+    <Tags/>
+    <Programs>
+      <Program Name="SourceProgram" TestEdits="false"
+       MainRoutineName="Main" Disabled="false" UseAsFolder="false">
+        <Tags>
+          <Tag Name="Enable" TagType="Base" DataType="BOOL"
+           Constant="false" ExternalAccess="Read/Write"/>
+          <Tag Name="Output" TagType="Base" DataType="BOOL"
+           Constant="false" ExternalAccess="Read/Write"/>
+        </Tags>
+        <Routines>
+          <Routine Name="Main" Type="RLL">
+            <RLLContent>
+              <Rung Number="0" Type="N">
+                <Text><![CDATA[XIC(Enable)OTE(Output);]]></Text>
+              </Rung>
+            </RLLContent>
+          </Routine>
+        </Routines>
+      </Program>
+    </Programs>
+    <Tasks>
+      <Task Name="MainTask" Type="PERIODIC" Rate="20" Priority="1"
+       Watchdog="500" DisableUpdateOutputs="false" InhibitTask="false">
+        <ScheduledPrograms>
+          <ScheduledProgram Name="SourceProgram"/>
+        </ScheduledPrograms>
+      </Task>
+    </Tasks>
+  </Controller>
+</RSLogix5000Content>

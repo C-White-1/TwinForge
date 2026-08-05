@@ -93,6 +93,14 @@ twinforge state inspect inventory\discovery.json --format json
 twinforge inspect project.L5X
 twinforge inspect project.L5X --format json
 twinforge report project.L5X --output reports
+twinforge export project.L5X --target plcopen --output project.xml
+twinforge export project.L5X --target plcopen --output project.xml `
+  --xsd reference\PLCopenXML\standard\tc6_xml_v201.xsd
+twinforge export project.L5X --target codesys --output codesys.xml
+twinforge export project.L5X --target openplc --output build\openplc `
+  --compile-only
+twinforge export project.L5X --target automationml --output plant.aml `
+  --base-library reference\AutomationML\AutomationML2.10BaseLibraries.aml
 ```
 
 `state init` refuses to overwrite an existing path. Validation and inspection
@@ -110,19 +118,29 @@ engineering reports: controller, tags, datatypes, Add-On Instructions, modules,
 tasks, and programs. Existing files with those deterministic names are replaced;
 unrelated files in the destination are left untouched.
 
-The example scripts remain developer-oriented entry points for L5X exports.
-Future command groups will unify their current interfaces:
+`export --target plcopen` writes target-neutral PLCopen XML 2.01 without
+CODESYS extensions. Supplying `--xsd` validates the complete document before
+the destination is written and requires the optional validation dependencies.
 
-```powershell
-twinforge export project.L5X --target plcopen --output project.xml
-twinforge export project.L5X --target codesys --output build\codesys
-twinforge export project.L5X --target openplc --output build\openplc
-twinforge export project.L5X --target automationml --output plant.aml
-```
+`export --target codesys` writes the separately adapted CODESYS PLCopen XML
+dialect, including its application and project-structure extensions. The
+standard PLCopen 2.01 XSD does not apply to this target.
 
-Those L5X `export` forms document the intended next interface and are not
-implemented yet. Continue using the corresponding `examples/` scripts for
-those operations.
+`export --target openplc` writes the runtime-evidenced native OpenPLC project
+directory. It currently admits one scheduled program with one RLL routine and
+the tested Boolean, timer, and counter subset; unsupported semantics fail before
+project files are written. `--compile-only` sets that device configuration mode.
+Advanced located-variable and telemetry mappings remain available through the
+Python API pending a validated CLI configuration document.
+
+`export --target automationml` writes AutomationML 2.1 / CAEX 3.0 and requires
+the official AutomationML base-library file. An optional `--plcopen-reference`
+links the controller to an existing PLCopen document, while `--xsd` performs
+CAEX validation. File references are made relative to the output document and
+are semantically resolved before anything is written.
+
+The example scripts remain useful as focused developer demonstrations of the
+same parser, analysis, and exporter APIs.
 
 The CLI is expected to provide conversion-readiness results before export,
 clear unsupported-instruction diagnostics, deterministic output, meaningful

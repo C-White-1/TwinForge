@@ -22,10 +22,13 @@ def validate_plcopen_xml(xml: str | bytes, schema_path: str | Path) -> None:
         raise PLCopenValidationUnavailable(
             "XSD validation requires the optional 'lxml' package"
         ) from error
-    schema = etree.XMLSchema(etree.parse(str(schema_path)))
-    document = etree.fromstring(
-        xml.encode("utf-8") if isinstance(xml, str) else xml
-    )
+    try:
+        schema = etree.XMLSchema(etree.parse(str(schema_path)))
+        document = etree.fromstring(
+            xml.encode("utf-8") if isinstance(xml, str) else xml
+        )
+    except (etree.XMLSchemaParseError, etree.XMLSyntaxError) as error:
+        raise PLCopenValidationError(str(error)) from error
     if not schema.validate(document):
         messages = "; ".join(entry.message for entry in schema.error_log)
         raise PLCopenValidationError(messages)

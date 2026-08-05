@@ -144,7 +144,10 @@ The immediate structural priorities are maintained in the
 - [x] Add an installed `twinforge` command and module entry point
 - [x] Add safe discovery-state initialize, validate, and inspect commands
 - [x] Add L5X `inspect` and controller engineering `report` subcommands
-- [ ] Add L5X target `export` subcommands
+- [x] Add target-neutral PLCopen XML 2.01 export with optional XSD validation
+- [x] Add the separately adapted CODESYS PLCopen XML export target
+- [x] Add native OpenPLC project export for the runtime-evidenced subset
+- [x] Add AutomationML export with semantic references and optional CAEX XSD
 - [ ] Preserve the example scripts as focused demonstrations or thin CLI
   wrappers
 - [ ] Add Pydantic-validated target configuration files and explicit command
