@@ -151,6 +151,12 @@ links the controller to an existing PLCopen document, while `--xsd` performs
 CAEX validation. File references are made relative to the output document and
 are semantically resolved before anything is written.
 
+PLCopen and AutomationML also accept strict, versioned configurations. Paths
+inside a configuration resolve relative to that JSON file, making the document
+portable with its reference bundle. Explicit CLI paths override configured
+values. See `examples/PLCOpenXML/plcopen-export.example.json` and
+`examples/AutomationML/automationml-export.example.json`.
+
 Add `--dry-run` to any export target to execute parsing, target planning,
 configuration validation, XSD or semantic validation, and diagnostic reporting
 without writing the requested output. Native OpenPLC planning is performed

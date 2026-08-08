@@ -322,6 +322,151 @@ def test_openplc_config_rejects_unknown_fields_without_writing(
     assert "invalid OpenPLC export configuration" in errors.getvalue()
 
 
+def test_plcopen_config_resolves_xsd_relative_to_config(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    config_directory = tmp_path / "configuration"
+    config_directory.mkdir()
+    config = config_directory / "plcopen.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "target": "plcopen",
+                "xsd": "schemas/missing.xsd",
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+        ),
+        stderr=errors,
+    )
+
+    expected = (config_directory / "schemas/missing.xsd").resolve()
+    assert result == 2
+    assert str(expected) in errors.getvalue()
+    assert not destination.exists()
+
+
+def test_automationml_config_resolves_base_library_relative_to_config(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "output/plant.aml"
+    config_directory = tmp_path / "configuration"
+    library_directory = config_directory / "references"
+    library_directory.mkdir(parents=True)
+    base_library = library_directory / "base.aml"
+    base_library.write_bytes(
+        (DATA / "automationml_base_libraries.aml").read_bytes()
+    )
+    config = config_directory / "automationml.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "target": "automationml",
+                "base_library": "references/base.aml",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "automationml",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+        )
+    )
+
+    assert result == 0
+    assert destination.is_file()
+
+
+def test_automationml_cli_base_library_overrides_config(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "plant.aml"
+    config = tmp_path / "automationml.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "target": "automationml",
+                "base_library": "missing.aml",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "automationml",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+            "--base-library",
+            str(DATA / "automationml_base_libraries.aml"),
+        )
+    )
+
+    assert result == 0
+    assert destination.is_file()
+
+
+def test_plcopen_rejects_configuration_for_another_target(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    config = tmp_path / "wrong-target.json"
+    config.write_text(
+        '{"schema_version":"1.0","target":"automationml"}',
+        encoding="utf-8",
+    )
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--config",
+            str(config),
+        ),
+        stderr=errors,
+    )
+
+    assert result == 2
+    assert "invalid PLCopen export configuration" in errors.getvalue()
+    assert "target" in errors.getvalue()
+    assert not destination.exists()
+
+
 def test_plcopen_dry_run_reports_diagnostics_without_writing(
     tmp_path: Path,
 ) -> None:

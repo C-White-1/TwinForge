@@ -151,7 +151,8 @@ The immediate structural priorities are maintained in the
 - [ ] Preserve the example scripts as focused demonstrations or thin CLI
   wrappers
 - [x] Add versioned OpenPLC target configuration with explicit CLI overrides
-- [ ] Generalize validated configuration to the remaining export targets
+- [x] Generalize validated configuration to PLCopen and AutomationML targets
+- [ ] Add CODESYS configuration after evidenced target settings require it
 - [x] Add side-effect-free pre-export readiness through `export --dry-run`
   target output
 - [x] Provide stable process exit codes and optional machine-readable

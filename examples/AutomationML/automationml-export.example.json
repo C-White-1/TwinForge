@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "target": "automationml",
+  "base_library": "../../reference/AutomationML/AutomationML2.10BaseLibraries.aml",
+  "xsd": "../../reference/AutomationML/CAEX_ClassModel_V.3.0.xsd",
+  "plcopen_reference": null
+}

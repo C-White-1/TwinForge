@@ -26,7 +26,14 @@ from twinforge.targets.openplc import (
     OpenPLCNativeUnsupportedError,
 )
 
-from .export_config import OpenPLCExportConfig, load_openplc_export_config
+from .export_config import (
+    AutomationMLExportConfig,
+    OpenPLCExportConfig,
+    PLCopenExportConfig,
+    load_automationml_export_config,
+    load_openplc_export_config,
+    load_plcopen_export_config,
+)
 from .diagnostics import ExitCode, write_json_diagnostic
 
 
@@ -90,18 +97,24 @@ def export_l5x_target(
                 stdout=stdout,
             )
             return
-        if config_path is not None:
-            raise L5XExportError(
-                "--config currently applies only to --target openplc"
-            )
         if target == "automationml":
+            config = (
+                load_automationml_export_config(config_path)
+                if config_path is not None
+                else AutomationMLExportConfig(
+                    schema_version="1.0",
+                    target="automationml",
+                )
+            )
             _export_automationml(
                 source,
                 destination=destination,
-                schema_path=schema_path,
+                schema_path=schema_path or config.xsd,
                 compile_only=compile_only,
-                base_library_path=base_library_path,
-                plcopen_reference=plcopen_reference,
+                base_library_path=base_library_path or config.base_library,
+                plcopen_reference=(
+                    plcopen_reference or config.plcopen_reference
+                ),
                 dry_run=dry_run,
                 diagnostics_format=diagnostics_format,
                 stdout=stdout,
@@ -115,6 +128,19 @@ def export_l5x_target(
             )
 
         profile = _PROFILES[target]
+        if config_path is not None and target != "plcopen":
+            raise L5XExportError(
+                "--config is not supported for --target codesys"
+            )
+        plcopen_config = (
+            load_plcopen_export_config(config_path)
+            if config_path is not None
+            else PLCopenExportConfig(
+                schema_version="1.0",
+                target="plcopen",
+            )
+        )
+        schema_path = schema_path or plcopen_config.xsd
         if compile_only is not None:
             raise L5XExportError(
                 "--compile-only applies only to --target openplc"

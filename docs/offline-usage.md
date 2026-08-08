@@ -251,6 +251,17 @@ uv run twinforge export project.L5X `
   --config examples\OpenPLC\openplc-export.example.json
 ```
 
+PLCopen and AutomationML configuration examples are available at:
+
+```text
+examples/PLCOpenXML/plcopen-export.example.json
+examples/AutomationML/automationml-export.example.json
+```
+
+Paths inside these JSON documents resolve relative to the configuration file.
+An explicit `--xsd`, `--base-library`, or `--plcopen-reference` argument
+overrides the corresponding configured path.
+
 AutomationML with the required base library:
 
 ```powershell

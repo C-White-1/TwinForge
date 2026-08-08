@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "target": "plcopen",
+  "xsd": "../../reference/PLCopenXML/standard/tc6_xml_v201.xsd"
+}
