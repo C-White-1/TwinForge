@@ -65,6 +65,7 @@ def export_l5x_target(
 ) -> None:
     """Export a Controller L5X using one explicit target adapter."""
     try:
+        _require_input_file(source, "L5X source")
         if target == "openplc":
             config = (
                 load_openplc_export_config(config_path)
@@ -123,6 +124,8 @@ def export_l5x_target(
                 "--xsd validates only the target-neutral PLCopen XML 2.01 "
                 "target and cannot be used with --target codesys"
             )
+        if schema_path is not None:
+            _require_input_file(schema_path, "--xsd")
         document = L5XParser().parse_document(source, report_mode=None)
         if not isinstance(document.target, Controller):
             raise L5XExportError(
@@ -226,6 +229,11 @@ def _export_automationml(
         raise L5XExportError(
             "--base-library is required for --target automationml"
         )
+    _require_input_file(base_library_path, "--base-library")
+    if schema_path is not None:
+        _require_input_file(schema_path, "--xsd")
+    if plcopen_reference is not None:
+        _require_input_file(plcopen_reference, "--plcopen-reference")
 
     document = L5XParser().parse_document(source, report_mode=None)
     if not isinstance(document.target, Controller):
@@ -299,6 +307,15 @@ def _relative_reference(path: Path, destination_parent: Path) -> str:
     except ValueError:
         # Windows cannot express a relative path between different drives.
         return resolved.as_posix()
+
+
+def _require_input_file(path: Path, option: str) -> None:
+    """Reject a missing or non-file input before conversion work begins."""
+    if not path.is_file():
+        raise L5XExportError(
+            f"{option} file does not exist or is not a file: {path}",
+            exit_code=ExitCode.INVALID_INPUT,
+        )
 
 
 def _export_openplc_native(

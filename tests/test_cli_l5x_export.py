@@ -412,6 +412,66 @@ def test_export_validation_failure_does_not_write_output(
     assert "cannot validate L5X export" in errors.getvalue()
 
 
+def test_export_rejects_missing_xsd_before_writing(tmp_path: Path) -> None:
+    destination = tmp_path / "project.xml"
+    missing_schema = tmp_path / "missing.xsd"
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--xsd",
+            str(missing_schema),
+        ),
+        stderr=errors,
+    )
+
+    assert result == 2
+    assert not destination.exists()
+    assert errors.getvalue() == (
+        f"error: --xsd file does not exist or is not a file: "
+        f"{missing_schema}\n"
+    )
+
+
+def test_export_reports_missing_xsd_as_json_invalid_input(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    missing_schema = tmp_path / "missing.xsd"
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--xsd",
+            str(missing_schema),
+            "--diagnostics-format",
+            "json",
+        ),
+        stderr=errors,
+    )
+
+    assert result == 2
+    diagnostic = json.loads(errors.getvalue())
+    assert diagnostic["status"] == "error"
+    assert diagnostic["exit_code"] == 2
+    assert diagnostic["message"] == (
+        f"--xsd file does not exist or is not a file: {missing_schema}"
+    )
+    assert not destination.exists()
+
+
 def test_plcopen_dry_run_emits_versioned_json_diagnostics(
     tmp_path: Path,
 ) -> None:

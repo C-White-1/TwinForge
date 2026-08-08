@@ -158,7 +158,7 @@ The immediate structural priorities are maintained in the
   diagnostics for automation and CI
 - [x] Add deterministic CLI integration tests for PLCopen XML, CODESYS,
   native OpenPLC, AutomationML, and reports
-- [ ] Document installation and offline operation without an AI or network
+- [x] Document installation and offline operation without an AI or network
   service
 
 ## Next: communication modelling

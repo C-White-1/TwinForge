@@ -63,12 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         required=True,
         type=Path,
-        help="Destination file.",
+        help="Destination file or project directory.",
     )
     export_l5x_command.add_argument(
         "--xsd",
         type=Path,
-        help="Optional PLCopen XML 2.01 schema used for validation.",
+        help="Optional target-specific XSD used for validation.",
     )
     export_l5x_command.add_argument(
         "--compile-only",

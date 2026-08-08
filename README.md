@@ -61,8 +61,13 @@ TwinForge is a deterministic engineering toolkit. AI has assisted its
 development and can help explain unfamiliar source logic, but AI is not a
 runtime dependency and must not decide PLC semantics during conversion.
 
-Today, users can inspect an L5X file and generate supported outputs through
-the maintained scripts documented below. A typical script-based workflow is:
+See the [offline installation and operation guide](docs/offline-usage.md) for a
+complete non-AI workflow, disconnected installation preparation, local
+reference-file requirements, exit codes, and target examples.
+
+Users can inspect an L5X file and generate supported outputs through the
+installed command line. The maintained example scripts remain useful for API
+demonstrations. A typical script-based workflow is:
 
 ```powershell
 uv run python examples\parse_l5x.py project.L5X
