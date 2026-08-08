@@ -5,7 +5,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 import os
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from twinforge.exporters import (
     AutomationMLExporter,
@@ -27,10 +27,20 @@ from twinforge.targets.openplc import (
 )
 
 from .export_config import OpenPLCExportConfig, load_openplc_export_config
+from .diagnostics import ExitCode, write_json_diagnostic
 
 
 class L5XExportError(RuntimeError):
     """Raised when an installed L5X export operation cannot complete."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        exit_code: ExitCode = ExitCode.INVALID_INPUT,
+    ) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 _PROFILES = {
@@ -50,6 +60,7 @@ def export_l5x_target(
     base_library_path: Path | None,
     plcopen_reference: Path | None,
     dry_run: bool,
+    diagnostics_format: str,
     stdout: TextIO,
 ) -> None:
     """Export a Controller L5X using one explicit target adapter."""
@@ -74,6 +85,7 @@ def export_l5x_target(
                 ),
                 config=config,
                 dry_run=dry_run,
+                diagnostics_format=diagnostics_format,
                 stdout=stdout,
             )
             return
@@ -90,6 +102,7 @@ def export_l5x_target(
                 base_library_path=base_library_path,
                 plcopen_reference=plcopen_reference,
                 dry_run=dry_run,
+                diagnostics_format=diagnostics_format,
                 stdout=stdout,
             )
             return
@@ -114,7 +127,8 @@ def export_l5x_target(
         if not isinstance(document.target, Controller):
             raise L5XExportError(
                 f"{target} export currently requires a Controller L5X target; "
-                f"found {document.target_type.value}"
+                f"found {document.target_type.value}",
+                exit_code=ExitCode.UNSUPPORTED,
             )
 
         result = PLCopenExporter(profile).export(
@@ -129,14 +143,29 @@ def export_l5x_target(
             destination.write_text(result.xml, encoding="utf-8")
     except L5XExportError:
         raise
+    except (AutomationMLValidationError, PLCopenValidationError) as error:
+        raise L5XExportError(
+            f"cannot validate L5X export '{source}' for target '{target}': "
+            f"{error}",
+            exit_code=ExitCode.VALIDATION_FAILED,
+        ) from error
+    except (OpenPLCNativeUnsupportedError,) as error:
+        raise L5XExportError(
+            f"cannot export L5X '{source}' for target '{target}': {error}",
+            exit_code=ExitCode.UNSUPPORTED,
+        ) from error
     except (
-        ET.ParseError,
-        AutomationMLValidationError,
         AutomationMLValidationUnavailable,
         OSError,
-        OpenPLCNativeUnsupportedError,
-        PLCopenValidationError,
         PLCopenValidationUnavailable,
+    ) as error:
+        raise L5XExportError(
+            f"cannot complete L5X export '{source}' for target '{target}': "
+            f"{error}",
+            exit_code=ExitCode.OPERATION_FAILED,
+        ) from error
+    except (
+        ET.ParseError,
         ValueError,
     ) as error:
         raise L5XExportError(
@@ -149,8 +178,24 @@ def export_l5x_target(
         else "CODESYS PLCopen XML"
     )
     verb = "Ready to export" if dry_run else "Exported"
+    diagnostics = [*document.diagnostics, *result.diagnostics]
+    if diagnostics_format == "json":
+        write_json_diagnostic(
+            stdout,
+            status="ready" if dry_run else "exported",
+            operation="export",
+            exit_code=ExitCode.SUCCESS,
+            message=f"{verb} {label} to {destination}",
+            target=target,
+            source=source,
+            destination=destination,
+            dry_run=dry_run,
+            outputs=(destination,),
+            diagnostics=tuple(_diagnostic_value(item) for item in diagnostics),
+        )
+        return
     stdout.write(f"{verb} {label} to {destination}\n")
-    for diagnostic in [*document.diagnostics, *result.diagnostics]:
+    for diagnostic in diagnostics:
         object_name = (
             f" [{diagnostic.object_name}]" if diagnostic.object_name else ""
         )
@@ -169,6 +214,7 @@ def _export_automationml(
     base_library_path: Path | None,
     plcopen_reference: Path | None,
     dry_run: bool,
+    diagnostics_format: str,
     stdout: TextIO,
 ) -> None:
     """Write a semantically validated AutomationML 2.1 document."""
@@ -185,7 +231,8 @@ def _export_automationml(
     if not isinstance(document.target, Controller):
         raise L5XExportError(
             "automationml export currently requires a Controller L5X target; "
-            f"found {document.target_type.value}"
+            f"found {document.target_type.value}",
+            exit_code=ExitCode.UNSUPPORTED,
         )
     destination_parent = destination.parent.resolve()
     base_reference = _relative_reference(
@@ -212,7 +259,25 @@ def _export_automationml(
         destination.write_text(result.xml, encoding="utf-8")
 
     verb = "Ready to export" if dry_run else "Exported"
-    stdout.write(f"{verb} AutomationML 2.1 to {destination}\n")
+    message = f"{verb} AutomationML 2.1 to {destination}"
+    if diagnostics_format == "json":
+        write_json_diagnostic(
+            stdout,
+            status="ready" if dry_run else "exported",
+            operation="export",
+            exit_code=ExitCode.SUCCESS,
+            message=message,
+            target="automationml",
+            source=source,
+            destination=destination,
+            dry_run=dry_run,
+            outputs=(destination,),
+            diagnostics=tuple(
+                _diagnostic_value(item) for item in document.diagnostics
+            ),
+        )
+        return
+    stdout.write(message + "\n")
     stdout.write(f"Base library reference: {base_reference}\n")
     if plcopen_path is not None:
         stdout.write(f"PLCopen document reference: {plcopen_path}\n")
@@ -227,8 +292,13 @@ def _export_automationml(
 
 
 def _relative_reference(path: Path, destination_parent: Path) -> str:
-    """Return a portable URI path from the AML directory to ``path``."""
-    return os.path.relpath(path.resolve(), destination_parent).replace("\\", "/")
+    """Return a portable relative path, or an absolute cross-volume path."""
+    resolved = path.resolve()
+    try:
+        return os.path.relpath(resolved, destination_parent).replace("\\", "/")
+    except ValueError:
+        # Windows cannot express a relative path between different drives.
+        return resolved.as_posix()
 
 
 def _export_openplc_native(
@@ -239,6 +309,7 @@ def _export_openplc_native(
     compile_only: bool,
     config: OpenPLCExportConfig,
     dry_run: bool,
+    diagnostics_format: str,
     stdout: TextIO,
 ) -> None:
     """Write the runtime-evidenced native OpenPLC project structure."""
@@ -251,7 +322,8 @@ def _export_openplc_native(
     if not isinstance(document.target, Controller):
         raise L5XExportError(
             "openplc export currently requires a Controller L5X target; "
-            f"found {document.target_type.value}"
+            f"found {document.target_type.value}",
+            exit_code=ExitCode.UNSUPPORTED,
     )
     exporter = OpenPLCNativeProjectExporter()
     plan = exporter.plan(
@@ -280,7 +352,25 @@ def _export_openplc_native(
         )
         files = result.files
     verb = "Ready to export" if dry_run else "Exported"
-    stdout.write(f"{verb} native OpenPLC project to {destination}\n")
+    message = f"{verb} native OpenPLC project to {destination}"
+    if diagnostics_format == "json":
+        write_json_diagnostic(
+            stdout,
+            status="ready" if dry_run else "exported",
+            operation="export",
+            exit_code=ExitCode.SUCCESS,
+            message=message,
+            target="openplc",
+            source=source,
+            destination=destination,
+            dry_run=dry_run,
+            outputs=tuple(files),
+            diagnostics=tuple(
+                _diagnostic_value(item) for item in document.diagnostics
+            ),
+        )
+        return
+    stdout.write(message + "\n")
     stdout.write(
         f"Source program {plan.source_program_name} was lowered as "
         f"{plan.native_program_name}.\n"
@@ -295,3 +385,14 @@ def _export_openplc_native(
             f"{diagnostic.severity.value.upper()} {diagnostic.code}"
             f"{object_name}: {diagnostic.message}\n"
         )
+
+
+def _diagnostic_value(diagnostic: Any) -> dict[str, str | None]:
+    """Convert parser/exporter diagnostics to the stable CLI representation."""
+    severity = diagnostic.severity.value
+    return {
+        "severity": severity,
+        "code": diagnostic.code,
+        "object_name": diagnostic.object_name,
+        "message": diagnostic.message,
+    }

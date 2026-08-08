@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import xml.etree.ElementTree as ET
 from io import StringIO
 from pathlib import Path
 
 from twinforge.cli import main
+from twinforge.cli.l5x_export import _relative_reference
 from twinforge.exporters import (
     CAEX_NAMESPACE,
     PLCOPEN_201_NAMESPACE,
@@ -60,7 +62,7 @@ def test_export_rejects_non_controller_target(tmp_path: Path) -> None:
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 3
     assert not destination.exists()
     assert "requires a Controller L5X target" in errors.getvalue()
 
@@ -110,7 +112,7 @@ def test_codesys_export_rejects_standard_xsd_option(tmp_path: Path) -> None:
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 2
     assert not destination.exists()
     assert "cannot be used with --target codesys" in errors.getvalue()
 
@@ -163,7 +165,7 @@ def test_openplc_export_rejects_unsupported_controller_without_writing(
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 3
     assert not destination.exists()
     assert "global-variable representation is not yet evidenced" in errors.getvalue()
 
@@ -185,7 +187,7 @@ def test_compile_only_is_rejected_for_plcopen_xml(tmp_path: Path) -> None:
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 2
     assert not destination.exists()
     assert "applies only to --target openplc" in errors.getvalue()
 
@@ -239,7 +241,7 @@ def test_automationml_requires_base_library_before_writing(
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 2
     assert not destination.exists()
     assert "--base-library is required" in errors.getvalue()
 
@@ -315,7 +317,7 @@ def test_openplc_config_rejects_unknown_fields_without_writing(
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 2
     assert not destination.exists()
     assert "invalid OpenPLC export configuration" in errors.getvalue()
 
@@ -365,7 +367,22 @@ def test_openplc_dry_run_plans_files_without_writing(tmp_path: Path) -> None:
     assert result == 0
     assert not destination.exists()
     assert "Ready to export native OpenPLC project" in output.getvalue()
-    assert "pous\\programs\\main.ld" in output.getvalue()
+    assert "pous/programs/main.ld" in output.getvalue().replace("\\", "/")
+
+
+def test_automationml_reference_uses_absolute_path_across_volumes(
+    monkeypatch,
+) -> None:
+    base_library = DATA / "automationml_base_libraries.aml"
+
+    def reject_cross_volume(*_args) -> str:
+        raise ValueError("path is on a different mount")
+
+    monkeypatch.setattr(os.path, "relpath", reject_cross_volume)
+
+    reference = _relative_reference(base_library, Path("elsewhere"))
+
+    assert reference == base_library.resolve().as_posix()
 
 
 def test_export_validation_failure_does_not_write_output(
@@ -390,6 +407,79 @@ def test_export_validation_failure_does_not_write_output(
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert not destination.exists()
-    assert "cannot export L5X" in errors.getvalue()
+    assert "cannot validate L5X export" in errors.getvalue()
+
+
+def test_plcopen_dry_run_emits_versioned_json_diagnostics(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    output = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(CONTROLLER),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--dry-run",
+            "--diagnostics-format",
+            "json",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    assert not destination.exists()
+    diagnostic = json.loads(output.getvalue())
+    assert diagnostic["schema_version"] == "1.0"
+    assert diagnostic["status"] == "ready"
+    assert diagnostic["operation"] == "export"
+    assert diagnostic["target"] == "plcopen"
+    assert diagnostic["exit_code"] == 0
+    assert diagnostic["dry_run"] is True
+    assert diagnostic["outputs"] == [str(destination)]
+    assert diagnostic["diagnostics"]
+
+
+def test_unsupported_export_emits_json_error_and_stable_exit_code(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "project.xml"
+    errors = StringIO()
+
+    result = main(
+        (
+            "export",
+            str(DATA / "standalone/module.L5X"),
+            "--target",
+            "plcopen",
+            "--output",
+            str(destination),
+            "--diagnostics-format",
+            "json",
+        ),
+        stderr=errors,
+    )
+
+    assert result == 3
+    diagnostic = json.loads(errors.getvalue())
+    assert diagnostic == {
+        "destination": str(destination),
+        "diagnostics": [],
+        "dry_run": False,
+        "exit_code": 3,
+        "message": (
+            "plcopen export currently requires a Controller L5X target; "
+            "found Module"
+        ),
+        "operation": "export",
+        "schema_version": "1.0",
+        "source": str(DATA / "standalone/module.L5X"),
+        "status": "error",
+        "target": "plcopen",
+    }

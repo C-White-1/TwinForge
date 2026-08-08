@@ -104,6 +104,8 @@ twinforge export project.L5X --target openplc --output build\openplc `
 twinforge export project.L5X --target automationml --output plant.aml `
   --base-library reference\AutomationML\AutomationML2.10BaseLibraries.aml
 twinforge export project.L5X --target plcopen --output project.xml --dry-run
+twinforge export project.L5X --target plcopen --output project.xml `
+  --dry-run --diagnostics-format json
 ```
 
 `state init` refuses to overwrite an existing path. Validation and inspection
@@ -149,12 +151,24 @@ configuration validation, XSD or semantic validation, and diagnostic reporting
 without writing the requested output. Native OpenPLC planning is performed
 entirely in memory rather than through a disposable project directory.
 
+Export commands use stable process exit codes: `0` for success, `2` for
+invalid input or configuration, `3` for a recognized but unsupported
+conversion, `4` for validation failure, and `5` for an operational failure.
+Command-line syntax errors also use the conventional `2` returned by
+`argparse`.
+
+Use `--diagnostics-format json` to emit one versioned JSON document instead of
+human-readable export output. Successful and failed envelopes include the
+status, operation, target, source, destination, dry-run state, exit code, and
+message. Successful envelopes additionally identify planned or written output
+paths and retain structured parser and exporter diagnostics. This interface is
+intended for CI jobs and other subprocess callers; text remains the default.
+
 The example scripts remain useful as focused developer demonstrations of the
 same parser, analysis, and exporter APIs.
 
 The CLI is expected to provide conversion-readiness results before export,
-clear unsupported-instruction diagnostics, deterministic output, meaningful
-process exit codes, and optional machine-readable diagnostics. Target choices
+clear unsupported-instruction diagnostics and deterministic output. Target choices
 such as OpenPLC located variables or CODESYS deployment settings will come
 from validated configuration files or explicit command options.
 

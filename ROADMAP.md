@@ -154,9 +154,9 @@ The immediate structural priorities are maintained in the
 - [ ] Generalize validated configuration to the remaining export targets
 - [x] Add side-effect-free pre-export readiness through `export --dry-run`
   target output
-- [ ] Provide stable process exit codes and optional machine-readable
+- [x] Provide stable process exit codes and optional machine-readable
   diagnostics for automation and CI
-- [ ] Add deterministic CLI integration tests for PLCopen XML, CODESYS,
+- [x] Add deterministic CLI integration tests for PLCopen XML, CODESYS,
   native OpenPLC, AutomationML, and reports
 - [ ] Document installation and offline operation without an AI or network
   service

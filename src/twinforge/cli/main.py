@@ -11,6 +11,7 @@ from typing import TextIO
 from twinforge.discovery import DiscoveryStatePersistenceError
 
 from .discovery_state import initialise_state, inspect_state, validate_state
+from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
@@ -95,6 +96,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Validate and plan the export without writing output.",
     )
+    export_l5x_command.add_argument(
+        "--diagnostics-format",
+        choices=("text", "json"),
+        default="text",
+        help="Diagnostic output format (default: text).",
+    )
 
     state = commands.add_parser(
         "state",
@@ -162,6 +169,7 @@ def main(
                 base_library_path=arguments.base_library,
                 plcopen_reference=arguments.plcopen_reference,
                 dry_run=arguments.dry_run,
+                diagnostics_format=arguments.diagnostics_format,
                 stdout=output,
             )
         elif arguments.state_command == "init":
@@ -174,12 +182,27 @@ def main(
                 output_format=arguments.format,
                 stdout=output,
             )
+    except L5XExportError as error:
+        if arguments.diagnostics_format == "json":
+            write_json_diagnostic(
+                errors,
+                status="error",
+                operation="export",
+                exit_code=error.exit_code,
+                message=str(error),
+                target=arguments.target,
+                source=arguments.path,
+                destination=arguments.output,
+                dry_run=arguments.dry_run,
+            )
+        else:
+            errors.write(f"error: {error}\n")
+        return int(error.exit_code)
     except (
         DiscoveryStatePersistenceError,
-        L5XExportError,
         L5XInspectionError,
         L5XReportError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
-    return 0
+    return int(ExitCode.SUCCESS)
