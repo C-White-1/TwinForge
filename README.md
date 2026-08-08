@@ -67,18 +67,8 @@ reference-file requirements, exit codes, and target examples.
 
 Users can inspect an L5X file and generate supported outputs through the
 installed command line. The maintained example scripts remain useful for API
-demonstrations. A typical script-based workflow is:
-
-```powershell
-uv run python examples\parse_l5x.py project.L5X
-
-uv run python examples\export_reports.py `
-  project.L5X reports\project
-
-uv run python examples\export_plcopen.py `
-  project.L5X build\project.xml `
-  --profile codesys
-```
+demonstrations and compatibility wrappers. See the
+[example catalogue](docs/examples.md) for each script's maintained purpose.
 
 These commands parse the source into the same lossless model used by the test
 suite and exporters. Unsupported target semantics must be reported rather
@@ -175,8 +165,8 @@ message. Successful envelopes additionally identify planned or written output
 paths and retain structured parser and exporter diagnostics. This interface is
 intended for CI jobs and other subprocess callers; text remains the default.
 
-The example scripts remain useful as focused developer demonstrations of the
-same parser, analysis, and exporter APIs.
+The example catalogue distinguishes thin CLI compatibility wrappers from
+focused parser, analysis, target-adapter, and laboratory API demonstrations.
 
 The CLI is expected to provide conversion-readiness results before export,
 clear unsupported-instruction diagnostics and deterministic output. Target choices

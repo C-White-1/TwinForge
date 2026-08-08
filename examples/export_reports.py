@@ -1,30 +1,30 @@
-"""Generate human-readable engineering reports from an L5X project."""
+"""Compatibility wrapper for ``twinforge report``."""
+
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from twinforge.exporters import TextReportExporter
-from twinforge.parsers import L5XParser
+from twinforge.cli import main as twinforge_main
 
 
-def main() -> None:
+def main() -> int:
+    """Translate the original positional interface to the installed CLI."""
     parser = argparse.ArgumentParser(
-        description="Export model-driven text reports from an L5X file."
+        description="Export model-driven reports through the TwinForge CLI."
     )
     parser.add_argument("source", type=Path, help="Source L5X file")
     parser.add_argument("destination", type=Path, help="Report directory")
     args = parser.parse_args()
-
-    plant = L5XParser().parse(args.source, report_mode=None)
-    controllers = list(plant.iter_controllers())
-    if len(controllers) != 1:
-        raise ValueError(f"expected one controller, found {len(controllers)}")
-
-    paths = TextReportExporter().export(controllers[0]).write_to(
-        args.destination
+    return twinforge_main(
+        (
+            "report",
+            str(args.source),
+            "--output",
+            str(args.destination),
+        )
     )
-    print(f"Exported {len(paths)} reports to {args.destination}")
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,55 +1,40 @@
+"""Compatibility wrapper for ``twinforge export --target automationml``."""
+
+from __future__ import annotations
+
 import argparse
 from pathlib import Path
 
-from twinforge.exporters import (
-    AutomationMLExporter,
-    AutomationMLValidationUnavailable,
-    validate_automationml_references,
-    validate_automationml_xml,
-)
-from twinforge.parsers import L5XParser
+from twinforge.cli import main as twinforge_main
 
 
-def main() -> None:
+def main() -> int:
+    """Translate the original positional interface to the installed CLI."""
     parser = argparse.ArgumentParser(
-        description="Export an L5X model as AutomationML 2.1 CAEX."
+        description="Export AutomationML through the TwinForge CLI."
     )
     parser.add_argument("source", type=Path)
     parser.add_argument("destination", type=Path)
     parser.add_argument("--plcopen", type=Path)
-    parser.add_argument(
-        "--base-library",
-        type=Path,
-        required=True,
-        help="AutomationML 2.1 base-library AML reference",
-    )
-    parser.add_argument(
-        "--xsd",
-        type=Path,
-        help="Optional CAEX 3.0 XSD used to validate the AML output",
-    )
+    parser.add_argument("--base-library", type=Path, required=True)
+    parser.add_argument("--xsd", type=Path)
     args = parser.parse_args()
-
-    l5x_parser = L5XParser()
-    plant = l5x_parser.parse(args.source, report_mode=None)
-    controllers = list(plant.iter_controllers())
-    if len(controllers) != 1:
-        raise ValueError(f"expected one controller, found {len(controllers)}")
-    result = AutomationMLExporter().export(
-        controllers[0],
-        project_name=plant.name,
-        plcopen_path=args.plcopen,
-        base_library_path=args.base_library,
-        destination=args.destination,
-    )
-    if args.xsd:
-        try:
-            validate_automationml_xml(result.xml, args.xsd)
-        except AutomationMLValidationUnavailable as error:
-            raise SystemExit(str(error)) from error
-    validate_automationml_references(result.xml, args.destination)
-    print(f"Exported AutomationML to {result.destination}")
+    command = [
+        "export",
+        str(args.source),
+        "--target",
+        "automationml",
+        "--output",
+        str(args.destination),
+        "--base-library",
+        str(args.base_library),
+    ]
+    if args.plcopen is not None:
+        command.extend(("--plcopen-reference", str(args.plcopen)))
+    if args.xsd is not None:
+        command.extend(("--xsd", str(args.xsd)))
+    return twinforge_main(command)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

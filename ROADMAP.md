@@ -148,7 +148,7 @@ The immediate structural priorities are maintained in the
 - [x] Add the separately adapted CODESYS PLCopen XML export target
 - [x] Add native OpenPLC project export for the runtime-evidenced subset
 - [x] Add AutomationML export with semantic references and optional CAEX XSD
-- [ ] Preserve the example scripts as focused demonstrations or thin CLI
+- [x] Preserve the example scripts as focused demonstrations or thin CLI
   wrappers
 - [x] Add versioned OpenPLC target configuration with explicit CLI overrides
 - [x] Generalize validated configuration to PLCopen and AutomationML targets
