@@ -43,3 +43,15 @@ The transport requires a non-empty laboratory evidence reference and remains
 explicitly experimental. Packet fixtures prove request sequencing, route-path
 construction, partial transfer, program-scope traversal and evidence capture;
 they do not constitute live controller validation.
+
+## Command line
+
+`twinforge discover software` writes a dry-run plan by default. The caller must
+provide the target, every `PORT/LINK` route segment, authorization reference,
+capability allowlist and maximum request count.
+
+Live traffic requires the additional `--execute-experimental` switch together
+with `--confirmed-by`, a timezone-qualified `--confirmed-at`, and
+`--laboratory-evidence-reference`. Omitting any of them fails before transport
+construction. An output path is optional; without one, JSON is written to
+standard output.

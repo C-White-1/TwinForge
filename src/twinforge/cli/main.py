@@ -8,8 +8,12 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TextIO
 
-from twinforge.discovery import DiscoveryStatePersistenceError
+from twinforge.discovery import (
+    CipSoftwareInventoryCapability,
+    DiscoveryStatePersistenceError,
+)
 
+from .cip_software import CipSoftwareCommandError, discover_cip_software
 from .discovery_state import initialise_state, inspect_state, validate_state
 from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
@@ -132,6 +136,43 @@ def build_parser() -> argparse.ArgumentParser:
         default="text",
         help="Summary output format (default: text).",
     )
+
+    discover = commands.add_parser(
+        "discover",
+        help="Plan or execute explicitly authorized industrial discovery.",
+    )
+    discover_commands = discover.add_subparsers(
+        dest="discover_command",
+        required=True,
+    )
+    software = discover_commands.add_parser(
+        "software",
+        help="Plan structural Logix software inventory (dry-run by default).",
+    )
+    software.add_argument("address")
+    software.add_argument(
+        "--route-segment",
+        action="append",
+        required=True,
+        help="Exact CIP route segment as PORT/LINK; repeat for each hop.",
+    )
+    software.add_argument("--authorization-reference", required=True)
+    software.add_argument(
+        "--capability",
+        action="append",
+        required=True,
+        choices=tuple(item.value for item in CipSoftwareInventoryCapability),
+    )
+    software.add_argument("--maximum-requests", required=True, type=int)
+    software.add_argument("--output", type=Path)
+    software.add_argument(
+        "--execute-experimental",
+        action="store_true",
+        help="Execute the unvalidated live adapter instead of writing a plan.",
+    )
+    software.add_argument("--confirmed-by")
+    software.add_argument("--confirmed-at")
+    software.add_argument("--laboratory-evidence-reference")
     return parser
 
 
@@ -172,6 +213,22 @@ def main(
                 diagnostics_format=arguments.diagnostics_format,
                 stdout=output,
             )
+        elif arguments.command == "discover":
+            discover_cip_software(
+                arguments.address,
+                route_segments=tuple(arguments.route_segment),
+                authorization_reference=arguments.authorization_reference,
+                capability_names=tuple(arguments.capability),
+                maximum_requests=arguments.maximum_requests,
+                execute_experimental=arguments.execute_experimental,
+                confirmed_by=arguments.confirmed_by,
+                confirmed_at=arguments.confirmed_at,
+                laboratory_evidence_reference=(
+                    arguments.laboratory_evidence_reference
+                ),
+                destination=arguments.output,
+                stdout=output,
+            )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -200,6 +257,7 @@ def main(
         return int(error.exit_code)
     except (
         DiscoveryStatePersistenceError,
+        CipSoftwareCommandError,
         L5XInspectionError,
         L5XReportError,
     ) as error:
