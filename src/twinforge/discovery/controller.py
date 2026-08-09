@@ -34,6 +34,8 @@ class CipObjectEvidence:
     additional_status: tuple[int, ...] = ()
     request_payload_hex: str | None = None
     response_payload_hex: str | None = None
+    raw_reply_hex: str | None = None
+    message: str | None = None
     decoded: dict[str, JsonEvidence] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -159,5 +161,7 @@ def _object_evidence_data(evidence: CipObjectEvidence) -> dict[str, Any]:
         "additional_status": list(evidence.additional_status),
         "request_payload_hex": evidence.request_payload_hex,
         "response_payload_hex": evidence.response_payload_hex,
+        "raw_reply_hex": evidence.raw_reply_hex,
+        "message": evidence.message,
         "decoded": dict(sorted(evidence.decoded.items())),
     }

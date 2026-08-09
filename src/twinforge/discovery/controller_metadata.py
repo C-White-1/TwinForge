@@ -122,6 +122,13 @@ class CipControllerMetadataPlan:
         keys = [request.key for request in self.requests]
         if len(keys) != len(set(keys)):
             raise ValueError("controller metadata requests must be unique")
+        fields = [
+            request.semantic_field
+            for request in self.requests
+            if request.semantic_field is not None
+        ]
+        if len(fields) != len(set(fields)):
+            raise ValueError("controller metadata semantic fields must be unique")
 
     @property
     def total_request_budget(self) -> int:

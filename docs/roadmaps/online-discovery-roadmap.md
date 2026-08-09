@@ -133,6 +133,8 @@ The explicit slot routes and typed result boundary are documented in
 [Permitted pycomm3 Chassis Provider](../architecture/pycomm3-chassis-provider.md).
 The specification-attributed metadata allowlist is documented in
 [CIP Controller Metadata Plan](../architecture/cip-controller-metadata-plan.md).
+Its socket-free execution and evidence-lowering boundary is documented in
+[CIP Controller Metadata Capture](../architecture/cip-controller-metadata-capture.md).
 
 ## Phase 4: software and tag inventory
 
