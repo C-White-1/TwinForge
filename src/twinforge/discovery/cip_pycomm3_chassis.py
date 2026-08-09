@@ -43,6 +43,7 @@ class RoutedSlotResult:
 
     outcome: RoutedSlotOutcome
     reply: CipIdentityReply | None = None
+    raw_response: bytes | None = None
     general_status: int | None = None
     additional_status: tuple[int, ...] = ()
     message: str | None = None
@@ -160,9 +161,10 @@ class PermittedPycomm3ChassisProvider:
             additional_status=result.additional_status,
             message=result.message,
             raw_response_hex=(
-                result.reply.raw_reply.hex()
-                if result.reply is not None
-                and result.reply.raw_reply is not None
+                result.raw_response.hex()
+                if result.raw_response is not None
+                else result.reply.raw_reply.hex()
+                if result.reply is not None and result.reply.raw_reply is not None
                 else None
             ),
             raw_attributes=raw_attributes,

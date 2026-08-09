@@ -41,6 +41,11 @@ from .cip_pycomm3_routes import (
     pycomm3_route_encoding_data,
     pycomm3_route_encoding_json,
 )
+from .cip_pycomm3_slots import (
+    CipSlotStatusProfile,
+    CipSlotStatusSignature,
+    LivePycomm3RoutedSlotTransport,
+)
 from .cip_pycomm3_routed import (
     LivePycomm3RoutedTransport,
     PermittedPycomm3RoutedControllerProvider,
@@ -258,6 +263,8 @@ __all__ = [
     "CipRoutedDiscoveryProvider",
     "CipRoutedDiscoverySnapshot",
     "CipSlotState",
+    "CipSlotStatusProfile",
+    "CipSlotStatusSignature",
     "CipPhysicalReconciliationCandidate",
     "ConfiguredModuleBinding",
     "ConfiguredModuleComparisonStatus",
@@ -294,6 +301,7 @@ __all__ = [
     "JsonEvidence",
     "LivePycomm3RoutedTransport",
     "LivePycomm3MetadataTransport",
+    "LivePycomm3RoutedSlotTransport",
     "MetadataDecoder",
     "PersistedDiscoveryState",
     "PermittedPycomm3RoutedControllerProvider",

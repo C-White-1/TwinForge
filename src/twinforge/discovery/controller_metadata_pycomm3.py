@@ -6,6 +6,7 @@ from pycomm3 import CIPDriver
 
 from .cip_pycomm3 import decode_cip_identity
 from .cip_pycomm3_routes import encode_pycomm3_route
+from .cip_pycomm3_packets import extract_pycomm3_cip_packet_evidence
 from .cip_routes import CipRouteDeclaration
 from .contracts import DiscoveryProviderError, DiscoveryTarget
 from .controller_metadata import CipControllerMetadataRequest
@@ -59,13 +60,11 @@ class LivePycomm3MetadataTransport:
                     "cip_metadata_no_response",
                     str(result.error or "metadata request returned no packet"),
                 )
-            general_status, additional_status, payload = _packet_evidence(
-                raw_reply
-            )
+            evidence = extract_pycomm3_cip_packet_evidence(raw_reply)
             return CipMetadataTransportResult(
-                general_status=general_status,
-                additional_status=additional_status,
-                response_payload=payload,
+                general_status=evidence.general_status,
+                additional_status=evidence.additional_status,
+                response_payload=evidence.payload,
                 raw_reply=raw_reply,
                 message=str(result.error) if result.error else None,
             )
@@ -83,25 +82,3 @@ def standard_metadata_decoders() -> dict[str, MetadataDecoder]:
 def _decode_identity_firmware_revision(payload: bytes) -> str:
     decoded, _ = decode_cip_identity(payload)
     return f"{decoded['major_revision']}.{decoded['minor_revision']}"
-
-
-def _packet_evidence(raw_reply: bytes) -> tuple[int, tuple[int, ...], bytes]:
-    """Extract the CIP status section used by pycomm3 SendRRData responses."""
-    if len(raw_reply) < 44:
-        raise DiscoveryProviderError(
-            "cip_metadata_invalid_packet",
-            "metadata response packet is shorter than the CIP status header",
-        )
-    general_status = raw_reply[42]
-    additional_word_count = raw_reply[43]
-    payload_start = 44 + additional_word_count * 2
-    if len(raw_reply) < payload_start:
-        raise DiscoveryProviderError(
-            "cip_metadata_invalid_packet",
-            "metadata additional-status length exceeds the response packet",
-        )
-    additional_status = tuple(
-        int.from_bytes(raw_reply[offset : offset + 2], "little")
-        for offset in range(44, payload_start, 2)
-    )
-    return general_status, additional_status, raw_reply[payload_start:]
