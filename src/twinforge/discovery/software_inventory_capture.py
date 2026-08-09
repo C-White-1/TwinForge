@@ -64,11 +64,10 @@ class CipSoftwareInventoryTransport(Protocol):
     def read_inventory_page(
         self,
         plan: CipSoftwareInventoryPlan,
-        capability: CipSoftwareInventoryCapability,
         cursor: str | None,
         timeout: float,
     ) -> CipSoftwareInventoryPage:
-        """Read one page for one structural capability."""
+        """Read one mixed structural page constrained by ``plan``."""
         ...
 
 
@@ -141,38 +140,37 @@ class PermittedSoftwareInventoryExecutor:
         requests_used = 0
         items: list[CipSoftwareInventoryItem] = []
         evidence: list[CipObjectEvidence] = []
-        for capability in self._plan.capabilities:
-            cursor: str | None = None
-            seen_cursors: set[str] = set()
-            while True:
-                if requests_used >= self._plan.maximum_requests:
-                    raise DiscoveryProviderError(
-                        "cip_software_request_budget_exceeded",
-                        "software inventory request budget is exhausted",
-                    )
-                page = self._transport.read_inventory_page(
-                    self._plan,
-                    capability,
-                    cursor,
-                    self._timeout,
+        cursor: str | None = None
+        seen_cursors: set[str] = set()
+        requested = set(self._plan.capabilities)
+        while True:
+            if requests_used >= self._plan.maximum_requests:
+                raise DiscoveryProviderError(
+                    "cip_software_request_budget_exceeded",
+                    "software inventory request budget is exhausted",
                 )
-                requests_used += 1
-                if any(item.capability is not capability for item in page.items):
-                    raise DiscoveryProviderError(
-                        "cip_software_unrequested_evidence",
-                        "provider returned an item outside the requested page",
-                    )
-                items.extend(page.items)
-                evidence.extend(page.object_evidence)
-                if page.next_cursor is None:
-                    break
-                if page.next_cursor in seen_cursors:
-                    raise DiscoveryProviderError(
-                        "cip_software_cursor_repeated",
-                        "software inventory provider repeated a page cursor",
-                    )
-                seen_cursors.add(page.next_cursor)
-                cursor = page.next_cursor
+            page = self._transport.read_inventory_page(
+                self._plan,
+                cursor,
+                self._timeout,
+            )
+            requests_used += 1
+            if any(item.capability not in requested for item in page.items):
+                raise DiscoveryProviderError(
+                    "cip_software_unrequested_evidence",
+                    "provider returned an item outside the requested plan",
+                )
+            items.extend(page.items)
+            evidence.extend(page.object_evidence)
+            if page.next_cursor is None:
+                break
+            if page.next_cursor in seen_cursors:
+                raise DiscoveryProviderError(
+                    "cip_software_cursor_repeated",
+                    "software inventory provider repeated a page cursor",
+                )
+            seen_cursors.add(page.next_cursor)
+            cursor = page.next_cursor
         return CipSoftwareInventoryObservation(
             target=self._plan.target,
             captured_at=captured_at,

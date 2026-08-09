@@ -150,6 +150,13 @@ from .identity_reconciliation import (
     identity_reconciliation_json,
     reconcile_cip_physical_identities,
 )
+from .logix_symbol_codec import (
+    DecodedLogixSymbolPage,
+    LogixSymbolPageRequest,
+    LogixSymbolRecord,
+    build_logix_symbol_page_request,
+    decode_logix_symbol_page,
+)
 from .identity_lifecycle import (
     DurableIdentityGeneration,
     IdentityLifecycleError,
@@ -345,6 +352,7 @@ __all__ = [
     "FakeRoutedCipProvider",
     "IdentityReconciliationResult",
     "DurableIdentityGeneration",
+    "DecodedLogixSymbolPage",
     "IdentityLifecycleError",
     "IdentityLifecycleEvent",
     "IdentityLifecycleEventType",
@@ -353,6 +361,8 @@ __all__ = [
     "IdentityTransitionDirective",
     "JsonEvidence",
     "LivePycomm3RoutedTransport",
+    "LogixSymbolPageRequest",
+    "LogixSymbolRecord",
     "LivePycomm3MetadataTransport",
     "MetadataEnrichedControllerProvider",
     "LivePycomm3RoutedSlotTransport",
@@ -381,6 +391,7 @@ __all__ = [
     "SnmpCorpusResult",
     "aggregate_snmp_oid_families",
     "assess_pycomm3_software_inventory",
+    "build_logix_symbol_page_request",
     "discover_snmp_corpus",
     "SnmpForwardingEntryObservation",
     "SnmpInterfaceObservation",
@@ -451,6 +462,7 @@ __all__ = [
     "core_promotion_data",
     "core_promotion_json",
     "durable_identity_for_asset",
+    "decode_logix_symbol_page",
     "encode_pycomm3_route",
     "promote_lifecycle_identities",
     "pycomm3_route_encoding_data",

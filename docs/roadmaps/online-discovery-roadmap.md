@@ -160,6 +160,9 @@ documented in
 The installed library's discoverable capabilities and pagination limitation
 are documented in
 [pycomm3 Software Inventory Assessment](../architecture/pycomm3-software-inventory-assessment.md).
+The offline request, record, partial-transfer and structural-lowering codec is
+documented in
+[Logix Symbol Page Codec](../architecture/logix-symbol-page-codec.md).
 
 ## Phase 5: topology and drift
 

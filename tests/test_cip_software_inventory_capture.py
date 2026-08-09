@@ -25,14 +25,11 @@ class _Transport:
     def __init__(
         self,
         capabilities: tuple[CipSoftwareInventoryCapability, ...],
-        pages: dict[
-            tuple[CipSoftwareInventoryCapability, str | None],
-            CipSoftwareInventoryPage,
-        ],
+        pages: dict[str | None, CipSoftwareInventoryPage],
     ) -> None:
         self._capabilities = capabilities
         self.pages = pages
-        self.calls: list[tuple[CipSoftwareInventoryCapability, str | None]] = []
+        self.calls: list[str | None] = []
 
     @property
     def capabilities(self) -> tuple[CipSoftwareInventoryCapability, ...]:
@@ -41,12 +38,11 @@ class _Transport:
     def read_inventory_page(
         self,
         plan: CipSoftwareInventoryPlan,
-        capability: CipSoftwareInventoryCapability,
         cursor: str | None,
         timeout: float,
     ) -> CipSoftwareInventoryPage:
-        self.calls.append((capability, cursor))
-        return self.pages[(capability, cursor)]
+        self.calls.append(cursor)
+        return self.pages[cursor]
 
 
 def _fixture(
@@ -84,11 +80,9 @@ def test_executor_controls_each_paginated_structural_request() -> None:
     transport = _Transport(
         capabilities,
         {
-            (programs, None): CipSoftwareInventoryPage(
-                items=(CipSoftwareInventoryItem(programs, "MainProgram"),),
-            ),
-            (tags, None): CipSoftwareInventoryPage(
+            None: CipSoftwareInventoryPage(
                 items=(
+                    CipSoftwareInventoryItem(programs, "MainProgram"),
                     CipSoftwareInventoryItem(
                         tags,
                         "MotorRun",
@@ -98,7 +92,7 @@ def test_executor_controls_each_paginated_structural_request() -> None:
                 ),
                 next_cursor="page-2",
             ),
-            (tags, "page-2"): CipSoftwareInventoryPage(items=()),
+            "page-2": CipSoftwareInventoryPage(items=()),
         },
     )
 
@@ -109,12 +103,8 @@ def test_executor_controls_each_paginated_structural_request() -> None:
     ).capture(captured_at=TIMESTAMP)
     document = json.loads(cip_software_inventory_observation_json(observation))
 
-    assert transport.calls == [
-        (programs, None),
-        (tags, None),
-        (tags, "page-2"),
-    ]
-    assert observation.requests_used == 3
+    assert transport.calls == [None, "page-2"]
+    assert observation.requests_used == 2
     assert document["runtime_values_included"] is False
     assert all("value" not in item for item in document["items"])
 
@@ -143,7 +133,7 @@ def test_executor_stops_before_request_that_would_exceed_budget() -> None:
     transport = _Transport(
         (programs,),
         {
-            (programs, None): CipSoftwareInventoryPage(
+            None: CipSoftwareInventoryPage(
                 items=(),
                 next_cursor="forbidden-page",
             ),
@@ -157,7 +147,7 @@ def test_executor_stops_before_request_that_would_exceed_budget() -> None:
             transport=transport,
         ).capture(captured_at=TIMESTAMP)
 
-    assert transport.calls == [(programs, None)]
+    assert transport.calls == [None]
 
 
 def test_executor_rejects_repeated_cursor_and_wrong_page_capability() -> None:
@@ -167,10 +157,10 @@ def test_executor_rejects_repeated_cursor_and_wrong_page_capability() -> None:
     repeated = _Transport(
         (programs,),
         {
-            (programs, None): CipSoftwareInventoryPage(
+            None: CipSoftwareInventoryPage(
                 items=(), next_cursor="again"
             ),
-            (programs, "again"): CipSoftwareInventoryPage(
+            "again": CipSoftwareInventoryPage(
                 items=(), next_cursor="again"
             ),
         },
@@ -186,12 +176,12 @@ def test_executor_rejects_repeated_cursor_and_wrong_page_capability() -> None:
     wrong_kind = _Transport(
         (programs,),
         {
-            (programs, None): CipSoftwareInventoryPage(
+            None: CipSoftwareInventoryPage(
                 items=(CipSoftwareInventoryItem(tasks, "MainTask"),)
             ),
         },
     )
-    with pytest.raises(DiscoveryProviderError, match="requested page"):
+    with pytest.raises(DiscoveryProviderError, match="requested plan"):
         PermittedSoftwareInventoryExecutor(
             plan,
             permit=permit,
