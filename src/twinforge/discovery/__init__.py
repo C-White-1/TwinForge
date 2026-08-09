@@ -24,6 +24,12 @@ from .cip_plan import (
     cip_identity_plan_json,
     plan_cip_identity_capture,
 )
+from .cip_routes import (
+    CipRouteDeclaration,
+    CipRouteSegment,
+    cip_route_data,
+    cip_route_json,
+)
 from .configured_module_reconciliation import (
     ConfiguredModuleBinding,
     ConfiguredModuleComparisonStatus,
@@ -159,6 +165,8 @@ __all__ = [
     "CipIdentityPlanTarget",
     "CipIdentityReply",
     "CipIdentityTransport",
+    "CipRouteDeclaration",
+    "CipRouteSegment",
     "CipPhysicalReconciliationCandidate",
     "ConfiguredModuleBinding",
     "ConfiguredModuleComparisonStatus",
@@ -232,6 +240,8 @@ __all__ = [
     "capture_snapshot",
     "cip_identity_plan_data",
     "cip_identity_plan_json",
+    "cip_route_data",
+    "cip_route_json",
     "correlate_topology",
     "correlate_physical_entities",
     "reconcile_configured_modules",

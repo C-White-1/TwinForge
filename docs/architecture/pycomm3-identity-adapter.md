@@ -110,9 +110,10 @@ authorized overrides of that Identity-only baseline:
 These are planned capability profiles, not reasons to weaken the existing
 provider. They should be implemented through separate operations and bounded
 providers so an operator can authorize chassis discovery without implicitly
-authorizing tag-value reads. The existing `DiscoveryTarget.route` field can
-carry an exact route once the routed provider is implemented; the Identity
-provider will continue to reject it.
+authorizing tag-value reads. `CipRouteDeclaration` now represents an exact,
+typed path and its maximum depth without opening a socket. The Identity
+provider continues to reject routed targets; a future routed provider will
+consume these declarations.
 
 The future laboratory configuration should therefore make the authorized
 operations conspicuous. The following is illustrative design, not currently

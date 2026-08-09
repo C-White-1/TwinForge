@@ -109,7 +109,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 
 ## Phase 3: routed controller and chassis evidence
 
-- [ ] Add bounded, explicit CIP route declarations
+- [x] Add bounded, explicit CIP route declarations
 - [ ] Read controller identity and controller metadata
 - [ ] Enumerate configured chassis slots within an explicit route limit
 - [ ] Distinguish no response, empty slot, unsupported route, and device fault
