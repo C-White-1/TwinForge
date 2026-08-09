@@ -112,13 +112,16 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Add bounded, explicit CIP route declarations
 - [ ] Read controller identity and controller metadata
 - [ ] Enumerate configured chassis slots within an explicit route limit
-- [ ] Distinguish no response, empty slot, unsupported route, and device fault
+- [x] Distinguish no response, empty slot, unsupported route, and device fault
 - [ ] Preserve vendor-specific evidence without placing it in the core model
 - [ ] Compare discovered modules with L5X module and electronic-key evidence
 
 The offline metadata and raw-object boundary is defined in
 [CIP Controller Evidence](../architecture/cip-controller-evidence.md). A live
 provider remains pending.
+
+The bounded slot plan and outcome semantics are documented in
+[CIP Chassis Evidence](../architecture/cip-chassis-evidence.md).
 
 ## Phase 4: software and tag inventory
 

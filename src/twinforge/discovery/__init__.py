@@ -11,6 +11,16 @@ from .acceptance import (
     apply_candidate_reviews,
 )
 from .capture import capture_snapshot
+from .chassis import (
+    CipChassisDiscoveryProvider,
+    CipChassisObservation,
+    CipChassisSlotObservation,
+    CipChassisSlotPlan,
+    CipSlotState,
+    cip_chassis_data,
+    cip_chassis_json,
+    plan_cip_chassis_slots,
+)
 from .cip_pycomm3 import (
     CipIdentityReply,
     CipIdentityTransport,
@@ -168,6 +178,10 @@ __all__ = [
     "AcceptedIdentityRecord",
     "CandidateDisposition",
     "CandidateReview",
+    "CipChassisDiscoveryProvider",
+    "CipChassisObservation",
+    "CipChassisSlotObservation",
+    "CipChassisSlotPlan",
     "CipControllerDiscoveryProvider",
     "CipControllerObservation",
     "CipIdentityObservation",
@@ -178,6 +192,7 @@ __all__ = [
     "CipObjectEvidence",
     "CipRouteDeclaration",
     "CipRouteSegment",
+    "CipSlotState",
     "CipPhysicalReconciliationCandidate",
     "ConfiguredModuleBinding",
     "ConfiguredModuleComparisonStatus",
@@ -250,6 +265,8 @@ __all__ = [
     "acceptance_json",
     "apply_candidate_reviews",
     "capture_snapshot",
+    "cip_chassis_data",
+    "cip_chassis_json",
     "cip_controller_data",
     "cip_controller_json",
     "cip_identity_plan_data",
@@ -273,6 +290,7 @@ __all__ = [
     "identity_lifecycle_json",
     "physical_candidate_data",
     "physical_candidate_json",
+    "plan_cip_chassis_slots",
     "plan_cip_identity_capture",
     "snapshot_data",
     "snapshot_json",

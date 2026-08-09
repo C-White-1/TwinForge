@@ -3,13 +3,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from twinforge.discovery import (
+from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
+from twinforge.discovery.contracts import CipIdentityObservation, DiscoveryTarget
+from twinforge.discovery.controller import (
     CipControllerObservation,
-    CipIdentityObservation,
     CipObjectEvidence,
-    CipRouteDeclaration,
-    CipRouteSegment,
-    DiscoveryTarget,
     cip_controller_json,
 )
 
