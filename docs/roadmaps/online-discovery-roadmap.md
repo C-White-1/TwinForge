@@ -175,7 +175,7 @@ The staged hardware acceptance procedure is documented in
 - [x] Preserve indirect reachability separately from reported neighbours
 - [x] Add qualitative confidence and raw evidence references
 - [x] Serialize topology candidates deterministically
-- [ ] Define an acceptance policy for lowering candidates into the core model
+- [x] Define an acceptance policy for lowering candidates into the core model
 - [ ] Build an evidence-backed multi-controller communication graph
 - [ ] Correlate configured modules, routed observations, and software devices
 - [ ] Detect hardware, firmware, configuration, and network drift

@@ -52,15 +52,22 @@ as unique identity evidence.
 
 ## Lowering boundary
 
-`TopologyCorrelationResult` is intentionally outside the core `Network` and
-`Connection` model. A future acceptance policy may lower reviewed candidates
-into that model using requirements such as:
+`TopologyCorrelationResult` remains outside the core `Network` and
+`Connection` model. `apply_topology_reviews` provides the explicit staging
+boundary for reviewed relationships. It requires:
 
-- minimum confidence class;
-- freshness limits;
-- agreement between SNMP, CIP, L5X and operator-supplied evidence;
-- ambiguity resolution; and
-- explicit retention of source observations and correlation decisions.
+- an attributable, timezone-qualified operator review;
+- explicit source and target durable asset keys for acceptance;
+- retained protocol evidence;
+- distinct source and target assets; and
+- no endpoint mappings on rejected or deferred reviews.
 
-Until that policy exists, topology candidates remain analysis output rather
-than asserted plant configuration.
+Only `reported_neighbour` relationships can be staged as physical
+relationships. `mac_reachability` is intentionally ineligible because a bridge
+forwarding entry can describe any device behind another network component.
+There is no override that relabels indirect reachability as a connection.
+
+Accepted records retain the candidate nodes, port identifiers, complete
+evidence, and review. They remain staging evidence and do not directly mutate
+the core model. Unreviewed, rejected, and deferred candidates form explicit,
+deterministic partitions.
