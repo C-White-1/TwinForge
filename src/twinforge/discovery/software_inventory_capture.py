@@ -61,6 +61,11 @@ class CipSoftwareInventoryTransport(Protocol):
         """Return capabilities supported without performing transport I/O."""
         ...
 
+    @property
+    def provider_metadata(self) -> dict[str, JsonEvidence]:
+        """Return non-secret provenance for the retained observation."""
+        ...
+
     def read_inventory_page(
         self,
         plan: CipSoftwareInventoryPlan,
@@ -82,6 +87,7 @@ class CipSoftwareInventoryObservation:
     capabilities: tuple[CipSoftwareInventoryCapability, ...]
     requests_used: int
     items: tuple[CipSoftwareInventoryItem, ...]
+    provider_metadata: dict[str, JsonEvidence] = field(default_factory=dict)
     object_evidence: tuple[CipObjectEvidence, ...] = ()
 
     def __post_init__(self) -> None:
@@ -193,6 +199,7 @@ class PermittedSoftwareInventoryExecutor:
             captured_at=captured_at,
             capabilities=self._plan.capabilities,
             requests_used=requests_used,
+            provider_metadata=dict(self._transport.provider_metadata),
             items=tuple(
                 sorted(
                     items,
@@ -218,6 +225,7 @@ def cip_software_inventory_observation_data(
         "captured_at": observation.captured_at.isoformat(),
         "capabilities": [item.value for item in observation.capabilities],
         "requests_used": observation.requests_used,
+        "provider_metadata": observation.provider_metadata,
         "runtime_values_included": False,
         "items": [
             {

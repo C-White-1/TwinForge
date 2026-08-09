@@ -6,6 +6,7 @@ import pytest
 from twinforge.discovery.cip_pycomm3_routed import RoutedExecutionPermit
 from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
 from twinforge.discovery.contracts import DiscoveryProviderError, DiscoveryTarget
+from twinforge.discovery.controller import JsonEvidence
 from twinforge.discovery.software_inventory_capture import (
     CipSoftwareInventoryItem,
     CipSoftwareInventoryPage,
@@ -34,6 +35,10 @@ class _Transport:
     @property
     def capabilities(self) -> tuple[CipSoftwareInventoryCapability, ...]:
         return self._capabilities
+
+    @property
+    def provider_metadata(self) -> dict[str, JsonEvidence]:
+        return {"adapter": "fixture"}
 
     def read_inventory_page(
         self,
@@ -110,6 +115,7 @@ def test_executor_controls_each_paginated_structural_request() -> None:
     assert observation.authorization_reference == "LAB-001"
     assert document["engagement"] == "TwinForge controlled lab"
     assert document["authorization_reference"] == "LAB-001"
+    assert document["provider_metadata"] == {"adapter": "fixture"}
     assert document["runtime_values_included"] is False
     assert all("value" not in item for item in document["items"])
 

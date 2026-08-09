@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from urllib.parse import quote, unquote
 
 from pycomm3 import LogixDriver
@@ -9,6 +10,7 @@ from pycomm3 import LogixDriver
 from .cip_routes import CipRouteDeclaration
 from .cip_target_policy import validate_live_cip_target_address
 from .contracts import DiscoveryProviderError
+from .controller import JsonEvidence
 from .logix_symbol_codec import (
     GET_INSTANCE_ATTRIBUTE_LIST,
     LOGIX_SYMBOL_CLASS,
@@ -53,6 +55,17 @@ class ExperimentalPycomm3LogixSymbolTransport:
             CipSoftwareInventoryCapability.TAG_DEFINITIONS,
             CipSoftwareInventoryCapability.TASKS,
         )
+
+    @property
+    def provider_metadata(self) -> dict[str, JsonEvidence]:
+        """Identify the experimental adapter without exposing credentials."""
+        return {
+            "adapter": "ExperimentalPycomm3LogixSymbolTransport",
+            "library": "pycomm3",
+            "library_version": version("pycomm3"),
+            "laboratory_evidence_reference": self.laboratory_evidence_reference,
+            "experimental": True,
+        }
 
     def read_inventory_page(
         self,

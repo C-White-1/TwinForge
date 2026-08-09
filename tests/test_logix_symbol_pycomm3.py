@@ -133,6 +133,11 @@ def test_transport_enumerates_controller_then_program_scope_one_page_at_a_time(
     assert [call["instance"] for call in _Driver.calls] == [0, 2, 0]
     assert all(call["connected"] is True for call in _Driver.calls)
     assert observation.requests_used == 3
+    assert observation.provider_metadata["library"] == "pycomm3"
+    assert observation.provider_metadata["library_version"] == "1.2.16"
+    assert observation.provider_metadata["laboratory_evidence_reference"] == (
+        "OFFLINE-PACKET-FIXTURE"
+    )
     assert [(item.name, item.parent) for item in observation.items] == [
         ("MainProgram", None),
         ("MainRoutine", "MainProgram"),
