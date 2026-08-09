@@ -110,10 +110,10 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 ## Phase 3: routed controller and chassis evidence
 
 - [x] Add bounded, explicit CIP route declarations
-- [ ] Read controller identity and controller metadata
+- [x] Read controller identity and controller metadata
 - [x] Enumerate configured chassis slots within an explicit route limit
 - [x] Distinguish no response, empty slot, unsupported route, and device fault
-- [ ] Preserve vendor-specific evidence without placing it in the core model
+- [x] Preserve vendor-specific evidence without placing it in the core model
 - [x] Compare discovered modules with L5X module and electronic-key evidence
 
 The offline metadata and raw-object boundary is defined in
@@ -153,6 +153,10 @@ is documented in
 - [ ] Require a separate policy decision before reading runtime values
 - [ ] Avoid exposing tag values in default reports
 - [ ] Reconcile discovered software identity with offline L5X sources
+
+The separate structural-metadata and runtime-value authorization contracts are
+documented in
+[CIP Software Inventory Policy](../architecture/cip-software-inventory-policy.md).
 
 ## Phase 5: topology and drift
 

@@ -163,6 +163,15 @@ from .identity_lifecycle import (
     identity_lifecycle_json,
 )
 from .serialization import snapshot_data, snapshot_json
+from .software_inventory_plan import (
+    CipRuntimeValueReadPlan,
+    CipSoftwareInventoryCapability,
+    CipSoftwareInventoryPlan,
+    cip_runtime_value_plan_data,
+    cip_runtime_value_plan_json,
+    cip_software_inventory_plan_data,
+    cip_software_inventory_plan_json,
+)
 from .routed_capture import (
     CipControllerReadPlan,
     CipRoutedCapturePlan,
@@ -270,6 +279,9 @@ __all__ = [
     "CipRoutedCapturePlan",
     "CipRoutedDiscoveryProvider",
     "CipRoutedDiscoverySnapshot",
+    "CipRuntimeValueReadPlan",
+    "CipSoftwareInventoryCapability",
+    "CipSoftwareInventoryPlan",
     "CipSlotState",
     "CipSlotStatusProfile",
     "CipSlotStatusSignature",
@@ -382,6 +394,10 @@ __all__ = [
     "cip_route_json",
     "cip_routed_snapshot_data",
     "cip_routed_snapshot_json",
+    "cip_runtime_value_plan_data",
+    "cip_runtime_value_plan_json",
+    "cip_software_inventory_plan_data",
+    "cip_software_inventory_plan_json",
     "correlate_topology",
     "correlate_physical_entities",
     "reconcile_configured_modules",
