@@ -139,6 +139,9 @@ Its socket-free execution and evidence-lowering boundary is documented in
 [CIP Controller Metadata Capture](../architecture/cip-controller-metadata-capture.md).
 The packet-preserving live adapter boundary is documented in
 [pycomm3 Controller Metadata Transport](../architecture/pycomm3-controller-metadata-transport.md).
+The composed provider, fail-closed preflight, and combined request budget are
+documented in
+[CIP Controller Enrichment](../architecture/cip-controller-enrichment.md).
 
 ## Phase 4: software and tag inventory
 

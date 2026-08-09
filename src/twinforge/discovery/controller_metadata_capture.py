@@ -97,10 +97,13 @@ class PermittedControllerMetadataExecutor:
         self._timeout = timeout
         self._executed = False
 
-    def capture(self, *, captured_at: datetime) -> CipControllerMetadataCapture:
-        """Execute every request once, retaining failures as object evidence."""
-        if captured_at.tzinfo is None:
-            raise ValueError("captured_at must include a timezone")
+    @property
+    def plan(self) -> CipControllerMetadataPlan:
+        """Return the immutable plan enforced by this executor."""
+        return self._plan
+
+    def preflight(self) -> None:
+        """Validate authorization, decoders, and budget without transport I/O."""
         assert self._plan.route is not None
         validate_routed_execution(
             self._permit,
@@ -126,6 +129,13 @@ class PermittedControllerMetadataExecutor:
                 "cip_metadata_request_budget_exceeded",
                 "the controller metadata plan request budget is exhausted",
             )
+
+    def capture(self, *, captured_at: datetime) -> CipControllerMetadataCapture:
+        """Execute every request once, retaining failures as object evidence."""
+        if captured_at.tzinfo is None:
+            raise ValueError("captured_at must include a timezone")
+        self.preflight()
+        assert self._plan.route is not None
         self._executed = True
 
         values: dict[ControllerMetadataField, str] = {}

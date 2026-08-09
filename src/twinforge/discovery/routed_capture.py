@@ -25,6 +25,10 @@ from .controller import (
     CipControllerObservation,
     cip_controller_data,
 )
+from .controller_metadata import (
+    CipControllerMetadataPlan,
+    cip_controller_metadata_plan_data,
+)
 
 
 @dataclass(frozen=True)
@@ -33,6 +37,7 @@ class CipControllerReadPlan:
 
     target: DiscoveryTarget
     route: CipRouteDeclaration | None = None
+    metadata: CipControllerMetadataPlan | None = None
     request_budget: int = 1
 
     def __post_init__(self) -> None:
@@ -40,6 +45,21 @@ class CipControllerReadPlan:
             raise ValueError("controller route gateway does not match target")
         if self.request_budget != 1:
             raise ValueError("controller metadata request budget must equal one")
+        if self.metadata is not None:
+            if self.metadata.target.key != self.target.key:
+                raise ValueError("metadata plan target does not match controller")
+            if self.metadata.route != self.route:
+                raise ValueError("metadata plan route does not match controller")
+
+    @property
+    def total_request_budget(self) -> int:
+        """Return Identity plus explicitly planned metadata requests."""
+        metadata_budget = (
+            self.metadata.total_request_budget
+            if self.metadata is not None
+            else 0
+        )
+        return self.request_budget + metadata_budget
 
     @property
     def key(self) -> str:
@@ -79,7 +99,7 @@ class CipRoutedCapturePlan:
     @property
     def total_request_budget(self) -> int:
         """Return the maximum request count across all planned reads."""
-        return sum(item.request_budget for item in self.controllers) + sum(
+        return sum(item.total_request_budget for item in self.controllers) + sum(
             item.total_request_budget for item in self.chassis
         )
 
@@ -248,6 +268,12 @@ def cip_routed_snapshot_data(
                         else None
                     ),
                     "request_budget": item.request_budget,
+                    "total_request_budget": item.total_request_budget,
+                    "metadata": (
+                        cip_controller_metadata_plan_data(item.metadata)
+                        if item.metadata is not None
+                        else None
+                    ),
                 }
                 for item in sorted(
                     snapshot.plan.controllers,

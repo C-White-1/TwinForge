@@ -105,6 +105,7 @@ from .controller_metadata_pycomm3 import (
     LivePycomm3MetadataTransport,
     standard_metadata_decoders,
 )
+from .controller_enrichment import MetadataEnrichedControllerProvider
 from .core_promotion import (
     CoreAssetKind,
     CorePromotionError,
@@ -302,6 +303,7 @@ __all__ = [
     "JsonEvidence",
     "LivePycomm3RoutedTransport",
     "LivePycomm3MetadataTransport",
+    "MetadataEnrichedControllerProvider",
     "LivePycomm3RoutedSlotTransport",
     "MetadataDecoder",
     "PersistedDiscoveryState",
