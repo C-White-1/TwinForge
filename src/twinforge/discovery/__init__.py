@@ -27,6 +27,13 @@ from .cip_pycomm3 import (
     Pycomm3CipIdentityProvider,
     Pycomm3IdentityTransport,
 )
+from .cip_pycomm3_routes import (
+    Pycomm3RouteEncoding,
+    Pycomm3RouteEncodingError,
+    encode_pycomm3_route,
+    pycomm3_route_encoding_data,
+    pycomm3_route_encoding_json,
+)
 from .cip_plan import (
     CipIdentityCapturePlan,
     CipIdentityPlanTarget,
@@ -243,6 +250,8 @@ __all__ = [
     "PersistedDiscoveryState",
     "Pycomm3CipIdentityProvider",
     "Pycomm3IdentityTransport",
+    "Pycomm3RouteEncoding",
+    "Pycomm3RouteEncodingError",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",
@@ -299,7 +308,10 @@ __all__ = [
     "core_promotion_data",
     "core_promotion_json",
     "durable_identity_for_asset",
+    "encode_pycomm3_route",
     "promote_lifecycle_identities",
+    "pycomm3_route_encoding_data",
+    "pycomm3_route_encoding_json",
     "reconcile_cip_physical_identities",
     "identity_reconciliation_data",
     "identity_reconciliation_json",

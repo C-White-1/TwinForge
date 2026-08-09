@@ -125,6 +125,8 @@ The bounded slot plan and outcome semantics are documented in
 
 Deterministic offline provider orchestration is documented in
 [CIP Routed Capture Orchestration](../architecture/cip-routed-capture.md).
+The socket-free adapter encoding boundary is documented in
+[pycomm3 Route Translation](../architecture/pycomm3-route-translation.md).
 
 ## Phase 4: software and tag inventory
 
