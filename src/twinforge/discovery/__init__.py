@@ -191,6 +191,12 @@ from .software_inventory_reconciliation import (
     software_inventory_reconciliation_json,
 )
 from .software_inventory_report import software_inventory_markdown
+from .software_inventory_pycomm3 import (
+    Pycomm3SoftwareInventoryAssessment,
+    assess_pycomm3_software_inventory,
+    pycomm3_software_inventory_assessment_data,
+    pycomm3_software_inventory_assessment_json,
+)
 from .routed_capture import (
     CipControllerReadPlan,
     CipRoutedCapturePlan,
@@ -360,6 +366,7 @@ __all__ = [
     "Pycomm3IdentityTransport",
     "Pycomm3RouteEncoding",
     "Pycomm3RouteEncodingError",
+    "Pycomm3SoftwareInventoryAssessment",
     "Pycomm3RoutedTransport",
     "Pycomm3RoutedSlotTransport",
     "RoutedExecutionPermit",
@@ -373,6 +380,7 @@ __all__ = [
     "SnmpCorpusReport",
     "SnmpCorpusResult",
     "aggregate_snmp_oid_families",
+    "assess_pycomm3_software_inventory",
     "discover_snmp_corpus",
     "SnmpForwardingEntryObservation",
     "SnmpInterfaceObservation",
@@ -447,6 +455,8 @@ __all__ = [
     "promote_lifecycle_identities",
     "pycomm3_route_encoding_data",
     "pycomm3_route_encoding_json",
+    "pycomm3_software_inventory_assessment_data",
+    "pycomm3_software_inventory_assessment_json",
     "reconcile_cip_physical_identities",
     "identity_reconciliation_data",
     "identity_reconciliation_json",

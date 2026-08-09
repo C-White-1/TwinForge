@@ -157,6 +157,9 @@ is documented in
 The separate structural-metadata and runtime-value authorization contracts are
 documented in
 [CIP Software Inventory Policy](../architecture/cip-software-inventory-policy.md).
+The installed library's discoverable capabilities and pagination limitation
+are documented in
+[pycomm3 Software Inventory Assessment](../architecture/pycomm3-software-inventory-assessment.md).
 
 ## Phase 5: topology and drift
 
