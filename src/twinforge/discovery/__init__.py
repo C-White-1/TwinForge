@@ -96,6 +96,10 @@ from .controller_metadata_capture import (
     cip_controller_metadata_capture_data,
     cip_controller_metadata_capture_json,
 )
+from .controller_metadata_pycomm3 import (
+    LivePycomm3MetadataTransport,
+    standard_metadata_decoders,
+)
 from .core_promotion import (
     CoreAssetKind,
     CorePromotionError,
@@ -289,6 +293,7 @@ __all__ = [
     "IdentityTransitionDirective",
     "JsonEvidence",
     "LivePycomm3RoutedTransport",
+    "LivePycomm3MetadataTransport",
     "MetadataDecoder",
     "PersistedDiscoveryState",
     "PermittedPycomm3RoutedControllerProvider",
@@ -380,6 +385,7 @@ __all__ = [
     "plan_cip_identity_capture",
     "snapshot_data",
     "snapshot_json",
+    "standard_metadata_decoders",
     "topology_data",
     "topology_json",
     "read_snmprec",
