@@ -141,6 +141,11 @@ from .contracts import (
     SnmpNodeObservation,
     SnmpPhysicalEntityObservation,
 )
+from .electronic_key_evaluation import (
+    ElectronicKeyEvaluation,
+    ElectronicKeyVerdict,
+    evaluate_electronic_key,
+)
 from .fake import FakeCipIdentity, FakeDiscoveryProvider, FakeSnmpNode
 from .fake_routed import FakeRoutedCipProvider
 from .identity_reconciliation import (
@@ -348,6 +353,8 @@ __all__ = [
     "DiscoveryScope",
     "DiscoverySnapshot",
     "DiscoveryTarget",
+    "ElectronicKeyEvaluation",
+    "ElectronicKeyVerdict",
     "ExperimentalPycomm3LogixSymbolTransport",
     "DiscoveryStateFileStore",
     "DiscoveryStatePersistenceError",
@@ -467,6 +474,7 @@ __all__ = [
     "core_promotion_data",
     "core_promotion_json",
     "durable_identity_for_asset",
+    "evaluate_electronic_key",
     "decode_logix_symbol_page",
     "encode_pycomm3_route",
     "promote_lifecycle_identities",

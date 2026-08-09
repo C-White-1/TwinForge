@@ -83,7 +83,8 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Compare physical candidates with exact same-target CIP identity evidence
 - [x] Compare explicitly bound L5X modules with discovered CIP identities
 - [x] Link corroborated physical candidates without merging model objects
-- [ ] Implement specification-backed electronic-key compatibility evaluation
+- [x] Implement specification-backed electronic-key compatibility evaluation
+- [ ] Attach electronic-key verdicts to module reconciliation candidates
 - [x] Add attributable accept, reject, and defer review records
 - [x] Require explicit overrides for conflicting or insufficient comparisons
 - [x] Build durable staging identities without mutating the core model
