@@ -149,9 +149,9 @@ is documented in
 ## Phase 4: software and tag inventory
 
 - [ ] Discover programs, routines, tasks, and tags only when supported
-- [ ] Separate metadata reads from runtime value reads
-- [ ] Require a separate policy decision before reading runtime values
-- [ ] Avoid exposing tag values in default reports
+- [x] Separate metadata reads from runtime value reads
+- [x] Require a separate policy decision before reading runtime values
+- [x] Avoid exposing tag values in default reports
 - [x] Reconcile discovered software identity with offline L5X sources
 
 The separate structural-metadata and runtime-value authorization contracts are

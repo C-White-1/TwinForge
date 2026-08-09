@@ -190,6 +190,7 @@ from .software_inventory_reconciliation import (
     software_inventory_reconciliation_data,
     software_inventory_reconciliation_json,
 )
+from .software_inventory_report import software_inventory_markdown
 from .routed_capture import (
     CipControllerReadPlan,
     CipRoutedCapturePlan,
@@ -438,6 +439,7 @@ __all__ = [
     "routed_configured_module_reconciliation_json",
     "software_inventory_reconciliation_data",
     "software_inventory_reconciliation_json",
+    "software_inventory_markdown",
     "core_promotion_data",
     "core_promotion_json",
     "durable_identity_for_asset",

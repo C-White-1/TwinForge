@@ -35,3 +35,9 @@ through `ConfiguredSoftwareBinding`. Reconciliation uses capability, parent,
 and name as the structural key, compares routine language and tag data type
 when available, and reports configured-only and discovered-only items. It does
 not report absent items for capabilities that were never requested.
+
+The default Markdown report includes names, structural parents, data types,
+languages, counts, and reconciliation status. It deliberately excludes raw
+attributes and CIP object payloads because those evidence containers may hold
+vendor-specific or sensitive data. Detailed evidence remains available in the
+machine-readable capture for authorized analysis.
