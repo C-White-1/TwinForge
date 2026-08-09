@@ -11,6 +11,14 @@ from .controller_communication_graph import (
     controller_communication_graph_data,
     controller_communication_graph_json,
 )
+from .cross_layer_device_correlation import (
+    CorrelatedSoftwareDevice,
+    CrossLayerCorrelationError,
+    CrossLayerDeviceCorrelationResult,
+    correlate_software_devices_with_routed_modules,
+    cross_layer_device_correlation_data,
+    cross_layer_device_correlation_json,
+)
 from .software_devices import (
     AssembledSoftwareDevice,
     DeviceAssemblyProvider,
@@ -36,6 +44,9 @@ __all__ = [
     "ControllerCommunicationGraph",
     "ControllerCommunicationGraphError",
     "ControllerCommunicationNode",
+    "CorrelatedSoftwareDevice",
+    "CrossLayerCorrelationError",
+    "CrossLayerDeviceCorrelationResult",
     "DeviceAssemblyProvider",
     "InMemoryPromotionRepository",
     "PowerFlex525AssemblyProvider",
@@ -49,5 +60,8 @@ __all__ = [
     "build_controller_communication_graph",
     "controller_communication_graph_data",
     "controller_communication_graph_json",
+    "correlate_software_devices_with_routed_modules",
+    "cross_layer_device_correlation_data",
+    "cross_layer_device_correlation_json",
     "persist_promotions",
 ]

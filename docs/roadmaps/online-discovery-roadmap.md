@@ -177,7 +177,7 @@ The staged hardware acceptance procedure is documented in
 - [x] Serialize topology candidates deterministically
 - [x] Define an acceptance policy for lowering candidates into the core model
 - [x] Build an evidence-backed multi-controller communication graph
-- [ ] Correlate configured modules, routed observations, and software devices
+- [x] Correlate configured modules, routed observations, and software devices
 - [ ] Detect hardware, firmware, configuration, and network drift
 - [ ] Export sanitized change reports with confidence and provenance
 - [ ] Keep inferred relationships visibly distinct from observed relationships
@@ -187,6 +187,9 @@ Correlation semantics and the future lowering boundary are documented in
 Configured Logix message intent and explicit controller-workspace bindings are
 documented in
 [Controller Communication Graph](../architecture/controller-communication-graph.md).
+Cross-layer joins between assembled software devices and approved routed module
+mappings are documented in
+[Cross-Layer Device Correlation](../architecture/cross-layer-device-correlation.md).
 The separate physical-inventory boundary is documented in
 [SNMP Physical Asset Candidates](../architecture/snmp-physical-asset-candidates.md).
 
