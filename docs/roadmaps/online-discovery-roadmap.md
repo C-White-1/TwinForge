@@ -99,7 +99,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Add schema-versioned atomic JSON lifecycle and promotion persistence
 - [x] Reject stale revisions, history loss, and malformed persisted state
 - [x] Add installed CLI commands to initialize, validate, and inspect state
-- [ ] Implement a transactional multi-writer promotion-repository adapter
+- [x] Implement a transactional multi-writer promotion-repository adapter
 - [x] Add approved chassis and module topology-promotion mappings
 - [ ] Evaluate RMON statistics as a separate observation profile
 - [ ] Evaluate OSPF evidence only in the routed-topology phase

@@ -84,10 +84,30 @@ class InMemoryPromotionRepository:
     transaction without changing discovery or core-model classes.
     """
 
-    def __init__(self, plant: Plant | None = None) -> None:
+    def __init__(
+        self,
+        plant: Plant | None = None,
+        *,
+        initial_records: tuple[CorePromotionRecord, ...] = (),
+    ) -> None:
         self._plant = plant
-        self._by_asset_id: dict[str, CorePromotionRecord] = {}
-        self._asset_id_by_identity: dict[str, str] = {}
+        self._by_asset_id: dict[str, CorePromotionRecord] = {
+            record.core_asset.id: record for record in initial_records
+        }
+        self._asset_id_by_identity: dict[str, str] = {
+            record.durable_identity_key: record.core_asset.id
+            for record in initial_records
+        }
+        if len(self._by_asset_id) != len(initial_records):
+            raise PromotionRepositoryError("initial records contain duplicate assets")
+        if len(self._asset_id_by_identity) != len(initial_records):
+            raise PromotionRepositoryError(
+                "initial records contain duplicate durable identities"
+            )
+
+    def records(self) -> tuple[CorePromotionRecord, ...]:
+        """Return the complete deterministic repository state."""
+        return tuple(self._by_asset_id[key] for key in sorted(self._by_asset_id))
 
     def get_by_asset_id(self, asset_id: str) -> CorePromotionRecord | None:
         """Return the retained promotion record for a core asset ID."""

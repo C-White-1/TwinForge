@@ -169,10 +169,19 @@ Repository rules are:
 - the `Plant` keeps ownership of the original core object during evidence
   updates.
 
-The in-memory adapter is a reference implementation, not durable storage. A
-database or file adapter should implement the same atomic port and constraints
-using transactions. Persistence format, concurrency control, and migration
-policy remain adapter responsibilities.
+The in-memory adapter is a reference implementation, not durable storage.
+`SqlitePromotionRepository` provides the durable, transactional implementation
+for multiple processes or application instances sharing one database file. It
+uses `BEGIN IMMEDIATE` to serialize writers, reloads committed state while
+holding that write reservation, applies the same in-memory policy, and commits
+the complete batch only after validation succeeds. Database primary and unique
+keys independently enforce the one-to-one asset/identity mapping.
+
+SQLite write-lock acquisition uses a configurable finite timeout. A lock or
+database failure becomes `PromotionRepositoryError`; callers may retry the
+whole idempotent batch. The adapter enables WAL mode for concurrent readers,
+but it intentionally does not distribute writes across network filesystems or
+replace a client/server database where that deployment model is required.
 
 ## Versioned file state
 
@@ -182,12 +191,13 @@ unknown schema versions, requires timezone-aware dates, checks consecutive
 lifecycle generations and promotion-to-lifecycle links, and refuses updates
 that discard prior generations, events, inactive keys, or promotions.
 
-Writes use a temporary file in the destination directory, flush and synchronize
+JSON state writes use a temporary file in the destination directory, flush and
+synchronize
 its contents, then atomically replace the destination. An expected revision
 detects stale callers, while an identical replay leaves the revision unchanged.
 This is safe against partial file writes. It is optimistic concurrency, not a
-replacement for transactional multi-process locking; a database adapter should
-provide that guarantee when concurrent writers are required.
+replacement for transactional multi-process locking. Use the SQLite promotion
+repository when concurrent writers are required.
 
 This separation prevents protocol-reported inventory from being mistaken for
 operator-confirmed plant structure while preserving all evidence needed for a

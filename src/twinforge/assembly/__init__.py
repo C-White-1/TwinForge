@@ -15,6 +15,7 @@ from .promotion_repository import (
     PromotionRepositoryError,
     persist_promotions,
 )
+from .sqlite_promotion_repository import SqlitePromotionRepository
 
 __all__ = [
     "AssembledSoftwareDevice",
@@ -26,6 +27,7 @@ __all__ = [
     "PromotionPersistenceStatus",
     "PromotionRepository",
     "PromotionRepositoryError",
+    "SqlitePromotionRepository",
     "assemble_corpus_devices",
     "persist_promotions",
 ]
