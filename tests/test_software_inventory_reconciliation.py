@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 
+from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
 from twinforge.discovery.contracts import DiscoveryTarget
 from twinforge.discovery.software_inventory_capture import (
     CipSoftwareInventoryItem,
@@ -21,6 +22,16 @@ from twinforge.model import Controller, Identity, Program, Routine, Tag, Task
 TIMESTAMP = datetime(2026, 8, 9, tzinfo=timezone.utc)
 
 
+def _target_and_route() -> tuple[DiscoveryTarget, CipRouteDeclaration]:
+    target = DiscoveryTarget(address="192.168.1.10")
+    route = CipRouteDeclaration(
+        gateway=target,
+        segments=(CipRouteSegment(port=1, link=0),),
+        maximum_depth=1,
+    )
+    return target, route
+
+
 def _controller() -> Controller:
     controller = Controller(name="Configured", identity=Identity())
     program = Program(name="MainProgram")
@@ -33,6 +44,7 @@ def _controller() -> Controller:
 
 
 def test_reconciliation_reports_matches_conflicts_and_each_side_only() -> None:
+    target, route = _target_and_route()
     capabilities = (
         CipSoftwareInventoryCapability.PROGRAMS,
         CipSoftwareInventoryCapability.ROUTINES,
@@ -40,9 +52,12 @@ def test_reconciliation_reports_matches_conflicts_and_each_side_only() -> None:
         CipSoftwareInventoryCapability.TASKS,
     )
     observation = CipSoftwareInventoryObservation(
-        target=DiscoveryTarget(address="192.168.1.10"),
+        target=target,
+        route=route,
         engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
+        confirmed_by="operator@example.test",
+        confirmed_at=TIMESTAMP,
         captured_at=TIMESTAMP,
         capabilities=capabilities,
         requests_used=4,
@@ -90,10 +105,14 @@ def test_reconciliation_reports_matches_conflicts_and_each_side_only() -> None:
 
 
 def test_unrequested_capabilities_do_not_create_configured_only_noise() -> None:
+    target, route = _target_and_route()
     observation = CipSoftwareInventoryObservation(
-        target=DiscoveryTarget(address="192.168.1.10"),
+        target=target,
+        route=route,
         engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
+        confirmed_by="operator@example.test",
+        confirmed_at=TIMESTAMP,
         captured_at=TIMESTAMP,
         capabilities=(CipSoftwareInventoryCapability.PROGRAMS,),
         requests_used=1,

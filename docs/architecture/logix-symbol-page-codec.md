@@ -51,9 +51,11 @@ provide the target, every `PORT/LINK` route segment, engagement name,
 authorization reference, capability allowlist and maximum request count.
 Both the engagement and authorization reference are retained in live
 observation JSON so captured evidence remains attributable to its approved
-scope. Provider metadata also records the adapter name, installed `pycomm3`
-version, experimental status, and laboratory evidence reference. It contains
-no credentials or runtime tag values.
+scope. The exact route and operator-confirmation record are retained as well.
+Provider metadata records the adapter name, installed `pycomm3` version,
+experimental status, and laboratory evidence reference. It contains no
+credentials or runtime tag values. The safe Markdown report includes the route
+and authorization context but omits the confirming operator identity.
 
 Live traffic requires the additional `--execute-experimental` switch together
 with `--confirmed-by`, a timezone-qualified `--confirmed-at`, and

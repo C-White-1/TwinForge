@@ -113,8 +113,14 @@ def test_executor_controls_each_paginated_structural_request() -> None:
     assert observation.requests_used == 2
     assert observation.engagement == "TwinForge controlled lab"
     assert observation.authorization_reference == "LAB-001"
+    assert observation.route == plan.route
+    assert observation.confirmed_by == "operator@example.test"
+    assert observation.confirmed_at == TIMESTAMP
     assert document["engagement"] == "TwinForge controlled lab"
     assert document["authorization_reference"] == "LAB-001"
+    assert document["confirmed_by"] == "operator@example.test"
+    assert document["confirmed_at"] == TIMESTAMP.isoformat()
+    assert document["route"]["gateway"]["address"] == "192.168.1.10"
     assert document["provider_metadata"] == {"adapter": "fixture"}
     assert document["runtime_values_included"] is False
     assert all("value" not in item for item in document["items"])

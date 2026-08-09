@@ -11,6 +11,7 @@ from .cip_pycomm3_routed import (
     RoutedExecutionPermit,
     validate_routed_execution,
 )
+from .cip_routes import CipRouteDeclaration, cip_route_data
 from .contracts import DiscoveryProviderError, DiscoveryTarget
 from .controller import CipObjectEvidence, JsonEvidence
 from .software_inventory_plan import (
@@ -81,8 +82,11 @@ class CipSoftwareInventoryObservation:
     """Attributable structural software inventory evidence."""
 
     target: DiscoveryTarget
+    route: CipRouteDeclaration
     engagement: str
     authorization_reference: str
+    confirmed_by: str
+    confirmed_at: datetime
     captured_at: datetime
     capabilities: tuple[CipSoftwareInventoryCapability, ...]
     requests_used: int
@@ -95,11 +99,16 @@ class CipSoftwareInventoryObservation:
         for name, value in (
             ("engagement", self.engagement),
             ("authorization_reference", self.authorization_reference),
+            ("confirmed_by", self.confirmed_by),
         ):
             if not value or value != value.strip():
                 raise ValueError(f"{name} must be non-empty and trimmed")
         if self.captured_at.tzinfo is None:
             raise ValueError("captured_at must include a timezone")
+        if self.confirmed_at.tzinfo is None:
+            raise ValueError("confirmed_at must include a timezone")
+        if self.route.gateway.key != self.target.key:
+            raise ValueError("observation route gateway does not match target")
         if self.requests_used <= 0:
             raise ValueError("requests_used must be positive")
 
@@ -157,6 +166,13 @@ class PermittedSoftwareInventoryExecutor:
         if captured_at.tzinfo is None:
             raise ValueError("captured_at must include a timezone")
         self.preflight()
+        route = self._plan.route
+        permit = self._permit
+        if route is None or permit is None:
+            raise DiscoveryProviderError(
+                "cip_software_execution_permit_required",
+                "software inventory execution requires a routed permit",
+            )
         self._executed = True
         requests_used = 0
         items: list[CipSoftwareInventoryItem] = []
@@ -194,8 +210,11 @@ class PermittedSoftwareInventoryExecutor:
             cursor = page.next_cursor
         return CipSoftwareInventoryObservation(
             target=self._plan.target,
+            route=route,
             engagement=self._plan.engagement,
             authorization_reference=self._plan.authorization_reference,
+            confirmed_by=permit.confirmed_by,
+            confirmed_at=permit.confirmed_at,
             captured_at=captured_at,
             capabilities=self._plan.capabilities,
             requests_used=requests_used,
@@ -220,8 +239,11 @@ def cip_software_inventory_observation_data(
     """Return deterministic structural evidence without runtime values."""
     return {
         "target": observation.target.model_dump(mode="json"),
+        "route": cip_route_data(observation.route),
         "engagement": observation.engagement,
         "authorization_reference": observation.authorization_reference,
+        "confirmed_by": observation.confirmed_by,
+        "confirmed_at": observation.confirmed_at.isoformat(),
         "captured_at": observation.captured_at.isoformat(),
         "capabilities": [item.value for item in observation.capabilities],
         "requests_used": observation.requests_used,

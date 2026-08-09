@@ -20,6 +20,10 @@ def software_inventory_markdown(
         "# CIP Software Inventory",
         "",
         f"- Target: `{observation.target.key}`",
+        f"- Route: `{observation.route.key}`",
+        f"- Engagement: {observation.engagement}",
+        f"- Authorization reference: `{observation.authorization_reference}`",
+        f"- Confirmed at: `{observation.confirmed_at.isoformat()}`",
         f"- Captured: `{observation.captured_at.isoformat()}`",
         f"- Requests used: {observation.requests_used}",
         "- Runtime values included: no",
@@ -62,6 +66,8 @@ def software_inventory_markdown(
 
     lines.extend(
         [
+            "",
+            "The confirming operator identity is retained only in the JSON evidence.",
             "",
             "Raw attributes and CIP object payloads are omitted from this report.",
             "",

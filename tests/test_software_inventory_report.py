@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
 from twinforge.discovery.contracts import DiscoveryTarget
 from twinforge.discovery.software_inventory_capture import (
     CipSoftwareInventoryItem,
@@ -19,10 +20,19 @@ from twinforge.discovery.software_inventory_report import (
 
 
 def test_default_report_omits_raw_attributes_payloads_and_value_like_data() -> None:
+    target = DiscoveryTarget(address="192.168.1.10")
+    route = CipRouteDeclaration(
+        gateway=target,
+        segments=(CipRouteSegment(port=1, link=0),),
+        maximum_depth=1,
+    )
     observation = CipSoftwareInventoryObservation(
-        target=DiscoveryTarget(address="192.168.1.10"),
+        target=target,
+        route=route,
         engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
+        confirmed_by="operator@example.test",
+        confirmed_at=datetime(2026, 8, 9, tzinfo=timezone.utc),
         captured_at=datetime(2026, 8, 9, tzinfo=timezone.utc),
         capabilities=(CipSoftwareInventoryCapability.TAG_DEFINITIONS,),
         requests_used=1,
@@ -56,6 +66,10 @@ def test_default_report_omits_raw_attributes_payloads_and_value_like_data() -> N
     report = software_inventory_markdown(observation, reconciliation)
 
     assert "MotorRun" in report
+    assert "TwinForge controlled lab" in report
+    assert "LAB-001" in report
+    assert route.key in report
+    assert "operator@example.test" not in report
     assert "data type `BOOL`" in report
     assert "Runtime values included: no" in report
     assert "DO-NOT-REPORT" not in report
