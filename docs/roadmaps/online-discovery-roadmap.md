@@ -148,11 +148,13 @@ is documented in
 
 ## Phase 4: software and tag inventory
 
-- [ ] Discover programs, routines, tasks, and tags only when supported
+- [x] Discover programs, routines, tasks, and tags only when supported
 - [x] Separate metadata reads from runtime value reads
 - [x] Require a separate policy decision before reading runtime values
 - [x] Avoid exposing tag values in default reports
 - [x] Reconcile discovered software identity with offline L5X sources
+- [x] Retain engagement, route, confirmation, provider, and request provenance
+- [ ] Verify the experimental page transport on an authorized Logix controller
 
 The separate structural-metadata and runtime-value authorization contracts are
 documented in
@@ -163,6 +165,8 @@ are documented in
 The offline request, record, partial-transfer and structural-lowering codec is
 documented in
 [Logix Symbol Page Codec](../architecture/logix-symbol-page-codec.md).
+The staged hardware acceptance procedure is documented in
+[pycomm3 Software Inventory Lab Validation](../experiments/pycomm3-software-inventory-lab-validation.md).
 
 ## Phase 5: topology and drift
 
