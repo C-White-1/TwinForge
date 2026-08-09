@@ -123,6 +123,9 @@ provider remains pending.
 The bounded slot plan and outcome semantics are documented in
 [CIP Chassis Evidence](../architecture/cip-chassis-evidence.md).
 
+Deterministic offline provider orchestration is documented in
+[CIP Routed Capture Orchestration](../architecture/cip-routed-capture.md).
+
 ## Phase 4: software and tag inventory
 
 - [ ] Discover programs, routines, tasks, and tags only when supported

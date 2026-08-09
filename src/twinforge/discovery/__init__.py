@@ -87,6 +87,7 @@ from .contracts import (
     SnmpPhysicalEntityObservation,
 )
 from .fake import FakeCipIdentity, FakeDiscoveryProvider, FakeSnmpNode
+from .fake_routed import FakeRoutedCipProvider
 from .identity_reconciliation import (
     CipPhysicalReconciliationCandidate,
     IdentityReconciliationResult,
@@ -107,6 +108,15 @@ from .identity_lifecycle import (
     identity_lifecycle_json,
 )
 from .serialization import snapshot_data, snapshot_json
+from .routed_capture import (
+    CipControllerReadPlan,
+    CipRoutedCapturePlan,
+    CipRoutedDiscoveryProvider,
+    CipRoutedDiscoverySnapshot,
+    capture_routed_cip,
+    cip_routed_snapshot_data,
+    cip_routed_snapshot_json,
+)
 from .state_store import (
     STATE_SCHEMA_VERSION,
     DiscoveryStateFileStore,
@@ -184,6 +194,7 @@ __all__ = [
     "CipChassisSlotPlan",
     "CipControllerDiscoveryProvider",
     "CipControllerObservation",
+    "CipControllerReadPlan",
     "CipIdentityObservation",
     "CipIdentityCapturePlan",
     "CipIdentityPlanTarget",
@@ -192,6 +203,9 @@ __all__ = [
     "CipObjectEvidence",
     "CipRouteDeclaration",
     "CipRouteSegment",
+    "CipRoutedCapturePlan",
+    "CipRoutedDiscoveryProvider",
+    "CipRoutedDiscoverySnapshot",
     "CipSlotState",
     "CipPhysicalReconciliationCandidate",
     "ConfiguredModuleBinding",
@@ -216,6 +230,7 @@ __all__ = [
     "FakeCipIdentity",
     "FakeDiscoveryProvider",
     "FakeSnmpNode",
+    "FakeRoutedCipProvider",
     "IdentityReconciliationResult",
     "DurableIdentityGeneration",
     "IdentityLifecycleError",
@@ -265,6 +280,7 @@ __all__ = [
     "acceptance_json",
     "apply_candidate_reviews",
     "capture_snapshot",
+    "capture_routed_cip",
     "cip_chassis_data",
     "cip_chassis_json",
     "cip_controller_data",
@@ -273,6 +289,8 @@ __all__ = [
     "cip_identity_plan_json",
     "cip_route_data",
     "cip_route_json",
+    "cip_routed_snapshot_data",
+    "cip_routed_snapshot_json",
     "correlate_topology",
     "correlate_physical_entities",
     "reconcile_configured_modules",
