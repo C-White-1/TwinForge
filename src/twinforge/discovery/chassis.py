@@ -48,6 +48,36 @@ class CipChassisSlotPlan:
 
 
 @dataclass(frozen=True)
+class CipChassisSlotRouteMap:
+    """Exact routed destination for every slot in a chassis plan."""
+
+    plan: CipChassisSlotPlan
+    routes: tuple[tuple[int, CipRouteDeclaration], ...]
+
+    def __post_init__(self) -> None:
+        slots = tuple(slot for slot, _ in self.routes)
+        if slots != self.plan.slots:
+            raise ValueError("slot route map must cover planned slots in order")
+        if len(slots) != len(set(slots)):
+            raise ValueError("slot route map contains duplicate slots")
+        gateway_key = self.plan.route.gateway.key
+        route_keys: list[str] = []
+        for _, route in self.routes:
+            if route.gateway.key != gateway_key:
+                raise ValueError("slot route gateway does not match chassis gateway")
+            route_keys.append(route.key)
+        if len(route_keys) != len(set(route_keys)):
+            raise ValueError("every planned slot requires a unique route")
+
+    def route_for_slot(self, slot: int) -> CipRouteDeclaration:
+        """Return the explicitly declared route for ``slot``."""
+        for mapped_slot, route in self.routes:
+            if mapped_slot == slot:
+                return route
+        raise KeyError(slot)
+
+
+@dataclass(frozen=True)
 class CipChassisSlotObservation:
     """Evidence and explicit outcome for one requested chassis slot."""
 

@@ -207,21 +207,33 @@ class PermittedPycomm3RoutedControllerProvider:
         )
 
     def _validate_permit(self, route: CipRouteDeclaration) -> None:
-        if self._permit is None:
-            raise DiscoveryProviderError(
-                "cip_routed_execution_not_confirmed",
-                "routed CIP execution requires an explicit operator permit",
-            )
-        if route.key not in self._permit.allowed_route_keys:
-            raise DiscoveryProviderError(
-                "cip_route_not_confirmed",
-                "route is allowlisted but absent from the operator permit",
-            )
-        if (
-            self._permit.authorization_reference
-            != self._authorization_reference
-        ):
-            raise DiscoveryProviderError(
-                "cip_authorization_reference_mismatch",
-                "operator permit does not match the provider authorization",
-            )
+        validate_routed_execution(
+            self._permit,
+            self._authorization_reference,
+            (route.key,),
+        )
+
+
+def validate_routed_execution(
+    permit: RoutedExecutionPermit | None,
+    authorization_reference: str,
+    route_keys: tuple[str, ...],
+) -> None:
+    """Require one matching permit to contain every intended route."""
+    if permit is None:
+        raise DiscoveryProviderError(
+            "cip_routed_execution_not_confirmed",
+            "routed CIP execution requires an explicit operator permit",
+        )
+    if permit.authorization_reference != authorization_reference:
+        raise DiscoveryProviderError(
+            "cip_authorization_reference_mismatch",
+            "operator permit does not match the provider authorization",
+        )
+    missing = sorted(set(route_keys) - set(permit.allowed_route_keys))
+    if missing:
+        raise DiscoveryProviderError(
+            "cip_route_not_confirmed",
+            "route is allowlisted but absent from the operator permit: "
+            + ", ".join(missing),
+        )
