@@ -85,6 +85,10 @@ twinforge state init inventory\discovery.json
 twinforge state validate inventory\discovery.json
 twinforge state inspect inventory\discovery.json
 twinforge state inspect inventory\discovery.json --format json
+twinforge discover fake-snapshot `
+  --engagement sanitized-demo `
+  --authorization-reference DEMO-ONLY `
+  --captured-at 2026-08-09T00:00:00+00:00
 twinforge inspect project.L5X
 twinforge inspect project.L5X --format json
 twinforge report project.L5X --output reports
@@ -107,6 +111,12 @@ twinforge export project.L5X --target plcopen --output project.xml `
 are read-only, return non-zero status for invalid state, and do not require AI
 or network access. The same interface is available through
 `python -m twinforge`.
+
+`discover fake-snapshot` exercises the complete Discovery Snapshot capture and
+serialization path without opening a socket. It uses an intentionally
+sanitized built-in identity at an IANA documentation address. The deterministic
+checked fixture is available at
+`examples/discovery/sanitized-fake-snapshot.json`.
 
 `inspect` accepts controller, standalone module, program, and Add-On Instruction
 L5X exports. It reports a deterministic model summary and all conversion

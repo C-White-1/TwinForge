@@ -33,8 +33,8 @@ inside an explicit scope supplied by the system owner or laboratory operator.
 - [x] Record target-level provider failures as diagnostics
 - [x] Provide deterministic JSON serialization
 - [x] Provide a fake provider for tests and demonstrations
-- [ ] Add a command-line entry point for fake snapshot generation
-- [ ] Add a checked-in sanitized snapshot fixture
+- [x] Add a command-line entry point for fake snapshot generation
+- [x] Add a checked-in sanitized snapshot fixture
 
 No code in this phase opens a socket or communicates with a controller.
 

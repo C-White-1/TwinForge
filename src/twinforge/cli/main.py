@@ -15,6 +15,7 @@ from twinforge.discovery import (
 
 from .cip_software import CipSoftwareCommandError, discover_cip_software
 from .discovery_state import initialise_state, inspect_state, validate_state
+from .discovery_fake import FakeSnapshotCommandError, generate_fake_snapshot
 from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
@@ -145,6 +146,18 @@ def build_parser() -> argparse.ArgumentParser:
         dest="discover_command",
         required=True,
     )
+    fake_snapshot = discover_commands.add_parser(
+        "fake-snapshot",
+        help="Generate a sanitized Discovery Snapshot without network I/O.",
+    )
+    fake_snapshot.add_argument("--engagement", required=True)
+    fake_snapshot.add_argument("--authorization-reference", required=True)
+    fake_snapshot.add_argument(
+        "--captured-at",
+        required=True,
+        help="Timezone-qualified ISO 8601 capture time.",
+    )
+    fake_snapshot.add_argument("--output", type=Path)
     software = discover_commands.add_parser(
         "software",
         help="Plan structural Logix software inventory (dry-run by default).",
@@ -215,22 +228,31 @@ def main(
                 stdout=output,
             )
         elif arguments.command == "discover":
-            discover_cip_software(
-                arguments.address,
-                route_segments=tuple(arguments.route_segment),
-                engagement=arguments.engagement,
-                authorization_reference=arguments.authorization_reference,
-                capability_names=tuple(arguments.capability),
-                maximum_requests=arguments.maximum_requests,
-                execute_experimental=arguments.execute_experimental,
-                confirmed_by=arguments.confirmed_by,
-                confirmed_at=arguments.confirmed_at,
-                laboratory_evidence_reference=(
-                    arguments.laboratory_evidence_reference
-                ),
-                destination=arguments.output,
-                stdout=output,
-            )
+            if arguments.discover_command == "fake-snapshot":
+                generate_fake_snapshot(
+                    engagement=arguments.engagement,
+                    authorization_reference=arguments.authorization_reference,
+                    captured_at=arguments.captured_at,
+                    destination=arguments.output,
+                    stdout=output,
+                )
+            else:
+                discover_cip_software(
+                    arguments.address,
+                    route_segments=tuple(arguments.route_segment),
+                    engagement=arguments.engagement,
+                    authorization_reference=arguments.authorization_reference,
+                    capability_names=tuple(arguments.capability),
+                    maximum_requests=arguments.maximum_requests,
+                    execute_experimental=arguments.execute_experimental,
+                    confirmed_by=arguments.confirmed_by,
+                    confirmed_at=arguments.confirmed_at,
+                    laboratory_evidence_reference=(
+                        arguments.laboratory_evidence_reference
+                    ),
+                    destination=arguments.output,
+                    stdout=output,
+                )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -259,6 +281,7 @@ def main(
         return int(error.exit_code)
     except (
         DiscoveryStatePersistenceError,
+        FakeSnapshotCommandError,
         CipSoftwareCommandError,
         L5XInspectionError,
         L5XReportError,
