@@ -37,3 +37,23 @@ example, a changed product code may indicate replacement, while a disappeared
 LLDP relationship may reflect a genuine cable change, capture scope, or device
 availability. Reports retain provenance so an operator can review the cause
 before changing the core model.
+
+## Sanitized reports
+
+`sanitize_discovery_drift` produces a public-safe intermediate report for JSON
+or Markdown export. Findings receive deterministic sequential references such
+as `DRIFT-0001`; raw record keys are not hashed or emitted because small address
+spaces could make unsalted hashes reversible by enumeration.
+
+The sanitizer removes target and route keys, tag and program names, serial
+numbers, product names, raw evidence identifiers, and free-form evidence
+descriptions. Domain-specific allowlists retain only reviewable attributes such
+as numeric product classification, firmware revision, structural data type or
+language, and non-identifying topology properties. Provenance is reduced to
+protocol names and capture timestamps.
+
+Confidence is retained from network topology evidence. Other findings are
+reported as `protocol_reported`, `corroborated` when multiple evidence protocols
+support the record, or `indirect` when no protocol evidence is present. The
+sanitized report is suitable for sharing, but the full internal drift result
+must remain available for authorized investigation.

@@ -179,7 +179,7 @@ The staged hardware acceptance procedure is documented in
 - [x] Build an evidence-backed multi-controller communication graph
 - [x] Correlate configured modules, routed observations, and software devices
 - [x] Detect hardware, firmware, configuration, and network drift
-- [ ] Export sanitized change reports with confidence and provenance
+- [x] Export sanitized change reports with confidence and provenance
 - [ ] Keep inferred relationships visibly distinct from observed relationships
 
 Correlation semantics and the future lowering boundary are documented in

@@ -42,6 +42,14 @@ from .conversion_readiness_markdown import (
 )
 from .cyclic_io_markdown import CyclicIOContractMarkdownExporter
 from .diagnostic_markdown import DeviceDiagnosticMarkdownExporter
+from .discovery_drift_report import (
+    DiscoveryDriftMarkdownExporter,
+    SanitizedDriftFinding,
+    SanitizedDriftReport,
+    sanitize_discovery_drift,
+    sanitized_discovery_drift_data,
+    sanitized_discovery_drift_json,
+)
 from .functional_description_markdown import (
     FunctionalDescriptionMarkdownExporter,
 )
@@ -113,6 +121,7 @@ __all__ = [
     "ConversionReadinessMarkdownExporter",
     "CyclicIOContractMarkdownExporter",
     "DeviceDiagnosticMarkdownExporter",
+    "DiscoveryDriftMarkdownExporter",
     "FunctionalDescriptionMarkdownExporter",
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",
@@ -147,7 +156,12 @@ __all__ = [
     "ParameterMarkdownExporter",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
+    "SanitizedDriftFinding",
+    "SanitizedDriftReport",
     "powerflex525_codesys_integration",
+    "sanitize_discovery_drift",
+    "sanitized_discovery_drift_data",
+    "sanitized_discovery_drift_json",
     "validate_plcopen_xml",
     "TextReportBundle",
     "TextReportExporter",
