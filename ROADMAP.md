@@ -213,6 +213,30 @@ The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 - [ ] IEC 62424 and IEC 81346 mappings
 - [ ] HMI tag correlation and cable schedules
 
+## Someday goals
+
+These are strategic possibilities rather than near-term commitments. They
+must build on stable application services and must not weaken TwinForge's
+evidence, authorization, or vendor-neutral boundaries.
+
+- [ ] Investigate mappings from the TwinForge model to Asset Administration
+  Shell and CESMII i3X Smart Manufacturing Profiles.
+  - Preserve provenance, confidence, engineering units, ranges, hierarchy and
+    unknown source evidence.
+  - Treat AAS and i3X as semantic output profiles rather than replacements for
+    the vendor-neutral core.
+  - Evaluate alignment with AutomationML, PLCopen XML, ISA-95 and Unified
+    Namespace conventions before selecting mappings.
+- [ ] Evaluate a governed, read-only Model Context Protocol adapter.
+  - Place MCP outside the core as an adapter over stable application services.
+  - Keep the CLI, Python API and non-agent workflows fully usable without MCP.
+  - Expose narrowly scoped inspection, conversion, reporting, planning and
+    authorized capture operations instead of arbitrary protocol primitives.
+  - Require nonhuman identity, least privilege, explicit permits, request
+    budgets, audit evidence and human acceptance for consequential actions.
+  - Do not assume MCP transport provides industrial safety, authorization or
+    semantic interoperability by itself.
+
 ## Deferred model entities
 
 `Channel` and CIP `Assembly` remain deferred until module profiles or live
