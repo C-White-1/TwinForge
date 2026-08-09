@@ -83,6 +83,7 @@ def decode_logix_symbol_page(
     scope_program: str | None = None,
     include_external_access: bool,
     raw_reply: bytes | None = None,
+    request_instance: int = 0,
 ) -> DecodedLogixSymbolPage:
     """Decode one successful or partial page without discarding source records."""
     if general_status not in {SUCCESS, PARTIAL_TRANSFER}:
@@ -110,7 +111,7 @@ def decode_logix_symbol_page(
     )
     evidence = CipObjectEvidence(
         class_code=LOGIX_SYMBOL_CLASS,
-        instance=records[0].instance_id if records else 0,
+        instance=request_instance,
         service=GET_INSTANCE_ATTRIBUTE_LIST,
         general_status=general_status,
         response_payload_hex=payload.hex(),

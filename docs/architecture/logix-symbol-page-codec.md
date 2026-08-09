@@ -33,5 +33,13 @@ All decoded source records remain available even when a capability is not
 selected. Runtime tag values are never requested or represented.
 
 This codec is the packet-fixture foundation for a future live page transport.
-Live compatibility remains false until the connection adapter is implemented
-and validated in a controlled environment.
+`ExperimentalPycomm3LogixSymbolTransport` now connects the codec to public
+`LogixDriver` construction and `generic_message`. It disables pycomm3's
+automatic tag initialization and issues exactly one connected request per
+executor page. Its opaque state moves from controller enumeration into each
+discovered program scope without repeating the controller upload.
+
+The transport requires a non-empty laboratory evidence reference and remains
+explicitly experimental. Packet fixtures prove request sequencing, route-path
+construction, partial transfer, program-scope traversal and evidence capture;
+they do not constitute live controller validation.

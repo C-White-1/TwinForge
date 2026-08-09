@@ -157,6 +157,10 @@ from .logix_symbol_codec import (
     build_logix_symbol_page_request,
     decode_logix_symbol_page,
 )
+from .logix_symbol_pycomm3 import (
+    ExperimentalPycomm3LogixSymbolTransport,
+    pycomm3_logix_path,
+)
 from .identity_lifecycle import (
     DurableIdentityGeneration,
     IdentityLifecycleError,
@@ -344,6 +348,7 @@ __all__ = [
     "DiscoveryScope",
     "DiscoverySnapshot",
     "DiscoveryTarget",
+    "ExperimentalPycomm3LogixSymbolTransport",
     "DiscoveryStateFileStore",
     "DiscoveryStatePersistenceError",
     "FakeCipIdentity",
@@ -467,6 +472,7 @@ __all__ = [
     "promote_lifecycle_identities",
     "pycomm3_route_encoding_data",
     "pycomm3_route_encoding_json",
+    "pycomm3_logix_path",
     "pycomm3_software_inventory_assessment_data",
     "pycomm3_software_inventory_assessment_json",
     "reconcile_cip_physical_identities",

@@ -20,7 +20,7 @@ discoverable but sets both `externally_budget_controllable` and
 `live_executor_compatible` to `false`. Uninspected pycomm3 versions claim no
 capabilities.
 
-A live adapter requires one of the following:
+A live adapter required one of the following:
 
 - a public pycomm3 page-level API;
 - an upstream request-budget or cancellation callback; or
@@ -29,3 +29,8 @@ A live adapter requires one of the following:
 
 TwinForge must not depend directly on pycomm3 private methods as though they
 were a stable public interface.
+
+TwinForge now follows the third path through its own packet-fixture-tested
+Symbol Object codec and an experimental transport using public pycomm3 APIs.
+The assessment remains `live_executor_compatible: false` until controlled live
+validation confirms the packet behavior against a supported Logix controller.
