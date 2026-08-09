@@ -19,6 +19,16 @@ from .cross_layer_device_correlation import (
     cross_layer_device_correlation_data,
     cross_layer_device_correlation_json,
 )
+from .network_graph import (
+    AcceptedNetworkGraph,
+    NetworkGraphLink,
+    NetworkGraphLoweringError,
+    NetworkGraphNode,
+    NetworkInterfaceEvidence,
+    accepted_network_graph_data,
+    accepted_network_graph_json,
+    lower_accepted_network_graph,
+)
 from .software_devices import (
     AssembledSoftwareDevice,
     DeviceAssemblyProvider,
@@ -38,6 +48,7 @@ from .sqlite_promotion_repository import SqlitePromotionRepository
 
 __all__ = [
     "AssembledSoftwareDevice",
+    "AcceptedNetworkGraph",
     "ConfiguredMessageEvidence",
     "ControllerCommunicationBinding",
     "ControllerCommunicationEdge",
@@ -49,6 +60,10 @@ __all__ = [
     "CrossLayerDeviceCorrelationResult",
     "DeviceAssemblyProvider",
     "InMemoryPromotionRepository",
+    "NetworkGraphLink",
+    "NetworkGraphLoweringError",
+    "NetworkGraphNode",
+    "NetworkInterfaceEvidence",
     "PowerFlex525AssemblyProvider",
     "PromotionPersistenceItem",
     "PromotionPersistenceResult",
@@ -57,11 +72,14 @@ __all__ = [
     "PromotionRepositoryError",
     "SqlitePromotionRepository",
     "assemble_corpus_devices",
+    "accepted_network_graph_data",
+    "accepted_network_graph_json",
     "build_controller_communication_graph",
     "controller_communication_graph_data",
     "controller_communication_graph_json",
     "correlate_software_devices_with_routed_modules",
     "cross_layer_device_correlation_data",
     "cross_layer_device_correlation_json",
+    "lower_accepted_network_graph",
     "persist_promotions",
 ]

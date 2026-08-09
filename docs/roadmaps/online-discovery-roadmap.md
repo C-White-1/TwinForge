@@ -105,12 +105,15 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [ ] Evaluate OSPF evidence only in the routed-topology phase
 - [ ] Implement read-only SNMPv3 credentials and security-level configuration
 - [ ] Enforce OID allowlists, timeouts, request budgets, and rate limits
-- [ ] Lower observed interfaces and neighbours into the network graph
+- [x] Lower observed interfaces and neighbours into the network graph
 - [ ] Correlate SNMP neighbours and forwarding entries with CIP identities
 
 Checksum-pinned, attributable conversion of explicitly declared unusual
 Net-SNMP walk files is documented in
 [Controlled SNMP Recording Conversion](../architecture/snmp-recording-conversion.md).
+Evidence-constrained lowering of reviewed neighbours and observed interfaces
+is documented in the
+[Accepted Network Graph](../architecture/accepted-network-graph.md).
 
 ## Phase 3: routed controller and chassis evidence
 
