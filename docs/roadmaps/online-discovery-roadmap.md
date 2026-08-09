@@ -116,6 +116,10 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [ ] Preserve vendor-specific evidence without placing it in the core model
 - [ ] Compare discovered modules with L5X module and electronic-key evidence
 
+The offline metadata and raw-object boundary is defined in
+[CIP Controller Evidence](../architecture/cip-controller-evidence.md). A live
+provider remains pending.
+
 ## Phase 4: software and tag inventory
 
 - [ ] Discover programs, routines, tasks, and tags only when supported
