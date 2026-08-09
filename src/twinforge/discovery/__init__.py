@@ -172,6 +172,15 @@ from .software_inventory_plan import (
     cip_software_inventory_plan_data,
     cip_software_inventory_plan_json,
 )
+from .software_inventory_capture import (
+    CipSoftwareInventoryItem,
+    CipSoftwareInventoryObservation,
+    CipSoftwareInventoryTransport,
+    CipSoftwareInventoryTransportResult,
+    PermittedSoftwareInventoryExecutor,
+    cip_software_inventory_observation_data,
+    cip_software_inventory_observation_json,
+)
 from .routed_capture import (
     CipControllerReadPlan,
     CipRoutedCapturePlan,
@@ -282,6 +291,10 @@ __all__ = [
     "CipRuntimeValueReadPlan",
     "CipSoftwareInventoryCapability",
     "CipSoftwareInventoryPlan",
+    "CipSoftwareInventoryItem",
+    "CipSoftwareInventoryObservation",
+    "CipSoftwareInventoryTransport",
+    "CipSoftwareInventoryTransportResult",
     "CipSlotState",
     "CipSlotStatusProfile",
     "CipSlotStatusSignature",
@@ -331,6 +344,7 @@ __all__ = [
     "PermittedPycomm3RoutedControllerProvider",
     "PermittedPycomm3ChassisProvider",
     "PermittedControllerMetadataExecutor",
+    "PermittedSoftwareInventoryExecutor",
     "Pycomm3CipIdentityProvider",
     "Pycomm3IdentityTransport",
     "Pycomm3RouteEncoding",
@@ -398,6 +412,8 @@ __all__ = [
     "cip_runtime_value_plan_json",
     "cip_software_inventory_plan_data",
     "cip_software_inventory_plan_json",
+    "cip_software_inventory_observation_data",
+    "cip_software_inventory_observation_json",
     "correlate_topology",
     "correlate_physical_entities",
     "reconcile_configured_modules",

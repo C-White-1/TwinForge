@@ -20,6 +20,12 @@ paths, and a request budget large enough to cover those paths. It cannot be
 created implicitly from a software-inventory plan.
 
 Neither plan performs network I/O. Provider capability negotiation, paginated
-enumeration, evidence capture, and runtime-value execution remain later
-milestones. Default inventory reports must consume structural observations,
-not runtime-value captures.
+enumeration, and runtime-value execution remain later milestones. Default
+inventory reports must consume structural observations, not runtime-value
+captures.
+
+`PermittedSoftwareInventoryExecutor` provides the socket-free capture boundary.
+It verifies the routed permit and provider capabilities before transport I/O,
+executes a plan only once, rejects budget overruns and unrequested item kinds,
+and serializes structural observations with
+`runtime_values_included` fixed to `false`.
