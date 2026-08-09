@@ -156,6 +156,7 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Exact CIP route segment as PORT/LINK; repeat for each hop.",
     )
+    software.add_argument("--engagement", required=True)
     software.add_argument("--authorization-reference", required=True)
     software.add_argument(
         "--capability",
@@ -217,6 +218,7 @@ def main(
             discover_cip_software(
                 arguments.address,
                 route_segments=tuple(arguments.route_segment),
+                engagement=arguments.engagement,
                 authorization_reference=arguments.authorization_reference,
                 capability_names=tuple(arguments.capability),
                 maximum_requests=arguments.maximum_requests,

@@ -25,6 +25,7 @@ class CipSoftwareInventoryPlan:
     """Bounded structural-metadata plan that cannot authorize tag values."""
 
     target: DiscoveryTarget
+    engagement: str
     authorization_reference: str
     capabilities: tuple[CipSoftwareInventoryCapability, ...]
     maximum_requests: int
@@ -34,6 +35,7 @@ class CipSoftwareInventoryPlan:
         _validate_common(
             self.target,
             self.route,
+            self.engagement,
             self.authorization_reference,
             self.maximum_requests,
         )
@@ -49,6 +51,7 @@ class CipRuntimeValueReadPlan:
     """Separate approval record for bounded, named runtime tag-value reads."""
 
     target: DiscoveryTarget
+    engagement: str
     authorization_reference: str
     runtime_value_approval_reference: str
     justification: str
@@ -60,6 +63,7 @@ class CipRuntimeValueReadPlan:
         _validate_common(
             self.target,
             self.route,
+            self.engagement,
             self.authorization_reference,
             self.maximum_requests,
         )
@@ -87,6 +91,7 @@ def cip_software_inventory_plan_data(
         "schema_version": "1.0",
         "dry_run": True,
         "operation": "cip_software_inventory",
+        "engagement": plan.engagement,
         "authorization_reference": plan.authorization_reference,
         "target": plan.target.model_dump(mode="json"),
         "route": cip_route_data(plan.route) if plan.route is not None else None,
@@ -102,6 +107,7 @@ def cip_runtime_value_plan_data(plan: CipRuntimeValueReadPlan) -> dict[str, Any]
         "schema_version": "1.0",
         "dry_run": True,
         "operation": "cip_runtime_values",
+        "engagement": plan.engagement,
         "authorization_reference": plan.authorization_reference,
         "runtime_value_approval_reference": (
             plan.runtime_value_approval_reference
@@ -128,9 +134,12 @@ def cip_runtime_value_plan_json(plan: CipRuntimeValueReadPlan) -> str:
 def _validate_common(
     target: DiscoveryTarget,
     route: CipRouteDeclaration | None,
+    engagement: str,
     authorization_reference: str,
     maximum_requests: int,
 ) -> None:
+    if not engagement or engagement != engagement.strip():
+        raise ValueError("engagement must be non-empty and trimmed")
     if not authorization_reference or authorization_reference != authorization_reference.strip():
         raise ValueError("authorization_reference must be non-empty and trimmed")
     if isinstance(maximum_requests, bool) or maximum_requests <= 0:

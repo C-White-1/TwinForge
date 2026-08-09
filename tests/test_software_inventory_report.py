@@ -21,6 +21,8 @@ from twinforge.discovery.software_inventory_report import (
 def test_default_report_omits_raw_attributes_payloads_and_value_like_data() -> None:
     observation = CipSoftwareInventoryObservation(
         target=DiscoveryTarget(address="192.168.1.10"),
+        engagement="TwinForge controlled lab",
+        authorization_reference="LAB-001",
         captured_at=datetime(2026, 8, 9, tzinfo=timezone.utc),
         capabilities=(CipSoftwareInventoryCapability.TAG_DEFINITIONS,),
         requests_used=1,

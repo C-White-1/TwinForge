@@ -29,6 +29,7 @@ def discover_cip_software(
     address: str,
     *,
     route_segments: tuple[str, ...],
+    engagement: str,
     authorization_reference: str,
     capability_names: tuple[str, ...],
     maximum_requests: int,
@@ -59,6 +60,7 @@ def discover_cip_software(
         plan = CipSoftwareInventoryPlan(
             target=target,
             route=route,
+            engagement=engagement,
             authorization_reference=authorization_reference,
             capabilities=capabilities,
             maximum_requests=maximum_requests,

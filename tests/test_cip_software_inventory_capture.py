@@ -59,6 +59,7 @@ def _fixture(
         CipSoftwareInventoryPlan(
             target=target,
             route=route,
+            engagement="TwinForge controlled lab",
             authorization_reference="LAB-001",
             capabilities=capabilities,
             maximum_requests=maximum_requests,
@@ -105,6 +106,10 @@ def test_executor_controls_each_paginated_structural_request() -> None:
 
     assert transport.calls == [None, "page-2"]
     assert observation.requests_used == 2
+    assert observation.engagement == "TwinForge controlled lab"
+    assert observation.authorization_reference == "LAB-001"
+    assert document["engagement"] == "TwinForge controlled lab"
+    assert document["authorization_reference"] == "LAB-001"
     assert document["runtime_values_included"] is False
     assert all("value" not in item for item in document["items"])
 

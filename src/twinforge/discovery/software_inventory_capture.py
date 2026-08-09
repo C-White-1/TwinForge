@@ -76,11 +76,26 @@ class CipSoftwareInventoryObservation:
     """Attributable structural software inventory evidence."""
 
     target: DiscoveryTarget
+    engagement: str
+    authorization_reference: str
     captured_at: datetime
     capabilities: tuple[CipSoftwareInventoryCapability, ...]
     requests_used: int
     items: tuple[CipSoftwareInventoryItem, ...]
     object_evidence: tuple[CipObjectEvidence, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Reject evidence that cannot be attributed to an approved scope."""
+        for name, value in (
+            ("engagement", self.engagement),
+            ("authorization_reference", self.authorization_reference),
+        ):
+            if not value or value != value.strip():
+                raise ValueError(f"{name} must be non-empty and trimmed")
+        if self.captured_at.tzinfo is None:
+            raise ValueError("captured_at must include a timezone")
+        if self.requests_used <= 0:
+            raise ValueError("requests_used must be positive")
 
 
 class PermittedSoftwareInventoryExecutor:
@@ -173,6 +188,8 @@ class PermittedSoftwareInventoryExecutor:
             cursor = page.next_cursor
         return CipSoftwareInventoryObservation(
             target=self._plan.target,
+            engagement=self._plan.engagement,
+            authorization_reference=self._plan.authorization_reference,
             captured_at=captured_at,
             capabilities=self._plan.capabilities,
             requests_used=requests_used,
@@ -196,6 +213,8 @@ def cip_software_inventory_observation_data(
     """Return deterministic structural evidence without runtime values."""
     return {
         "target": observation.target.model_dump(mode="json"),
+        "engagement": observation.engagement,
+        "authorization_reference": observation.authorization_reference,
         "captured_at": observation.captured_at.isoformat(),
         "capabilities": [item.value for item in observation.capabilities],
         "requests_used": observation.requests_used,

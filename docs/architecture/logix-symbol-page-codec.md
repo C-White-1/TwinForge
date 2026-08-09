@@ -47,8 +47,11 @@ they do not constitute live controller validation.
 ## Command line
 
 `twinforge discover software` writes a dry-run plan by default. The caller must
-provide the target, every `PORT/LINK` route segment, authorization reference,
-capability allowlist and maximum request count.
+provide the target, every `PORT/LINK` route segment, engagement name,
+authorization reference, capability allowlist and maximum request count.
+Both the engagement and authorization reference are retained in live
+observation JSON so captured evidence remains attributable to its approved
+scope.
 
 Live traffic requires the additional `--execute-experimental` switch together
 with `--confirmed-by`, a timezone-qualified `--confirmed-at`, and

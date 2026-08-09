@@ -41,6 +41,8 @@ def test_reconciliation_reports_matches_conflicts_and_each_side_only() -> None:
     )
     observation = CipSoftwareInventoryObservation(
         target=DiscoveryTarget(address="192.168.1.10"),
+        engagement="TwinForge controlled lab",
+        authorization_reference="LAB-001",
         captured_at=TIMESTAMP,
         capabilities=capabilities,
         requests_used=4,
@@ -90,6 +92,8 @@ def test_reconciliation_reports_matches_conflicts_and_each_side_only() -> None:
 def test_unrequested_capabilities_do_not_create_configured_only_noise() -> None:
     observation = CipSoftwareInventoryObservation(
         target=DiscoveryTarget(address="192.168.1.10"),
+        engagement="TwinForge controlled lab",
+        authorization_reference="LAB-001",
         captured_at=TIMESTAMP,
         capabilities=(CipSoftwareInventoryCapability.PROGRAMS,),
         requests_used=1,

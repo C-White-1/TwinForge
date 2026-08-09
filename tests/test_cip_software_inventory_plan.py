@@ -27,6 +27,7 @@ def test_software_inventory_plan_cannot_authorize_runtime_values() -> None:
     plan = CipSoftwareInventoryPlan(
         target=target,
         route=route,
+        engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
         capabilities=(
             CipSoftwareInventoryCapability.PROGRAMS,
@@ -38,6 +39,7 @@ def test_software_inventory_plan_cannot_authorize_runtime_values() -> None:
     document = json.loads(cip_software_inventory_plan_json(plan))
 
     assert document["operation"] == "cip_software_inventory"
+    assert document["engagement"] == "TwinForge controlled lab"
     assert document["runtime_values_permitted"] is False
     assert document["maximum_requests"] == 12
     assert "tag_paths" not in document
@@ -48,6 +50,7 @@ def test_runtime_values_require_a_distinct_approval_and_named_tags() -> None:
     plan = CipRuntimeValueReadPlan(
         target=target,
         route=route,
+        engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
         runtime_value_approval_reference="LAB-VALUES-002",
         justification="Verify an isolated training controller",
@@ -72,6 +75,7 @@ def test_runtime_plan_budget_must_cover_every_named_tag() -> None:
     with pytest.raises(ValueError, match="cover every"):
         CipRuntimeValueReadPlan(
             target=target,
+            engagement="TwinForge controlled lab",
             authorization_reference="LAB-001",
             runtime_value_approval_reference="LAB-VALUES-002",
             justification="Controlled fixture",
@@ -86,6 +90,7 @@ def test_software_capabilities_must_be_unique_and_sorted() -> None:
     with pytest.raises(ValueError, match="unique and sorted"):
         CipSoftwareInventoryPlan(
             target=target,
+            engagement="TwinForge controlled lab",
             authorization_reference="LAB-001",
             capabilities=(
                 CipSoftwareInventoryCapability.TAG_DEFINITIONS,

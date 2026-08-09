@@ -10,6 +10,8 @@ BASE_ARGUMENTS = (
     "192.168.1.10",
     "--route-segment",
     "1/0",
+    "--engagement",
+    "TwinForge controlled lab",
     "--authorization-reference",
     "LAB-001",
     "--capability",
@@ -31,6 +33,7 @@ def test_software_discovery_is_a_plan_only_dry_run_by_default() -> None:
     assert exit_code == 0
     assert errors.getvalue() == ""
     assert document["dry_run"] is True
+    assert document["engagement"] == "TwinForge controlled lab"
     assert document["runtime_values_permitted"] is False
     assert document["maximum_requests"] == 8
     assert document["route"]["segments"] == [

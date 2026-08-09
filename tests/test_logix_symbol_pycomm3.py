@@ -79,6 +79,7 @@ def _fixture() -> tuple[CipSoftwareInventoryPlan, RoutedExecutionPermit]:
     plan = CipSoftwareInventoryPlan(
         target=target,
         route=route,
+        engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
         capabilities=(
             CipSoftwareInventoryCapability.PROGRAMS,
@@ -170,6 +171,7 @@ def test_transport_rejects_non_local_or_non_ipv4_target_before_io(
     plan = CipSoftwareInventoryPlan(
         target=target,
         route=route,
+        engagement="TwinForge controlled lab",
         authorization_reference="LAB-001",
         capabilities=(CipSoftwareInventoryCapability.PROGRAMS,),
         maximum_requests=1,
