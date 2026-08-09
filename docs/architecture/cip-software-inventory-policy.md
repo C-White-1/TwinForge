@@ -29,3 +29,9 @@ It verifies the routed permit and provider capabilities before transport I/O,
 executes a plan only once, rejects budget overruns and unrequested item kinds,
 and serializes structural observations with
 `runtime_values_included` fixed to `false`.
+
+Structural observations can be compared with a converted L5X controller only
+through `ConfiguredSoftwareBinding`. Reconciliation uses capability, parent,
+and name as the structural key, compares routine language and tag data type
+when available, and reports configured-only and discovered-only items. It does
+not report absent items for capabilities that were never requested.

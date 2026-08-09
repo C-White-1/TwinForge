@@ -152,7 +152,7 @@ is documented in
 - [ ] Separate metadata reads from runtime value reads
 - [ ] Require a separate policy decision before reading runtime values
 - [ ] Avoid exposing tag values in default reports
-- [ ] Reconcile discovered software identity with offline L5X sources
+- [x] Reconcile discovered software identity with offline L5X sources
 
 The separate structural-metadata and runtime-value authorization contracts are
 documented in
