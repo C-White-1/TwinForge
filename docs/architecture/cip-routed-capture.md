@@ -15,6 +15,15 @@ are rejected as diagnostics.
 call, and opens no sockets. It proves the orchestration and provider boundaries
 before a live routed adapter is introduced.
 
+`RoutedCipProviderFacade` composes independent controller and chassis providers
+without merging their responsibilities. A capture containing only one type of
+plan may supply only that provider; requesting a missing capability produces a
+target-specific diagnostic.
+
+An end-to-end packet fixture exercises the routed capture, facade, permitted
+chassis provider, live slot transport, mocked `CIPDriver`, status profile,
+Identity decoder, and final JSON serialization without opening a socket.
+
 The routed snapshot is separate from the original Identity/SNMP snapshot while
 the schema is evolving. A later integration milestone can join them without
 forcing vendor-specific controller or chassis evidence into the core model.

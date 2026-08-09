@@ -106,6 +106,61 @@ class CipRoutedDiscoveryProvider(
     """Combined provider boundary consumed by routed capture orchestration."""
 
 
+class RoutedCipProviderFacade:
+    """Compose independent controller and chassis providers for orchestration."""
+
+    def __init__(
+        self,
+        *,
+        authorization_reference: str,
+        controller_provider: CipControllerDiscoveryProvider | None = None,
+        chassis_provider: CipChassisDiscoveryProvider | None = None,
+    ) -> None:
+        if not authorization_reference.strip():
+            raise ValueError("authorization_reference must not be empty")
+        if controller_provider is None and chassis_provider is None:
+            raise ValueError("at least one routed provider must be supplied")
+        self.authorization_reference = authorization_reference
+        self._controller_provider = controller_provider
+        self._chassis_provider = chassis_provider
+
+    def read_controller(
+        self,
+        target: DiscoveryTarget,
+        *,
+        route: CipRouteDeclaration | None,
+        captured_at: datetime,
+    ) -> CipControllerObservation:
+        """Delegate one controller request or report a missing capability."""
+        if self._controller_provider is None:
+            raise DiscoveryProviderError(
+                "cip_controller_provider_missing",
+                "routed capture has no controller provider",
+            )
+        return self._controller_provider.read_controller(
+            target,
+            route=route,
+            captured_at=captured_at,
+        )
+
+    def read_chassis(
+        self,
+        plan: CipChassisSlotPlan,
+        *,
+        captured_at: datetime,
+    ) -> CipChassisObservation:
+        """Delegate one chassis plan or report a missing capability."""
+        if self._chassis_provider is None:
+            raise DiscoveryProviderError(
+                "cip_chassis_provider_missing",
+                "routed capture has no chassis provider",
+            )
+        return self._chassis_provider.read_chassis(
+            plan,
+            captured_at=captured_at,
+        )
+
+
 def capture_routed_cip(
     plan: CipRoutedCapturePlan,
     provider: CipRoutedDiscoveryProvider,
@@ -116,6 +171,14 @@ def capture_routed_cip(
     timestamp = captured_at or datetime.now(timezone.utc)
     if timestamp.tzinfo is None:
         raise ValueError("captured_at must include a timezone")
+    provider_authorization = getattr(provider, "authorization_reference", None)
+    if (
+        provider_authorization is not None
+        and provider_authorization != plan.authorization_reference
+    ):
+        raise ValueError(
+            "routed provider authorization does not match capture plan"
+        )
     controllers: list[CipControllerObservation] = []
     chassis: list[CipChassisObservation] = []
     diagnostics: list[DiscoveryDiagnostic] = []
