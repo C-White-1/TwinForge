@@ -127,6 +127,8 @@ Deterministic offline provider orchestration is documented in
 [CIP Routed Capture Orchestration](../architecture/cip-routed-capture.md).
 The socket-free adapter encoding boundary is documented in
 [pycomm3 Route Translation](../architecture/pycomm3-route-translation.md).
+The execution permit and routed Identity boundary are documented in
+[Permitted pycomm3 Routed Identity](../architecture/pycomm3-routed-identity.md).
 
 ## Phase 4: software and tag inventory
 

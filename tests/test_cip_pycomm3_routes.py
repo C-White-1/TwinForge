@@ -32,6 +32,7 @@ def test_encoder_matches_pycomm3_padded_epath_bytes() -> None:
     expected = "0100120c3139322e3136382e322e323013020102"
     assert encoding.encoded_path.hex() == expected
     assert encoding.encoded_path_with_word_count.hex() == f"0a{expected}"
+    assert encoding.encoded_unconnected_route_path.hex() == f"0a00{expected}"
     assert document["encoding"] == "padded_epath"
     assert document["path_word_count"] == 10
     assert document["adapter"] == "pycomm3"
@@ -49,6 +50,7 @@ def test_encoder_preserves_padding_for_single_byte_link() -> None:
 
     assert encoding.encoded_path == b"\x01\x07"
     assert encoding.encoded_path_with_word_count == b"\x01\x01\x07"
+    assert encoding.encoded_unconnected_route_path == b"\x01\x00\x01\x07"
 
 
 @pytest.mark.parametrize(

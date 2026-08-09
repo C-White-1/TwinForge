@@ -23,6 +23,7 @@ class Pycomm3RouteEncoding:
     route: CipRouteDeclaration
     encoded_path: bytes
     encoded_path_with_word_count: bytes
+    encoded_unconnected_route_path: bytes
     adapter: str
     adapter_version: str
 
@@ -35,6 +36,11 @@ def encode_pycomm3_route(
     try:
         encoded = PADDED_EPATH.encode(segments)
         encoded_with_count = PADDED_EPATH.encode(segments, length=True)
+        encoded_unconnected = PADDED_EPATH.encode(
+            segments,
+            length=True,
+            pad_length=True,
+        )
     except Exception as error:
         raise Pycomm3RouteEncodingError(
             f"pycomm3 could not encode CIP route {route.key}: {error}"
@@ -43,6 +49,7 @@ def encode_pycomm3_route(
         route=route,
         encoded_path=encoded,
         encoded_path_with_word_count=encoded_with_count,
+        encoded_unconnected_route_path=encoded_unconnected,
         adapter="pycomm3",
         adapter_version=version("pycomm3"),
     )
@@ -60,6 +67,9 @@ def pycomm3_route_encoding_data(
         "encoded_path_hex": encoding.encoded_path.hex(),
         "encoded_path_with_word_count_hex": (
             encoding.encoded_path_with_word_count.hex()
+        ),
+        "encoded_unconnected_route_path_hex": (
+            encoding.encoded_unconnected_route_path.hex()
         ),
         "path_word_count": len(encoding.encoded_path) // 2,
     }

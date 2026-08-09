@@ -12,6 +12,7 @@ from twinforge.discovery import (
 from twinforge.discovery.cip_pycomm3 import (
     CipIdentityReply,
     Pycomm3CipIdentityProvider,
+    Pycomm3IdentityTransport,
 )
 
 
@@ -30,6 +31,53 @@ class FakeTransport:
         if isinstance(self.reply, Exception):
             raise self.reply
         return self.reply
+
+
+class _FakePacket:
+    value = PAYLOAD
+    raw = b"encapsulation-reply"
+
+
+class _FakeTag:
+    value = _FakePacket()
+    error = None
+
+    def __bool__(self) -> bool:
+        return True
+
+
+class _FakeDriver:
+    last_call: dict[str, object] = {}
+
+    def __init__(self, address: str) -> None:
+        self.address = address
+        self.socket_timeout = 0.0
+
+    def open(self) -> bool:
+        return True
+
+    def generic_message(self, **kwargs: object) -> _FakeTag:
+        self.__class__.last_call = kwargs
+        return _FakeTag()
+
+    def close(self) -> None:
+        pass
+
+
+def test_live_transport_extracts_payload_from_response_packet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "twinforge.discovery.cip_pycomm3.CIPDriver",
+        _FakeDriver,
+    )
+
+    reply = Pycomm3IdentityTransport().read_identity("192.168.1.10", 2.0)
+
+    assert reply.payload == PAYLOAD
+    assert reply.raw_reply == b"encapsulation-reply"
+    assert _FakeDriver.last_call["connected"] is False
+    assert _FakeDriver.last_call["route_path"] is False
 
 
 def test_provider_decodes_identity_and_preserves_raw_evidence() -> None:

@@ -69,13 +69,14 @@ class Pycomm3IdentityTransport:
             if not result:
                 detail = result.error or "CIP request returned no response"
                 raise DiscoveryProviderError("cip_request_failed", str(detail))
-            payload = result.value
+            packet = result.value
+            payload = getattr(packet, "value", None)
             if not isinstance(payload, bytes):
                 raise DiscoveryProviderError(
                     "cip_invalid_reply",
                     "pycomm3 returned a non-byte Identity Object payload",
                 )
-            raw_reply = getattr(result, "raw", None)
+            raw_reply = getattr(packet, "raw", None)
             return CipIdentityReply(
                 payload=payload,
                 raw_reply=raw_reply if isinstance(raw_reply, bytes) else None,
@@ -128,7 +129,7 @@ class Pycomm3CipIdentityProvider:
         self._requested_keys.add(target.key)
         try:
             reply = self._transport.read_identity(target.address, self._timeout)
-            decoded, trailing = _decode_identity(reply.payload)
+            decoded, trailing = decode_cip_identity(reply.payload)
         except DiscoveryProviderError:
             raise
         except Exception as error:
@@ -190,7 +191,7 @@ def validate_cip_identity_target(target: DiscoveryTarget) -> None:
         )
 
 
-def _decode_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:
+def decode_cip_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:
     """Decode CIP Identity attributes 1-8 from Get_Attributes_All data."""
     if len(payload) < 15:
         raise DiscoveryProviderError(

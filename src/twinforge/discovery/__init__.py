@@ -34,6 +34,12 @@ from .cip_pycomm3_routes import (
     pycomm3_route_encoding_data,
     pycomm3_route_encoding_json,
 )
+from .cip_pycomm3_routed import (
+    LivePycomm3RoutedTransport,
+    PermittedPycomm3RoutedControllerProvider,
+    Pycomm3RoutedTransport,
+    RoutedExecutionPermit,
+)
 from .cip_plan import (
     CipIdentityCapturePlan,
     CipIdentityPlanTarget,
@@ -247,11 +253,15 @@ __all__ = [
     "IdentityTransition",
     "IdentityTransitionDirective",
     "JsonEvidence",
+    "LivePycomm3RoutedTransport",
     "PersistedDiscoveryState",
+    "PermittedPycomm3RoutedControllerProvider",
     "Pycomm3CipIdentityProvider",
     "Pycomm3IdentityTransport",
     "Pycomm3RouteEncoding",
     "Pycomm3RouteEncodingError",
+    "Pycomm3RoutedTransport",
+    "RoutedExecutionPermit",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",
