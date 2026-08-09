@@ -144,6 +144,7 @@ from .contracts import (
 from .electronic_key_evaluation import (
     ElectronicKeyEvaluation,
     ElectronicKeyVerdict,
+    electronic_key_evaluation_data,
     evaluate_electronic_key,
 )
 from .fake import FakeCipIdentity, FakeDiscoveryProvider, FakeSnmpNode
@@ -474,6 +475,7 @@ __all__ = [
     "core_promotion_data",
     "core_promotion_json",
     "durable_identity_for_asset",
+    "electronic_key_evaluation_data",
     "evaluate_electronic_key",
     "decode_logix_symbol_page",
     "encode_pycomm3_route",

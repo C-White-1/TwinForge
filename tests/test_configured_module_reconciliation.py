@@ -105,6 +105,9 @@ def test_exact_configured_identity_is_correlated_with_physical_evidence() -> Non
     assert len(candidate.matched_fields) == 5
     assert candidate.conflicting_fields == ()
     assert candidate.electronic_key_mode == "compatible_module"
+    assert candidate.electronic_key_evaluation is not None
+    assert candidate.electronic_key_evaluation.verdict.value == "deferred"
+    assert candidate.electronic_key_evaluation.typical_compatible_revision is True
     assert candidate.physical_asset_keys == (
         "target:192.0.2.90||entity:10",
     )

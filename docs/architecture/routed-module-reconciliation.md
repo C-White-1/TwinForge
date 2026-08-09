@@ -16,8 +16,10 @@ gateway shares the same discovery target address.
 
 A populated bound slot reuses the existing field comparison for vendor ID,
 device type, product code, and revision. A custom EKey identity is compared
-independently. Results remain exact, partial, conflicting, or insufficient;
-they do not claim that a vendor's electronic-key compatibility policy passed.
+independently. Results remain exact, partial, conflicting, or insufficient.
+Each candidate also carries a separate specification-backed electronic-key
+evaluation, so ordinary identity comparison is never mistaken for a keying
+decision. Compatible Module remains deferred to the device and product family.
 
 Every candidate includes an evidence reference containing the complete route
 key and slot number. Raw routed observations remain in the discovery snapshot.

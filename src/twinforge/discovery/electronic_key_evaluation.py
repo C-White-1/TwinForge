@@ -34,6 +34,24 @@ class ElectronicKeyEvaluation:
     evidence_references: tuple[str, ...]
 
 
+def electronic_key_evaluation_data(
+    evaluation: ElectronicKeyEvaluation,
+) -> dict[str, object]:
+    """Return a deterministic JSON-compatible keying evaluation."""
+    return {
+        "verdict": evaluation.verdict.value,
+        "mode": evaluation.mode,
+        "matched_fields": list(evaluation.matched_fields),
+        "conflicting_fields": list(evaluation.conflicting_fields),
+        "unavailable_fields": list(evaluation.unavailable_fields),
+        "typical_compatible_revision": (
+            evaluation.typical_compatible_revision
+        ),
+        "rationale": evaluation.rationale,
+        "evidence_references": list(evaluation.evidence_references),
+    }
+
+
 _KEY_FIELDS = (
     "vendor_id",
     "device_type",

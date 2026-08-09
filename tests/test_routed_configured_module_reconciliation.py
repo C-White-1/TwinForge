@@ -123,6 +123,11 @@ def test_routed_reconciliation_uses_exact_route_and_slot_bindings() -> None:
 
     assert len(result.candidates) == 1
     assert result.candidates[0].status is ConfiguredModuleComparisonStatus.EXACT
+    assert result.candidates[0].electronic_key_evaluation is not None
+    assert (
+        result.candidates[0].electronic_key_evaluation.verdict.value
+        == "not_configured"
+    )
     assert "cip_routed_slot" in {
         evidence.protocol for evidence in result.candidates[0].evidence
     }
@@ -131,6 +136,9 @@ def test_routed_reconciliation_uses_exact_route_and_slot_bindings() -> None:
         "populated_slot_without_binding",
     }
     assert document["issues"][0]["slot"] in {2, 3}
+    assert document["candidates"][0]["electronic_key_evaluation"]["verdict"] == (
+        "not_configured"
+    )
 
 
 def test_routed_reconciliation_rejects_duplicate_locations() -> None:

@@ -49,6 +49,7 @@ Every result names both Rockwell publications and retains matched,
 conflicting, and unavailable fields. The evaluator performs no network I/O,
 does not alter the model, and does not replace controller or device diagnostics.
 
-The next integration step is to attach this separate verdict to configured and
-routed module-reconciliation candidates without replacing their existing
-identity-comparison status.
+Configured and routed module-reconciliation candidates carry this evaluation
+as a nested result without replacing their existing identity-comparison status.
+Historical manually constructed candidates can omit it, while both maintained
+reconciliation paths always populate it.

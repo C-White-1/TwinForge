@@ -75,12 +75,12 @@ classifies the comparable evidence as exact, partial, conflicting, or
 insufficient. If a converted EKey contains its own identity, those requirements
 are compared independently and retain an `electronic_key_identity` prefix.
 
-The EKey mode is retained, but the comparison status is not a declaration that
-a device satisfies `CompatibleModule`, `ExactMatch`, or another vendor keying
-policy. Implementing those policies requires specification-backed rules beyond
-plain field equality. A corroborated SNMP physical candidate for the same CIP
-target is linked to the comparison as supporting evidence, not merged with the
-configured module.
+The identity-comparison status remains distinct from the nested electronic-key
+evaluation. Exact Match can produce a definitive keying verdict from complete
+identity evidence; Compatible Module, Custom, unknown, and incomplete cases
+defer rather than infer vendor behavior. A corroborated SNMP physical candidate
+for the same CIP target is linked to the comparison as supporting evidence, not
+merged with the configured module.
 
 ## Operator acceptance boundary
 

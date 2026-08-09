@@ -11,6 +11,11 @@ from twinforge.model import Identity, Module
 
 from .chassis import CipChassisSlotObservation, CipSlotState
 from .contracts import CipIdentityObservation, DiscoverySnapshot
+from .electronic_key_evaluation import (
+    ElectronicKeyEvaluation,
+    electronic_key_evaluation_data,
+    evaluate_electronic_key,
+)
 from .routed_capture import CipRoutedDiscoverySnapshot
 from .identity_reconciliation import (
     IdentityReconciliationResult,
@@ -52,6 +57,7 @@ class ConfiguredModuleReconciliationCandidate:
     physical_asset_keys: tuple[str, ...]
     confidence: TopologyConfidence
     evidence: tuple[TopologyEvidenceReference, ...]
+    electronic_key_evaluation: ElectronicKeyEvaluation | None = None
 
 
 @dataclass(frozen=True)
@@ -261,6 +267,10 @@ def reconcile_configured_modules(
                     else TopologyConfidence.INDIRECT
                 ),
                 evidence=_evidence(binding, discovered, evidence_fields),
+                electronic_key_evaluation=evaluate_electronic_key(
+                    binding.module,
+                    discovered,
+                ),
             )
         )
 
@@ -285,6 +295,11 @@ def configured_module_reconciliation_data(
                 "conflicting_fields": list(item.conflicting_fields),
                 "unavailable_fields": list(item.unavailable_fields),
                 "electronic_key_mode": item.electronic_key_mode,
+                "electronic_key_evaluation": (
+                    electronic_key_evaluation_data(item.electronic_key_evaluation)
+                    if item.electronic_key_evaluation is not None
+                    else None
+                ),
                 "physical_asset_keys": list(item.physical_asset_keys),
                 "confidence": item.confidence.value,
                 "evidence": [
@@ -448,6 +463,10 @@ def _routed_candidate(
                 ),
                 key=lambda item: (item.protocol, item.identifier),
             )
+        ),
+        electronic_key_evaluation=evaluate_electronic_key(
+            binding.module,
+            discovered,
         ),
     )
 
