@@ -8,7 +8,7 @@ from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
 from twinforge.discovery.contracts import DiscoveryProviderError, DiscoveryTarget
 from twinforge.discovery.software_inventory_capture import (
     CipSoftwareInventoryItem,
-    CipSoftwareInventoryTransportResult,
+    CipSoftwareInventoryPage,
     PermittedSoftwareInventoryExecutor,
     cip_software_inventory_observation_json,
 )
@@ -25,23 +25,28 @@ class _Transport:
     def __init__(
         self,
         capabilities: tuple[CipSoftwareInventoryCapability, ...],
-        result: CipSoftwareInventoryTransportResult,
+        pages: dict[
+            tuple[CipSoftwareInventoryCapability, str | None],
+            CipSoftwareInventoryPage,
+        ],
     ) -> None:
         self._capabilities = capabilities
-        self.result = result
-        self.calls = 0
+        self.pages = pages
+        self.calls: list[tuple[CipSoftwareInventoryCapability, str | None]] = []
 
     @property
     def capabilities(self) -> tuple[CipSoftwareInventoryCapability, ...]:
         return self._capabilities
 
-    def capture_inventory(
+    def read_inventory_page(
         self,
         plan: CipSoftwareInventoryPlan,
+        capability: CipSoftwareInventoryCapability,
+        cursor: str | None,
         timeout: float,
-    ) -> CipSoftwareInventoryTransportResult:
-        self.calls += 1
-        return self.result
+    ) -> CipSoftwareInventoryPage:
+        self.calls.append((capability, cursor))
+        return self.pages[(capability, cursor)]
 
 
 def _fixture(
@@ -71,42 +76,47 @@ def _fixture(
     )
 
 
-def test_executor_captures_only_requested_structural_items() -> None:
-    capabilities = (
-        CipSoftwareInventoryCapability.PROGRAMS,
-        CipSoftwareInventoryCapability.TAG_DEFINITIONS,
-    )
-    plan, permit = _fixture(capabilities)
+def test_executor_controls_each_paginated_structural_request() -> None:
+    programs = CipSoftwareInventoryCapability.PROGRAMS
+    tags = CipSoftwareInventoryCapability.TAG_DEFINITIONS
+    capabilities = (programs, tags)
+    plan, permit = _fixture(capabilities, maximum_requests=3)
     transport = _Transport(
         capabilities,
-        CipSoftwareInventoryTransportResult(
-            requests_used=2,
-            items=(
-                CipSoftwareInventoryItem(
-                    capability=CipSoftwareInventoryCapability.TAG_DEFINITIONS,
-                    name="MotorRun",
-                    parent="MainProgram",
-                    data_type="BOOL",
-                ),
-                CipSoftwareInventoryItem(
-                    capability=CipSoftwareInventoryCapability.PROGRAMS,
-                    name="MainProgram",
-                ),
+        {
+            (programs, None): CipSoftwareInventoryPage(
+                items=(CipSoftwareInventoryItem(programs, "MainProgram"),),
             ),
-        ),
+            (tags, None): CipSoftwareInventoryPage(
+                items=(
+                    CipSoftwareInventoryItem(
+                        tags,
+                        "MotorRun",
+                        parent="MainProgram",
+                        data_type="BOOL",
+                    ),
+                ),
+                next_cursor="page-2",
+            ),
+            (tags, "page-2"): CipSoftwareInventoryPage(items=()),
+        },
     )
-    executor = PermittedSoftwareInventoryExecutor(
+
+    observation = PermittedSoftwareInventoryExecutor(
         plan,
         permit=permit,
         transport=transport,
-    )
-
-    observation = executor.capture(captured_at=TIMESTAMP)
+    ).capture(captured_at=TIMESTAMP)
     document = json.loads(cip_software_inventory_observation_json(observation))
 
-    assert transport.calls == 1
+    assert transport.calls == [
+        (programs, None),
+        (tags, None),
+        (tags, "page-2"),
+    ]
+    assert observation.requests_used == 3
     assert document["runtime_values_included"] is False
-    assert "value" not in document["items"][1]
+    assert all("value" not in item for item in document["items"])
 
 
 def test_unsupported_capability_fails_before_transport() -> None:
@@ -114,50 +124,76 @@ def test_unsupported_capability_fails_before_transport() -> None:
     plan, permit = _fixture(requested)
     transport = _Transport(
         (CipSoftwareInventoryCapability.PROGRAMS,),
-        CipSoftwareInventoryTransportResult(requests_used=0, items=()),
-    )
-    executor = PermittedSoftwareInventoryExecutor(
-        plan,
-        permit=permit,
-        transport=transport,
+        {},
     )
 
     with pytest.raises(DiscoveryProviderError, match="does not support"):
-        executor.capture(captured_at=TIMESTAMP)
-
-    assert transport.calls == 0
-
-
-def test_executor_rejects_budget_overrun_and_unrequested_items() -> None:
-    requested = (CipSoftwareInventoryCapability.PROGRAMS,)
-    plan, permit = _fixture(requested, maximum_requests=1)
-    overrun = _Transport(
-        requested,
-        CipSoftwareInventoryTransportResult(requests_used=2, items=()),
-    )
-    with pytest.raises(DiscoveryProviderError, match="exceeded"):
         PermittedSoftwareInventoryExecutor(
             plan,
             permit=permit,
-            transport=overrun,
+            transport=transport,
         ).capture(captured_at=TIMESTAMP)
 
-    plan, permit = _fixture(requested)
-    outside_plan = _Transport(
-        requested,
-        CipSoftwareInventoryTransportResult(
-            requests_used=1,
-            items=(
-                CipSoftwareInventoryItem(
-                    capability=CipSoftwareInventoryCapability.TASKS,
-                    name="MainTask",
-                ),
+    assert transport.calls == []
+
+
+def test_executor_stops_before_request_that_would_exceed_budget() -> None:
+    programs = CipSoftwareInventoryCapability.PROGRAMS
+    plan, permit = _fixture((programs,), maximum_requests=1)
+    transport = _Transport(
+        (programs,),
+        {
+            (programs, None): CipSoftwareInventoryPage(
+                items=(),
+                next_cursor="forbidden-page",
             ),
-        ),
+        },
     )
-    with pytest.raises(DiscoveryProviderError, match="outside the plan"):
+
+    with pytest.raises(DiscoveryProviderError, match="budget is exhausted"):
         PermittedSoftwareInventoryExecutor(
             plan,
             permit=permit,
-            transport=outside_plan,
+            transport=transport,
+        ).capture(captured_at=TIMESTAMP)
+
+    assert transport.calls == [(programs, None)]
+
+
+def test_executor_rejects_repeated_cursor_and_wrong_page_capability() -> None:
+    programs = CipSoftwareInventoryCapability.PROGRAMS
+    tasks = CipSoftwareInventoryCapability.TASKS
+    plan, permit = _fixture((programs,))
+    repeated = _Transport(
+        (programs,),
+        {
+            (programs, None): CipSoftwareInventoryPage(
+                items=(), next_cursor="again"
+            ),
+            (programs, "again"): CipSoftwareInventoryPage(
+                items=(), next_cursor="again"
+            ),
+        },
+    )
+    with pytest.raises(DiscoveryProviderError, match="repeated"):
+        PermittedSoftwareInventoryExecutor(
+            plan,
+            permit=permit,
+            transport=repeated,
+        ).capture(captured_at=TIMESTAMP)
+
+    plan, permit = _fixture((programs,))
+    wrong_kind = _Transport(
+        (programs,),
+        {
+            (programs, None): CipSoftwareInventoryPage(
+                items=(CipSoftwareInventoryItem(tasks, "MainTask"),)
+            ),
+        },
+    )
+    with pytest.raises(DiscoveryProviderError, match="requested page"):
+        PermittedSoftwareInventoryExecutor(
+            plan,
+            permit=permit,
+            transport=wrong_kind,
         ).capture(captured_at=TIMESTAMP)

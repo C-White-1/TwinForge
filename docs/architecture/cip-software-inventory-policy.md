@@ -26,8 +26,9 @@ captures.
 
 `PermittedSoftwareInventoryExecutor` provides the socket-free capture boundary.
 It verifies the routed permit and provider capabilities before transport I/O,
-executes a plan only once, rejects budget overruns and unrequested item kinds,
-and serializes structural observations with
+executes a plan only once, and requests one provider page at a time. The
+executor checks the remaining budget before each request, rejects repeated
+cursors and unrequested item kinds, and serializes structural observations with
 `runtime_values_included` fixed to `false`.
 
 Structural observations can be compared with a converted L5X controller only

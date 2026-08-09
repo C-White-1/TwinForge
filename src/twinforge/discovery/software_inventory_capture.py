@@ -39,16 +39,18 @@ class CipSoftwareInventoryItem:
 
 
 @dataclass(frozen=True)
-class CipSoftwareInventoryTransportResult:
-    """Bounded provider result before capture attribution is added."""
+class CipSoftwareInventoryPage:
+    """One provider page returned by exactly one transport request."""
 
-    requests_used: int
     items: tuple[CipSoftwareInventoryItem, ...]
+    next_cursor: str | None = None
     object_evidence: tuple[CipObjectEvidence, ...] = ()
 
     def __post_init__(self) -> None:
-        if isinstance(self.requests_used, bool) or self.requests_used < 0:
-            raise ValueError("requests_used must be a non-negative integer")
+        if self.next_cursor is not None and (
+            not self.next_cursor or self.next_cursor != self.next_cursor.strip()
+        ):
+            raise ValueError("next_cursor must be non-empty and trimmed")
 
 
 class CipSoftwareInventoryTransport(Protocol):
@@ -59,12 +61,14 @@ class CipSoftwareInventoryTransport(Protocol):
         """Return capabilities supported without performing transport I/O."""
         ...
 
-    def capture_inventory(
+    def read_inventory_page(
         self,
         plan: CipSoftwareInventoryPlan,
+        capability: CipSoftwareInventoryCapability,
+        cursor: str | None,
         timeout: float,
-    ) -> CipSoftwareInventoryTransportResult:
-        """Capture only the structural capabilities named by ``plan``."""
+    ) -> CipSoftwareInventoryPage:
+        """Read one page for one structural capability."""
         ...
 
 
@@ -134,26 +138,49 @@ class PermittedSoftwareInventoryExecutor:
             raise ValueError("captured_at must include a timezone")
         self.preflight()
         self._executed = True
-        result = self._transport.capture_inventory(self._plan, self._timeout)
-        if result.requests_used > self._plan.maximum_requests:
-            raise DiscoveryProviderError(
-                "cip_software_request_budget_exceeded",
-                "software inventory provider exceeded its request budget",
-            )
-        requested = set(self._plan.capabilities)
-        if any(item.capability not in requested for item in result.items):
-            raise DiscoveryProviderError(
-                "cip_software_unrequested_evidence",
-                "provider returned a software capability outside the plan",
-            )
+        requests_used = 0
+        items: list[CipSoftwareInventoryItem] = []
+        evidence: list[CipObjectEvidence] = []
+        for capability in self._plan.capabilities:
+            cursor: str | None = None
+            seen_cursors: set[str] = set()
+            while True:
+                if requests_used >= self._plan.maximum_requests:
+                    raise DiscoveryProviderError(
+                        "cip_software_request_budget_exceeded",
+                        "software inventory request budget is exhausted",
+                    )
+                page = self._transport.read_inventory_page(
+                    self._plan,
+                    capability,
+                    cursor,
+                    self._timeout,
+                )
+                requests_used += 1
+                if any(item.capability is not capability for item in page.items):
+                    raise DiscoveryProviderError(
+                        "cip_software_unrequested_evidence",
+                        "provider returned an item outside the requested page",
+                    )
+                items.extend(page.items)
+                evidence.extend(page.object_evidence)
+                if page.next_cursor is None:
+                    break
+                if page.next_cursor in seen_cursors:
+                    raise DiscoveryProviderError(
+                        "cip_software_cursor_repeated",
+                        "software inventory provider repeated a page cursor",
+                    )
+                seen_cursors.add(page.next_cursor)
+                cursor = page.next_cursor
         return CipSoftwareInventoryObservation(
             target=self._plan.target,
             captured_at=captured_at,
             capabilities=self._plan.capabilities,
-            requests_used=result.requests_used,
+            requests_used=requests_used,
             items=tuple(
                 sorted(
-                    result.items,
+                    items,
                     key=lambda item: (
                         item.capability.value,
                         item.parent or "",
@@ -161,7 +188,7 @@ class PermittedSoftwareInventoryExecutor:
                     ),
                 )
             ),
-            object_evidence=result.object_evidence,
+            object_evidence=tuple(evidence),
         )
 
 
