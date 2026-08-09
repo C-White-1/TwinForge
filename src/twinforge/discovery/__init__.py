@@ -11,6 +11,19 @@ from .acceptance import (
     apply_candidate_reviews,
 )
 from .capture import capture_snapshot
+from .cip_pycomm3 import (
+    CipIdentityReply,
+    CipIdentityTransport,
+    Pycomm3CipIdentityProvider,
+    Pycomm3IdentityTransport,
+)
+from .cip_plan import (
+    CipIdentityCapturePlan,
+    CipIdentityPlanTarget,
+    cip_identity_plan_data,
+    cip_identity_plan_json,
+    plan_cip_identity_capture,
+)
 from .configured_module_reconciliation import (
     ConfiguredModuleBinding,
     ConfiguredModuleComparisonStatus,
@@ -142,6 +155,10 @@ __all__ = [
     "CandidateDisposition",
     "CandidateReview",
     "CipIdentityObservation",
+    "CipIdentityCapturePlan",
+    "CipIdentityPlanTarget",
+    "CipIdentityReply",
+    "CipIdentityTransport",
     "CipPhysicalReconciliationCandidate",
     "ConfiguredModuleBinding",
     "ConfiguredModuleComparisonStatus",
@@ -174,6 +191,8 @@ __all__ = [
     "IdentityTransition",
     "IdentityTransitionDirective",
     "PersistedDiscoveryState",
+    "Pycomm3CipIdentityProvider",
+    "Pycomm3IdentityTransport",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",
@@ -211,6 +230,8 @@ __all__ = [
     "acceptance_json",
     "apply_candidate_reviews",
     "capture_snapshot",
+    "cip_identity_plan_data",
+    "cip_identity_plan_json",
     "correlate_topology",
     "correlate_physical_entities",
     "reconcile_configured_modules",
@@ -228,6 +249,7 @@ __all__ = [
     "identity_lifecycle_json",
     "physical_candidate_data",
     "physical_candidate_json",
+    "plan_cip_identity_capture",
     "snapshot_data",
     "snapshot_json",
     "topology_data",

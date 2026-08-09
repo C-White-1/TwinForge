@@ -192,7 +192,7 @@ source explicitly supplies them.
 - [x] Explicit reversible promotion into vendor-neutral assets and devices
 - [x] Atomic Plant promotion repository boundary with idempotent replay
 - [x] Versioned atomic JSON persistence for lifecycle and promotion state
-- [ ] Bounded `pycomm3` CIP Identity adapter
+- [x] Bounded `pycomm3` CIP Identity adapter
 - [ ] CIP chassis/slot discovery
 - [ ] Controller, program, routine and tag discovery
 - [ ] Assembly and connection-manager discovery

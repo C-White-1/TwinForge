@@ -40,15 +40,18 @@ No code in this phase opens a socket or communicates with a controller.
 
 ## Phase 2: bounded `pycomm3` identity adapter
 
-- [ ] Validate targets against authorization and address policy
-- [ ] Permit only explicit, configured targets
-- [ ] Implement CIP List Identity or Identity Object reads
-- [ ] Set conservative timeout and request-rate defaults
-- [ ] Enforce per-target and per-capture request budgets
-- [ ] Capture adapter/library version and protocol-operation provenance
-- [ ] Preserve raw replies when the library exposes them
-- [ ] Add an operator confirmation or dry-run display before live capture
+- [x] Validate targets against authorization and address policy
+- [x] Permit only explicit, configured targets
+- [x] Implement CIP List Identity or Identity Object reads
+- [x] Set conservative timeout and request-rate defaults
+- [x] Enforce per-target and per-capture request budgets
+- [x] Capture adapter/library version and protocol-operation provenance
+- [x] Preserve raw replies when the library exposes them
+- [x] Add an operator confirmation or dry-run display before live capture
 - [ ] Verify against a local simulator or authorized laboratory only
+
+The implemented boundary and deliberately excluded operations are documented
+in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapter.md).
 
 ## Parallel track: SNMP network evidence
 
