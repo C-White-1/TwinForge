@@ -298,6 +298,7 @@ from .snmp_entity_candidates import (
     physical_candidate_json,
 )
 from .topology import (
+    RelationshipEvidenceClass,
     TopologyConfidence,
     TopologyCorrelationResult,
     TopologyEvidenceReference,
@@ -434,6 +435,7 @@ __all__ = [
     "RoutedCipProviderFacade",
     "RoutedSlotOutcome",
     "RoutedSlotResult",
+    "RelationshipEvidenceClass",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",

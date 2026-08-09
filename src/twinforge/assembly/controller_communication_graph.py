@@ -10,6 +10,7 @@ from typing import Any
 from twinforge.model import Controller, Program, Tag
 from twinforge.parsers.l5x.corpus import L5XCorpus
 from twinforge.parsers.l5x.document import L5XTargetType
+from twinforge.discovery.topology import RelationshipEvidenceClass
 
 
 @dataclass(frozen=True)
@@ -220,6 +221,7 @@ def controller_communication_graph_data(
             {
                 "source_workspace_key": item.source_workspace_key,
                 "target_workspace_key": item.target_workspace_key,
+                "evidence_class": RelationshipEvidenceClass.CONFIGURED_INTENT.value,
                 "evidence": [message(evidence) for evidence in item.evidence],
             }
             for item in graph.edges

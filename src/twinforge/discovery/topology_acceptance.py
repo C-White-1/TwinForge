@@ -9,6 +9,7 @@ from typing import Any
 
 from .acceptance import AcceptancePolicyError, CandidateDisposition
 from .topology import (
+    RelationshipEvidenceClass,
     TopologyCorrelationResult,
     TopologyEvidenceReference,
     TopologyRelationshipCandidate,
@@ -159,6 +160,7 @@ def topology_acceptance_data(result: TopologyAcceptanceResult) -> dict[str, Any]
         "accepted_relationships": [
             {
                 "key": item.key,
+                "evidence_class": RelationshipEvidenceClass.OPERATOR_ACCEPTED.value,
                 "candidate_key": item.candidate_key,
                 "source_node_key": item.source_node_key,
                 "target_node_key": item.target_node_key,

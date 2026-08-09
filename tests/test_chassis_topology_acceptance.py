@@ -91,6 +91,9 @@ def test_accepts_explicit_route_slot_and_core_asset_mapping() -> None:
     assert mapping.slot == 2
     assert mapping.module_asset_id == "module-2"
     assert "cip_routed_slot" in chassis_topology_acceptance_json(result)
+    assert '"evidence_class": "operator_accepted"' in (
+        chassis_topology_acceptance_json(result)
+    )
 
 
 def test_rejected_mapping_cannot_name_core_assets() -> None:

@@ -23,6 +23,7 @@ _SAFE_ATTRIBUTES: dict[DriftDomain, frozenset[str]] = {
     DriftDomain.NETWORK: frozenset(
         {
             "relationship_type",
+            "evidence_class",
             "source_interface_index",
             "source_port_number",
             "confidence",

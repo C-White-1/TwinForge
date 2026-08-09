@@ -73,6 +73,9 @@ def test_explicit_message_binding_creates_evidence_backed_edge(tmp_path) -> None
     assert graph.edges[0].evidence[0].tag_name == "ReadRemote"
     assert graph.unbound_messages == ()
     assert "CIP Data Table Read" in controller_communication_graph_json(graph)
+    assert '"evidence_class": "configured_intent"' in (
+        controller_communication_graph_json(graph)
+    )
 
 
 def test_unknown_target_workspace_is_rejected(tmp_path) -> None:

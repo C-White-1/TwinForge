@@ -8,6 +8,7 @@ from twinforge.discovery import (
     SnmpNeighbourObservation,
     SnmpNodeObservation,
     TopologyConfidence,
+    RelationshipEvidenceClass,
     TopologyRelationshipType,
     correlate_topology,
     topology_json,
@@ -96,9 +97,11 @@ def test_correlates_lldp_and_fdb_without_overclaiming_reachability() -> None:
 
     assert reported.target_node_key == "target:192.0.2.70|"
     assert reported.confidence is TopologyConfidence.CORROBORATED
+    assert reported.evidence_class is RelationshipEvidenceClass.PROTOCOL_REPORTED
     assert {item.protocol for item in reported.evidence} == {"lldp", "bridge_fdb"}
     assert indirect.target_node_key == "mac:02:00:00:00:00:80"
     assert indirect.confidence is TopologyConfidence.INDIRECT
+    assert indirect.evidence_class is RelationshipEvidenceClass.INDIRECT_INFERENCE
     assert indirect.target_port_id is None
 
 
@@ -107,4 +110,5 @@ def test_topology_serialization_is_deterministic() -> None:
     second = correlate_topology(snapshot())
 
     assert topology_json(first) == topology_json(second)
+    assert '"evidence_class": "indirect_inference"' in topology_json(first)
     assert topology_json(first).endswith("\n")

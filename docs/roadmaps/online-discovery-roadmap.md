@@ -180,7 +180,7 @@ The staged hardware acceptance procedure is documented in
 - [x] Correlate configured modules, routed observations, and software devices
 - [x] Detect hardware, firmware, configuration, and network drift
 - [x] Export sanitized change reports with confidence and provenance
-- [ ] Keep inferred relationships visibly distinct from observed relationships
+- [x] Keep inferred relationships visibly distinct from observed relationships
 
 Correlation semantics and the future lowering boundary are documented in
 [Discovery Topology Correlation](../architecture/discovery-topology-correlation.md).
@@ -193,6 +193,9 @@ mappings are documented in
 Domain-complete comparison of hardware, firmware, structural configuration, and
 network evidence is documented in
 [Discovery Drift](../architecture/discovery-drift.md).
+The shared epistemic labels that keep inference, configuration, acceptance, and
+corroboration distinct are documented in
+[Relationship Evidence Classes](../architecture/relationship-evidence-classes.md).
 The separate physical-inventory boundary is documented in
 [SNMP Physical Asset Candidates](../architecture/snmp-physical-asset-candidates.md).
 

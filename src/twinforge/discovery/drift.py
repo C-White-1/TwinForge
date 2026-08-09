@@ -230,6 +230,7 @@ def build_discovery_drift_state(
                     item.key,
                     {
                         "relationship_type": item.relationship_type.value,
+                        "evidence_class": item.evidence_class.value,
                         "source_node_key": item.source_node_key,
                         "target_node_key": item.target_node_key,
                         "source_interface_index": item.source_interface_index,

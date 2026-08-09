@@ -10,7 +10,10 @@ from twinforge.discovery import (
     ChassisTopologyAcceptanceResult,
     RoutedConfiguredModuleBinding,
 )
-from twinforge.discovery.topology import TopologyEvidenceReference
+from twinforge.discovery.topology import (
+    RelationshipEvidenceClass,
+    TopologyEvidenceReference,
+)
 
 from .software_devices import AssembledSoftwareDevice
 
@@ -141,6 +144,9 @@ def cross_layer_device_correlation_data(
         "correlations": [
             {
                 "key": item.key,
+                "evidence_class": (
+                    RelationshipEvidenceClass.CROSS_LAYER_CORROBORATED.value
+                ),
                 "workspace_key": item.workspace_key,
                 "software_definition": item.software_definition,
                 "instance_tag": item.instance_tag,

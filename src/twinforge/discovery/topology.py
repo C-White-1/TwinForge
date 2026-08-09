@@ -25,6 +25,16 @@ class TopologyConfidence(str, Enum):
     CORROBORATED = "corroborated"
 
 
+class RelationshipEvidenceClass(str, Enum):
+    """Epistemic basis of a relationship, independent of its domain meaning."""
+
+    PROTOCOL_REPORTED = "protocol_reported"
+    INDIRECT_INFERENCE = "indirect_inference"
+    CONFIGURED_INTENT = "configured_intent"
+    OPERATOR_ACCEPTED = "operator_accepted"
+    CROSS_LAYER_CORROBORATED = "cross_layer_corroborated"
+
+
 @dataclass(frozen=True)
 class TopologyEvidenceReference:
     """Reference to one retained observation supporting a candidate."""
@@ -59,6 +69,13 @@ class TopologyRelationshipCandidate:
     target_port_id: str | None
     confidence: TopologyConfidence
     evidence: tuple[TopologyEvidenceReference, ...]
+
+    @property
+    def evidence_class(self) -> RelationshipEvidenceClass:
+        """Classify reported neighbours separately from forwarding inference."""
+        if self.relationship_type is TopologyRelationshipType.REPORTED_NEIGHBOUR:
+            return RelationshipEvidenceClass.PROTOCOL_REPORTED
+        return RelationshipEvidenceClass.INDIRECT_INFERENCE
 
 
 @dataclass(frozen=True)
@@ -296,6 +313,7 @@ def topology_data(result: TopologyCorrelationResult) -> dict[str, Any]:
             {
                 "key": relationship.key,
                 "relationship_type": relationship.relationship_type.value,
+                "evidence_class": relationship.evidence_class.value,
                 "source_node_key": relationship.source_node_key,
                 "target_node_key": relationship.target_node_key,
                 "source_interface_index": relationship.source_interface_index,

@@ -116,6 +116,9 @@ def test_correlates_software_device_through_original_module_binding() -> None:
     assert correlation.slot == 3
     assert correlation.module_asset_id == "module-asset"
     assert "cip_routed_slot" in cross_layer_device_correlation_json(result)
+    assert '"evidence_class": "cross_layer_corroborated"' in (
+        cross_layer_device_correlation_json(result)
+    )
 
 
 def test_retains_unmatched_software_and_accepted_mapping() -> None:

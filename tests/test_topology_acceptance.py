@@ -83,6 +83,9 @@ def test_accepts_reviewed_lldp_link_and_retains_unreviewed_partition() -> None:
     assert document["accepted_relationships"][0]["source_asset_key"] == (
         "asset:switch-1"
     )
+    assert document["accepted_relationships"][0]["evidence_class"] == (
+        "operator_accepted"
+    )
 
 
 def test_indirect_mac_reachability_cannot_be_accepted_as_connection() -> None:

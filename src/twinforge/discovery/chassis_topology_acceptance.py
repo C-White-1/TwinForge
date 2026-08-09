@@ -15,6 +15,7 @@ from .configured_module_reconciliation import (
 )
 from .electronic_key_evaluation import ElectronicKeyVerdict
 from .topology import TopologyEvidenceReference
+from .topology import RelationshipEvidenceClass
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,7 @@ def chassis_topology_acceptance_data(
         "accepted_mappings": [
             {
                 "candidate_key": item.candidate_key,
+                "evidence_class": RelationshipEvidenceClass.OPERATOR_ACCEPTED.value,
                 "configured_module_key": item.configured_module_key,
                 "chassis_route_key": item.chassis_route_key,
                 "slot": item.slot,
