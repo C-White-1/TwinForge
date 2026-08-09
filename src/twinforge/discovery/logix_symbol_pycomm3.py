@@ -7,6 +7,7 @@ from urllib.parse import quote, unquote
 from pycomm3 import LogixDriver
 
 from .cip_routes import CipRouteDeclaration
+from .cip_target_policy import validate_live_cip_target_address
 from .contracts import DiscoveryProviderError
 from .logix_symbol_codec import (
     GET_INSTANCE_ATTRIBUTE_LIST,
@@ -60,6 +61,7 @@ class ExperimentalPycomm3LogixSymbolTransport:
         timeout: float,
     ) -> CipSoftwareInventoryPage:
         """Issue one connected Symbol request and return one controlled page."""
+        validate_live_cip_target_address(plan.target)
         if plan.route is None:
             raise DiscoveryProviderError(
                 "logix_symbol_route_required",

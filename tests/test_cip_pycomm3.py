@@ -122,6 +122,7 @@ def test_provider_rejects_target_outside_exact_allowlist() -> None:
     "target",
     [
         DiscoveryTarget(address="8.8.8.8"),
+        DiscoveryTarget(address="192.0.2.10"),
         DiscoveryTarget(address="plc.example"),
         DiscoveryTarget(address="192.168.1.10", route=(1, 0)),
     ],

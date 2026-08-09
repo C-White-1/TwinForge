@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.metadata import version
-from ipaddress import IPv4Address, ip_address
 from typing import Protocol, TypedDict
 
 from pycomm3 import CIPDriver, ClassCode, Services
@@ -15,6 +14,7 @@ from .contracts import (
     DiscoveryProviderError,
     DiscoveryTarget,
 )
+from .cip_target_policy import validate_live_cip_target_address
 
 
 @dataclass(frozen=True)
@@ -172,23 +172,7 @@ def validate_cip_identity_target(target: DiscoveryTarget) -> None:
             "cip_routes_not_supported",
             "the bounded pycomm3 adapter does not traverse CIP routes",
         )
-    try:
-        address = ip_address(target.address)
-    except ValueError as error:
-        raise DiscoveryProviderError(
-            "cip_ipv4_literal_required",
-            "the bounded pycomm3 adapter requires an IPv4 address literal",
-        ) from error
-    if not isinstance(address, IPv4Address):
-        raise DiscoveryProviderError(
-            "cip_ipv4_literal_required",
-            "the bounded pycomm3 adapter currently supports IPv4 only",
-        )
-    if not (address.is_private or address.is_loopback or address.is_link_local):
-        raise DiscoveryProviderError(
-            "cip_public_target_rejected",
-            f"public target {target.address} is not permitted",
-        )
+    validate_live_cip_target_address(target)
 
 
 def decode_cip_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:

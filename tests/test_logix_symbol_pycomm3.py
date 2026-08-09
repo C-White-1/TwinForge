@@ -7,6 +7,7 @@ import pytest
 from twinforge.discovery.cip_pycomm3_routed import RoutedExecutionPermit
 from twinforge.discovery.cip_routes import CipRouteDeclaration, CipRouteSegment
 from twinforge.discovery.contracts import DiscoveryTarget
+from twinforge.discovery.contracts import DiscoveryProviderError
 from twinforge.discovery.logix_symbol_pycomm3 import (
     ExperimentalPycomm3LogixSymbolTransport,
     pycomm3_logix_path,
@@ -150,3 +151,40 @@ def test_logix_path_rejects_binary_links() -> None:
 
     with pytest.raises(ValueError, match="binary"):
         pycomm3_logix_path(route)
+
+
+@pytest.mark.parametrize(
+    "address",
+    ("8.8.8.8", "203.0.113.10", "plc.example", "::1"),
+)
+def test_transport_rejects_non_local_or_non_ipv4_target_before_io(
+    address: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = DiscoveryTarget(address=address)
+    route = CipRouteDeclaration(
+        gateway=target,
+        segments=(CipRouteSegment(port=1, link=0),),
+        maximum_depth=1,
+    )
+    plan = CipSoftwareInventoryPlan(
+        target=target,
+        route=route,
+        authorization_reference="LAB-001",
+        capabilities=(CipSoftwareInventoryCapability.PROGRAMS,),
+        maximum_requests=1,
+    )
+
+    def unexpected_driver(*args: object, **kwargs: object) -> None:
+        raise AssertionError("driver must not be constructed")
+
+    monkeypatch.setattr(
+        "twinforge.discovery.logix_symbol_pycomm3.LogixDriver",
+        unexpected_driver,
+    )
+    transport = ExperimentalPycomm3LogixSymbolTransport(
+        laboratory_evidence_reference="OFFLINE-PACKET-FIXTURE",
+    )
+
+    with pytest.raises(DiscoveryProviderError):
+        transport.read_inventory_page(plan, None, 2.0)

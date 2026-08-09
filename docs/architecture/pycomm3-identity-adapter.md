@@ -5,6 +5,10 @@ boundary. It performs one unconnected Identity Object
 `Get_Attributes_All` request for each explicitly allowlisted private IPv4
 target.
 
+The shared live-CIP target policy defines private explicitly as RFC 1918,
+loopback, or IPv4 link-local. It does not treat documentation-only or other
+non-global ranges as laboratory targets.
+
 This first adapter does not broadcast, scan address ranges, traverse CIP
 routes, enumerate chassis slots, read tags, or expose a live-discovery CLI
 command. Its default timeout is two seconds and its hard maximum is ten

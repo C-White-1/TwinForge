@@ -55,3 +55,9 @@ with `--confirmed-by`, a timezone-qualified `--confirmed-at`, and
 `--laboratory-evidence-reference`. Omitting any of them fails before transport
 construction. An output path is optional; without one, JSON is written to
 standard output.
+
+The live adapter accepts only IPv4 address literals in RFC 1918, loopback, or
+link-local ranges. Hostnames, IPv6 addresses, public addresses, and reserved
+documentation ranges are rejected before `LogixDriver` is constructed. For a
+routed request, this rule applies to the directly contacted gateway; the exact
+CIP route is independently constrained by the execution permit.
