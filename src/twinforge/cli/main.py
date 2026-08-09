@@ -11,6 +11,7 @@ from typing import TextIO
 from twinforge.discovery import (
     CipSoftwareInventoryCapability,
     DiscoveryStatePersistenceError,
+    SnmpConversionError,
 )
 
 from .cip_software import CipSoftwareCommandError, discover_cip_software
@@ -20,6 +21,7 @@ from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
+from .snmp_conversion import convert_walk_command
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -187,6 +189,39 @@ def build_parser() -> argparse.ArgumentParser:
     software.add_argument("--confirmed-by")
     software.add_argument("--confirmed-at")
     software.add_argument("--laboratory-evidence-reference")
+
+    snmp = commands.add_parser(
+        "snmp",
+        help="Plan or execute offline SNMP evidence workflows.",
+    )
+    snmp_commands = snmp.add_subparsers(dest="snmp_command", required=True)
+    convert_walk = snmp_commands.add_parser(
+        "convert-walk",
+        help="Convert explicitly declared Net-SNMP walk text to SNMPSim format.",
+    )
+    convert_walk.add_argument("input", type=Path)
+    convert_walk.add_argument("--output", required=True, type=Path)
+    convert_walk.add_argument("--expected-sha256", required=True)
+    convert_walk.add_argument("--source-url", required=True)
+    convert_walk.add_argument("--license", required=True)
+    convert_walk.add_argument("--device-category", required=True)
+    convert_walk.add_argument(
+        "--sanitized", action=argparse.BooleanOptionalAction, required=True
+    )
+    convert_walk.add_argument("--approved-by", required=True)
+    convert_walk.add_argument("--approved-at", required=True)
+    convert_walk.add_argument("--rationale", required=True)
+    convert_walk.add_argument(
+        "--max-input-bytes", type=int, default=16 * 1024 * 1024
+    )
+    convert_walk.add_argument(
+        "--reject-unparsed-lines", action="store_true"
+    )
+    convert_walk.add_argument(
+        "--execute",
+        action="store_true",
+        help="Write conversion outputs; otherwise print the dry-run plan.",
+    )
     return parser
 
 
@@ -253,6 +288,23 @@ def main(
                     destination=arguments.output,
                     stdout=output,
                 )
+        elif arguments.command == "snmp":
+            convert_walk_command(
+                arguments.input,
+                arguments.output,
+                expected_sha256=arguments.expected_sha256,
+                source_url=arguments.source_url,
+                license_name=arguments.license,
+                device_category=arguments.device_category,
+                sanitized=arguments.sanitized,
+                approved_by=arguments.approved_by,
+                approved_at=arguments.approved_at,
+                rationale=arguments.rationale,
+                max_input_bytes=arguments.max_input_bytes,
+                allow_unparsed_lines=not arguments.reject_unparsed_lines,
+                execute=arguments.execute,
+                stdout=output,
+            )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -283,6 +335,7 @@ def main(
         DiscoveryStatePersistenceError,
         FakeSnapshotCommandError,
         CipSoftwareCommandError,
+        SnmpConversionError,
         L5XInspectionError,
         L5XReportError,
     ) as error:

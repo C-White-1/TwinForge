@@ -73,7 +73,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Report per-recording SNMP evidence coverage and unsupported formats
 - [x] Add common Net-SNMP `.snmpwalk` ingestion with unknown-line retention
 - [x] Evaluate the BSD-licensed `snmpsim-data` corpus without vendoring it
-- [ ] Add a controlled conversion workflow for unusual walk representations
+- [x] Add a controlled conversion workflow for unusual walk representations
 - [x] Classify standard and enterprise OID-family coverage
 - [x] Lower RFC 6933 ENTITY-MIB v4 physical inventory and containment evidence
 - [x] Validate ENTITY-MIB parent references and containment cycles
@@ -107,6 +107,10 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [ ] Enforce OID allowlists, timeouts, request budgets, and rate limits
 - [ ] Lower observed interfaces and neighbours into the network graph
 - [ ] Correlate SNMP neighbours and forwarding entries with CIP identities
+
+Checksum-pinned, attributable conversion of explicitly declared unusual
+Net-SNMP walk files is documented in
+[Controlled SNMP Recording Conversion](../architecture/snmp-recording-conversion.md).
 
 ## Phase 3: routed controller and chassis evidence
 

@@ -264,6 +264,14 @@ from .snmp_corpus import (
     snmp_corpus_manifest_json,
     snmp_corpus_markdown,
 )
+from .snmp_conversion import (
+    SnmpConversionError,
+    SnmpConversionReceipt,
+    SnmpWalkConversionPlan,
+    convert_snmp_walk,
+    snmp_walk_conversion_plan_data,
+    snmp_walk_conversion_plan_json,
+)
 from .snmprec import (
     SnmprecDiscoveryProvider,
     SnmprecRecording,
@@ -442,6 +450,8 @@ __all__ = [
     "SnmpCorpusManifest",
     "SnmpCorpusReport",
     "SnmpCorpusResult",
+    "SnmpConversionError",
+    "SnmpConversionReceipt",
     "aggregate_snmp_oid_families",
     "assess_pycomm3_software_inventory",
     "build_logix_symbol_page_request",
@@ -453,6 +463,7 @@ __all__ = [
     "SnmpNetworkAddressObservation",
     "SnmpNodeObservation",
     "SnmpPhysicalEntityObservation",
+    "SnmpWalkConversionPlan",
     "SnmpPhysicalAssetCandidate",
     "SnmpPhysicalCandidateIssue",
     "SnmpPhysicalCandidateResult",
@@ -484,6 +495,7 @@ __all__ = [
     "apply_topology_reviews",
     "apply_controller_metadata",
     "capture_snapshot",
+    "convert_snmp_walk",
     "capture_routed_cip",
     "cip_chassis_data",
     "cip_chassis_json",
@@ -565,4 +577,6 @@ __all__ = [
     "snmp_corpus_json",
     "snmp_corpus_manifest_json",
     "snmp_corpus_markdown",
+    "snmp_walk_conversion_plan_data",
+    "snmp_walk_conversion_plan_json",
 ]
