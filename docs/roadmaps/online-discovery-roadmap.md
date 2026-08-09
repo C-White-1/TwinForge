@@ -114,7 +114,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Enumerate configured chassis slots within an explicit route limit
 - [x] Distinguish no response, empty slot, unsupported route, and device fault
 - [ ] Preserve vendor-specific evidence without placing it in the core model
-- [ ] Compare discovered modules with L5X module and electronic-key evidence
+- [x] Compare discovered modules with L5X module and electronic-key evidence
 
 The offline metadata and raw-object boundary is defined in
 [CIP Controller Evidence](../architecture/cip-controller-evidence.md). A live
@@ -142,6 +142,9 @@ The packet-preserving live adapter boundary is documented in
 The composed provider, fail-closed preflight, and combined request budget are
 documented in
 [CIP Controller Enrichment](../architecture/cip-controller-enrichment.md).
+Explicit route-and-slot comparison with converted L5X module and EKey evidence
+is documented in
+[Routed Module Reconciliation](../architecture/routed-module-reconciliation.md).
 
 ## Phase 4: software and tag inventory
 
