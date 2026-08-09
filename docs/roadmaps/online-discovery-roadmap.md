@@ -131,6 +131,8 @@ The execution permit and routed Identity boundary are documented in
 [Permitted pycomm3 Routed Identity](../architecture/pycomm3-routed-identity.md).
 The explicit slot routes and typed result boundary are documented in
 [Permitted pycomm3 Chassis Provider](../architecture/pycomm3-chassis-provider.md).
+The specification-attributed metadata allowlist is documented in
+[CIP Controller Metadata Plan](../architecture/cip-controller-metadata-plan.md).
 
 ## Phase 4: software and tag inventory
 
