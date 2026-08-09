@@ -60,6 +60,7 @@ def test_metadata_plan_separates_standard_and_vendor_reads() -> None:
     assert document["dry_run"] is True
     assert document["operation"] == "cip_controller_metadata"
     assert document["total_request_budget"] == 2
+    assert document["required_vendor_id"] == 1
     assert document["runtime_values_permitted"] is False
     assert [item["namespace"] for item in document["requests"]] == [
         "standard_cip",
@@ -134,4 +135,26 @@ def test_metadata_plan_rejects_duplicate_object_reads() -> None:
             target=target,
             authorization_reference="LAB-001",
             requests=(request, request),
+        )
+
+
+def test_metadata_plan_rejects_mixed_vendor_specific_requests() -> None:
+    target, _ = _target_and_route()
+
+    def request(vendor_id: int, class_code: int) -> CipControllerMetadataRequest:
+        return CipControllerMetadataRequest(
+            name=f"vendor {vendor_id}",
+            service=CipMetadataReadService.GET_ATTRIBUTES_ALL,
+            class_code=class_code,
+            instance=1,
+            namespace=CipMetadataNamespace.VENDOR_SPECIFIC,
+            vendor_id=vendor_id,
+            specification_reference="Controlled fixture",
+        )
+
+    with pytest.raises(ValueError, match="cannot mix"):
+        CipControllerMetadataPlan(
+            target=target,
+            authorization_reference="LAB-001",
+            requests=(request(1, 0x64), request(2, 0x65)),
         )

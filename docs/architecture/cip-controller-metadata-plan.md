@@ -13,7 +13,9 @@ controller. Every `CipControllerMetadataRequest` declares:
 Only `Get_Attributes_All` and `Get_Attribute_Single` are permitted. A single
 attribute is mandatory for the latter and prohibited for the former.
 Vendor-specific reads require an explicit vendor ID; standard CIP reads reject
-vendor attribution.
+vendor attribution. One plan cannot mix vendor-specific requests for different
+vendors. Its serialized `required_vendor_id` makes the selection constraint
+visible before execution.
 
 The serialized plan is a dry-run document containing the exact route, request
 order, request keys, and total budget. It explicitly states that runtime values

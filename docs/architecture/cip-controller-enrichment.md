@@ -22,6 +22,12 @@ Before the first transport request, the decorator verifies that:
 Preflight performs no transport I/O. A failure therefore prevents the
 Identity request as well as all metadata requests.
 
+Vendor-specific plans may name only one vendor ID. After the standard Identity
+read, the decorator compares that required vendor with the observed Identity
+vendor. A mismatch stops execution before any vendor-specific object request.
+The Identity request is deliberately the only request needed to make this
+decision.
+
 ## Request budgets
 
 Each controller read declares one Identity request. Its optional metadata

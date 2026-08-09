@@ -47,5 +47,14 @@ class MetadataEnrichedControllerProvider:
             route=route,
             captured_at=captured_at,
         )
+        required_vendor_id = plan.required_vendor_id
+        if (
+            required_vendor_id is not None
+            and observation.identity.vendor_id != required_vendor_id
+        ):
+            raise DiscoveryProviderError(
+                "cip_metadata_vendor_mismatch",
+                "controller Identity vendor does not match the metadata plan",
+            )
         metadata = self._metadata_executor.capture(captured_at=captured_at)
         return apply_controller_metadata(observation, metadata)

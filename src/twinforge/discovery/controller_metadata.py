@@ -129,11 +129,30 @@ class CipControllerMetadataPlan:
         ]
         if len(fields) != len(set(fields)):
             raise ValueError("controller metadata semantic fields must be unique")
+        vendor_ids = {
+            request.vendor_id
+            for request in self.requests
+            if request.namespace is CipMetadataNamespace.VENDOR_SPECIFIC
+        }
+        if len(vendor_ids) > 1:
+            raise ValueError(
+                "one metadata plan cannot mix vendor-specific vendor IDs"
+            )
 
     @property
     def total_request_budget(self) -> int:
         """Return the maximum requests permitted by this plan."""
         return sum(request.request_budget for request in self.requests)
+
+    @property
+    def required_vendor_id(self) -> int | None:
+        """Return the vendor required by vendor-specific requests, if any."""
+        vendor_ids = {
+            request.vendor_id
+            for request in self.requests
+            if request.namespace is CipMetadataNamespace.VENDOR_SPECIFIC
+        }
+        return next(iter(vendor_ids), None)
 
 
 def cip_controller_metadata_plan_data(
@@ -148,6 +167,7 @@ def cip_controller_metadata_plan_data(
         "target": plan.target.model_dump(mode="json"),
         "route": cip_route_data(plan.route) if plan.route is not None else None,
         "total_request_budget": plan.total_request_budget,
+        "required_vendor_id": plan.required_vendor_id,
         "runtime_values_permitted": False,
         "requests": [
             {
