@@ -34,3 +34,22 @@ Reconciliation retains an issue when:
 
 These outcomes are not converted into mismatches. They represent different
 evidence conditions and remain available for operator review.
+
+## Approved topology mappings
+
+`apply_chassis_module_mapping_reviews` provides the explicit boundary between
+routed reconciliation and the vendor-neutral core model. An accepted review
+must identify the existing controller, chassis, and module asset IDs and is
+joined back to the original explicit binding to recover its route and slot.
+The review retains its operator, timezone-aware timestamp, rationale, and
+comparison evidence.
+
+Conflicting or insufficient comparisons require an explicit conflict override.
+An electronic-key rejection also requires that override; it is never silently
+treated as compatible. Rejected and deferred reviews cannot name core assets.
+One module asset cannot be mapped twice, and a chassis asset cannot acquire
+conflicting controller parents within a review operation.
+
+The result is a deterministic staging document. It does not construct, mutate,
+or reparent `Controller`, `Chassis`, or `Module` instances. Applying approved
+mappings to a repository remains a separate transactional responsibility.
