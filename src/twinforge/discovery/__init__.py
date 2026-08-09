@@ -305,6 +305,14 @@ from .snmp_entity_candidates import (
     physical_candidate_data,
     physical_candidate_json,
 )
+from .network_identity_correlation import (
+    NetworkIdentityCorrelation,
+    NetworkIdentityCorrelationResult,
+    NetworkIdentityMatchBasis,
+    correlate_network_nodes_with_cip_identities,
+    network_identity_correlation_data,
+    network_identity_correlation_json,
+)
 from .topology import (
     RelationshipEvidenceClass,
     TopologyConfidence,
@@ -444,6 +452,9 @@ __all__ = [
     "RoutedSlotOutcome",
     "RoutedSlotResult",
     "RelationshipEvidenceClass",
+    "NetworkIdentityCorrelation",
+    "NetworkIdentityCorrelationResult",
+    "NetworkIdentityMatchBasis",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",
@@ -520,9 +531,12 @@ __all__ = [
     "cip_software_inventory_observation_data",
     "cip_software_inventory_observation_json",
     "correlate_topology",
+    "correlate_network_nodes_with_cip_identities",
     "correlate_physical_entities",
     "reconcile_configured_modules",
     "reconcile_routed_configured_modules",
+    "network_identity_correlation_data",
+    "network_identity_correlation_json",
     "reconcile_software_inventory",
     "configured_module_reconciliation_data",
     "configured_module_reconciliation_json",

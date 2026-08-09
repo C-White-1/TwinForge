@@ -106,7 +106,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [ ] Implement read-only SNMPv3 credentials and security-level configuration
 - [ ] Enforce OID allowlists, timeouts, request budgets, and rate limits
 - [x] Lower observed interfaces and neighbours into the network graph
-- [ ] Correlate SNMP neighbours and forwarding entries with CIP identities
+- [x] Correlate SNMP neighbours and forwarding entries with CIP identities
 
 Checksum-pinned, attributable conversion of explicitly declared unusual
 Net-SNMP walk files is documented in
@@ -114,6 +114,9 @@ Net-SNMP walk files is documented in
 Evidence-constrained lowering of reviewed neighbours and observed interfaces
 is documented in the
 [Accepted Network Graph](../architecture/accepted-network-graph.md).
+Explicit cross-protocol matching without automatic topology acceptance is
+documented in
+[Network and CIP Identity Correlation](../architecture/network-cip-identity-correlation.md).
 
 ## Phase 3: routed controller and chassis evidence
 
