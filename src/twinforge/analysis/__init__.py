@@ -6,6 +6,12 @@ from .aoi import (
     analyze_aoi_portability,
     extract_structured_text_calls,
 )
+from .alarm_candidates import (
+    AlarmTripCandidate,
+    AlarmTripCandidateKind,
+    AlarmTripCandidateReport,
+    build_alarm_trip_candidate_report,
+)
 from .behaviour import (
     BehaviourMatch,
     BehaviourParameterMapping,
@@ -105,6 +111,9 @@ __all__ = [
     "AOIPortability",
     "AOIPortabilityFinding",
     "AOIPortabilityReport",
+    "AlarmTripCandidate",
+    "AlarmTripCandidateKind",
+    "AlarmTripCandidateReport",
     "BehaviourMatch",
     "BehaviourParameterMapping",
     "CyclicIOContract",
@@ -159,6 +168,7 @@ __all__ = [
     "build_tag_dependency_graph",
     "build_device_diagnostic_report",
     "build_conversion_readiness_report",
+    "build_alarm_trip_candidate_report",
     "compare_codesys_visualizations",
     "inventory_opaque_visualization_properties",
     "build_device_functional_description",
