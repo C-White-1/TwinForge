@@ -7,10 +7,14 @@ from pathlib import Path
 from typing import TextIO
 
 from twinforge.analysis import (
+    alarm_trip_candidate_report_json,
+    build_alarm_trip_candidate_report,
     build_tag_dependency_graph,
     tag_dependency_graph_json,
 )
 from twinforge.exporters import (
+    AlarmTripCandidateCSVExporter,
+    AlarmTripCandidateMarkdownExporter,
     TagDependencyCSVExporter,
     TagDependencyMarkdownExporter,
     TextReportBundle,
@@ -41,6 +45,9 @@ def export_l5x_reports(
         controller = document.target
         files = dict(TextReportExporter().export(controller).files)
         dependency_graph = build_tag_dependency_graph(controller)
+        alarm_candidates = build_alarm_trip_candidate_report(
+            controller, dependency_graph
+        )
         files.update(
             {
                 "tag_dependencies.md": TagDependencyMarkdownExporter().export(
@@ -52,6 +59,20 @@ def export_l5x_reports(
                 ),
                 "tag_dependencies.json": tag_dependency_graph_json(
                     dependency_graph
+                ),
+                "alarm_trip_candidates.md": (
+                    AlarmTripCandidateMarkdownExporter().export(
+                        alarm_candidates,
+                        title=(
+                            f"{controller.name} alarm and trip candidate report"
+                        ),
+                    )
+                ),
+                "alarm_trip_candidates.csv": (
+                    AlarmTripCandidateCSVExporter().export(alarm_candidates)
+                ),
+                "alarm_trip_candidates.json": (
+                    alarm_trip_candidate_report_json(alarm_candidates)
                 ),
             }
         )

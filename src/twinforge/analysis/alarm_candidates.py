@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -37,6 +38,15 @@ class AlarmTripCandidate:
     reader_locations: tuple[str, ...]
     writer_locations: tuple[str, ...]
     alias_source_keys: tuple[str, ...]
+    priority: str | None = None
+    setpoint: str | None = None
+    engineering_unit: str | None = None
+    delay: str | None = None
+    latching: str | None = None
+    acknowledgement: str | None = None
+    suppression: str | None = None
+    shutdown_action: str | None = None
+    applicability: str | None = None
 
 
 @dataclass(frozen=True)
@@ -183,3 +193,27 @@ def _location(
     else:
         suffix = "location unavailable"
     return f"{program}.{routine}: {suffix}"
+
+
+def alarm_trip_candidate_report_data(
+    report: AlarmTripCandidateReport,
+) -> dict[str, object]:
+    """Return deterministic JSON-compatible candidate report data."""
+    return {
+        "controller_name": report.controller_name,
+        "candidates": [
+            {
+                **item.__dict__,
+                "tag_scope": item.tag_scope.value,
+                "kinds": [kind.value for kind in item.kinds],
+            }
+            for item in report.candidates
+        ],
+    }
+
+
+def alarm_trip_candidate_report_json(
+    report: AlarmTripCandidateReport,
+) -> str:
+    """Serialize an alarm/trip candidate report deterministically."""
+    return json.dumps(alarm_trip_candidate_report_data(report), indent=2) + "\n"

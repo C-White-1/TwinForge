@@ -10,6 +10,8 @@ from .alarm_candidates import (
     AlarmTripCandidate,
     AlarmTripCandidateKind,
     AlarmTripCandidateReport,
+    alarm_trip_candidate_report_data,
+    alarm_trip_candidate_report_json,
     build_alarm_trip_candidate_report,
 )
 from .behaviour import (
@@ -163,6 +165,8 @@ __all__ = [
     "analyze_rll_coverage",
     "analyze_structured_text",
     "analyze_structured_text_semantics",
+    "alarm_trip_candidate_report_data",
+    "alarm_trip_candidate_report_json",
     "assess_plcopen_behaviour",
     "build_parameter_setpoint_report",
     "build_tag_dependency_graph",

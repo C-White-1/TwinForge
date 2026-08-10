@@ -42,3 +42,11 @@ alarm and trip list still requires engineering review of priority, setpoint,
 units, delay, latching, acknowledgement, suppression, voting, shutdown action,
 and operating-state applicability. None of those properties are invented when
 the L5X evidence does not establish them.
+
+## Report formats
+
+The `twinforge report` bundle writes the candidate evidence as Markdown, CSV,
+and deterministic JSON. The review columns include priority, setpoint, units,
+delay, latching, acknowledgement, suppression, shutdown action, and
+applicability. Empty CSV values, JSON `null` values, and Markdown em dashes all
+mean that the source evidence did not establish the property.

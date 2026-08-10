@@ -120,8 +120,10 @@ own project-directory and `.ld` JSON representation.
 - [ ] Alarm and trip list
   - [x] Identify explicitly labelled alarm/trip tag candidates and join their
     reader, writer, alias, scope, and classification evidence
-  - [ ] Export and review a candidate list with alarm-philosophy fields kept
+  - [x] Export a candidate list with alarm-philosophy fields kept
     explicitly unknown when absent
+  - [ ] Review candidates and validate priorities, setpoints, and actions
+    against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix
 - [x] PowerFlex device functional-description draft
 - [x] Parameter, setpoint, and engineering-unit reports

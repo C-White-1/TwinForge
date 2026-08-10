@@ -34,8 +34,11 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "tag_dependencies.md",
         "tag_dependencies.csv",
         "tag_dependencies.json",
+        "alarm_trip_candidates.md",
+        "alarm_trip_candidates.csv",
+        "alarm_trip_candidates.json",
     }
-    assert "Exported 10 reports" in output.getvalue()
+    assert "Exported 13 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -46,6 +49,11 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         dependency_report
     )
     assert "## Unresolved references" in dependency_report
+    alarm_report = (destination / "alarm_trip_candidates.md").read_text(
+        encoding="utf-8"
+    )
+    assert "alarm and trip candidate report" in alarm_report
+    assert "not a verified alarm philosophy" in alarm_report
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:
