@@ -40,6 +40,12 @@ Unknown instructions and positional AOI parameters remain `unknown` until a
 definition or instruction specification establishes their flow. Unknown is a
 retained epistemic state, not an error or an assumed read.
 
+Alias declarations use the separate `alias` access value because they express
+a persistent symbol dependency rather than one runtime access. The graph
+retains the source alias tag key, resolved target tag and member path. If an
+alias points directly at module data or another absent symbol, its exact target
+and source alias key remain in unresolved evidence.
+
 ## Current boundary
 
 The deterministic JSON graph records program, routine, rung or line,
@@ -48,7 +54,7 @@ and access semantics. This is sufficient for instruction-level
 cross-reference reports and is a foundation for alarm, cause-and-effect, and
 functional-description generation.
 
-The broader roadmap item remains open. Alias-definition edges and dependencies
-expressed in other routine-body languages still require explicit extraction.
-Until those are implemented, this graph must not be described as a complete
-controller cross-reference database.
+The broader roadmap item remains open. Dependencies expressed in other
+routine-body languages still require explicit extraction. Until those are
+implemented, this graph must not be described as a complete controller
+cross-reference database.

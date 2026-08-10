@@ -42,6 +42,7 @@ class TagReferenceAccess(str, Enum):
     READ = "read"
     WRITE = "write"
     READ_WRITE = "read_write"
+    ALIAS = "alias"
     UNKNOWN = "unknown"
 
 
@@ -61,6 +62,7 @@ class TagReference:
     routine_name: str
     rung_number: int | None
     line_number: int | None
+    source_tag_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -75,6 +77,7 @@ class UnresolvedTagReference:
     routine_name: str
     rung_number: int | None
     line_number: int | None
+    source_tag_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -107,8 +110,24 @@ def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
     references: list[TagReference] = []
     unresolved: list[UnresolvedTagReference] = []
     controller_tags = _tag_lookup(controller.tags)
+    _collect_alias_definitions(
+        "<controller>",
+        controller.tags,
+        {},
+        controller_tags,
+        references,
+        unresolved,
+    )
     for program in controller.iter_programs():
         program_tags = _tag_lookup(program.tags)
+        _collect_alias_definitions(
+            program.name,
+            program.tags,
+            program_tags,
+            controller_tags,
+            references,
+            unresolved,
+        )
         for call in extract_program_calls(program):
             for argument in call.arguments:
                 access = _argument_access(call, argument.position, argument.direction)
@@ -150,6 +169,7 @@ def _collect_operand(
     controller_tags: dict[str, tuple[Tag, str]],
     references: list[TagReference],
     unresolved: list[UnresolvedTagReference],
+    source_tag_key: str | None = None,
 ) -> None:
     for identifier in _identifiers(operand):
         root, member_path = _root_and_member(identifier)
@@ -170,6 +190,7 @@ def _collect_operand(
                     scope,
                     member_path,
                     access,
+                    source_tag_key,
                 )
             )
             continue
@@ -183,7 +204,46 @@ def _collect_operand(
                 routine_name=call.routine_name,
                 rung_number=call.rung_number,
                 line_number=call.line_number,
+                source_tag_key=source_tag_key,
             )
+        )
+
+
+def _collect_alias_definitions(
+    program_name: str,
+    tags: dict[str, Tag],
+    program_tags: dict[str, tuple[Tag, str]],
+    controller_tags: dict[str, tuple[Tag, str]],
+    references: list[TagReference],
+    unresolved: list[UnresolvedTagReference],
+) -> None:
+    for name, tag in tags.items():
+        if not tag.alias_for:
+            continue
+        is_controller = program_name == "<controller>"
+        source_tag_key = (
+            f"controller:{name}"
+            if is_controller
+            else f"program:{program_name}:{name}"
+        )
+        call = SoftwareCallSite(
+            callee="ALIAS",
+            arguments=(),
+            program_name=program_name,
+            routine_name="<tag-definition>",
+            language=SoftwareCallLanguage.LADDER,
+            source_text=tag.alias_for,
+        )
+        _collect_operand(
+            call,
+            0,
+            tag.alias_for,
+            TagReferenceAccess.ALIAS,
+            program_tags,
+            controller_tags,
+            references,
+            unresolved,
+            source_tag_key,
         )
 
 
@@ -361,6 +421,7 @@ def _reference(
     scope: SoftwareTagScope,
     member_path: str | None,
     access: TagReferenceAccess,
+    source_tag_key: str | None = None,
 ) -> TagReference:
     prefix = "program" if scope is SoftwareTagScope.PROGRAM else "controller"
     owner = f"{call.program_name}:" if scope is SoftwareTagScope.PROGRAM else ""
@@ -377,6 +438,7 @@ def _reference(
         routine_name=call.routine_name,
         rung_number=call.rung_number,
         line_number=call.line_number,
+        source_tag_key=source_tag_key,
     )
 
 
@@ -388,6 +450,7 @@ def _reference_key(item: TagReference) -> tuple[Any, ...]:
         item.line_number if item.line_number is not None else -1,
         item.instruction,
         item.argument_position,
+        item.source_tag_key or "",
         item.tag_key,
         item.member_path or "",
     )
@@ -401,6 +464,7 @@ def _unresolved_key(item: UnresolvedTagReference) -> tuple[Any, ...]:
         item.line_number if item.line_number is not None else -1,
         item.instruction,
         item.argument_position,
+        item.source_tag_key or "",
         item.identifier,
     )
 

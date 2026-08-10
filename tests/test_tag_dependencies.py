@@ -18,6 +18,10 @@ def _controller() -> Controller:
     controller = Controller(name="PLC", identity=Identity())
     for name in ("Source", "Result", "Timer", "Array", "Index"):
         controller.add_tag(Tag(name=name))
+    controller.add_tag(Tag(name="ResultAlias", alias_for="Result.Value"))
+    controller.add_tag(
+        Tag(name="DirectOutputAlias", alias_for="Local:1:O.Data.1")
+    )
     program = Program("MainProgram")
     program.add_tag(Tag(name="Start"))
     ladder = Routine(name="Ladder", language="RLL")
@@ -134,3 +138,23 @@ def test_extracts_direct_st_assignments_conditions_and_array_indices() -> None:
         item.instruction == "ST_WHILE" and item.identifier == "Missing"
         for item in graph.unresolved_references
     )
+
+
+def test_preserves_resolved_and_unresolved_alias_definition_edges() -> None:
+    graph = build_tag_dependency_graph(_controller())
+
+    resolved = next(
+        item
+        for item in graph.references
+        if item.source_tag_key == "controller:ResultAlias"
+    )
+    assert resolved.tag_key == "controller:Result"
+    assert resolved.member_path == ".Value"
+    assert resolved.access is TagReferenceAccess.ALIAS
+    unresolved = next(
+        item
+        for item in graph.unresolved_references
+        if item.source_tag_key == "controller:DirectOutputAlias"
+    )
+    assert unresolved.identifier == "Local:1:O.Data.1"
+    assert unresolved.instruction == "ALIAS"

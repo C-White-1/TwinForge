@@ -62,7 +62,8 @@ That is a project-specific result, not universal Logix coverage.
   - [x] Resolve Ladder and Structured Text call operands with scope, member,
     access-direction, source-location, and unresolved-evidence retention
   - [x] Add direct Structured Text assignment and condition references
-  - [ ] Add alias-definition and additional routine-body dependency edges
+  - [x] Add alias-definition dependency edges
+  - [ ] Add dependency edges for additional routine-body languages
 - [ ] Physical channel and CIP assembly entities when supported by evidence
 
 ### PLCopen conversion
