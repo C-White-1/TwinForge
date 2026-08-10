@@ -59,6 +59,10 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] UDT and Add-On Instruction semantics
 - [ ] Additional task and routine-body forms
 - [ ] Explicit cross-reference and tag dependency graphs
+  - [x] Resolve Ladder and Structured Text call operands with scope, member,
+    access-direction, source-location, and unresolved-evidence retention
+  - [ ] Add direct Structured Text assignment and condition references
+  - [ ] Add alias-definition and additional routine-body dependency edges
 - [ ] Physical channel and CIP assembly entities when supported by evidence
 
 ### PLCopen conversion

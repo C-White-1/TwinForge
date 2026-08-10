@@ -76,6 +76,15 @@ from .structured_text_semantics import (
     analyze_structured_text_semantics,
 )
 from .software_calls import extract_program_calls
+from .tag_dependencies import (
+    TagDependencyGraph,
+    TagReference,
+    TagReferenceAccess,
+    UnresolvedTagReference,
+    build_tag_dependency_graph,
+    tag_dependency_graph_data,
+    tag_dependency_graph_json,
+)
 from .literal_assignments import (
     LiteralAssignmentEvidence,
     extract_literal_assignments,
@@ -134,6 +143,10 @@ __all__ = [
     "StructuredTextRoutineFinding",
     "StructuredTextSemanticFinding",
     "StructuredTextSemanticReport",
+    "TagDependencyGraph",
+    "TagReference",
+    "TagReferenceAccess",
+    "UnresolvedTagReference",
     "RLLCoverageReport",
     "RungCoverageIssue",
     "analyze_aoi_portability",
@@ -143,6 +156,7 @@ __all__ = [
     "analyze_structured_text_semantics",
     "assess_plcopen_behaviour",
     "build_parameter_setpoint_report",
+    "build_tag_dependency_graph",
     "build_device_diagnostic_report",
     "build_conversion_readiness_report",
     "compare_codesys_visualizations",
@@ -155,5 +169,7 @@ __all__ = [
     "extract_parameter_literal_write_bindings",
     "extract_parameter_setpoint_bindings",
     "extract_literal_assignments",
+    "tag_dependency_graph_data",
+    "tag_dependency_graph_json",
     "LiteralAssignmentEvidence",
 ]
