@@ -272,6 +272,13 @@ from .snmp_conversion import (
     snmp_walk_conversion_plan_data,
     snmp_walk_conversion_plan_json,
 )
+from .snmp_pysnmp import (
+    LoopbackSnmpPolicy,
+    PySnmpLoopbackDiscoveryProvider,
+    PySnmpV3LoopbackDiscoveryProvider,
+    SnmpV3Credentials,
+    SnmpV3SecurityLevel,
+)
 from .snmprec import (
     SnmprecDiscoveryProvider,
     SnmprecRecording,
@@ -455,6 +462,9 @@ __all__ = [
     "NetworkIdentityCorrelation",
     "NetworkIdentityCorrelationResult",
     "NetworkIdentityMatchBasis",
+    "LoopbackSnmpPolicy",
+    "PySnmpLoopbackDiscoveryProvider",
+    "PySnmpV3LoopbackDiscoveryProvider",
     "STATE_SCHEMA_VERSION",
     "SnmpDiscoveryProvider",
     "SnmpCorpusEntry",
@@ -474,6 +484,8 @@ __all__ = [
     "SnmpNetworkAddressObservation",
     "SnmpNodeObservation",
     "SnmpPhysicalEntityObservation",
+    "SnmpV3Credentials",
+    "SnmpV3SecurityLevel",
     "SnmpWalkConversionPlan",
     "SnmpPhysicalAssetCandidate",
     "SnmpPhysicalCandidateIssue",

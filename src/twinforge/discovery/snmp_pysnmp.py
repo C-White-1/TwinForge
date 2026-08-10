@@ -6,6 +6,7 @@ import asyncio
 import ipaddress
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pysnmp.hlapi.v3arch.asyncio import (
@@ -18,6 +19,8 @@ from pysnmp.hlapi.v3arch.asyncio import (
     UsmUserData,
     usmAesCfb128Protocol,
     usmHMAC192SHA256AuthProtocol,
+    usmNoAuthProtocol,
+    usmNoPrivProtocol,
     walk_cmd,
 )
 
@@ -75,24 +78,55 @@ class LoopbackSnmpPolicy:
             )
 
 
+class SnmpV3SecurityLevel(str, Enum):
+    """Supported SNMPv3 USM security levels."""
+
+    NO_AUTH_NO_PRIV = "noAuthNoPriv"
+    AUTH_NO_PRIV = "authNoPriv"
+    AUTH_PRIV = "authPriv"
+
+
 @dataclass(frozen=True)
 class SnmpV3Credentials:
-    """SNMPv3 USM credentials kept outside discovery evidence."""
+    """Read-only SNMPv3 USM configuration kept outside discovery evidence."""
 
     username: str
-    authentication_key: str = field(repr=False)
-    privacy_key: str = field(repr=False)
+    authentication_key: str | None = field(default=None, repr=False)
+    privacy_key: str | None = field(default=None, repr=False)
     context_name: str = "twinforge-switch"
+    security_level: SnmpV3SecurityLevel = SnmpV3SecurityLevel.AUTH_PRIV
 
     def __post_init__(self) -> None:
         if not self.username:
             raise ValueError("username must not be empty")
-        if len(self.authentication_key) < 8:
-            raise ValueError("authentication_key must contain at least 8 characters")
-        if len(self.privacy_key) < 8:
-            raise ValueError("privacy_key must contain at least 8 characters")
         if not self.context_name:
             raise ValueError("context_name must not be empty")
+        requires_authentication = self.security_level is not (
+            SnmpV3SecurityLevel.NO_AUTH_NO_PRIV
+        )
+        requires_privacy = self.security_level is SnmpV3SecurityLevel.AUTH_PRIV
+        if requires_authentication and (
+            self.authentication_key is None
+            or len(self.authentication_key) < 8
+        ):
+            raise ValueError(
+                "authentication_key must contain at least 8 characters "
+                f"for {self.security_level.value}"
+            )
+        if requires_privacy and (
+            self.privacy_key is None or len(self.privacy_key) < 8
+        ):
+            raise ValueError(
+                "privacy_key must contain at least 8 characters for authPriv"
+            )
+        if not requires_authentication and self.authentication_key is not None:
+            raise ValueError(
+                "authentication_key is not applicable to noAuthNoPriv"
+            )
+        if not requires_privacy and self.privacy_key is not None:
+            raise ValueError(
+                f"privacy_key is not applicable to {self.security_level.value}"
+            )
 
 
 def _value(record: Any) -> SnmprecValue:
@@ -197,13 +231,7 @@ class PySnmpV3LoopbackDiscoveryProvider:
     ) -> SnmpNodeObservation:
         """Perform a bounded SNMPv3 capture from the local responder."""
         self._policy.validate_target(target)
-        authentication = UsmUserData(
-            self._credentials.username,
-            self._credentials.authentication_key,
-            self._credentials.privacy_key,
-            authProtocol=usmHMAC192SHA256AuthProtocol,
-            privProtocol=usmAesCfb128Protocol,
-        )
+        authentication = _v3_authentication(self._credentials)
         try:
             records = asyncio.run(
                 _read_records(
@@ -223,6 +251,32 @@ class PySnmpV3LoopbackDiscoveryProvider:
                 f"SNMPv3 capture failed for {target.key}: {error}",
             ) from error
         return build_snmp_node(target, captured_at, records)
+
+
+def _v3_authentication(credentials: SnmpV3Credentials) -> UsmUserData:
+    """Build PySNMP USM data from a validated explicit security level."""
+    if credentials.security_level is SnmpV3SecurityLevel.NO_AUTH_NO_PRIV:
+        return UsmUserData(
+            credentials.username,
+            authProtocol=usmNoAuthProtocol,
+            privProtocol=usmNoPrivProtocol,
+        )
+    assert credentials.authentication_key is not None
+    if credentials.security_level is SnmpV3SecurityLevel.AUTH_NO_PRIV:
+        return UsmUserData(
+            credentials.username,
+            credentials.authentication_key,
+            authProtocol=usmHMAC192SHA256AuthProtocol,
+            privProtocol=usmNoPrivProtocol,
+        )
+    assert credentials.privacy_key is not None
+    return UsmUserData(
+        credentials.username,
+        credentials.authentication_key,
+        credentials.privacy_key,
+        authProtocol=usmHMAC192SHA256AuthProtocol,
+        privProtocol=usmAesCfb128Protocol,
+    )
 
 
 async def _read_records(

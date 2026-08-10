@@ -5,6 +5,7 @@ from twinforge.discovery.snmp_pysnmp import (
     LoopbackSnmpPolicy,
     PySnmpLoopbackDiscoveryProvider,
     SnmpV3Credentials,
+    SnmpV3SecurityLevel,
 )
 
 
@@ -51,4 +52,29 @@ def test_snmp_v3_credentials_require_protocol_length_keys() -> None:
             username="twinforge-local",
             authentication_key="short",
             privacy_key="secret-privacy-key",
+        )
+
+
+def test_snmp_v3_auth_no_priv_requires_only_authentication_key() -> None:
+    credentials = SnmpV3Credentials(
+        username="twinforge-local",
+        authentication_key="secret-auth-key",
+        security_level=SnmpV3SecurityLevel.AUTH_NO_PRIV,
+    )
+
+    assert credentials.privacy_key is None
+
+
+def test_snmp_v3_no_auth_no_priv_rejects_inapplicable_keys() -> None:
+    credentials = SnmpV3Credentials(
+        username="twinforge-local",
+        security_level=SnmpV3SecurityLevel.NO_AUTH_NO_PRIV,
+    )
+    assert credentials.authentication_key is None
+
+    with pytest.raises(ValueError, match="not applicable"):
+        SnmpV3Credentials(
+            username="twinforge-local",
+            privacy_key="secret-privacy-key",
+            security_level=SnmpV3SecurityLevel.NO_AUTH_NO_PRIV,
         )
