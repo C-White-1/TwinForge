@@ -33,6 +33,7 @@ _STANDARD_FAMILIES: tuple[tuple[str, str, bool], ...] = (
     # ENTITY-MIB version 4 is specified by RFC 6933 (mib-2.47).
     ("1.3.6.1.2.1.47", "entity-mib", True),
     ("1.3.6.1.2.1.55", "ipv6-mib-historic", False),
+    ("1.3.6.1.2.1.191", "ospfv3-mib", False),
 )
 
 

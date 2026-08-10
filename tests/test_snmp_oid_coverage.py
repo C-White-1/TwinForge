@@ -14,6 +14,7 @@ def test_classifies_standard_enterprise_and_unknown_oid_families():
     assert classify_snmp_oid("1.3.6.1.2.1.99.1").key == "mib-2.99"
     assert classify_snmp_oid("1.3.6.1.2.1.16.1").key == "rmon-mib"
     assert classify_snmp_oid("1.3.6.1.2.1.14.1").key == "ospf-mib"
+    assert classify_snmp_oid("1.3.6.1.2.1.191.1").key == "ospfv3-mib"
     assert classify_snmp_oid("2.999.1").key == "other"
 
 

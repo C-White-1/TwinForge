@@ -102,7 +102,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Implement a transactional multi-writer promotion-repository adapter
 - [x] Add approved chassis and module topology-promotion mappings
 - [x] Evaluate RMON statistics as a separate observation profile
-- [ ] Evaluate OSPF evidence only in the routed-topology phase
+- [x] Evaluate OSPF evidence only in the routed-topology phase
 - [x] Implement read-only SNMPv3 credentials and security-level configuration
 - [x] Enforce OID allowlists, timeouts, request budgets, and rate limits
 - [x] Lower observed interfaces and neighbours into the network graph
@@ -126,6 +126,8 @@ pacing are documented in the
 The opt-in, evidence-only treatment of Ethernet monitoring counters is
 documented in the
 [RMON Observation Profile](../architecture/rmon-observation-profile.md).
+The opt-in OSPFv2 and OSPFv3 evidence boundary is documented in
+[OSPF Routed-Topology Profiles](../architecture/ospf-routed-topology-profile.md).
 
 ## Phase 3: routed controller and chassis evidence
 

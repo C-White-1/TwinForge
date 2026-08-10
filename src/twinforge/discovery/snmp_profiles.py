@@ -41,7 +41,41 @@ RMON_ETHERNET_STATISTICS_PROFILE = SnmpObservationProfile(
     ),
 )
 
+OSPF_V2_ROUTED_TOPOLOGY_PROFILE = SnmpObservationProfile(
+    key="ospfv2-routed-topology",
+    name="OSPFv2 routed-topology evidence",
+    oid_roots=("1.3.6.1.2.1.14",),
+    enabled_by_default=False,
+    status=SnmpObservationProfileStatus.EVIDENCE_ONLY,
+    semantics="OSPFv2 process, area, interface, neighbour, and route evidence",
+    limitations=(
+        "routing adjacency does not imply a direct physical connection",
+        "the MIB exposes operationally sensitive topology information",
+        "TwinForge never changes OSPF configuration objects",
+        "semantic lowering is deferred to the routed-topology phase",
+    ),
+)
+
+OSPF_V3_ROUTED_TOPOLOGY_PROFILE = SnmpObservationProfile(
+    key="ospfv3-routed-topology",
+    name="OSPFv3 routed-topology evidence",
+    oid_roots=("1.3.6.1.2.1.191.1",),
+    enabled_by_default=False,
+    status=SnmpObservationProfileStatus.EVIDENCE_ONLY,
+    semantics="OSPFv3 process, area, interface, neighbour, and route evidence",
+    limitations=OSPF_V2_ROUTED_TOPOLOGY_PROFILE.limitations,
+)
+
 
 def optional_snmp_observation_profiles() -> tuple[SnmpObservationProfile, ...]:
     """Return optional profiles in deterministic key order."""
-    return (RMON_ETHERNET_STATISTICS_PROFILE,)
+    return tuple(
+        sorted(
+            (
+                OSPF_V2_ROUTED_TOPOLOGY_PROFILE,
+                OSPF_V3_ROUTED_TOPOLOGY_PROFILE,
+                RMON_ETHERNET_STATISTICS_PROFILE,
+            ),
+            key=lambda item: item.key,
+        )
+    )

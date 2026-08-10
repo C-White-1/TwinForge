@@ -1,4 +1,6 @@
 from twinforge.discovery import (
+    OSPF_V2_ROUTED_TOPOLOGY_PROFILE,
+    OSPF_V3_ROUTED_TOPOLOGY_PROFILE,
     RMON_ETHERNET_STATISTICS_PROFILE,
     SnmpObservationProfileStatus,
     optional_snmp_observation_profiles,
@@ -21,3 +23,14 @@ def test_optional_profiles_are_deterministic() -> None:
     assert tuple(item.key for item in profiles) == tuple(
         sorted(item.key for item in profiles)
     )
+
+
+def test_ospf_profiles_are_opt_in_routed_evidence_only() -> None:
+    for profile in (
+        OSPF_V2_ROUTED_TOPOLOGY_PROFILE,
+        OSPF_V3_ROUTED_TOPOLOGY_PROFILE,
+    ):
+        assert not profile.enabled_by_default
+        assert profile.status is SnmpObservationProfileStatus.EVIDENCE_ONLY
+        assert "routed-topology phase" in profile.limitations[-1]
+        assert all(root not in DEFAULT_OID_ROOTS for root in profile.oid_roots)

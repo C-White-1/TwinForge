@@ -280,6 +280,8 @@ from .snmp_pysnmp import (
     SnmpV3SecurityLevel,
 )
 from .snmp_profiles import (
+    OSPF_V2_ROUTED_TOPOLOGY_PROFILE,
+    OSPF_V3_ROUTED_TOPOLOGY_PROFILE,
     RMON_ETHERNET_STATISTICS_PROFILE,
     SnmpObservationProfile,
     SnmpObservationProfileStatus,
@@ -469,6 +471,8 @@ __all__ = [
     "NetworkIdentityCorrelation",
     "NetworkIdentityCorrelationResult",
     "NetworkIdentityMatchBasis",
+    "OSPF_V2_ROUTED_TOPOLOGY_PROFILE",
+    "OSPF_V3_ROUTED_TOPOLOGY_PROFILE",
     "LoopbackSnmpPolicy",
     "PySnmpLoopbackDiscoveryProvider",
     "PySnmpV3LoopbackDiscoveryProvider",
