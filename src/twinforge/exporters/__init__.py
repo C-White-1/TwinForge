@@ -89,6 +89,10 @@ from .parameter_report import (
     ParameterReportCSVExporter,
     ParameterReportMarkdownExporter,
 )
+from .tag_dependency_report import (
+    TagDependencyCSVExporter,
+    TagDependencyMarkdownExporter,
+)
 from twinforge.targets.codesys.powerflex525 import (
     PowerFlex525CodesysDevice,
     powerflex525_codesys_application_integration,
@@ -165,4 +169,6 @@ __all__ = [
     "validate_plcopen_xml",
     "TextReportBundle",
     "TextReportExporter",
+    "TagDependencyCSVExporter",
+    "TagDependencyMarkdownExporter",
 ]

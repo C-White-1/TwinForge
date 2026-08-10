@@ -124,7 +124,7 @@ own project-directory and `.ld` JSON representation.
 - [x] PowerFlex cyclic-I/O, diagnostic, and conversion-readiness reports
 - [ ] General controller-level functional-description generation
 - [ ] Module and spare-I/O schedule
-- [ ] Signal and program dependency reports
+- [x] Signal and program dependency reports
 
 ### Architecture maintenance
 

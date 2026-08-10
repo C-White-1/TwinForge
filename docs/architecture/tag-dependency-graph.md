@@ -54,6 +54,13 @@ and access semantics. This is sufficient for instruction-level
 cross-reference reports and is a foundation for alarm, cause-and-effect, and
 functional-description generation.
 
+`TagDependencyMarkdownExporter` provides a review-oriented engineering report
+with access counts, resolved references, alias sources, program/routine
+locations, and a separate unresolved-evidence table.
+`TagDependencyCSVExporter` emits one complete row per resolved or unresolved
+reference for filtering, spreadsheet review, and downstream tooling. Neither
+exporter removes unknown-flow or unresolved evidence.
+
 The broader roadmap item remains open. Dependencies expressed in other
 routine-body languages still require explicit extraction. Until those are
 implemented, this graph must not be described as a complete controller
