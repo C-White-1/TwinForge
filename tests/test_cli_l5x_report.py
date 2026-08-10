@@ -31,11 +31,21 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "modules.txt",
         "tasks.txt",
         "programs.txt",
+        "tag_dependencies.md",
+        "tag_dependencies.csv",
+        "tag_dependencies.json",
     }
-    assert "Exported 7 reports" in output.getvalue()
+    assert "Exported 10 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
+    dependency_report = (destination / "tag_dependencies.md").read_text(
+        encoding="utf-8"
+    )
+    assert "booster_compressor tag and program dependency report" in (
+        dependency_report
+    )
+    assert "## Unresolved references" in dependency_report
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:

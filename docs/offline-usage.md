@@ -181,6 +181,10 @@ Generate the supported controller engineering report bundle with:
 uv run twinforge report project.L5X --output reports\project
 ```
 
+The bundle includes review-oriented Markdown, complete CSV, and deterministic
+JSON tag-dependency reports. Unresolved operands remain visible and should be
+reviewed rather than treated as missing logic.
+
 ## Check export readiness
 
 Use `--dry-run` before writing an output. It performs parsing, target planning,
