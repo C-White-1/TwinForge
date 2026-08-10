@@ -25,6 +25,26 @@ def test_loopback_policy_rejects_non_loopback_or_hostname(address: str) -> None:
 def test_loopback_policy_validates_request_limits() -> None:
     with pytest.raises(ValueError, match="max_varbinds must be positive"):
         LoopbackSnmpPolicy(max_varbinds=0)
+    with pytest.raises(ValueError, match="max_responses must be positive"):
+        LoopbackSnmpPolicy(max_responses=0)
+    with pytest.raises(ValueError, match="must be positive"):
+        LoopbackSnmpPolicy(response_interval_seconds=0)
+
+
+@pytest.mark.parametrize(
+    "oid_roots",
+    [
+        ("1.3.6.1", "1.3.6.1"),
+        ("iso.org.dod",),
+        (".1.3.6",),
+        ("1.03.6",),
+    ],
+)
+def test_loopback_policy_requires_unique_canonical_numeric_oid_roots(
+    oid_roots: tuple[str, ...],
+) -> None:
+    with pytest.raises(ValueError, match="OID root|OID roots"):
+        LoopbackSnmpPolicy(oid_roots=oid_roots)
 
 
 def test_loopback_provider_rejects_empty_community() -> None:

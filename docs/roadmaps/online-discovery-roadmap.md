@@ -104,7 +104,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [ ] Evaluate RMON statistics as a separate observation profile
 - [ ] Evaluate OSPF evidence only in the routed-topology phase
 - [x] Implement read-only SNMPv3 credentials and security-level configuration
-- [ ] Enforce OID allowlists, timeouts, request budgets, and rate limits
+- [x] Enforce OID allowlists, timeouts, request budgets, and rate limits
 - [x] Lower observed interfaces and neighbours into the network graph
 - [x] Correlate SNMP neighbours and forwarding entries with CIP identities
 
@@ -120,6 +120,9 @@ documented in
 The explicit USM security levels and agent-side read-only requirement are
 documented in
 [SNMPv3 Read-Only Security](../architecture/snmpv3-read-only-security.md).
+Validated OID roots, independent capture budgets, and mandatory request
+pacing are documented in the
+[SNMP Request Safety Policy](../architecture/snmp-request-safety-policy.md).
 
 ## Phase 3: routed controller and chassis evidence
 

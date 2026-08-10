@@ -48,6 +48,8 @@ class LoopbackSnmpPolicy:
     timeout_seconds: float = 1.0
     retries: int = 0
     max_varbinds: int = 512
+    max_responses: int = 128
+    response_interval_seconds: float = 0.01
     oid_roots: tuple[str, ...] = DEFAULT_OID_ROOTS
 
     def __post_init__(self) -> None:
@@ -59,8 +61,19 @@ class LoopbackSnmpPolicy:
             raise ValueError("retries must not be negative")
         if self.max_varbinds < 1:
             raise ValueError("max_varbinds must be positive")
+        if self.max_responses < 1:
+            raise ValueError("max_responses must be positive")
+        if self.response_interval_seconds <= 0:
+            raise ValueError("response_interval_seconds must be positive")
         if not self.oid_roots:
             raise ValueError("at least one OID root is required")
+        if len(self.oid_roots) != len(set(self.oid_roots)):
+            raise ValueError("OID roots must be unique")
+        for root in self.oid_roots:
+            if not _is_numeric_oid(root):
+                raise ValueError(
+                    f"OID root must be a dotted numeric identifier: {root!r}"
+                )
 
     def validate_target(self, target: DiscoveryTarget) -> None:
         """Reject anything except a literal loopback IP address."""
@@ -76,6 +89,16 @@ class LoopbackSnmpPolicy:
                 "snmp_target_not_loopback",
                 "the loopback SNMP adapter refuses non-loopback targets",
             )
+
+
+def _is_numeric_oid(value: str) -> bool:
+    """Return whether a value is a canonical dotted numeric OID."""
+    parts = value.split(".")
+    return (
+        len(parts) >= 2
+        and all(part.isascii() and part.isdigit() for part in parts)
+        and all(str(int(part)) == part for part in parts)
+    )
 
 
 class SnmpV3SecurityLevel(str, Enum):
@@ -288,6 +311,7 @@ async def _read_records(
     """Walk allowlisted roots within the shared request budget."""
     engine = SnmpEngine()
     records: dict[str, SnmprecValue] = {}
+    responses = 0
     try:
         transport = await UdpTransportTarget.create(
             (target.address, policy.port),
@@ -311,6 +335,12 @@ async def _read_records(
                 lookupMib=False,
                 maxRows=remaining,
             ):
+                responses += 1
+                if responses > policy.max_responses:
+                    raise DiscoveryProviderError(
+                        "snmp_response_budget_exhausted",
+                        "SNMP response budget was exhausted",
+                    )
                 if error_indication:
                     raise DiscoveryProviderError(
                         "snmp_transport_error",
@@ -329,6 +359,7 @@ async def _read_records(
                             "snmp_request_budget_exhausted",
                             "SNMP varbind budget was exhausted",
                         )
+                await asyncio.sleep(policy.response_interval_seconds)
     finally:
         engine.close_dispatcher()
     return records
