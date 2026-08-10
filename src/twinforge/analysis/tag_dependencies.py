@@ -8,7 +8,30 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from twinforge.model import Controller, SoftwareCallSite, SoftwareTagScope, Tag
+from twinforge.model import (
+    Controller,
+    Program,
+    Routine,
+    SoftwareCallLanguage,
+    SoftwareCallSite,
+    SoftwareTagScope,
+    Tag,
+)
+from twinforge.structured_text import (
+    AssignmentStatement,
+    BinaryExpression,
+    CallExpression,
+    Expression,
+    IfStatement,
+    IndexExpression,
+    MemberExpression,
+    NameExpression,
+    ParenthesizedExpression,
+    Statement,
+    UnaryExpression,
+    WhileStatement,
+    parse_structured_text,
+)
 
 from .software_calls import extract_program_calls
 
@@ -89,52 +112,25 @@ def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
         for call in extract_program_calls(program):
             for argument in call.arguments:
                 access = _argument_access(call, argument.position, argument.direction)
-                for identifier in _identifiers(argument.source):
-                    root, member_path = _root_and_member(identifier)
-                    resolved = program_tags.get(root.casefold())
-                    if resolved is not None:
-                        tag, canonical_name = resolved
-                        references.append(
-                            _reference(
-                                call,
-                                argument.position,
-                                argument.source,
-                                tag,
-                                canonical_name,
-                                SoftwareTagScope.PROGRAM,
-                                member_path,
-                                access,
-                            )
-                        )
-                        continue
-                    resolved = controller_tags.get(root.casefold())
-                    if resolved is not None:
-                        tag, canonical_name = resolved
-                        references.append(
-                            _reference(
-                                call,
-                                argument.position,
-                                argument.source,
-                                tag,
-                                canonical_name,
-                                SoftwareTagScope.CONTROLLER,
-                                member_path,
-                                access,
-                            )
-                        )
-                        continue
-                    unresolved.append(
-                        UnresolvedTagReference(
-                            identifier=identifier,
-                            instruction=call.callee,
-                            argument_position=argument.position,
-                            operand=argument.source,
-                            program_name=call.program_name,
-                            routine_name=call.routine_name,
-                            rung_number=call.rung_number,
-                            line_number=call.line_number,
-                        )
-                    )
+                _collect_operand(
+                    call,
+                    argument.position,
+                    argument.source,
+                    access,
+                    program_tags,
+                    controller_tags,
+                    references,
+                    unresolved,
+                )
+        for routine in program.iter_routines():
+            _collect_structured_text_direct_references(
+                program,
+                routine,
+                program_tags,
+                controller_tags,
+                references,
+                unresolved,
+            )
     return TagDependencyGraph(
         references=tuple(sorted(references, key=_reference_key)),
         unresolved_references=tuple(sorted(unresolved, key=_unresolved_key)),
@@ -145,12 +141,184 @@ def _tag_lookup(tags: dict[str, Tag]) -> dict[str, tuple[Tag, str]]:
     return {name.casefold(): (tag, name) for name, tag in tags.items()}
 
 
+def _collect_operand(
+    call: SoftwareCallSite,
+    position: int,
+    operand: str,
+    access: TagReferenceAccess,
+    program_tags: dict[str, tuple[Tag, str]],
+    controller_tags: dict[str, tuple[Tag, str]],
+    references: list[TagReference],
+    unresolved: list[UnresolvedTagReference],
+) -> None:
+    for identifier in _identifiers(operand):
+        root, member_path = _root_and_member(identifier)
+        resolved = program_tags.get(root.casefold())
+        scope = SoftwareTagScope.PROGRAM
+        if resolved is None:
+            resolved = controller_tags.get(root.casefold())
+            scope = SoftwareTagScope.CONTROLLER
+        if resolved is not None:
+            tag, canonical_name = resolved
+            references.append(
+                _reference(
+                    call,
+                    position,
+                    operand,
+                    tag,
+                    canonical_name,
+                    scope,
+                    member_path,
+                    access,
+                )
+            )
+            continue
+        unresolved.append(
+            UnresolvedTagReference(
+                identifier=identifier,
+                instruction=call.callee,
+                argument_position=position,
+                operand=operand,
+                program_name=call.program_name,
+                routine_name=call.routine_name,
+                rung_number=call.rung_number,
+                line_number=call.line_number,
+            )
+        )
+
+
 def _identifiers(operand: str) -> tuple[str, ...]:
     return tuple(
         match.group()
         for match in _IDENTIFIER.finditer(operand)
         if match.group().casefold() not in _IGNORED_IDENTIFIERS
     )
+
+
+def _collect_structured_text_direct_references(
+    program: Program,
+    routine: Routine,
+    program_tags: dict[str, tuple[Tag, str]],
+    controller_tags: dict[str, tuple[Tag, str]],
+    references: list[TagReference],
+    unresolved: list[UnresolvedTagReference],
+) -> None:
+    source = routine.structured_text
+    if not source:
+        return
+    document = parse_structured_text(source)
+
+    def collect_expression(
+        expression: Expression,
+        access: TagReferenceAccess,
+        instruction: str,
+        position: int,
+    ) -> None:
+        for operand in _direct_expression_operands(expression, source):
+            call = SoftwareCallSite(
+                callee=instruction,
+                arguments=(),
+                program_name=program.name,
+                routine_name=routine.name,
+                language=SoftwareCallLanguage.STRUCTURED_TEXT,
+                source_text=source[expression.span.start : expression.span.end],
+                line_number=_captured_line_number(routine, source, expression),
+            )
+            _collect_operand(
+                call,
+                position,
+                operand,
+                access,
+                program_tags,
+                controller_tags,
+                references,
+                unresolved,
+            )
+
+    def collect_statements(statements: tuple[Statement, ...]) -> None:
+        for statement in statements:
+            if isinstance(statement, AssignmentStatement):
+                collect_expression(
+                    statement.target,
+                    TagReferenceAccess.WRITE,
+                    "ST_ASSIGN",
+                    0,
+                )
+                collect_expression(
+                    statement.value,
+                    TagReferenceAccess.READ,
+                    "ST_ASSIGN",
+                    1,
+                )
+            elif isinstance(statement, IfStatement):
+                for branch in statement.branches:
+                    collect_expression(
+                        branch.condition,
+                        TagReferenceAccess.READ,
+                        "ST_IF",
+                        0,
+                    )
+                    collect_statements(branch.statements)
+                collect_statements(statement.else_statements)
+            elif isinstance(statement, WhileStatement):
+                collect_expression(
+                    statement.condition,
+                    TagReferenceAccess.READ,
+                    "ST_WHILE",
+                    0,
+                )
+                collect_statements(statement.statements)
+
+    collect_statements(document.statements)
+
+
+def _direct_expression_operands(
+    expression: Expression,
+    source: str,
+) -> tuple[str, ...]:
+    if isinstance(expression, NameExpression | MemberExpression):
+        operands = [source[expression.span.start : expression.span.end]]
+        if isinstance(expression, MemberExpression) and isinstance(
+            expression.target, IndexExpression
+        ):
+            operands.extend(
+                item
+                for index in expression.target.indices
+                for item in _direct_expression_operands(index, source)
+            )
+        return tuple(operands)
+    if isinstance(expression, IndexExpression):
+        return (
+            source[expression.span.start : expression.span.end],
+            *(
+                item
+                for index in expression.indices
+                for item in _direct_expression_operands(index, source)
+            ),
+        )
+    if isinstance(expression, UnaryExpression):
+        return _direct_expression_operands(expression.operand, source)
+    if isinstance(expression, BinaryExpression):
+        return (
+            *_direct_expression_operands(expression.left, source),
+            *_direct_expression_operands(expression.right, source),
+        )
+    if isinstance(expression, ParenthesizedExpression):
+        return _direct_expression_operands(expression.expression, source)
+    if isinstance(expression, CallExpression):
+        return ()
+    return ()
+
+
+def _captured_line_number(
+    routine: Routine,
+    source: str,
+    expression: Expression,
+) -> int | None:
+    physical_line = source.count("\n", 0, expression.span.start)
+    if physical_line >= len(routine.structured_text_lines):
+        return None
+    return routine.structured_text_lines[physical_line].number
 
 
 def _root_and_member(identifier: str) -> tuple[str, str | None]:

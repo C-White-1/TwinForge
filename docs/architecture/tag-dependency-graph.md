@@ -29,6 +29,13 @@ Instruction rules classify supported occurrences as `read`, `write`, or
 counters, resets, one-shots, moves, and arithmetic operations. Structured
 Text named call arguments use `:=` as input/read and `=>` as output/write.
 
+Direct Structured Text assignments classify the target as a write and the
+value as a read. References in `IF`, `ELSIF`, and `WHILE` conditions are reads.
+Nested statement bodies, member selections, and array-index expressions are
+walked from the lossless syntax tree. Calls embedded in those expressions are
+left to the call-operand extractor so that their references appear once with
+the most specific available direction evidence.
+
 Unknown instructions and positional AOI parameters remain `unknown` until a
 definition or instruction specification establishes their flow. Unknown is a
 retained epistemic state, not an error or an assumed read.
@@ -41,8 +48,7 @@ and access semantics. This is sufficient for instruction-level
 cross-reference reports and is a foundation for alarm, cause-and-effect, and
 functional-description generation.
 
-The broader roadmap item remains open. Direct Structured Text assignment and
-condition references, alias-definition edges, and dependencies expressed in
-other routine-body languages still require explicit extraction. Until those
-are implemented, this graph must not be described as a complete controller
-cross-reference database.
+The broader roadmap item remains open. Alias-definition edges and dependencies
+expressed in other routine-body languages still require explicit extraction.
+Until those are implemented, this graph must not be described as a complete
+controller cross-reference database.

@@ -16,7 +16,7 @@ from twinforge.model import (
 
 def _controller() -> Controller:
     controller = Controller(name="PLC", identity=Identity())
-    for name in ("Source", "Result", "Timer"):
+    for name in ("Source", "Result", "Timer", "Array", "Index"):
         controller.add_tag(Tag(name=name))
     program = Program("MainProgram")
     program.add_tag(Tag(name="Start"))
@@ -36,7 +36,14 @@ def _controller() -> Controller:
         StructuredTextLine(
             number=10,
             text="Drive(Enable := Start, Done => Result);",
-        )
+        ),
+        StructuredTextLine(number=11, text="Result := Source;"),
+        StructuredTextLine(number=12, text="IF Start AND Timer.DN THEN"),
+        StructuredTextLine(number=13, text="Result := Array[Index];"),
+        StructuredTextLine(number=14, text="END_IF;"),
+        StructuredTextLine(number=15, text="WHILE Missing DO"),
+        StructuredTextLine(number=16, text="Source := Result;"),
+        StructuredTextLine(number=17, text="END_WHILE;"),
     ]
     program.add_routine(ladder)
     program.add_routine(structured)
@@ -90,3 +97,40 @@ def test_preserves_unresolved_direct_io_operand_and_serializes_deterministically
     assert "Local:1:O.Data.0" in unresolved
     assert tag_dependency_graph_json(first) == tag_dependency_graph_json(second)
     assert '"access": "write"' in tag_dependency_graph_json(first)
+
+
+def test_extracts_direct_st_assignments_conditions_and_array_indices() -> None:
+    graph = build_tag_dependency_graph(_controller())
+
+    references = {
+        (item.instruction, item.tag_key, item.member_path, item.access)
+        for item in graph.references
+    }
+    assert (
+        "ST_ASSIGN",
+        "controller:Result",
+        None,
+        TagReferenceAccess.WRITE,
+    ) in references
+    assert (
+        "ST_IF",
+        "controller:Timer",
+        ".DN",
+        TagReferenceAccess.READ,
+    ) in references
+    assert (
+        "ST_ASSIGN",
+        "controller:Array",
+        "[Index]",
+        TagReferenceAccess.READ,
+    ) in references
+    assert (
+        "ST_ASSIGN",
+        "controller:Index",
+        None,
+        TagReferenceAccess.READ,
+    ) in references
+    assert any(
+        item.instruction == "ST_WHILE" and item.identifier == "Missing"
+        for item in graph.unresolved_references
+    )
