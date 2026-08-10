@@ -279,6 +279,12 @@ from .snmp_pysnmp import (
     SnmpV3Credentials,
     SnmpV3SecurityLevel,
 )
+from .snmp_profiles import (
+    RMON_ETHERNET_STATISTICS_PROFILE,
+    SnmpObservationProfile,
+    SnmpObservationProfileStatus,
+    optional_snmp_observation_profiles,
+)
 from .snmprec import (
     SnmprecDiscoveryProvider,
     SnmprecRecording,
@@ -459,6 +465,7 @@ __all__ = [
     "RoutedSlotOutcome",
     "RoutedSlotResult",
     "RelationshipEvidenceClass",
+    "RMON_ETHERNET_STATISTICS_PROFILE",
     "NetworkIdentityCorrelation",
     "NetworkIdentityCorrelationResult",
     "NetworkIdentityMatchBasis",
@@ -484,6 +491,8 @@ __all__ = [
     "SnmpNetworkAddressObservation",
     "SnmpNodeObservation",
     "SnmpPhysicalEntityObservation",
+    "SnmpObservationProfile",
+    "SnmpObservationProfileStatus",
     "SnmpV3Credentials",
     "SnmpV3SecurityLevel",
     "SnmpWalkConversionPlan",
@@ -549,6 +558,7 @@ __all__ = [
     "reconcile_routed_configured_modules",
     "network_identity_correlation_data",
     "network_identity_correlation_json",
+    "optional_snmp_observation_profiles",
     "reconcile_software_inventory",
     "configured_module_reconciliation_data",
     "configured_module_reconciliation_json",

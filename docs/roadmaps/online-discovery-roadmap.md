@@ -101,7 +101,7 @@ in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapt
 - [x] Add installed CLI commands to initialize, validate, and inspect state
 - [x] Implement a transactional multi-writer promotion-repository adapter
 - [x] Add approved chassis and module topology-promotion mappings
-- [ ] Evaluate RMON statistics as a separate observation profile
+- [x] Evaluate RMON statistics as a separate observation profile
 - [ ] Evaluate OSPF evidence only in the routed-topology phase
 - [x] Implement read-only SNMPv3 credentials and security-level configuration
 - [x] Enforce OID allowlists, timeouts, request budgets, and rate limits
@@ -123,6 +123,9 @@ documented in
 Validated OID roots, independent capture budgets, and mandatory request
 pacing are documented in the
 [SNMP Request Safety Policy](../architecture/snmp-request-safety-policy.md).
+The opt-in, evidence-only treatment of Ethernet monitoring counters is
+documented in the
+[RMON Observation Profile](../architecture/rmon-observation-profile.md).
 
 ## Phase 3: routed controller and chassis evidence
 
