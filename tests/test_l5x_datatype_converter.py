@@ -109,3 +109,50 @@ def test_datatype_converter_reports_bad_members_and_preserves_unknown_data():
         "datatype_member_missing_name",
     }
     assert any(item.severity is DiagnosticSeverity.ERROR for item in diagnostics)
+
+
+def test_composite_values_diagnose_only_explicit_udt_schema_conflicts(tmp_path):
+    source = tmp_path / "composite_conflicts.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="Demo">
+          <Controller Name="Demo">
+            <DataTypes>
+              <DataType Name="Recipe" Family="NoFamily" Class="User">
+                <Members>
+                  <Member Name="Count" DataType="DINT" Dimension="0"/>
+                  <Member Name="Optional" DataType="BOOL" Dimension="0"/>
+                </Members>
+              </DataType>
+            </DataTypes>
+            <Tags>
+              <Tag Name="Current" TagType="Base" DataType="Recipe">
+                <Data Format="Decorated">
+                  <Structure DataType="Recipe">
+                    <DataValueMember Name="Count" DataType="REAL" Value="1.0"/>
+                    <DataValueMember Name="Future" DataType="DINT" Value="2"/>
+                  </Structure>
+                </Data>
+              </Tag>
+            </Tags>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    controller = parser.parse(source, report_mode=None).controllers[0]
+
+    assert {item.code for item in parser.diagnostics} == {
+        "composite_member_not_in_datatype",
+        "composite_member_type_mismatch",
+    }
+    assert all(
+        item.severity is DiagnosticSeverity.WARNING
+        for item in parser.diagnostics
+    )
+    composite = controller.tags["Current"].composite_initial_value
+    assert composite is not None
+    assert composite.root.children[0].member_definition is not None
+    assert composite.root.children[1].member_definition is None

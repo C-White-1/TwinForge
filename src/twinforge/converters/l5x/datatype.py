@@ -64,8 +64,11 @@ def convert_datatype(
     return datatype
 
 
-def resolve_datatype_references(controller: Controller) -> None:
-    """Link names to controller-defined types; leave atomic/external names unresolved."""
+def resolve_datatype_references(
+    controller: Controller,
+    diagnostics: list[ConversionDiagnostic] | None = None,
+) -> None:
+    """Link names to controller-defined types and diagnose explicit conflicts."""
 
     for datatype in controller.datatypes.values():
         for member in datatype.members:
@@ -76,14 +79,14 @@ def resolve_datatype_references(controller: Controller) -> None:
         if tag.data_type:
             tag.data_type_definition = controller.get_datatype(tag.data_type)
         tag.composite_initial_value = _resolve_composite_value(
-            tag.composite_initial_value, controller
+            tag.composite_initial_value, controller, diagnostics, tag.name
         )
     for program in controller.programs.values():
         for tag in program.tags.values():
             if tag.data_type:
                 tag.data_type_definition = controller.get_datatype(tag.data_type)
             tag.composite_initial_value = _resolve_composite_value(
-                tag.composite_initial_value, controller
+                tag.composite_initial_value, controller, diagnostics, tag.name
             )
 
     for instruction in controller.add_on_instructions.values():
@@ -94,7 +97,10 @@ def resolve_datatype_references(controller: Controller) -> None:
                     data_type
                 )
             parameter.composite_default_value = _resolve_composite_value(
-                parameter.composite_default_value, controller
+                parameter.composite_default_value,
+                controller,
+                diagnostics,
+                f"{instruction.name}.{parameter.name}",
             )
         for tag in instruction.local_tags.values():
             if tag.data_type:
@@ -102,13 +108,18 @@ def resolve_datatype_references(controller: Controller) -> None:
                     tag.data_type
                 )
             tag.composite_initial_value = _resolve_composite_value(
-                tag.composite_initial_value, controller
+                tag.composite_initial_value,
+                controller,
+                diagnostics,
+                f"{instruction.name}.{tag.name}",
             )
 
 
 def _resolve_composite_value(
     value: CompositeTagValue | None,
     controller: Controller,
+    diagnostics: list[ConversionDiagnostic] | None,
+    object_name: str,
 ) -> CompositeTagValue | None:
     """Bind a promoted value tree to controller-owned datatype definitions."""
 
@@ -121,7 +132,13 @@ def _resolve_composite_value(
     )
     return replace(
         value,
-        root=_resolve_composite_node(value.root, root_type, controller),
+        root=_resolve_composite_node(
+            value.root,
+            root_type,
+            controller,
+            diagnostics,
+            object_name,
+        ),
         data_type_definition=root_type,
     )
 
@@ -130,8 +147,43 @@ def _resolve_composite_node(
     node: CompositeTagValueNode,
     containing_type: Datatype | None,
     controller: Controller,
+    diagnostics: list[ConversionDiagnostic] | None,
+    object_name: str,
 ) -> CompositeTagValueNode:
     member = _member(containing_type, node.name)
+    if node.name is not None and containing_type is not None and member is None:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "composite_member_not_in_datatype",
+            (
+                f"composite value {object_name!r} contains member "
+                f"{node.name!r} not declared by {containing_type.name!r}"
+            ),
+            object_name,
+            node.name,
+            node.data_type,
+        )
+    if (
+        member is not None
+        and containing_type is not None
+        and member.data_type_name is not None
+        and node.data_type is not None
+        and member.data_type_name.casefold() != node.data_type.casefold()
+    ):
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "composite_member_type_mismatch",
+            (
+                f"composite value {object_name!r} member {node.name!r} uses "
+                f"{node.data_type!r}, but {containing_type.name!r} declares "
+                f"{member.data_type_name!r}"
+            ),
+            object_name,
+            node.name,
+            node.data_type,
+        )
     node_type = (
         member.data_type
         if member is not None and member.data_type is not None
@@ -143,7 +195,13 @@ def _resolve_composite_node(
         member_definition=member,
         data_type_definition=node_type,
         children=tuple(
-            _resolve_composite_node(child, child_type, controller)
+            _resolve_composite_node(
+                child,
+                child_type,
+                controller,
+                diagnostics,
+                object_name,
+            )
             for child in node.children
         ),
     )

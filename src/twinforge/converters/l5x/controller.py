@@ -210,7 +210,7 @@ def convert_controller(
                 continue
             controller.add_task(task)
 
-    resolve_datatype_references(controller)
+    resolve_datatype_references(controller, diagnostics)
     resolve_engineering_units(controller, diagnostics=diagnostics)
 
     return controller
