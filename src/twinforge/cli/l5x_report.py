@@ -9,14 +9,18 @@ from typing import TextIO
 from twinforge.analysis import (
     alarm_trip_candidate_report_json,
     build_alarm_trip_candidate_report,
+    build_cause_effect_candidate_report,
     build_io_list_report,
     build_tag_dependency_graph,
     io_list_report_json,
+    cause_effect_candidate_report_json,
     tag_dependency_graph_json,
 )
 from twinforge.exporters import (
     AlarmTripCandidateCSVExporter,
     AlarmTripCandidateMarkdownExporter,
+    CauseEffectCandidateCSVExporter,
+    CauseEffectCandidateMarkdownExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
     TagDependencyCSVExporter,
@@ -53,6 +57,9 @@ def export_l5x_reports(
             controller, dependency_graph
         )
         io_list = build_io_list_report(controller)
+        cause_effect = build_cause_effect_candidate_report(
+            alarm_candidates, dependency_graph
+        )
         files.update(
             {
                 "tag_dependencies.md": TagDependencyMarkdownExporter().export(
@@ -85,6 +92,20 @@ def export_l5x_reports(
                 ),
                 "io_list.csv": IOListCSVExporter().export(io_list),
                 "io_list.json": io_list_report_json(io_list),
+                "cause_effect_candidates.md": (
+                    CauseEffectCandidateMarkdownExporter().export(
+                        cause_effect,
+                        title=(
+                            f"{controller.name} cause-and-effect candidate matrix"
+                        ),
+                    )
+                ),
+                "cause_effect_candidates.csv": (
+                    CauseEffectCandidateCSVExporter().export(cause_effect)
+                ),
+                "cause_effect_candidates.json": (
+                    cause_effect_candidate_report_json(cause_effect)
+                ),
             }
         )
         paths = TextReportBundle(files).write_to(destination)

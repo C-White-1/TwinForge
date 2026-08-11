@@ -126,6 +126,10 @@ own project-directory and `.ld` JSON representation.
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix
+  - [x] Export same-location read/write candidates with resolved and unresolved
+    evidence and an explicit unverified-causality state
+  - [ ] Validate polarity, voting, delays, operating modes, and shutdown actions
+    against process design and the applicable alarm philosophy
 - [x] PowerFlex device functional-description draft
 - [x] Parameter, setpoint, and engineering-unit reports
 - [x] PowerFlex cyclic-I/O, diagnostic, and conversion-readiness reports

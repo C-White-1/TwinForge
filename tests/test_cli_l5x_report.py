@@ -40,8 +40,11 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "io_list.md",
         "io_list.csv",
         "io_list.json",
+        "cause_effect_candidates.md",
+        "cause_effect_candidates.csv",
+        "cause_effect_candidates.json",
     }
-    assert "Exported 16 reports" in output.getvalue()
+    assert "Exported 19 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -61,6 +64,12 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert "booster_compressor I/O list" in io_report
     assert "PT102_PV" in io_report
     assert "unavailable_by_configuration" in io_report
+    cause_effect_report = (
+        destination / "cause_effect_candidates.md"
+    ).read_text(encoding="utf-8")
+    assert "cause-and-effect candidate matrix" in cause_effect_report
+    assert "PT102_HH_Alm" in cause_effect_report
+    assert "not proof of a causal relationship" in cause_effect_report
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:

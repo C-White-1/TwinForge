@@ -19,6 +19,10 @@ from .codesys_st import (
     emit_codesys_st_routine,
     emit_codesys_st_unit,
 )
+from .cause_effect_report import (
+    CauseEffectCandidateCSVExporter,
+    CauseEffectCandidateMarkdownExporter,
+)
 from .codesys_module_equivalence_markdown import (
     CodesysModuleEquivalenceMarkdownExporter,
 )
@@ -118,6 +122,8 @@ __all__ = [
     "AutomationMLExportResult",
     "AutomationMLValidationError",
     "AutomationMLValidationUnavailable",
+    "CauseEffectCandidateCSVExporter",
+    "CauseEffectCandidateMarkdownExporter",
     "CodesysSTDialect",
     "CodesysModuleEquivalenceMarkdownExporter",
     "build_codesys_sys_module_binding_unit",

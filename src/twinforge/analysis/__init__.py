@@ -27,6 +27,15 @@ from .cyclic_io import (
     CyclicIOImage,
     analyze_cyclic_io_contract,
 )
+from .cause_effect import (
+    CauseEffectCandidate,
+    CauseEffectCandidateReport,
+    CauseEvidence,
+    UnresolvedCauseEvidence,
+    build_cause_effect_candidate_report,
+    cause_effect_candidate_report_data,
+    cause_effect_candidate_report_json,
+)
 from .conversion_readiness import (
     ConversionDisposition,
     ConversionReadinessItem,
@@ -129,6 +138,9 @@ __all__ = [
     "CyclicIOContract",
     "CyclicIOField",
     "CyclicIOImage",
+    "CauseEffectCandidate",
+    "CauseEffectCandidateReport",
+    "CauseEvidence",
     "ConversionDisposition",
     "ConversionReadinessItem",
     "ConversionReadinessReport",
@@ -169,6 +181,7 @@ __all__ = [
     "TagReferenceAccess",
     "UnresolvedTagReference",
     "UnresolvedIOAlias",
+    "UnresolvedCauseEvidence",
     "RLLCoverageReport",
     "RungCoverageIssue",
     "analyze_aoi_portability",
@@ -188,6 +201,7 @@ __all__ = [
     "inventory_opaque_visualization_properties",
     "build_device_functional_description",
     "build_io_list_report",
+    "build_cause_effect_candidate_report",
     "extract_structured_text_calls",
     "evaluate_runtime_compatibility",
     "extract_rll_mnemonics",
@@ -200,4 +214,6 @@ __all__ = [
     "LiteralAssignmentEvidence",
     "io_list_report_data",
     "io_list_report_json",
+    "cause_effect_candidate_report_data",
+    "cause_effect_candidate_report_json",
 ]

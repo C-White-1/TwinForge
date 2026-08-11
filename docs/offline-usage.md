@@ -185,8 +185,9 @@ The bundle includes review-oriented Markdown, complete CSV, and deterministic
 JSON reports for tag dependencies and explicitly labelled alarm/trip candidates.
 It also includes a channel-level I/O list covering explicit assignments, spare
 candidates, configuration-unavailable channels, ranges, and units. Unresolved
-operands remain visible and unestablished facts remain unknown; both should be
-reviewed rather than inferred.
+operands remain visible. A cause-and-effect candidate matrix joins reads to
+alarm/trip writes at the same source location but does not claim verified
+causality. Unestablished facts should be reviewed rather than inferred.
 
 ## Check export readiness
 
