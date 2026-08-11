@@ -50,7 +50,7 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] Collect legally shareable L5X fixtures from varied Logix systems
 - [ ] Add CompactLogix and additional ControlLogix hardware
 - [ ] Exercise produced/consumed tags, MSG, AOIs, motion and safety content
-- [ ] Publish per-fixture rung and instruction coverage
+- [x] Publish per-fixture rung and instruction coverage
 - [x] Add regression fixtures for unknown attributes and elements
 
 ### Model and parser depth

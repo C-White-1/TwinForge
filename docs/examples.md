@@ -28,6 +28,7 @@ commands, documentation, and simple migration.
 - `export_parameter_report.py` emits parameter and setpoint evidence.
 - `export_functional_description.py` builds a functional-description draft.
 - `export_corpus_report.py` reports compatibility across an L5X corpus.
+- `analyze_rll_corpus.py` publishes per-fixture rung and instruction coverage.
 
 ## Analysis demonstrations
 
