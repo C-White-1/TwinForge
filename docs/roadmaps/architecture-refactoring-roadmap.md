@@ -436,7 +436,7 @@ Planned sequence:
   and temporary files
 - [x] Add a cross-target capability matrix covering parse, model, generic
   PLCopen XML, CODESYS, native OpenPLC, and AutomationML support
-- [ ] Review tracked `examples/` and `reports/` content against the artifact
+- [x] Review tracked `examples/` and `reports/` content against the artifact
   policy without deleting evidence or moving licensed material into Git
 - [ ] Consolidate disposable test output beneath one ignored location, or use
   pytest-managed temporary directories, while preserving failure artifacts

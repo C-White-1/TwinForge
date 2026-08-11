@@ -105,6 +105,7 @@ automatically general product guarantees.
 ## Reference provenance
 
 - [Artifact and tracking policy](artifact-policy.md)
+- [August 2026 tracked-artifact audit](artifact-audit-2026-08.md)
 - [PowerFlex 525 reference notes](references/PowerFlex525.md)
 - [PLCopen source and schema handling](standards/plcopen.md)
 - [AutomationML source and schema handling](standards/automationml.md)
