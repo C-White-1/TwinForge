@@ -429,7 +429,7 @@ Planned sequence:
 - [x] Add `docs/README.md` as the documentation landing page, covering getting
   started, architecture, capabilities, target guides, experiments, roadmaps,
   and reference provenance
-- [ ] Add a concise repository and package-responsibility map to
+- [x] Add a concise repository and package-responsibility map to
   `ARCHITECTURE.md`, including explicit ownership and prohibited dependencies
 - [ ] Document an artifact policy for product source, tests, executable
   examples, external reference material, curated reports, generated output,

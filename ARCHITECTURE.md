@@ -46,22 +46,86 @@ analysis and enrichment
 PLCopen XML | AutomationML | reports
 ```
 
+## Repository responsibilities
+
+| Path | Ownership and tracking policy |
+| --- | --- |
+| `src/twinforge/` | Installable product source and public Python APIs |
+| `tests/` | Automated unit, integration, regression, and architecture tests |
+| `docs/` | Maintained guides, architecture, experiments, and roadmaps |
+| `examples/` | Thin CLI wrappers and focused executable demonstrations |
+| `scripts/` | Maintainer utilities, not public library APIs |
+| `reports/` | Curated engineering evidence and reviewed report artifacts |
+| `reference/` | Ignored local standards, schemas, manuals, and evidence |
+| `.github/` | Repository automation and CI workflow definitions |
+| `build/` | Generated packaging output; never authoritative source |
+| `.pytest-*`, caches, and virtual environments | Disposable local state |
+
+Externally sourced material belongs under the ignored `reference/` tree unless
+its provenance and redistribution rights explicitly permit tracking. Generated
+output does not become authoritative merely because it resembles a source or
+fixture. The detailed artifact policy remains a separate roadmap item.
+
 ## Package responsibilities
 
-| Package | Responsibility |
-| --- | --- |
-| `schema.l5x` | Declarative L5X element and attribute specifications |
-| `parsers.l5x` | Generic, lossless XML capture |
-| `converters.l5x` | Source-specific conversion and reference resolution |
-| `model` | Vendor-neutral domain objects and source provenance |
-| `analysis` | Coverage and relationship analysis |
-| `structured_text` | Lossless ST syntax and semantic analysis |
-| `ir` | Typed, vendor-neutral executable representation and normalization |
-| `runtime` | Runtime contracts and executable reference behavior |
-| `exporters` | Generic IEC, PLCopen XML, AutomationML and report generation |
-| `targets` | Runtime-specific adapters and deployment packaging |
-| `assembly` | Controller/document assembly and software-device resolution |
-| `transport`, `discovery` | CIP communication and live acquisition |
+- `schema.l5x`: declarative L5X elements, attributes, applicability, and
+  requiredness.
+- `parsers.l5x`: lossless XML capture and the document parsing façade.
+- `converters.l5x`: L5X conversion, enrichment, and reference resolution.
+- `model`: vendor-neutral domain objects, relationships, and provenance.
+- `analysis`: read-only coverage, dependency, portability, and report data.
+- `structured_text`: lossless ST tokens, syntax, parsing, and semantics.
+- `ir`: typed vendor-neutral executable representation and normalization.
+- `runtime`: target-neutral runtime contracts and reference behavior.
+- `exporters`: generic IEC, PLCopen XML, AutomationML, and report output.
+- `targets.codesys`: CODESYS adaptation, evidence, and deployment packages.
+- `targets.openplc`: standards façade and native OpenPLC project generation.
+- `assembly`: cross-document, device, communication, and promotion assembly.
+- `discovery`: bounded capture, acceptance, reconciliation, and lifecycle.
+- `transport`: authorized protocol transports and session boundaries.
+- `cli`: user orchestration, diagnostics, exit codes, and filesystem actions.
+- `knowledge`: curated device and protocol facts with explicit evidence scope.
+- `datatypes`: reusable protocol scalar and reference value types.
+- `core`: small shared configuration, exception, logging, and utilities.
+- `services`: earlier application-service experiments; not a preferred owner
+  for new logic.
+- `graph`: earlier graph models; new graphs use established analysis and
+  assembly boundaries.
+- `plugins`, `protocols`, and `samples`: reserved or early-stage namespaces
+  without stable public contracts.
+
+The final three entries identify present repository state, not desired dependency
+centres. New work should use the established model, analysis, assembly,
+transport, exporter, and target boundaries unless a documented refactor proves
+a better owner.
+
+## Dependency rules
+
+Dependencies flow from source capture toward the neutral model and then toward
+analysis, serialization, target adaptation, or application orchestration.
+
+- `model` may consume other neutral model and value types. It must not consume
+  parsers, converters, exporters, discovery transports, or targets.
+- `ir` may consume neutral model, value, and syntax contracts. It must not
+  consume exporters or target packages.
+- `schema.l5x` may consume declarative schema helpers. It must not perform
+  model conversion or consume exporters or targets.
+- `converters.l5x` may consume captured source, schema, and the neutral model.
+  It must not consume exporters or target adapters.
+- `analysis` may consume the neutral model, syntax, IR, and analysis results.
+  It must not own filesystem-writing CLI or target deployment behavior.
+- Generic `exporters` may consume resolved model, analysis, and IR. They must
+  not parse source XML or depend on undocumented target APIs.
+- `targets.*` may consume neutral contracts and generic emission services.
+  One target must not own assumptions belonging to another target.
+- `transport` and `discovery` may consume protocol contracts and explicit
+  authorization policy. They must not silently mutate accepted core models.
+- `cli` may consume public application façades. It must not hide semantic
+  rules that cannot be independently tested below the CLI.
+
+Explicit compatibility shims are exceptions only when documented and protected
+by architecture tests. They are migration surfaces, not permission to reverse
+the general dependency direction.
 
 PLCopen export is divided into target-neutral types, RLL parsing, XML/value
 helpers and validation, project orchestration, plus target adapters. A
