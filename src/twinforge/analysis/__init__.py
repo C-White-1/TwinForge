@@ -43,6 +43,12 @@ from .conversion_readiness import (
     DependencyReadiness,
     build_conversion_readiness_report,
 )
+from .controller_functional_description import (
+    ControllerFunctionalDescription,
+    ProgramStructureDescription,
+    TaskExecutionDescription,
+    build_controller_functional_description,
+)
 from .codesys_visualization_diff import (
     CodesysActionPropertyChange,
     CodesysElementChange,
@@ -144,6 +150,7 @@ __all__ = [
     "ConversionDisposition",
     "ConversionReadinessItem",
     "ConversionReadinessReport",
+    "ControllerFunctionalDescription",
     "CodesysElementChange",
     "CodesysActionPropertyChange",
     "CodesysPropertyChange",
@@ -168,6 +175,7 @@ __all__ = [
     "ParameterSetpointReport",
     "ParameterSetpointBinding",
     "RecommendedPOU",
+    "ProgramStructureDescription",
     "RuntimeCapability",
     "RuntimeCapabilityProvider",
     "RuntimeCompatibility",
@@ -179,6 +187,7 @@ __all__ = [
     "TagDependencyGraph",
     "TagReference",
     "TagReferenceAccess",
+    "TaskExecutionDescription",
     "UnresolvedTagReference",
     "UnresolvedIOAlias",
     "UnresolvedCauseEvidence",
@@ -202,6 +211,7 @@ __all__ = [
     "build_device_functional_description",
     "build_io_list_report",
     "build_cause_effect_candidate_report",
+    "build_controller_functional_description",
     "extract_structured_text_calls",
     "evaluate_runtime_compatibility",
     "extract_rll_mnemonics",

@@ -188,6 +188,9 @@ candidates, configuration-unavailable channels, ranges, and units. Unresolved
 operands remain visible. A cause-and-effect candidate matrix joins reads to
 alarm/trip writes at the same source location but does not claim verified
 causality. Unestablished facts should be reviewed rather than inferred.
+The `functional_description.md` draft summarizes controller identity,
+task/program execution, routine coverage, and the generated engineering
+evidence while retaining explicit verification boundaries.
 
 ## Check export readiness
 

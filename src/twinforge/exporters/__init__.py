@@ -48,6 +48,9 @@ from .corpus_markdown import CorpusMarkdownExporter
 from .conversion_readiness_markdown import (
     ConversionReadinessMarkdownExporter,
 )
+from .controller_functional_description_markdown import (
+    ControllerFunctionalDescriptionMarkdownExporter,
+)
 from .cyclic_io_markdown import CyclicIOContractMarkdownExporter
 from .diagnostic_markdown import DeviceDiagnosticMarkdownExporter
 from .discovery_drift_report import (
@@ -136,6 +139,7 @@ __all__ = [
     "CodesysNativeVisualizationExportResult",
     "CorpusMarkdownExporter",
     "ConversionReadinessMarkdownExporter",
+    "ControllerFunctionalDescriptionMarkdownExporter",
     "CyclicIOContractMarkdownExporter",
     "DeviceDiagnosticMarkdownExporter",
     "DiscoveryDriftMarkdownExporter",

@@ -10,6 +10,7 @@ from twinforge.analysis import (
     alarm_trip_candidate_report_json,
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
+    build_controller_functional_description,
     build_io_list_report,
     build_tag_dependency_graph,
     io_list_report_json,
@@ -21,6 +22,7 @@ from twinforge.exporters import (
     AlarmTripCandidateMarkdownExporter,
     CauseEffectCandidateCSVExporter,
     CauseEffectCandidateMarkdownExporter,
+    ControllerFunctionalDescriptionMarkdownExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
     TagDependencyCSVExporter,
@@ -59,6 +61,13 @@ def export_l5x_reports(
         io_list = build_io_list_report(controller)
         cause_effect = build_cause_effect_candidate_report(
             alarm_candidates, dependency_graph
+        )
+        functional_description = build_controller_functional_description(
+            controller,
+            dependency_graph,
+            io_list,
+            alarm_candidates,
+            cause_effect,
         )
         files.update(
             {
@@ -105,6 +114,11 @@ def export_l5x_reports(
                 ),
                 "cause_effect_candidates.json": (
                     cause_effect_candidate_report_json(cause_effect)
+                ),
+                "functional_description.md": (
+                    ControllerFunctionalDescriptionMarkdownExporter().export(
+                        functional_description
+                    )
                 ),
             }
         )

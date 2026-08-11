@@ -133,7 +133,8 @@ own project-directory and `.ld` JSON representation.
 - [x] PowerFlex device functional-description draft
 - [x] Parameter, setpoint, and engineering-unit reports
 - [x] PowerFlex cyclic-I/O, diagnostic, and conversion-readiness reports
-- [ ] General controller-level functional-description generation
+- [x] General controller-level functional-description draft aggregating
+  identity, execution structure, routine inventory, and engineering evidence
 - [ ] Module and spare-I/O schedule
 - [x] Signal and program dependency reports
 

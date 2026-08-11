@@ -123,15 +123,17 @@ L5X exports. It reports a deterministic model summary and all conversion
 diagnostics without modifying the source. Missing, malformed, and unsupported
 documents return a non-zero status.
 
-`report` accepts a Controller L5X export and writes nineteen supported engineering
+`report` accepts a Controller L5X export and writes twenty supported engineering
 reports: controller, tags, datatypes, Add-On Instructions, modules, tasks,
 programs, plus tag dependencies and evidence-bound alarm/trip candidates as
 Markdown, CSV, and JSON, and a channel-level I/O list in the same formats.
 It also emits an explicitly unverified cause-and-effect candidate matrix from
-reads and alarm/trip writes observed at the same logic location. Unestablished
-alarm-philosophy, causality, and I/O-assignment facts remain explicitly unknown.
-Existing files with deterministic report names are replaced; unrelated files
-in the destination are left untouched.
+reads and alarm/trip writes observed at the same logic location, plus a
+controller functional-description draft aggregating execution structure and
+the generated engineering evidence. Unestablished alarm-philosophy, causality,
+process intent, and I/O-assignment facts remain explicitly unknown. Existing
+files with deterministic report names are replaced; unrelated files in the
+destination are left untouched.
 
 `export --target plcopen` writes target-neutral PLCopen XML 2.01 without
 CODESYS extensions. Supplying `--xsd` validates the complete document before

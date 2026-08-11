@@ -43,8 +43,9 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "cause_effect_candidates.md",
         "cause_effect_candidates.csv",
         "cause_effect_candidates.json",
+        "functional_description.md",
     }
-    assert "Exported 19 reports" in output.getvalue()
+    assert "Exported 20 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -70,6 +71,12 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert "cause-and-effect candidate matrix" in cause_effect_report
     assert "PT102_HH_Alm" in cause_effect_report
     assert "not proof of a causal relationship" in cause_effect_report
+    functional_description = (
+        destination / "functional_description.md"
+    ).read_text(encoding="utf-8")
+    assert "functional-description draft" in functional_description
+    assert "MainTask" in functional_description
+    assert "MainProgram" in functional_description
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:
