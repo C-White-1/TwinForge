@@ -32,6 +32,8 @@ maintained relationships; the SVG files are derived viewing artifacts.
 
 ## Conversion targets
 
+- [Cross-target capability matrix](capability-matrix.md)
+
 ### PLCopen XML and CODESYS
 
 - [PLCopen capability matrix](plcopen-capabilities.md)

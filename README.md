@@ -308,6 +308,7 @@ schemas must be obtained from their official publishers and supplied locally.
 ## Detailed documentation
 
 - [Documentation index](docs/README.md)
+- [Cross-target capability matrix](docs/capability-matrix.md)
 - [Architecture](ARCHITECTURE.md)
 - [Architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md)
 - [Domain model](MODEL.md)

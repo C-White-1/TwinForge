@@ -434,7 +434,7 @@ Planned sequence:
 - [x] Document an artifact policy for product source, tests, executable
   examples, external reference material, curated reports, generated output,
   and temporary files
-- [ ] Add a cross-target capability matrix covering parse, model, generic
+- [x] Add a cross-target capability matrix covering parse, model, generic
   PLCopen XML, CODESYS, native OpenPLC, and AutomationML support
 - [ ] Review tracked `examples/` and `reports/` content against the artifact
   policy without deleting evidence or moving licensed material into Git
