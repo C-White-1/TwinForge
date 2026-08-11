@@ -10,6 +10,7 @@ from .routine import Routine
 from .source_extension import SourceExtension
 from .tag import Tag
 from .tag_value import TagValue
+from .datatype import Datatype
 
 
 @dataclass
@@ -19,6 +20,7 @@ class AddOnInstructionParameter:
     name: str
     data_type: str | None = None
     resolved_data_type: str | None = None
+    data_type_definition: Datatype | None = None
     usage: str | None = None
     dimensions: str | None = None
     radix: str | None = None

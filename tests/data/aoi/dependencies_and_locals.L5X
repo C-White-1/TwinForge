@@ -24,10 +24,14 @@
        ExecutePrescan="false" ExecutePostscan="false"
        ExecuteEnableInFalse="false">
         <Parameters>
+          <Parameter Name="Config" DataType="ExampleData" Usage="Input"
+           Required="true" Visible="true"/>
           <Parameter Name="Status" TagType="Alias" Usage="Output"
            AliasFor="State.0" Required="false" Visible="true"/>
         </Parameters>
         <LocalTags>
+          <LocalTag Name="ConfigState" DataType="ExampleData"
+           ExternalAccess="None"/>
           <LocalTag Name="State" DataType="DINT" Radix="Decimal"
            ExternalAccess="None">
             <DefaultData Format="Decorated">

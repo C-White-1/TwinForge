@@ -72,6 +72,19 @@ def resolve_datatype_references(controller: Controller) -> None:
             if tag.data_type:
                 tag.data_type_definition = controller.get_datatype(tag.data_type)
 
+    for instruction in controller.add_on_instructions.values():
+        for parameter in instruction.parameters.values():
+            data_type = parameter.effective_data_type
+            if data_type:
+                parameter.data_type_definition = controller.get_datatype(
+                    data_type
+                )
+        for tag in instruction.local_tags.values():
+            if tag.data_type:
+                tag.data_type_definition = controller.get_datatype(
+                    tag.data_type
+                )
+
 
 def _convert_member(
     section: CapturedSection,
