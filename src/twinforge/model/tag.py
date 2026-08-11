@@ -12,6 +12,7 @@ from .engineering_unit import (
     EngineeringUnitEvidence,
 )
 from .tag_value import TagValue
+from .tag_value import CompositeTagValue
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,7 @@ class Tag:
     permission_set: str | None = None
     description: str | None = None
     initial_value: TagValue | None = None
+    composite_initial_value: CompositeTagValue | None = None
     message_configuration: MessageTagConfiguration | None = None
     engineering_unit: EngineeringUnitEvidence | None = None
     engineering_unit_evidence: list[EngineeringUnitEvidence] = field(

@@ -6,7 +6,13 @@ from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import MessageTagConfiguration, Tag, TagValue
+from twinforge.model import (
+    CompositeTagValue,
+    CompositeTagValueNode,
+    MessageTagConfiguration,
+    Tag,
+    TagValue,
+)
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .source_extension import captured_to_source_extension
@@ -76,6 +82,7 @@ def convert_tag(
         permission_set=section.attributes.get("PermissionSet"),
         description=_description(section),
         initial_value=_initial_value(section, diagnostics),
+        composite_initial_value=_composite_initial_value(section, diagnostics),
         message_configuration=_message_configuration(section),
         source_extensions=[captured_to_source_extension(section)],
     )
@@ -180,6 +187,70 @@ def _initial_value(
                 or section.attributes.get("Radix"),
             )
     return None
+
+
+def _composite_initial_value(
+    section: CapturedSection,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> CompositeTagValue | None:
+    """Promote one decorated composite while retaining its source vocabulary."""
+
+    for data in section.elements.get("Data", []):
+        if data.attributes.get("Format") != "Decorated":
+            continue
+        for child in data.ordered_children:
+            if isinstance(child, ET.Element) and child.tag in {
+                "Array",
+                "Structure",
+            }:
+                return CompositeTagValue(
+                    root=_composite_node(child, None, section, diagnostics)
+                )
+    return None
+
+
+def _composite_node(
+    element: ET.Element,
+    inherited_data_type: str | None,
+    section: CapturedSection,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> CompositeTagValueNode:
+    """Recursively type known leaves without discarding unfamiliar attributes."""
+
+    data_type = element.attrib.get("DataType") or inherited_data_type
+    lexical_value = element.attrib.get("Value")
+    value = None
+    if lexical_value is not None and data_type is not None:
+        try:
+            value = parse_scalar_value(data_type, lexical_value)
+        except ValueError:
+            _emit(
+                diagnostics,
+                DiagnosticSeverity.WARNING,
+                "invalid_composite_tag_value",
+                (
+                    f"tag {section.attributes.get('Name', '')!r} has an "
+                    f"invalid {data_type} composite member value"
+                ),
+                section.attributes.get("Name"),
+                element.attrib.get("Name") or element.attrib.get("Index"),
+                lexical_value,
+            )
+    return CompositeTagValueNode(
+        source_kind=element.tag,
+        name=element.attrib.get("Name"),
+        index=element.attrib.get("Index"),
+        data_type=data_type,
+        dimensions=element.attrib.get("Dimensions"),
+        radix=element.attrib.get("Radix"),
+        lexical_value=lexical_value,
+        value=value,
+        children=tuple(
+            _composite_node(child, data_type, section, diagnostics)
+            for child in element
+        ),
+        raw_attributes=dict(element.attrib),
+    )
 
 
 def parse_scalar_value(

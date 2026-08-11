@@ -55,7 +55,7 @@ That is a project-specific result, not universal Logix coverage.
 
 ### Model and parser depth
 
-- [ ] Structured and array initial values
+- [x] Structured and array initial values
 - [ ] UDT and Add-On Instruction semantics
 - [ ] Additional task and routine-body forms
 - [ ] Explicit cross-reference and tag dependency graphs

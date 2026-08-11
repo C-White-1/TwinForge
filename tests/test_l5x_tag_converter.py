@@ -154,6 +154,63 @@ def test_parser_promotes_scalar_setpoint_values() -> None:
     assert delay.initial_value.data_type == "DINT"
 
 
+def test_promotes_nested_structure_and_array_initial_values() -> None:
+    tag = convert_tag(
+        _tag(
+            """
+            <Tag Name="Recipe" TagType="Base" DataType="RecipeType">
+              <Data Format="Decorated">
+                <Structure DataType="RecipeType" Future="keep">
+                  <DataValueMember Name="Enabled" DataType="BOOL" Value="1" />
+                  <StructureMember Name="Limits" DataType="LimitType">
+                    <DataValueMember Name="High" DataType="REAL"
+                     Radix="Float" Value="12.5" />
+                  </StructureMember>
+                  <ArrayMember Name="Steps" DataType="DINT" Dimensions="2">
+                    <Element Index="[0]" Value="10" />
+                    <Element Index="[1]" Value="20" FutureElement="keep" />
+                  </ArrayMember>
+                </Structure>
+              </Data>
+            </Tag>
+            """
+        )
+    )
+
+    assert tag.initial_value is None
+    composite = tag.composite_initial_value
+    assert composite is not None
+    assert composite.root.source_kind == "Structure"
+    assert composite.root.raw_attributes["Future"] == "keep"
+    enabled, limits, steps = composite.root.children
+    assert (enabled.name, enabled.value) == ("Enabled", True)
+    assert (limits.name, limits.children[0].value) == ("Limits", 12.5)
+    assert steps.dimensions == "2"
+    assert [element.index for element in steps.children] == ["[0]", "[1]"]
+    assert [element.value for element in steps.children] == [10, 20]
+    assert steps.children[1].raw_attributes["FutureElement"] == "keep"
+
+
+def test_sample_timer_structure_is_available_as_typed_composite_evidence() -> None:
+    controller = L5XParser().parse(
+        SAMPLE_L5X, report_mode=None
+    ).controllers[0]
+    timer = next(
+        tag
+        for tag in controller.iter_tags()
+        if tag.data_type == "TIMER" and tag.composite_initial_value is not None
+    )
+
+    composite = timer.composite_initial_value
+    assert composite is not None
+    root = composite.root
+    assert root.data_type == "TIMER"
+    members = {member.name: member for member in root.children}
+    assert members["PRE"].data_type == "DINT"
+    assert isinstance(members["PRE"].value, int)
+    assert members["EN"].value is False
+
+
 def test_program_scoped_tags_are_converted_and_parented():
     section = capture_section(
         ET.fromstring(

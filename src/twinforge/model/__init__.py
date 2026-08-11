@@ -61,7 +61,12 @@ from .software_call import (
     SoftwareTagScope,
 )
 from .tag import MessageTagConfiguration, Tag
-from .tag_value import ScalarTagValue, TagValue
+from .tag_value import (
+    CompositeTagValue,
+    CompositeTagValueNode,
+    ScalarTagValue,
+    TagValue,
+)
 from .task import Task
 from .visualization import (
     VisualizationBinding,
@@ -139,6 +144,8 @@ __all__ = [
     "ResolvedSoftwareCall",
     "Tag",
     "TagValue",
+    "CompositeTagValue",
+    "CompositeTagValueNode",
     "ScalarTagValue",
     "Task",
     "VisualizationBinding",

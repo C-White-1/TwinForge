@@ -14,6 +14,7 @@ Plant
     ├── Datatypes
     ├── Tags
     │   ├── initial scalar value
+    │   ├── ordered composite initial-value tree
     │   ├── engineering unit/range
     │   └── source extensions
     ├── Programs
@@ -35,6 +36,17 @@ TwinForge distinguishes explicit, derived and inferred information.
 - Module capacity decoded from recognized catalog conventions records its
   source.
 - Unknown or conflicting evidence is preserved and diagnosed.
+
+## Tag initial values
+
+Scalar decorated values remain available through `Tag.initial_value` for
+setpoint reporting and target exporters. Structured and array decorated values
+use `Tag.composite_initial_value`, an ordered tree of structures, members,
+arrays, indexed elements, and typed scalar leaves.
+
+Composite nodes retain their source node kind and raw attributes as provenance.
+The tag source extension remains the authoritative lossless representation;
+typed promotion adds navigation without replacing or rewriting that evidence.
 
 ## I/O state
 
