@@ -25,6 +25,7 @@ class DatatypeMember:
     external_access: str | None = None
     description: str | None = None
     target: str | None = None
+    target_member: "DatatypeMember | None" = field(default=None, repr=False)
     bit_number: int | None = None
     source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
 

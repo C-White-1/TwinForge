@@ -63,6 +63,7 @@ def test_parser_converts_datatypes_and_resolves_tag_and_member_references(tmp_pa
     assert motor_type is not None
     assert alarm_type.parent is controller
     assert alarm_type.members[1].target == "Enabled"
+    assert alarm_type.members[1].target_member is alarm_type.members[0]
     assert alarm_type.members[1].bit_number == 0
     assert motor_type.description == "Motor configuration"
     assert motor_type.members[0].data_type is alarm_type
@@ -79,6 +80,39 @@ def test_parser_converts_datatypes_and_resolves_tag_and_member_references(tmp_pa
     assert controller_tag.data_type_definition is motor_type
     assert program_tag.data_type_definition is alarm_type
     assert parser.diagnostics == []
+
+
+def test_unresolved_udt_bit_overlay_target_is_diagnosed_and_preserved(tmp_path):
+    source = tmp_path / "overlay.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="Demo">
+          <Controller Name="Demo">
+            <DataTypes>
+              <DataType Name="Flags" Family="NoFamily" Class="User">
+                <Members>
+                  <Member Name="Ready" DataType="BIT" Dimension="0"
+                   Target="MissingWord" BitNumber="0"/>
+                </Members>
+              </DataType>
+            </DataTypes>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    controller = parser.parse(source, report_mode=None).controllers[0]
+
+    member = controller.datatypes["Flags"].members[0]
+    assert member.target == "MissingWord"
+    assert member.bit_number == 0
+    assert member.target_member is None
+    assert [item.code for item in parser.diagnostics] == [
+        "unresolved_datatype_overlay_target"
+    ]
+    assert parser.diagnostics[0].severity is DiagnosticSeverity.WARNING
 
 
 def test_datatype_converter_reports_bad_members_and_preserves_unknown_data():

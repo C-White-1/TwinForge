@@ -74,6 +74,21 @@ def resolve_datatype_references(
         for member in datatype.members:
             if member.data_type_name:
                 member.data_type = controller.get_datatype(member.data_type_name)
+            if member.target:
+                member.target_member = _member(datatype, member.target)
+                if member.target_member is None:
+                    _emit(
+                        diagnostics,
+                        DiagnosticSeverity.WARNING,
+                        "unresolved_datatype_overlay_target",
+                        (
+                            f"data type {datatype.name!r} member {member.name!r} "
+                            f"references unknown overlay target {member.target!r}"
+                        ),
+                        datatype.name,
+                        "Target",
+                        member.target,
+                    )
 
     for tag in controller.tags.values():
         if tag.data_type:
