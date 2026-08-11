@@ -112,3 +112,44 @@ Reason:
 
 Stable documents produce meaningful diffs without misrepresenting every
 production export as having occurred on a fixed date.
+
+## 2026-08-12
+
+### TwinForge remains a monorepo
+
+TwinForge retains one repository and one distributable Python package. The
+parsers, vendor-neutral model, analysis, executable IR, reports, discovery,
+and target exporters share contracts and fixtures, and changes commonly need
+to cross those boundaries atomically. Target-specific optional dependencies
+are already isolated through dependency groups rather than incompatible
+packages.
+
+The August 2026 reassessment found 894 tracked files containing approximately
+12.7 MiB. There is no evidence of independent release cycles, incompatible
+dependency sets, or materially separate contributor groups. Splitting the
+repository would therefore add version coordination without establishing a
+genuine ownership or deployment boundary.
+
+Reassess this decision if one or more of these conditions emerges:
+
+- a component needs an independently versioned release cycle or compatibility
+  policy;
+- platform or dependency requirements cannot coexist in one package and CI
+  workflow;
+- a stable ownership, governance, or access-control boundary develops between
+  contributor groups;
+- clone size, CI duration, or generated-artifact volume materially impairs
+  normal development; or
+- a separately deployable service establishes a narrow, versioned interface
+  to the rest of TwinForge.
+
+Module count, target-specific directories, conceptual breadth, and ignored
+local reference material are not by themselves reasons to split. Navigation
+and artifact-policy problems should first be addressed through documented
+boundaries inside the repository.
+
+Reason:
+
+The vendor-neutral model and preservation pipeline are TwinForge's shared
+foundation. Keeping them and their consumers in one repository supports
+atomic change, cross-target testing, and consistent evidence handling.

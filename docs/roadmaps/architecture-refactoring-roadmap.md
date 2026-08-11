@@ -411,8 +411,9 @@ to change one of those responsibilities.
 ### Priority 6: improve repository navigation and artifact boundaries
 
 TwinForge is not currently too large as a Git repository. The August 2026
-baseline is approximately 674 tracked files and 11.5 MiB. Its maintainability
-risk is conceptual breadth: parsing, neutral modelling, analysis, PLCopen XML,
+reassessment found 894 tracked files and approximately 12.7 MiB of tracked
+content. Its maintainability risk is conceptual breadth: parsing, neutral
+modelling, analysis, PLCopen XML,
 CODESYS, OpenPLC, AutomationML, device knowledge, reports, and experiments are
 all legitimate parts of the toolkit, but their relationships are not yet
 obvious to a new contributor.
@@ -441,8 +442,17 @@ Planned sequence:
 - [x] Consolidate disposable test output beneath one ignored location, or use
   pytest-managed temporary directories, while preserving failure artifacts
   needed for diagnosis
-- [ ] Reassess repository splitting only if independent release cycles,
+- [x] Reassess repository splitting only if independent release cycles,
   incompatible dependencies, or materially separate contributor groups emerge
+
+The reassessment concluded that TwinForge should remain a monorepo. The shared
+model, evidence, IR, fixture, and cross-target testing boundaries benefit from
+atomic changes, while none of the documented splitting triggers currently
+applies. The rationale and future reconsideration triggers are recorded in
+[`DECISIONS.md`](../../DECISIONS.md#twinforge-remains-a-monorepo).
+
+Priority 6 is complete. Repository splitting remains a conditional
+architecture decision, not unfinished navigation work.
 
 Acceptance criteria:
 

@@ -20,6 +20,7 @@ second command-line product.
 
 - [Architecture overview and rendered diagrams](../ARCHITECTURE.md)
 - [Vendor-neutral domain model](../MODEL.md)
+- [Architecture decisions](../DECISIONS.md)
 - [Architecture and refactoring roadmap](roadmaps/architecture-refactoring-roadmap.md)
 - [Executable intermediate representation](executable-ir.md)
 - [Structured Text front end](structured-text.md)

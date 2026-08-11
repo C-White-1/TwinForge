@@ -152,7 +152,7 @@ The immediate structural priorities are maintained in the
 - [x] Split native OpenPLC validation, declaration, instruction lowering,
   graph serialization, and project-file packaging behind its stable exporter
   façade
-- [ ] Improve repository navigation with architecture diagrams, a
+- [x] Improve repository navigation with architecture diagrams, a
   documentation index, directory responsibilities, and an artifact policy
 - [ ] Generalize deployment packaging only after a second real device profile
   establishes the reusable boundary
