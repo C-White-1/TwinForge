@@ -116,7 +116,8 @@ own project-directory and `.ld` JSON representation.
 
 ### Automatic engineering documents
 
-- [ ] I/O list
+- [x] Evidence-bound channel I/O list with assignments, spare candidates,
+  configuration-unavailable channels, ranges, units, and unresolved aliases
 - [ ] Alarm and trip list
   - [x] Identify explicitly labelled alarm/trip tag candidates and join their
     reader, writer, alias, scope, and classification evidence

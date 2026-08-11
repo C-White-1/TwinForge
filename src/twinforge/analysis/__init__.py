@@ -97,6 +97,14 @@ from .literal_assignments import (
     LiteralAssignmentEvidence,
     extract_literal_assignments,
 )
+from .io_list import (
+    IOChannel,
+    IOListReport,
+    UnresolvedIOAlias,
+    build_io_list_report,
+    io_list_report_data,
+    io_list_report_json,
+)
 from .parameter_report import (
     ParameterReportEntry,
     ParameterSetpointReport,
@@ -139,6 +147,8 @@ __all__ = [
     "FunctionalBehaviorDescription",
     "OperatingModeDescription",
     "InstructionCoverage",
+    "IOChannel",
+    "IOListReport",
     "PLCopenBehaviourAssessment",
     "PLCopenBehaviourModel",
     "ParameterReportEntry",
@@ -158,6 +168,7 @@ __all__ = [
     "TagReference",
     "TagReferenceAccess",
     "UnresolvedTagReference",
+    "UnresolvedIOAlias",
     "RLLCoverageReport",
     "RungCoverageIssue",
     "analyze_aoi_portability",
@@ -176,6 +187,7 @@ __all__ = [
     "compare_codesys_visualizations",
     "inventory_opaque_visualization_properties",
     "build_device_functional_description",
+    "build_io_list_report",
     "extract_structured_text_calls",
     "evaluate_runtime_compatibility",
     "extract_rll_mnemonics",
@@ -186,4 +198,6 @@ __all__ = [
     "tag_dependency_graph_data",
     "tag_dependency_graph_json",
     "LiteralAssignmentEvidence",
+    "io_list_report_data",
+    "io_list_report_json",
 ]

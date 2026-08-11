@@ -77,6 +77,7 @@ from .iec_st import (
     emit_iec_st_routine,
     emit_iec_st_unit,
 )
+from .io_list_report import IOListCSVExporter, IOListMarkdownExporter
 from .plcopen import (
     PLCOPEN_201_NAMESPACE,
     PLCOPEN_CODESYS_NAMESPACE,
@@ -149,6 +150,8 @@ __all__ = [
     "IECSTDialect",
     "IECSTDiagnostic",
     "IECSTEmission",
+    "IOListCSVExporter",
+    "IOListMarkdownExporter",
     "validate_automationml_references",
     "validate_automationml_xml",
     "emit_iec_st_routine",

@@ -123,10 +123,11 @@ L5X exports. It reports a deterministic model summary and all conversion
 diagnostics without modifying the source. Missing, malformed, and unsupported
 documents return a non-zero status.
 
-`report` accepts a Controller L5X export and writes thirteen supported engineering
+`report` accepts a Controller L5X export and writes sixteen supported engineering
 reports: controller, tags, datatypes, Add-On Instructions, modules, tasks,
 programs, plus tag dependencies and evidence-bound alarm/trip candidates as
-Markdown, CSV, and JSON. Unestablished alarm-philosophy fields remain explicitly
+Markdown, CSV, and JSON, and a channel-level I/O list in the same formats.
+Unestablished alarm-philosophy and I/O-assignment facts remain explicitly
 unknown. Existing files with those deterministic names are replaced; unrelated
 files in the destination are left untouched.
 

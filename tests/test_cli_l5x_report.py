@@ -37,8 +37,11 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "alarm_trip_candidates.md",
         "alarm_trip_candidates.csv",
         "alarm_trip_candidates.json",
+        "io_list.md",
+        "io_list.csv",
+        "io_list.json",
     }
-    assert "Exported 13 reports" in output.getvalue()
+    assert "Exported 16 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -54,6 +57,10 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     )
     assert "alarm and trip candidate report" in alarm_report
     assert "not a verified alarm philosophy" in alarm_report
+    io_report = (destination / "io_list.md").read_text(encoding="utf-8")
+    assert "booster_compressor I/O list" in io_report
+    assert "PT102_PV" in io_report
+    assert "unavailable_by_configuration" in io_report
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:

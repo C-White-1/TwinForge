@@ -9,12 +9,16 @@ from typing import TextIO
 from twinforge.analysis import (
     alarm_trip_candidate_report_json,
     build_alarm_trip_candidate_report,
+    build_io_list_report,
     build_tag_dependency_graph,
+    io_list_report_json,
     tag_dependency_graph_json,
 )
 from twinforge.exporters import (
     AlarmTripCandidateCSVExporter,
     AlarmTripCandidateMarkdownExporter,
+    IOListCSVExporter,
+    IOListMarkdownExporter,
     TagDependencyCSVExporter,
     TagDependencyMarkdownExporter,
     TextReportBundle,
@@ -48,6 +52,7 @@ def export_l5x_reports(
         alarm_candidates = build_alarm_trip_candidate_report(
             controller, dependency_graph
         )
+        io_list = build_io_list_report(controller)
         files.update(
             {
                 "tag_dependencies.md": TagDependencyMarkdownExporter().export(
@@ -74,6 +79,12 @@ def export_l5x_reports(
                 "alarm_trip_candidates.json": (
                     alarm_trip_candidate_report_json(alarm_candidates)
                 ),
+                "io_list.md": IOListMarkdownExporter().export(
+                    io_list,
+                    title=f"{controller.name} I/O list",
+                ),
+                "io_list.csv": IOListCSVExporter().export(io_list),
+                "io_list.json": io_list_report_json(io_list),
             }
         )
         paths = TextReportBundle(files).write_to(destination)

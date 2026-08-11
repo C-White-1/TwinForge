@@ -183,8 +183,10 @@ uv run twinforge report project.L5X --output reports\project
 
 The bundle includes review-oriented Markdown, complete CSV, and deterministic
 JSON reports for tag dependencies and explicitly labelled alarm/trip candidates.
-Unresolved operands remain visible and unestablished alarm-philosophy fields
-remain unknown; both should be reviewed rather than inferred.
+It also includes a channel-level I/O list covering explicit assignments, spare
+candidates, configuration-unavailable channels, ranges, and units. Unresolved
+operands remain visible and unestablished facts remain unknown; both should be
+reviewed rather than inferred.
 
 ## Check export readiness
 
