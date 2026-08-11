@@ -12,6 +12,7 @@ from twinforge.model import (
     AddOnInstruction,
     AddOnInstructionDependency,
     AddOnInstructionParameter,
+    CompositeTagValue,
     Tag,
     TagValue,
 )
@@ -20,7 +21,7 @@ from twinforge.parsers.l5x.capture import CapturedSection
 from .conversion_value import emit_diagnostic, optional_bool
 from .program import convert_routine
 from .source_extension import captured_to_source_extension
-from .tag import parse_scalar_value
+from .decorated_value import parse_composite_value, parse_scalar_value
 
 
 def convert_add_on_instruction(
@@ -161,6 +162,7 @@ def _convert_parameter(
         alias_for=section.attributes.get("AliasFor"),
         description=_child_text(section, "Description"),
         default_value=_default_value(section, diagnostics),
+        composite_default_value=_composite_default_value(section, diagnostics),
         source_extensions=[captured_to_source_extension(section)],
     )
 
@@ -178,6 +180,7 @@ def _convert_local_tag(
         external_access=section.attributes.get("ExternalAccess"),
         description=_child_text(section, "Description"),
         initial_value=_default_value(section, diagnostics),
+        composite_initial_value=_composite_default_value(section, diagnostics),
         source_extensions=[captured_to_source_extension(section)],
     )
 
@@ -222,6 +225,39 @@ def _default_value(
                 lexical_value=lexical,
                 radix=child.attrib.get("Radix")
                 or section.attributes.get("Radix"),
+            )
+    return None
+
+
+def _composite_default_value(
+    section: CapturedSection,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> CompositeTagValue | None:
+    """Promote AOI composite defaults using the shared decorated-value rules."""
+
+    for data in section.elements.get("DefaultData", []):
+        if data.attributes.get("Format") != "Decorated":
+            continue
+        for child in data.ordered_children:
+            if not isinstance(child, ET.Element) or child.tag not in {
+                "Array",
+                "Structure",
+            }:
+                continue
+            return parse_composite_value(
+                child,
+                on_invalid=lambda data_type, lexical, element: emit_diagnostic(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "invalid_aoi_composite_default",
+                    (
+                        f"AOI value {section.attributes.get('Name')!r} has "
+                        f"invalid {data_type} composite default data"
+                    ),
+                    section,
+                    element.attrib.get("Name") or element.attrib.get("Index"),
+                    lexical,
+                ),
             )
     return None
 

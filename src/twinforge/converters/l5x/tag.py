@@ -8,7 +8,6 @@ from twinforge.converters.diagnostics import (
 )
 from twinforge.model import (
     CompositeTagValue,
-    CompositeTagValueNode,
     MessageTagConfiguration,
     Tag,
     TagValue,
@@ -16,6 +15,7 @@ from twinforge.model import (
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .source_extension import captured_to_source_extension
+from .decorated_value import parse_composite_value, parse_scalar_value
 
 
 _KNOWN_TAG_TYPES = {"Base", "Alias"}
@@ -203,86 +203,21 @@ def _composite_initial_value(
                 "Array",
                 "Structure",
             }:
-                return CompositeTagValue(
-                    root=_composite_node(child, None, section, diagnostics)
+                return parse_composite_value(
+                    child,
+                    on_invalid=lambda data_type, lexical, element: _emit(
+                        diagnostics,
+                        DiagnosticSeverity.WARNING,
+                        "invalid_composite_tag_value",
+                        (
+                            f"tag {section.attributes.get('Name', '')!r} has an "
+                            f"invalid {data_type} composite member value"
+                        ),
+                        section.attributes.get("Name"),
+                        element.attrib.get("Name") or element.attrib.get("Index"),
+                        lexical,
+                    ),
                 )
-    return None
-
-
-def _composite_node(
-    element: ET.Element,
-    inherited_data_type: str | None,
-    section: CapturedSection,
-    diagnostics: list[ConversionDiagnostic] | None,
-) -> CompositeTagValueNode:
-    """Recursively type known leaves without discarding unfamiliar attributes."""
-
-    data_type = element.attrib.get("DataType") or inherited_data_type
-    lexical_value = element.attrib.get("Value")
-    value = None
-    if lexical_value is not None and data_type is not None:
-        try:
-            value = parse_scalar_value(data_type, lexical_value)
-        except ValueError:
-            _emit(
-                diagnostics,
-                DiagnosticSeverity.WARNING,
-                "invalid_composite_tag_value",
-                (
-                    f"tag {section.attributes.get('Name', '')!r} has an "
-                    f"invalid {data_type} composite member value"
-                ),
-                section.attributes.get("Name"),
-                element.attrib.get("Name") or element.attrib.get("Index"),
-                lexical_value,
-            )
-    return CompositeTagValueNode(
-        source_kind=element.tag,
-        name=element.attrib.get("Name"),
-        index=element.attrib.get("Index"),
-        data_type=data_type,
-        dimensions=element.attrib.get("Dimensions"),
-        radix=element.attrib.get("Radix"),
-        lexical_value=lexical_value,
-        value=value,
-        children=tuple(
-            _composite_node(child, data_type, section, diagnostics)
-            for child in element
-        ),
-        raw_attributes=dict(element.attrib),
-    )
-
-
-def parse_scalar_value(
-    data_type: str, lexical_value: str
-) -> bool | int | float | str | None:
-    normalized_type = data_type.upper()
-    if normalized_type == "BOOL":
-        normalized_value = lexical_value.strip().lower()
-        if normalized_value in {"1", "true"}:
-            return True
-        if normalized_value in {"0", "false"}:
-            return False
-        raise ValueError(lexical_value)
-    if normalized_type in {
-        "SINT",
-        "INT",
-        "DINT",
-        "LINT",
-        "USINT",
-        "UINT",
-        "UDINT",
-        "ULINT",
-    }:
-        value = lexical_value.strip()
-        if "#" in value:
-            base_text, digits = value.split("#", 1)
-            return int(digits.replace("_", ""), int(base_text))
-        return int(value.replace("_", ""), 0)
-    if normalized_type in {"REAL", "LREAL"}:
-        return float(lexical_value)
-    if normalized_type in {"STRING", "WSTRING"}:
-        return lexical_value
     return None
 
 

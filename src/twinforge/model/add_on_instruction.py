@@ -9,7 +9,7 @@ from typing import Any
 from .routine import Routine
 from .source_extension import SourceExtension
 from .tag import Tag
-from .tag_value import TagValue
+from .tag_value import CompositeTagValue, TagValue
 from .datatype import Datatype
 
 
@@ -31,6 +31,7 @@ class AddOnInstructionParameter:
     alias_for: str | None = None
     description: str | None = None
     default_value: TagValue | None = None
+    composite_default_value: CompositeTagValue | None = None
     source_extensions: list[SourceExtension] = field(
         default_factory=list, repr=False
     )
