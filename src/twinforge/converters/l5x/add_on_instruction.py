@@ -61,6 +61,7 @@ def convert_add_on_instruction(
         ),
         source_extensions=[captured_to_source_extension(section)],
     )
+    parameter_sections: dict[str, CapturedSection] = {}
     for parameters in section.elements.get("Parameters", []):
         for parameter_section in parameters.elements.get("Parameter", []):
             parameter = _convert_parameter(
@@ -81,6 +82,7 @@ def convert_add_on_instruction(
                 )
                 continue
             instruction.add_parameter(parameter)
+            parameter_sections[parameter.name] = parameter_section
     for routines in section.elements.get("Routines", []):
         for routine_section in routines.elements.get("Routine", []):
             routine = convert_routine(
@@ -115,7 +117,11 @@ def convert_add_on_instruction(
                 )
                 continue
             instruction.add_local_tag(tag)
-    _resolve_parameter_alias_types(instruction)
+    _resolve_parameter_aliases(
+        instruction,
+        parameter_sections,
+        diagnostics,
+    )
     for dependencies in section.elements.get("Dependencies", []):
         for dependency in dependencies.elements.get("Dependency", []):
             instruction.dependencies.append(
@@ -269,10 +275,12 @@ def _child_text(section: CapturedSection, name: str) -> str | None:
     return children[0].text.strip()
 
 
-def _resolve_parameter_alias_types(
+def _resolve_parameter_aliases(
     instruction: AddOnInstruction,
+    parameter_sections: dict[str, CapturedSection],
+    diagnostics: list[ConversionDiagnostic] | None,
 ) -> None:
-    """Resolve safe AOI alias datatypes without replacing source evidence."""
+    """Link AOI aliases and resolve safe types without replacing evidence."""
 
     integer_types = {
         "BOOL",
@@ -289,21 +297,45 @@ def _resolve_parameter_alias_types(
         "DWORD",
         "LWORD",
     }
-    targets = {
-        item.name.casefold(): item.effective_data_type
+    targets: dict[str, AddOnInstructionParameter | Tag] = {
+        item.name.casefold(): item
         for item in instruction.parameters.values()
     }
     targets.update(
         {
-            item.name.casefold(): item.data_type
+            item.name.casefold(): item
             for item in instruction.local_tags.values()
         }
     )
     for parameter in instruction.parameters.values():
-        if parameter.data_type is not None or parameter.alias_for is None:
+        if parameter.alias_for is None:
             continue
         root, separator, selector = parameter.alias_for.partition(".")
-        target_type = targets.get(root.casefold())
+        parameter.alias_target = targets.get(root.casefold())
+        if parameter.alias_target is None:
+            source = parameter_sections.get(parameter.name)
+            if source is not None:
+                emit_diagnostic(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "unresolved_aoi_parameter_alias_target",
+                    (
+                        f"AOI {instruction.name!r} parameter "
+                        f"{parameter.name!r} aliases unknown target "
+                        f"{root!r}"
+                    ),
+                    source,
+                    "AliasFor",
+                    parameter.alias_for,
+                )
+            continue
+        if parameter.data_type is not None:
+            continue
+        target_type = (
+            parameter.alias_target.effective_data_type
+            if isinstance(parameter.alias_target, AddOnInstructionParameter)
+            else parameter.alias_target.data_type
+        )
         if target_type is None:
             continue
         if separator and selector.isdigit():

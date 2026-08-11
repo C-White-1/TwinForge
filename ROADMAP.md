@@ -63,6 +63,7 @@ That is a project-specific result, not universal Logix coverage.
   - [x] Bind composite value nodes to controller-defined UDT members
   - [x] Diagnose explicit composite-member and UDT-schema conflicts
   - [x] Resolve UDT bit-overlay targets and diagnose missing target members
+  - [x] Link AOI parameter aliases and diagnose missing named targets
 - [ ] Additional task and routine-body forms
 - [ ] Explicit cross-reference and tag dependency graphs
   - [x] Resolve Ladder and Structured Text call operands with scope, member,

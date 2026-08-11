@@ -29,6 +29,9 @@ class AddOnInstructionParameter:
     constant: bool | None = None
     external_access: str | None = None
     alias_for: str | None = None
+    alias_target: AddOnInstructionParameter | Tag | None = field(
+        default=None, repr=False
+    )
     description: str | None = None
     default_value: TagValue | None = None
     composite_default_value: CompositeTagValue | None = None

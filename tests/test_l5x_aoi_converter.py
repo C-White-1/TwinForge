@@ -85,11 +85,12 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
     state_value = config_state.composite_initial_value.root.children[0]
     assert state_value.value == 9
     assert state_value.member_definition is datatype.members[0]
+    state = instruction.local_tags["State"]
     assert instruction.parameters["Status"].alias_for == "State.0"
+    assert instruction.parameters["Status"].alias_target is state
     assert instruction.parameters["Status"].data_type is None
     assert instruction.parameters["Status"].resolved_data_type == "BOOL"
     assert instruction.parameters["Status"].effective_data_type == "BOOL"
-    state = instruction.local_tags["State"]
     assert state.data_type == "DINT"
     assert state.initial_value is not None
     assert state.initial_value.value == 0
@@ -104,6 +105,41 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
         dependency.target is not None
         for dependency in instruction.dependencies
     )
+
+
+def test_unresolved_aoi_parameter_alias_target_is_diagnosed_and_preserved(
+    tmp_path,
+) -> None:
+    source = tmp_path / "missing_alias_target.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="AOIContext">
+          <Controller Name="TestController">
+            <AddOnInstructionDefinitions>
+              <AddOnInstructionDefinition Name="AliasAOI">
+                <Parameters>
+                  <Parameter Name="Ready" TagType="Alias" Usage="Output"
+                   AliasFor="MissingState.0"/>
+                </Parameters>
+              </AddOnInstructionDefinition>
+            </AddOnInstructionDefinitions>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    controller = parser.parse(source, report_mode=None).controllers[0]
+
+    parameter = controller.add_on_instructions["AliasAOI"].parameters["Ready"]
+    assert parameter.alias_for == "MissingState.0"
+    assert parameter.alias_target is None
+    assert parameter.resolved_data_type is None
+    assert [item.code for item in parser.diagnostics] == [
+        "unresolved_aoi_parameter_alias_target"
+    ]
+    assert parser.diagnostics[0].raw_value == "MissingState.0"
 
 
 def test_captures_scan_mode_routines_separately_from_primary_logic():
