@@ -158,7 +158,6 @@ reports are disposable.
 - Do not combine provenance remediation with deletion; make each cleanup step
   independently reviewable.
 
-The next architecture roadmap item—consolidating disposable test output—is
-separate. The many ignored root `.pytest-tmp-*` directories observed locally
-are not tracked artifacts and were therefore outside this audit's mutation
-scope.
+The subsequent architecture change consolidated ordinary pytest output beneath
+`.test-artifacts`. The ignored root `.pytest-tmp-*` directories observed during
+this audit were legacy local state rather than tracked artifacts.

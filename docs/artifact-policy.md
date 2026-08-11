@@ -110,7 +110,8 @@ on an external rendering service.
 
 The following are disposable and must remain untracked:
 
-- `.pytest_cache/` and root `.pytest-tmp-*` directories;
+- `.pytest_cache/`, `.test-artifacts/`, and legacy root `.pytest-tmp-*`
+  directories;
 - `__pycache__/`, bytecode, coverage data, and tool caches;
 - virtual environments and dependency caches;
 - `node_modules/`;
@@ -118,9 +119,12 @@ The following are disposable and must remain untracked:
 - editor logs and machine-specific settings; and
 - scratch exports without a reviewed evidence purpose.
 
-Tests should use pytest-managed temporary paths or one explicitly ignored
-workspace location. Failure artifacts may be retained locally for diagnosis but
-must be reviewed and promoted deliberately before tracking.
+Tests use pytest-managed `tmp_path` values rooted beneath `.test-artifacts`.
+Pytest clears that directory at the beginning of the next run, so the most
+recent run remains available for diagnosis without accumulating one root
+directory per invocation. Evidence that must survive the next run must be
+copied to a separate ignored diagnostic location and reviewed before any
+deliberate promotion into Git.
 
 ## Promotion checklist
 

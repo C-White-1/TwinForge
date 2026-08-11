@@ -438,7 +438,7 @@ Planned sequence:
   PLCopen XML, CODESYS, native OpenPLC, and AutomationML support
 - [x] Review tracked `examples/` and `reports/` content against the artifact
   policy without deleting evidence or moving licensed material into Git
-- [ ] Consolidate disposable test output beneath one ignored location, or use
+- [x] Consolidate disposable test output beneath one ignored location, or use
   pytest-managed temporary directories, while preserving failure artifacts
   needed for diagnosis
 - [ ] Reassess repository splitting only if independent release cycles,

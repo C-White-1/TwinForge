@@ -52,6 +52,9 @@ venv = ".venv"
 typeCheckingMode = "standard"
 reportMissingTypeStubs = "none"
 
+[tool.pytest.ini_options]
+addopts = "--basetemp=.test-artifacts"
+
 [dependency-groups]
 dev = [
     "pyright>=1.1.411",

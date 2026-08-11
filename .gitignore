@@ -5,6 +5,9 @@ __pycache__/
 node_modules/
 .vscode/*.log
 .pytest_cache/
+# Consolidated pytest output. The current run remains available for diagnosis.
+/.test-artifacts/
+# Legacy Codex/manual basetemp locations retained during repository migration.
 /.pytest-tmp-*/
 .coverage
 htmlcov/
