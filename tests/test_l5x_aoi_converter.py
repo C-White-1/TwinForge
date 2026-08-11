@@ -75,10 +75,16 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
     assert config_state.data_type_definition is datatype
     assert config.default_value is None
     assert config.composite_default_value is not None
-    assert config.composite_default_value.root.children[0].value == 7
+    assert config.composite_default_value.data_type_definition is datatype
+    config_value = config.composite_default_value.root.children[0]
+    assert config_value.value == 7
+    assert config_value.member_definition is datatype.members[0]
     assert config_state.initial_value is None
     assert config_state.composite_initial_value is not None
-    assert config_state.composite_initial_value.root.children[0].value == 9
+    assert config_state.composite_initial_value.data_type_definition is datatype
+    state_value = config_state.composite_initial_value.root.children[0]
+    assert state_value.value == 9
+    assert state_value.member_definition is datatype.members[0]
     assert instruction.parameters["Status"].alias_for == "State.0"
     assert instruction.parameters["Status"].data_type is None
     assert instruction.parameters["Status"].resolved_data_type == "BOOL"

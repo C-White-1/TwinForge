@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from twinforge.converters.diagnostics import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, Datatype, DatatypeMember
+from twinforge.model import (
+    CompositeTagValue,
+    CompositeTagValueNode,
+    Controller,
+    Datatype,
+    DatatypeMember,
+)
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .conversion_value import optional_int
@@ -67,10 +75,16 @@ def resolve_datatype_references(controller: Controller) -> None:
     for tag in controller.tags.values():
         if tag.data_type:
             tag.data_type_definition = controller.get_datatype(tag.data_type)
+        tag.composite_initial_value = _resolve_composite_value(
+            tag.composite_initial_value, controller
+        )
     for program in controller.programs.values():
         for tag in program.tags.values():
             if tag.data_type:
                 tag.data_type_definition = controller.get_datatype(tag.data_type)
+            tag.composite_initial_value = _resolve_composite_value(
+                tag.composite_initial_value, controller
+            )
 
     for instruction in controller.add_on_instructions.values():
         for parameter in instruction.parameters.values():
@@ -79,11 +93,69 @@ def resolve_datatype_references(controller: Controller) -> None:
                 parameter.data_type_definition = controller.get_datatype(
                     data_type
                 )
+            parameter.composite_default_value = _resolve_composite_value(
+                parameter.composite_default_value, controller
+            )
         for tag in instruction.local_tags.values():
             if tag.data_type:
                 tag.data_type_definition = controller.get_datatype(
                     tag.data_type
                 )
+            tag.composite_initial_value = _resolve_composite_value(
+                tag.composite_initial_value, controller
+            )
+
+
+def _resolve_composite_value(
+    value: CompositeTagValue | None,
+    controller: Controller,
+) -> CompositeTagValue | None:
+    """Bind a promoted value tree to controller-owned datatype definitions."""
+
+    if value is None:
+        return None
+    root_type = (
+        controller.get_datatype(value.root.data_type)
+        if value.root.data_type
+        else None
+    )
+    return replace(
+        value,
+        root=_resolve_composite_node(value.root, root_type, controller),
+        data_type_definition=root_type,
+    )
+
+
+def _resolve_composite_node(
+    node: CompositeTagValueNode,
+    containing_type: Datatype | None,
+    controller: Controller,
+) -> CompositeTagValueNode:
+    member = _member(containing_type, node.name)
+    node_type = (
+        member.data_type
+        if member is not None and member.data_type is not None
+        else controller.get_datatype(node.data_type or "")
+    )
+    child_type = node_type if node.name is not None else containing_type
+    return replace(
+        node,
+        member_definition=member,
+        data_type_definition=node_type,
+        children=tuple(
+            _resolve_composite_node(child, child_type, controller)
+            for child in node.children
+        ),
+    )
+
+
+def _member(
+    datatype: Datatype | None,
+    name: str | None,
+) -> DatatypeMember | None:
+    if datatype is None or name is None:
+        return None
+    return next((member for member in datatype.members if member.name == name), None)
 
 
 def _convert_member(

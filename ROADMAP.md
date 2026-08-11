@@ -60,6 +60,7 @@ That is a project-specific result, not universal Logix coverage.
   - [x] Resolve controller-defined UDT references for AOI parameters and local
     tags
   - [x] Promote structured and array defaults for AOI parameters and local tags
+  - [x] Bind composite value nodes to controller-defined UDT members
 - [ ] Additional task and routine-body forms
 - [ ] Explicit cross-reference and tag dependency graphs
   - [x] Resolve Ladder and Structured Text call operands with scope, member,

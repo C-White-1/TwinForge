@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .datatype import Datatype, DatatypeMember
 
 
 ScalarTagValue = bool | int | float | str
@@ -29,6 +33,8 @@ class CompositeTagValueNode:
     radix: str | None = None
     lexical_value: str | None = None
     value: ScalarTagValue | None = None
+    member_definition: "DatatypeMember | None" = None
+    data_type_definition: "Datatype | None" = None
     children: tuple["CompositeTagValueNode", ...] = ()
     raw_attributes: dict[str, str] = field(default_factory=dict, repr=False)
 
@@ -38,4 +44,5 @@ class CompositeTagValue:
     """A typed, recursively navigable non-scalar tag initial value."""
 
     root: CompositeTagValueNode
+    data_type_definition: "Datatype | None" = None
     source_format: str = "Decorated"
