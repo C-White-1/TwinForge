@@ -12,8 +12,10 @@ from twinforge.analysis import (
     build_cause_effect_candidate_report,
     build_controller_functional_description,
     build_io_list_report,
+    build_module_schedule_report,
     build_tag_dependency_graph,
     io_list_report_json,
+    module_schedule_report_json,
     cause_effect_candidate_report_json,
     tag_dependency_graph_json,
 )
@@ -25,6 +27,8 @@ from twinforge.exporters import (
     ControllerFunctionalDescriptionMarkdownExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
+    ModuleScheduleCSVExporter,
+    ModuleScheduleMarkdownExporter,
     TagDependencyCSVExporter,
     TagDependencyMarkdownExporter,
     TextReportBundle,
@@ -69,6 +73,7 @@ def export_l5x_reports(
             alarm_candidates,
             cause_effect,
         )
+        module_schedule = build_module_schedule_report(controller, io_list)
         files.update(
             {
                 "tag_dependencies.md": TagDependencyMarkdownExporter().export(
@@ -119,6 +124,16 @@ def export_l5x_reports(
                     ControllerFunctionalDescriptionMarkdownExporter().export(
                         functional_description
                     )
+                ),
+                "module_schedule.md": ModuleScheduleMarkdownExporter().export(
+                    module_schedule,
+                    title=f"{controller.name} module and spare-I/O schedule",
+                ),
+                "module_schedule.csv": ModuleScheduleCSVExporter().export(
+                    module_schedule
+                ),
+                "module_schedule.json": module_schedule_report_json(
+                    module_schedule
                 ),
             }
         )

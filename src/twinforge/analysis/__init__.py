@@ -125,6 +125,13 @@ from .parameter_report import (
     ParameterSetpointReport,
     build_parameter_setpoint_report,
 )
+from .module_schedule import (
+    ModuleScheduleEntry,
+    ModuleScheduleReport,
+    build_module_schedule_report,
+    module_schedule_report_data,
+    module_schedule_report_json,
+)
 from .parameter_writes import (
     ParameterLiteralWriteBinding,
     ParameterSetpointBinding,
@@ -165,6 +172,8 @@ __all__ = [
     "FaultHistoryEntry",
     "FunctionalBehaviorDescription",
     "OperatingModeDescription",
+    "ModuleScheduleEntry",
+    "ModuleScheduleReport",
     "InstructionCoverage",
     "IOChannel",
     "IOListReport",
@@ -202,6 +211,7 @@ __all__ = [
     "alarm_trip_candidate_report_json",
     "assess_plcopen_behaviour",
     "build_parameter_setpoint_report",
+    "build_module_schedule_report",
     "build_tag_dependency_graph",
     "build_device_diagnostic_report",
     "build_conversion_readiness_report",
@@ -224,6 +234,8 @@ __all__ = [
     "LiteralAssignmentEvidence",
     "io_list_report_data",
     "io_list_report_json",
+    "module_schedule_report_data",
+    "module_schedule_report_json",
     "cause_effect_candidate_report_data",
     "cause_effect_candidate_report_json",
 ]

@@ -97,6 +97,10 @@ from .plcopen import (
     validate_plcopen_xml,
 )
 from .parameter_markdown import ParameterMarkdownExporter
+from .module_schedule_report import (
+    ModuleScheduleCSVExporter,
+    ModuleScheduleMarkdownExporter,
+)
 from .parameter_report import (
     ParameterReportCSVExporter,
     ParameterReportMarkdownExporter,
@@ -177,6 +181,8 @@ __all__ = [
     "PLCopenValidationError",
     "PLCopenValidationUnavailable",
     "ParameterMarkdownExporter",
+    "ModuleScheduleCSVExporter",
+    "ModuleScheduleMarkdownExporter",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",

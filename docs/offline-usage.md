@@ -191,6 +191,9 @@ causality. Unestablished facts should be reviewed rather than inferred.
 The `functional_description.md` draft summarizes controller identity,
 task/program execution, routine coverage, and the generated engineering
 evidence while retaining explicit verification boundaries.
+The module schedule provides Markdown, CSV, and JSON summaries of capacity,
+assignments, spare candidates, configuration-unavailable channels, and modules
+whose I/O capability remains unknown.
 
 ## Check export readiness
 

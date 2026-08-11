@@ -44,8 +44,11 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "cause_effect_candidates.csv",
         "cause_effect_candidates.json",
         "functional_description.md",
+        "module_schedule.md",
+        "module_schedule.csv",
+        "module_schedule.json",
     }
-    assert "Exported 20 reports" in output.getvalue()
+    assert "Exported 23 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -77,6 +80,12 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert "functional-description draft" in functional_description
     assert "MainTask" in functional_description
     assert "MainProgram" in functional_description
+    module_schedule = (destination / "module_schedule.md").read_text(
+        encoding="utf-8"
+    )
+    assert "module and spare-I/O schedule" in module_schedule
+    assert "AI_Slot4" in module_schedule
+    assert "Unknown capability is retained" in module_schedule
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:
