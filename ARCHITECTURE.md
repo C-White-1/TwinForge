@@ -64,7 +64,10 @@ PLCopen XML | AutomationML | reports
 Externally sourced material belongs under the ignored `reference/` tree unless
 its provenance and redistribution rights explicitly permit tracking. Generated
 output does not become authoritative merely because it resembles a source or
-fixture. The detailed artifact policy remains a separate roadmap item.
+fixture.
+
+The maintained [artifact policy](docs/artifact-policy.md) defines promotion,
+provenance, tracking, and removal rules for each category.
 
 ## Package responsibilities
 

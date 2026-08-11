@@ -431,7 +431,7 @@ Planned sequence:
   and reference provenance
 - [x] Add a concise repository and package-responsibility map to
   `ARCHITECTURE.md`, including explicit ownership and prohibited dependencies
-- [ ] Document an artifact policy for product source, tests, executable
+- [x] Document an artifact policy for product source, tests, executable
   examples, external reference material, curated reports, generated output,
   and temporary files
 - [ ] Add a cross-target capability matrix covering parse, model, generic
