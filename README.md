@@ -307,6 +307,7 @@ schemas must be obtained from their official publishers and supplied locally.
 
 ## Detailed documentation
 
+- [Documentation index](docs/README.md)
 - [Architecture](ARCHITECTURE.md)
 - [Architecture and refactoring roadmap](docs/roadmaps/architecture-refactoring-roadmap.md)
 - [Domain model](MODEL.md)

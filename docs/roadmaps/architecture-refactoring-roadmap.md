@@ -426,7 +426,7 @@ Planned sequence:
 - [x] Add authoritative PlantUML sources under
   `docs/architecture/diagrams/` for the end-to-end conversion pipeline,
   target-specific output paths, and the native OpenPLC façade/collaborators
-- [ ] Add `docs/README.md` as the documentation landing page, covering getting
+- [x] Add `docs/README.md` as the documentation landing page, covering getting
   started, architecture, capabilities, target guides, experiments, roadmaps,
   and reference provenance
 - [ ] Add a concise repository and package-responsibility map to
