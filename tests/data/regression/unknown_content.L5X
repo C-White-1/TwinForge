@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RSLogix5000Content SchemaRevision="1.0" SoftwareRevision="35.00"
+ TargetName="UnknownContent" TargetType="Program"
+ FutureDocumentAttribute="preserve-document-attribute">
+  <Controller Use="Context" Name="FixtureController">
+    <Programs Use="Context">
+      <Program Use="Target" Name="UnknownContent" TestEdits="false"
+       MainRoutineName="Main" Disabled="false" UseAsFolder="false"
+       FutureProgramAttribute="preserve-program-attribute">
+        <Tags>
+          <Tag Name="Input" TagType="Base" DataType="BOOL"
+           Constant="false" ExternalAccess="Read/Write"
+           FutureTagAttribute="preserve-tag-attribute">
+            <FutureTagElement Evidence="preserve-tag-element">
+              <NestedFuture Value="preserve-nested-element" />
+            </FutureTagElement>
+          </Tag>
+        </Tags>
+        <Routines>
+          <Routine Name="Main" Type="RLL"
+           FutureRoutineAttribute="preserve-routine-attribute">
+            <RLLContent>
+              <Rung Number="0" Type="N"
+               FutureRungAttribute="preserve-rung-attribute">
+                <Text><![CDATA[XIC(Input)OTE(Input);]]></Text>
+                <FutureRungElement Evidence="preserve-rung-element" />
+              </Rung>
+            </RLLContent>
+            <FutureRoutineElement Evidence="preserve-routine-element" />
+          </Routine>
+        </Routines>
+        <FutureProgramElement Evidence="preserve-program-element" />
+      </Program>
+      <Program Use="Reference" Name="Dependency" />
+    </Programs>
+  </Controller>
+  <FutureDocumentElement Evidence="preserve-document-element" />
+</RSLogix5000Content>

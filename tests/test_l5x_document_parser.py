@@ -8,10 +8,12 @@ from twinforge.model import (
     Program,
     SoftwareComponentKind,
 )
+from twinforge.model.source_extension import SourceNode
 from twinforge.parsers.l5x import L5XParser, L5XTargetType
 
 
 DATA = Path(__file__).parent / "data/standalone"
+REGRESSION_DATA = Path(__file__).parent / "data/regression"
 CONTROLLER = (
     Path(__file__).parent
     / "data/basic/BoosterCompressor_20260128.L5X"
@@ -89,3 +91,58 @@ def test_dispatches_controller_without_changing_legacy_parse():
     assert document.target_type is L5XTargetType.CONTROLLER
     assert next(plant.iter_controllers()).name == document.target.name
     assert document.target_name == "booster_compressor"
+
+
+def test_unknown_content_fixture_survives_document_and_model_conversion():
+    document = L5XParser().parse_document(
+        REGRESSION_DATA / "unknown_content.L5X"
+    )
+
+    document_root = document.source_extensions[0].root
+    assert document_root.attributes["FutureDocumentAttribute"] == (
+        "preserve-document-attribute"
+    )
+    assert _child(document_root, "FutureDocumentElement").attributes == {
+        "Evidence": "preserve-document-element"
+    }
+
+    program = document.target
+    assert isinstance(program, Program)
+    program_root = program.source_extensions[0].root
+    assert program_root.attributes["FutureProgramAttribute"] == (
+        "preserve-program-attribute"
+    )
+    assert _child(program_root, "FutureProgramElement").attributes == {
+        "Evidence": "preserve-program-element"
+    }
+
+    tag_root = program.tags["Input"].source_extensions[0].root
+    assert tag_root.attributes["FutureTagAttribute"] == (
+        "preserve-tag-attribute"
+    )
+    future_tag = _child(tag_root, "FutureTagElement")
+    assert future_tag.attributes == {"Evidence": "preserve-tag-element"}
+    assert _child(future_tag, "NestedFuture").attributes == {
+        "Value": "preserve-nested-element"
+    }
+
+    routine = program.routines["Main"]
+    routine_root = routine.source_extensions[0].root
+    assert routine_root.attributes["FutureRoutineAttribute"] == (
+        "preserve-routine-attribute"
+    )
+    assert _child(routine_root, "FutureRoutineElement").attributes == {
+        "Evidence": "preserve-routine-element"
+    }
+
+    rung_root = routine.ladder_rungs[0].source_extensions[0].root
+    assert rung_root.attributes["FutureRungAttribute"] == (
+        "preserve-rung-attribute"
+    )
+    assert _child(rung_root, "FutureRungElement").attributes == {
+        "Evidence": "preserve-rung-element"
+    }
+
+
+def _child(node: SourceNode, name: str) -> SourceNode:
+    return next(child for child in node.children if child.name == name)

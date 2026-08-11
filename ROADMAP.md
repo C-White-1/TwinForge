@@ -51,7 +51,7 @@ That is a project-specific result, not universal Logix coverage.
 - [ ] Add CompactLogix and additional ControlLogix hardware
 - [ ] Exercise produced/consumed tags, MSG, AOIs, motion and safety content
 - [ ] Publish per-fixture rung and instruction coverage
-- [ ] Add regression fixtures for unknown attributes and elements
+- [x] Add regression fixtures for unknown attributes and elements
 
 ### Model and parser depth
 
