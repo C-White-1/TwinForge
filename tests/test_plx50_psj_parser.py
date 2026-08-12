@@ -40,6 +40,7 @@ def test_decodes_native_container_and_preserves_unknown_xml(tmp_path: Path):
     assert device.mode == "StandaloneMaster"
     assert device.primary_interface == "EtherNetIP"
     assert device.config_value("FutureConfig") == "retain"
+    assert device.profibus_devices == ()
     assert dict(device.device_attributes)["FutureDevice"] == "keep"
     future_node = (
         device.source_extension.root.children[0].children[0].children[0]
@@ -51,6 +52,45 @@ def test_decodes_native_container_and_preserves_unknown_xml(tmp_path: Path):
         "container_obfuscation": "XOR-0x5A",
     }
     assert document.encoded_text == source.read_text(encoding="ascii")
+    assert document.diagnostics == ()
+
+
+def test_promotes_configured_profibus_slots_and_data_points(tmp_path: Path):
+    source = tmp_path / "profibus.psj"
+    _write_psj(
+        source,
+        """<ProjectConfig xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<Devices><GenericDevice xsi:type="PSPBDevicePLX51PBM" DeviceName="Gateway">
+<Config InstanceName="Gateway">
+<DeviceConfig><PSPBConfigDevice VendorName="ProSoft" ModelName="PLX51-PBM" InstanceName="TF_DP_SLAVE_01" StationAddress="3" Ident="4350" GSDRevision="5" GSDFileName="PSFT10FE.GSD" FutureDevice="keep">
+<Slots>
+<PSPBConfigSlot SlotID="1" ModuleID="3"><DataPoints>
+<PSPBConfigSlotDataPoint DataPointType="Input" DataFormat="REAL" ByteLength="4" LocalOffset="0" Description="Input4Bytes" ModbusRegisterType="HR" InterfaceConnectionOffset="0" FuturePoint="retain" />
+</DataPoints></PSPBConfigSlot>
+</Slots></PSPBConfigDevice></DeviceConfig>
+</Config></GenericDevice></Devices></ProjectConfig>""",
+    )
+
+    document = PLX50PSJParser().parse(source)
+
+    device = document.devices[0].profibus_devices[0]
+    assert device.instance_name == "TF_DP_SLAVE_01"
+    assert device.station_address == 3
+    assert device.ident_number == 4350
+    assert device.gsd_revision == 5
+    assert device.gsd_filename == "PSFT10FE.GSD"
+    assert dict(device.attributes)["FutureDevice"] == "keep"
+    slot = device.slots[0]
+    assert (slot.slot_id, slot.module_id) == (1, 3)
+    point = slot.data_points[0]
+    assert point.data_point_type == "Input"
+    assert point.data_format == "REAL"
+    assert point.byte_length == 4
+    assert point.local_offset == 0
+    assert point.description == "Input4Bytes"
+    assert point.modbus_register_type == "HR"
+    assert point.interface_connection_offset == 0
+    assert dict(point.attributes)["FuturePoint"] == "retain"
     assert document.diagnostics == ()
 
 

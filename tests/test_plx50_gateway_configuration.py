@@ -37,6 +37,7 @@ def _configuration(
         primary_interface=primary_interface,
         device_attributes=(("DeviceName", "TF_PLX51_PBM_Tes"),),
         config_attributes=tuple(attributes.items()),
+        profibus_devices=(),
         source_extension=SourceExtension(
             format="PLX50-PSJ",
             root=SourceNode(name="GenericDevice"),

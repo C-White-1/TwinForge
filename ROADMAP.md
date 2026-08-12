@@ -221,6 +221,7 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Apply native operating mode and primary endpoint configuration
     - [x] Apply native Modbus address, unit, port, and base convention
     - [x] Lower evidenced built-in Modbus register-region bases
+    - [x] Parse configured PROFIBUS devices, slots, and data points
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
 

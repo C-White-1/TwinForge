@@ -29,12 +29,55 @@ class Plx50DeviceConfiguration:
     primary_interface: str | None
     device_attributes: tuple[tuple[str, str], ...] = field(repr=False)
     config_attributes: tuple[tuple[str, str], ...] = field(repr=False)
+    profibus_devices: tuple["Plx50ProfibusDevice", ...]
     source_extension: SourceExtension = field(repr=False)
 
     def config_value(self, name: str) -> str | None:
         """Return one native configuration attribute without hiding the rest."""
 
         return dict(self.config_attributes).get(name)
+
+
+@dataclass(frozen=True)
+class Plx50ProfibusDataPoint:
+    """One native cyclic data-point declaration within a configured slot."""
+
+    data_point_type: str | None
+    data_format: str | None
+    byte_length: int | None
+    local_offset: int | None
+    description: str | None
+    modbus_register_type: str | None
+    interface_connection_offset: int | None
+    attributes: tuple[tuple[str, str], ...] = field(repr=False)
+    source_extension: SourceExtension = field(repr=False)
+
+
+@dataclass(frozen=True)
+class Plx50ProfibusSlot:
+    """One configured PROFIBUS slot and its ordered cyclic data points."""
+
+    slot_id: int | None
+    module_id: int | None
+    data_points: tuple[Plx50ProfibusDataPoint, ...]
+    attributes: tuple[tuple[str, str], ...] = field(repr=False)
+    source_extension: SourceExtension = field(repr=False)
+
+
+@dataclass(frozen=True)
+class Plx50ProfibusDevice:
+    """One downstream PROFIBUS device configured in a PLX50 project."""
+
+    vendor_name: str | None
+    model_name: str | None
+    instance_name: str | None
+    station_address: int | None
+    ident_number: int | None
+    gsd_revision: int | None
+    gsd_filename: str | None
+    slots: tuple[Plx50ProfibusSlot, ...]
+    attributes: tuple[tuple[str, str], ...] = field(repr=False)
+    source_extension: SourceExtension = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -91,7 +134,7 @@ class PLX50PSJParser:
                 diagnostics=tuple(diagnostics),
             )
         devices = tuple(
-            _device(element)
+            _device(element, diagnostics)
             for element in root.findall("./Devices/GenericDevice")
         )
         return Plx50ProjectDocument(
@@ -111,7 +154,10 @@ class PLX50PSJParser:
         )
 
 
-def _device(element: ET.Element) -> Plx50DeviceConfiguration:
+def _device(
+    element: ET.Element,
+    diagnostics: list[ConversionDiagnostic],
+) -> Plx50DeviceConfiguration:
     config = element.find("./Config")
     config_attributes = tuple(config.attrib.items()) if config is not None else ()
     values = dict(config_attributes)
@@ -126,11 +172,101 @@ def _device(element: ET.Element) -> Plx50DeviceConfiguration:
         primary_interface=values.get("PrimaryInterface"),
         device_attributes=tuple(element.attrib.items()),
         config_attributes=config_attributes,
+        profibus_devices=(
+            tuple(
+                _profibus_device(item, diagnostics)
+                for item in config.findall("./DeviceConfig/PSPBConfigDevice")
+            )
+            if config is not None
+            else ()
+        ),
         source_extension=SourceExtension(
             format="PLX50-PSJ",
             root=_source_node(element),
         ),
     )
+
+
+def _profibus_device(
+    element: ET.Element,
+    diagnostics: list[ConversionDiagnostic],
+) -> Plx50ProfibusDevice:
+    values = element.attrib
+    return Plx50ProfibusDevice(
+        vendor_name=values.get("VendorName"),
+        model_name=values.get("ModelName"),
+        instance_name=values.get("InstanceName"),
+        station_address=_xml_integer(values.get("StationAddress"), "StationAddress", diagnostics),
+        ident_number=_xml_integer(values.get("Ident"), "Ident", diagnostics),
+        gsd_revision=_xml_integer(values.get("GSDRevision"), "GSDRevision", diagnostics),
+        gsd_filename=values.get("GSDFileName"),
+        slots=tuple(
+            _profibus_slot(item, diagnostics)
+            for item in element.findall("./Slots/PSPBConfigSlot")
+        ),
+        attributes=tuple(values.items()),
+        source_extension=SourceExtension(format="PLX50-PSJ", root=_source_node(element)),
+    )
+
+
+def _profibus_slot(
+    element: ET.Element,
+    diagnostics: list[ConversionDiagnostic],
+) -> Plx50ProfibusSlot:
+    values = element.attrib
+    return Plx50ProfibusSlot(
+        slot_id=_xml_integer(values.get("SlotID"), "SlotID", diagnostics),
+        module_id=_xml_integer(values.get("ModuleID"), "ModuleID", diagnostics),
+        data_points=tuple(
+            _profibus_data_point(item, diagnostics)
+            for item in element.findall("./DataPoints/PSPBConfigSlotDataPoint")
+        ),
+        attributes=tuple(values.items()),
+        source_extension=SourceExtension(format="PLX50-PSJ", root=_source_node(element)),
+    )
+
+
+def _profibus_data_point(
+    element: ET.Element,
+    diagnostics: list[ConversionDiagnostic],
+) -> Plx50ProfibusDataPoint:
+    values = element.attrib
+    return Plx50ProfibusDataPoint(
+        data_point_type=values.get("DataPointType"),
+        data_format=values.get("DataFormat"),
+        byte_length=_xml_integer(values.get("ByteLength"), "ByteLength", diagnostics),
+        local_offset=_xml_integer(values.get("LocalOffset"), "LocalOffset", diagnostics),
+        description=values.get("Description"),
+        modbus_register_type=values.get("ModbusRegisterType"),
+        interface_connection_offset=_xml_integer(
+            values.get("InterfaceConnectionOffset"), "InterfaceConnectionOffset", diagnostics
+        ),
+        attributes=tuple(values.items()),
+        source_extension=SourceExtension(format="PLX50-PSJ", root=_source_node(element)),
+    )
+
+
+def _xml_integer(
+    value: str | None,
+    field_name: str,
+    diagnostics: list[ConversionDiagnostic],
+) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value, 10)
+    except ValueError:
+        diagnostics.append(
+            ConversionDiagnostic(
+                severity=DiagnosticSeverity.WARNING,
+                code="invalid_plx50_psj_integer",
+                message=f"PLX50 {field_name} must be an integer, got {value!r}",
+                object_name="PLX50 project",
+                field=field_name,
+                raw_value=value,
+            )
+        )
+        return None
 
 
 def _source_node(element: ET.Element) -> SourceNode:
