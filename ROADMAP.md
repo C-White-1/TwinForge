@@ -200,7 +200,7 @@ placing protocol registers directly on Rockwell modules or tags.
 - [ ] Produced/consumed tag relationships
 - [ ] MSG and CIP Generic instruction analysis
 - [ ] External address and controller-reference discovery
-- [ ] Modbus device, area and register-map model
+- [x] Modbus device, area and register-map model
 - [x] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces
 - [ ] Multi-controller communication graph

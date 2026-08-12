@@ -34,6 +34,14 @@ from .engineering_unit import (
 from .gateway import GatewayDevice, GatewayProtocolMapping
 from .identity import Identity, VendorIdentity
 from .module import Module
+from .modbus import (
+    ModbusAccess,
+    ModbusAddress,
+    ModbusAddressingConvention,
+    ModbusArea,
+    ModbusPoint,
+    ModbusRegisterMap,
+)
 from .module_capability import IODirection, IOSignalType, ModuleCapability
 from .network import Network
 from .observed_parameter import ObservedParameterAccess
@@ -120,6 +128,12 @@ __all__ = [
     "LadderRung",
     "VendorIdentity",
     "Module",
+    "ModbusAccess",
+    "ModbusAddress",
+    "ModbusAddressingConvention",
+    "ModbusArea",
+    "ModbusPoint",
+    "ModbusRegisterMap",
     "ModuleDataDirection",
     "ModuleCapability",
     "MessageTagConfiguration",
