@@ -3,10 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 from .asset import Asset
 from .connection import Connection
 from .source_extension import SourceExtension
+
+
+class CommunicationRole(str, Enum):
+    """A protocol-neutral role performed by one communication endpoint."""
+
+    ADAPTER = "adapter"
+    SCANNER = "scanner"
+    MASTER = "master"
+    SLAVE = "slave"
+    CLIENT = "client"
+    SERVER = "server"
+    PEER = "peer"
+    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -37,9 +51,11 @@ class CommunicationInterface(Asset):
     """A protocol endpoint belonging to a device."""
 
     protocol: str
+    role: CommunicationRole = CommunicationRole.UNKNOWN
     address: str | None = None
     connections: list[Connection] = field(default_factory=list)
     services: list[CommunicationService] = field(default_factory=list)
+    metadata: dict[str, object] = field(default_factory=dict)
 
     def add_connection(self, connection: Connection) -> None:
         """Attach a cyclic or logical connection to the interface."""

@@ -8,6 +8,7 @@ from .chassis import Chassis
 from .connection import Connection
 from .communication_interface import (
     CommunicationInterface,
+    CommunicationRole,
     CommunicationService,
 )
 from .controller import Controller
@@ -30,6 +31,7 @@ from .engineering_unit import (
     EngineeringUnitEvidence,
     EngineeringUnitSource,
 )
+from .gateway import GatewayDevice, GatewayProtocolMapping
 from .identity import Identity, VendorIdentity
 from .module import Module
 from .module_capability import IODirection, IOSignalType, ModuleCapability
@@ -88,6 +90,7 @@ __all__ = [
     "Chassis",
     "Connection",
     "CommunicationInterface",
+    "CommunicationRole",
     "CommunicationService",
     "Controller",
     "Datatype",
@@ -108,6 +111,8 @@ __all__ = [
     "EngineeringUnitConfidence",
     "EngineeringUnitEvidence",
     "EngineeringUnitSource",
+    "GatewayDevice",
+    "GatewayProtocolMapping",
     "Identity",
     "IODirection",
     "IOSignalType",

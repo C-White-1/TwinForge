@@ -213,7 +213,7 @@ placing protocol registers directly on Rockwell modules or tags.
   - [x] Parse GSD identity, limits, and modular cyclic-data definitions
     - [x] Parse GSD source losslessly and promote identity and station limits
     - [x] Promote selectable modules and standard cyclic-data identifiers
-  - [ ] Model gateway protocol endpoints without conflating their mappings
+  - [x] Model gateway protocol endpoints without conflating their mappings
   - [ ] Ingest PLX50 configuration exports or generated mapping reports
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
