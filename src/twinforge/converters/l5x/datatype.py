@@ -8,6 +8,7 @@ from twinforge.converters.diagnostics import (
 )
 from twinforge.model import (
     AddOnInstruction,
+    AddOnInstructionParameter,
     CompositeTagValue,
     CompositeTagValueNode,
     Controller,
@@ -17,6 +18,7 @@ from twinforge.model import (
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .conversion_value import optional_int
+from .alias import parse_alias_component
 from .source_extension import captured_to_source_extension
 
 
@@ -149,7 +151,13 @@ def _resolve_aoi_alias_members(
             continue
         path = []
         current_type: Datatype | None = target_type
-        for selector in suffix.split("."):
+        for selector_text in suffix.split("."):
+            parsed_selector = parse_alias_component(selector_text)
+            if parsed_selector is None:
+                path = []
+                break
+            selector, selector_indices = parsed_selector
+            parameter.alias_array_indices += selector_indices
             if current_type is None:
                 previous = path[-1]
                 _emit(
@@ -185,10 +193,48 @@ def _resolve_aoi_alias_members(
                 path = []
                 break
             path.append(member)
+            _diagnose_member_array_bounds(
+                instruction,
+                parameter,
+                member,
+                selector_indices,
+                diagnostics,
+            )
             current_type = member.data_type
         parameter.alias_member_path = tuple(path)
         if path and parameter.data_type is None:
             parameter.resolved_data_type = path[-1].data_type_name
+
+
+def _diagnose_member_array_bounds(
+    instruction: AddOnInstruction,
+    parameter: AddOnInstructionParameter,
+    member: DatatypeMember,
+    indices: tuple[int, ...],
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> None:
+    if not indices or member.dimension is None:
+        return
+    try:
+        bounds = tuple(int(item) for item in member.dimension.split(","))
+    except ValueError:
+        return
+    if len(bounds) != len(indices) or any(
+        index >= bound for index, bound in zip(indices, bounds)
+    ):
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "aoi_alias_array_index_out_of_bounds",
+            (
+                f"AOI {instruction.name!r} parameter {parameter.name!r} "
+                f"uses array index outside member {member.name!r} "
+                f"dimensions {member.dimension!r}"
+            ),
+            instruction.name,
+            "AliasFor",
+            parameter.alias_for,
+        )
 
 
 def _resolve_composite_value(

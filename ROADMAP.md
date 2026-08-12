@@ -65,6 +65,7 @@ That is a project-specific result, not universal Logix coverage.
   - [x] Resolve UDT bit-overlay targets and diagnose missing target members
   - [x] Link AOI parameter aliases and diagnose missing named targets
   - [x] Resolve AOI aliases through controller-defined UDT member paths
+  - [x] Resolve indexed AOI aliases and validate declared array bounds
 - [ ] Additional task and routine-body forms
 - [ ] Explicit cross-reference and tag dependency graphs
   - [x] Resolve Ladder and Structured Text call operands with scope, member,

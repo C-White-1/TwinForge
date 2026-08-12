@@ -35,6 +35,7 @@ class AddOnInstructionParameter:
     alias_member_path: tuple[DatatypeMember, ...] = field(
         default=(), repr=False
     )
+    alias_array_indices: tuple[int, ...] = ()
     description: str | None = None
     default_value: TagValue | None = None
     composite_default_value: CompositeTagValue | None = None

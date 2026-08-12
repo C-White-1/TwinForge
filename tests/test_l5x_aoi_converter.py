@@ -95,6 +95,11 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
     assert config_value_alias.alias_target is config
     assert config_value_alias.alias_member_path == (datatype.members[0],)
     assert config_value_alias.effective_data_type == "DINT"
+    history_alias = instruction.parameters["HistoryValue"]
+    assert history_alias.alias_target is instruction.local_tags["History"]
+    assert history_alias.alias_array_indices == (1,)
+    assert history_alias.alias_member_path == (datatype.members[0],)
+    assert history_alias.effective_data_type == "DINT"
     assert state.data_type == "DINT"
     assert state.initial_value is not None
     assert state.initial_value.value == 0
@@ -187,6 +192,41 @@ def test_unresolved_aoi_alias_udt_member_is_diagnosed_and_preserved(
         "unresolved_aoi_alias_member"
     ]
     assert parser.diagnostics[0].raw_value == "Config.Missing"
+
+
+def test_out_of_bounds_aoi_alias_index_is_diagnosed_and_preserved(tmp_path):
+    source = tmp_path / "alias_index.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="AOIContext">
+          <Controller Name="TestController">
+            <AddOnInstructionDefinitions>
+              <AddOnInstructionDefinition Name="AliasAOI">
+                <Parameters>
+                  <Parameter Name="Selected" TagType="Alias" Usage="Output"
+                   AliasFor="Values[2]"/>
+                </Parameters>
+                <LocalTags>
+                  <LocalTag Name="Values" DataType="DINT" Dimensions="2"/>
+                </LocalTags>
+              </AddOnInstructionDefinition>
+            </AddOnInstructionDefinitions>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    controller = parser.parse(source, report_mode=None).controllers[0]
+
+    parameter = controller.add_on_instructions["AliasAOI"].parameters["Selected"]
+    assert parameter.alias_for == "Values[2]"
+    assert parameter.alias_array_indices == (2,)
+    assert parameter.alias_target is not None
+    assert [item.code for item in parser.diagnostics] == [
+        "aoi_alias_array_index_out_of_bounds"
+    ]
 
 
 def test_captures_scan_mode_routines_separately_from_primary_logic():

@@ -36,6 +36,8 @@
            AliasFor="State.0" Required="false" Visible="true"/>
           <Parameter Name="ConfigValue" TagType="Alias" Usage="Output"
            AliasFor="Config.Value" Required="false" Visible="true"/>
+          <Parameter Name="HistoryValue" TagType="Alias" Usage="Output"
+           AliasFor="History[1].Value" Required="false" Visible="true"/>
         </Parameters>
         <LocalTags>
           <LocalTag Name="ConfigState" DataType="ExampleData"
@@ -46,6 +48,8 @@
               </Structure>
             </DefaultData>
           </LocalTag>
+          <LocalTag Name="History" DataType="ExampleData" Dimensions="2"
+           ExternalAccess="None"/>
           <LocalTag Name="State" DataType="DINT" Radix="Decimal"
            ExternalAccess="None">
             <DefaultData Format="Decorated">

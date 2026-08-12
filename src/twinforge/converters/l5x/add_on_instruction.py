@@ -19,6 +19,7 @@ from twinforge.model import (
 from twinforge.parsers.l5x.capture import CapturedSection
 
 from .conversion_value import emit_diagnostic, optional_bool
+from .alias import parse_alias_component
 from .program import convert_routine
 from .source_extension import captured_to_source_extension
 from .decorated_value import parse_composite_value, parse_scalar_value
@@ -310,10 +311,15 @@ def _resolve_parameter_aliases(
     for parameter in instruction.parameters.values():
         if parameter.alias_for is None:
             continue
-        root, separator, selector = parameter.alias_for.partition(".")
+        root_component, separator, selector = parameter.alias_for.partition(".")
+        parsed_root = parse_alias_component(root_component)
+        if parsed_root is None:
+            continue
+        root, root_indices = parsed_root
+        parameter.alias_array_indices = root_indices
         parameter.alias_target = targets.get(root.casefold())
+        source = parameter_sections.get(parameter.name)
         if parameter.alias_target is None:
-            source = parameter_sections.get(parameter.name)
             if source is not None:
                 emit_diagnostic(
                     diagnostics,
@@ -338,8 +344,50 @@ def _resolve_parameter_aliases(
         )
         if target_type is None:
             continue
+        if root_indices:
+            _diagnose_array_bounds(
+                instruction,
+                parameter,
+                parameter.alias_target.dimensions,
+                root_indices,
+                source,
+                diagnostics,
+            )
         if separator and selector.isdigit():
             if target_type.upper() in integer_types:
                 parameter.resolved_data_type = "BOOL"
         elif not separator:
             parameter.resolved_data_type = target_type
+
+
+def _diagnose_array_bounds(
+    instruction: AddOnInstruction,
+    parameter: AddOnInstructionParameter,
+    dimensions: str | None,
+    indices: tuple[int, ...],
+    source: CapturedSection | None,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> None:
+    """Diagnose an index only when numeric declared bounds prove it invalid."""
+
+    if source is None or dimensions is None:
+        return
+    try:
+        bounds = tuple(int(item) for item in dimensions.split(","))
+    except ValueError:
+        return
+    if len(bounds) != len(indices) or any(
+        index >= bound for index, bound in zip(indices, bounds)
+    ):
+        emit_diagnostic(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "aoi_alias_array_index_out_of_bounds",
+            (
+                f"AOI {instruction.name!r} parameter {parameter.name!r} "
+                f"uses array index outside declared dimensions {dimensions!r}"
+            ),
+            source,
+            "AliasFor",
+            parameter.alias_for,
+        )
