@@ -12,6 +12,13 @@ from twinforge.exporters import (
     validate_automationml_xml,
 )
 from twinforge.parsers import L5XParser
+from twinforge.model import (
+    CommunicationInterface,
+    CommunicationRole,
+    GatewayDevice,
+    GatewayTagBinding,
+    GatewayTagBindingRole,
+)
 
 
 SAMPLE_L5X = Path(__file__).parent / "data/basic/BoosterCompressor_20260128.L5X"
@@ -45,6 +52,7 @@ def _export(
         "../../reference/AutomationML/"
         "AutomationML2.10BaseLibraries.aml"
     ),
+    gateways=(),
 ):
     controller = L5XParser().parse(
         SAMPLE_L5X, report_mode=None
@@ -55,7 +63,35 @@ def _export(
         plcopen_path="../PLCOpenXML/BoosterCompressor_codesys.xml",
         base_library_path=base_library_path,
         last_writing_time=FIXED_TIME,
+        gateways=gateways,
     )
+
+
+def _gateway(controller) -> GatewayDevice:
+    gateway = GatewayDevice(
+        name="FieldbusGateway",
+        manufacturer="Example Vendor",
+        model="Protocol Gateway",
+    )
+    gateway.add_communication_interface(
+        CommunicationInterface(
+            name="EtherNet/IP",
+            protocol="EtherNet/IP",
+            role=CommunicationRole.ADAPTER,
+        )
+    )
+    tag = controller.tags["PT102_PV"]
+    gateway.add_tag_binding(
+        GatewayTagBinding(
+            interface_name="EtherNet/IP",
+            endpoint_reference="Gateway:I1.Data[72]",
+            tag=tag,
+            tag_path=tag.name,
+            role=GatewayTagBindingRole.TARGET,
+            evidence="configuration plus generated mapping",
+        )
+    )
+    return gateway
 
 
 def test_exports_native_editor_compatible_caex_hierarchy():
@@ -89,6 +125,69 @@ def test_exports_native_editor_compatible_caex_hierarchy():
         "c:Attribute[@Name='AssetType']/c:Value",
         ns,
     ).text == "IOModule"
+
+
+def test_exports_gateway_tag_bindings_as_linked_communication_interfaces():
+    controller = L5XParser().parse(
+        SAMPLE_L5X, report_mode=None
+    ).controllers[0]
+    result = AutomationMLExporter().export(
+        controller,
+        project_name="Booster Compressor",
+        base_library_path=(
+            "../../tests/data/automationml_base_libraries.aml"
+        ),
+        last_writing_time=FIXED_TIME,
+        gateways=(_gateway(controller),),
+    )
+    root = ET.fromstring(result.xml)
+    ns = {"c": CAEX_NAMESPACE}
+    gateway = _find(
+        root,
+        ".//c:InternalElement[@Name='FieldbusGateway']",
+        ns,
+    )
+    assert _find(
+        gateway,
+        "c:Attribute[@Name='AssetType']/c:Value",
+        ns,
+    ).text == "CommunicationGateway"
+    gateway_interface = _find(
+        gateway,
+        "c:ExternalInterface",
+        ns,
+    )
+    assert gateway_interface.attrib["RefBaseClassPath"].endswith(
+        "/CommunicationPointInterface"
+    )
+    assert _find(
+        gateway_interface,
+        "c:Attribute[@Name='Direction']/c:Value",
+        ns,
+    ).text == "Out"
+    plc_interface = _find(
+        root,
+        ".//c:InternalElement[@Name='booster_compressor']/"
+        "c:ExternalInterface[@Name='PT102_PV']",
+        ns,
+    )
+    assert _find(
+        plc_interface,
+        "c:Attribute[@Name='Direction']/c:Value",
+        ns,
+    ).text == "In"
+    link = _find(
+        root,
+        ".//c:InternalLink[@Name='PT102_PV_to_Gateway:I1.Data[72]']",
+        ns,
+    )
+    assert link.attrib["RefPartnerSideA"] == plc_interface.attrib["ID"]
+    assert link.attrib["RefPartnerSideB"] == gateway_interface.attrib["ID"]
+    validate_automationml_references(
+        result.xml,
+        Path(__file__).parents[1]
+        / "examples/AutomationML/gateway-bindings.aml",
+    )
 
 
 def test_links_process_signals_to_module_channels_with_units():

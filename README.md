@@ -97,7 +97,8 @@ twinforge gateway report `
   --gsd gateway.gsd `
   --config gateway.psj `
   --mapping generated-mapping.L5X `
-  --output reports\gateway
+  --output reports\gateway `
+  --base-library path\to\AutomationMLBaseLibraries.aml
 twinforge export project.L5X --target plcopen --output project.xml
 twinforge export project.L5X --target plcopen --output project.xml `
   --xsd reference\PLCopenXML\standard\tc6_xml_v201.xsd
@@ -147,7 +148,10 @@ GSD, native PSJ configuration, and PLX50-generated Logix mapping L5X. It writes
 `plx50_logix_mapping.md` for engineering review and a stable, versioned
 `plx50_logix_mapping.json` contract for downstream tools. Both retain evidenced
 PROFIBUS points, controller-tag paths, assembly operands, copy lengths,
-directions, unresolved points, and diagnostics.
+and diagnostics. Supplying `--base-library` additionally writes
+`plx50_gateway.aml`, containing the gateway, its communication-point
+interfaces, typed controller-tag interfaces, and deterministic CAEX links.
+Without that option, the command still produces the Markdown and JSON reports.
 The PSJ must select EtherNet/IP as its primary interface. Missing, malformed,
 or incompatible inputs return a non-zero status without creating a report.
 

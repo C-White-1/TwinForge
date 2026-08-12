@@ -204,7 +204,7 @@ placing protocol registers directly on Rockwell modules or tags.
 - [x] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces
   - [x] Bind evidenced PLX50 EtherNet/IP assembly points to controller tags
-  - [ ] Expose neutral communication/tag bindings as AutomationML interfaces
+  - [x] Expose neutral communication/tag bindings as AutomationML interfaces
 - [ ] Multi-controller communication graph
 - [x] Multi-protocol gateway modelling
   - [x] Catalogue PLX51-PBM EDS, GSD, AOI, manuals, and configuration tools

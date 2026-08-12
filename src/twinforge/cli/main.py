@@ -241,6 +241,14 @@ def build_parser() -> argparse.ArgumentParser:
     plx50_report.add_argument("--config", required=True, type=Path)
     plx50_report.add_argument("--mapping", required=True, type=Path)
     plx50_report.add_argument("--output", required=True, type=Path)
+    plx50_report.add_argument(
+        "--base-library",
+        type=Path,
+        help=(
+            "Optional AutomationML 2.1 base library; when supplied, also "
+            "write the gateway communication model."
+        ),
+    )
     return parser
 
 
@@ -332,6 +340,7 @@ def main(
                 mapping_source=arguments.mapping,
                 destination=arguments.output,
                 stdout=output,
+                base_library_path=arguments.base_library,
             )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)

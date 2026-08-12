@@ -138,6 +138,43 @@ def test_gateway_report_correlates_offline_sources(tmp_path: Path) -> None:
     )
 
 
+def test_gateway_report_optionally_exports_automationml(tmp_path: Path) -> None:
+    eds, gsd, config, mapping = _sources(tmp_path)
+    destination = tmp_path / "reports"
+    base_library = (
+        Path(__file__).parent / "data/automationml_base_libraries.aml"
+    )
+    output = StringIO()
+
+    result = main(
+        (
+            "gateway",
+            "report",
+            "--eds",
+            str(eds),
+            "--gsd",
+            str(gsd),
+            "--config",
+            str(config),
+            "--mapping",
+            str(mapping),
+            "--output",
+            str(destination),
+            "--base-library",
+            str(base_library),
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    automationml = destination / "plx50_gateway.aml"
+    assert automationml.exists()
+    assert str(automationml) in output.getvalue()
+    assert "CommunicationPointInterface" in automationml.read_text(
+        encoding="utf-8"
+    )
+
+
 def test_gateway_report_rejects_non_logix_primary_without_writing(
     tmp_path: Path,
 ) -> None:

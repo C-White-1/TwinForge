@@ -34,6 +34,10 @@ ATTRIBUTE_TYPES = {
     "Slot": "SlotNumber",
     "SourceOperand": "IOAddress",
     "TagName": "TagName",
+    "Protocol": "Protocol",
+    "EndpointReference": "EndpointReference",
+    "TagPath": "TagPath",
+    "BindingEvidence": "BindingEvidence",
     "UpperRangeValue": "RangeValue",
     "UnavailableByConfigurationCount": "Count",
 }

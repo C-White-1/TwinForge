@@ -65,7 +65,11 @@ def _append_interface_library(root: ET.Element) -> None:
         "TwinForge vendor-neutral automation interfaces"
     )
     ET.SubElement(library, q("Version")).text = "0.1.0"
-    for name in ("AnalogSignalInterface", "DigitalSignalInterface"):
+    for name in (
+        "AnalogSignalInterface",
+        "DigitalSignalInterface",
+        "CommunicationPointInterface",
+    ):
         ET.SubElement(
             library,
             q("InterfaceClass"),
@@ -91,6 +95,7 @@ def _append_role_library(root: ET.Element) -> None:
         "AnalogProcessSignal",
         "DigitalSignal",
         "SignalCollection",
+        "CommunicationGateway",
     ):
         ET.SubElement(
             library,
@@ -119,6 +124,7 @@ def _append_system_unit_library(root: ET.Element) -> None:
         "AnalogInputModule": ("IOModule", "IOModule"),
         "AnalogOutputModule": ("IOModule", "IOModule"),
         "SignalCollection": (None, "SignalCollection"),
+        "CommunicationGateway": (None, "CommunicationGateway"),
         "ProcessSignal": (None, "DigitalSignal"),
         "DigitalInputSignal": ("ProcessSignal", "DigitalSignal"),
         "DigitalOutputSignal": ("ProcessSignal", "DigitalSignal"),
@@ -227,6 +233,10 @@ def _append_attribute_library(root: ET.Element) -> None:
         "SignalType": "xs:string",
         "SlotNumber": "xs:integer",
         "TagName": "xs:string",
+        "Protocol": "xs:string",
+        "EndpointReference": "xs:string",
+        "TagPath": "xs:string",
+        "BindingEvidence": "xs:string",
     }
     for name, data_type in definitions.items():
         ET.SubElement(

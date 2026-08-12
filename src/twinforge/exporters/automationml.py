@@ -8,10 +8,11 @@ focused modules. This façade preserves TwinForge's original public API.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
-from twinforge.model import Controller
+from twinforge.model import Controller, GatewayDevice
 
 from .automationml_hierarchy import build_automationml_document
 from .automationml_reference_validation import (
@@ -55,6 +56,7 @@ class AutomationMLExporter:
         destination: str | Path | None = None,
         file_name: str | None = None,
         last_writing_time: datetime | None = None,
+        gateways: Sequence[GatewayDevice] = (),
     ) -> AutomationMLExportResult:
         """Build, serialize, and optionally write one AutomationML document."""
 
@@ -78,6 +80,7 @@ class AutomationMLExporter:
             plcopen_path=plcopen_path,
             base_library_path=base_library_path,
             last_writing_time=writing_time,
+            gateways=gateways,
         )
         ET.indent(root, space="  ")
         ET.register_namespace("", CAEX_NAMESPACE)

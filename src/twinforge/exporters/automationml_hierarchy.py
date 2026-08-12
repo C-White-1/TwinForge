@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 
-from twinforge.model import Controller
+from twinforge.model import Controller, GatewayDevice
 
 from .automationml_class_libraries import append_class_libraries
+from .automationml_communications import append_gateway_communications
 from .automationml_elements import (
     attribute,
     external_interface,
@@ -37,6 +39,7 @@ def build_automationml_document(
     plcopen_path: str | Path | None,
     base_library_path: str | Path,
     last_writing_time: datetime,
+    gateways: Sequence[GatewayDevice] = (),
 ) -> ET.Element:
     """Build a complete CAEX tree without serialization or filesystem writes."""
 
@@ -52,6 +55,7 @@ def build_automationml_document(
         controller,
         project_name=project_name,
         plcopen_path=plcopen_path,
+        gateways=gateways,
     )
     append_class_libraries(root, controller)
     return root
@@ -105,6 +109,7 @@ def _append_instance_hierarchy(
     *,
     project_name: str,
     plcopen_path: str | Path | None,
+    gateways: Sequence[GatewayDevice],
 ) -> None:
     hierarchy = ET.SubElement(
         root,
@@ -168,5 +173,12 @@ def _append_instance_hierarchy(
         role_requirement(chassis_element, "Chassis")
 
     signals.append_signals(plc)
+    append_gateway_communications(
+        system,
+        plc,
+        controller,
+        gateways,
+        project_name=project_name,
+    )
     role_requirement(plc, "Controller")
     role_requirement(system, "AutomationSystem")

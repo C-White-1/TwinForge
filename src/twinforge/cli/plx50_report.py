@@ -13,6 +13,7 @@ from twinforge.assembly import (
     plx50_logix_mapping_json,
 )
 from twinforge.exporters import Plx50LogixMappingMarkdownExporter
+from twinforge.exporters import AutomationMLExporter
 from twinforge.parsers import EDSParser, GSDParser, L5XParser, PLX50PSJParser
 
 
@@ -28,7 +29,8 @@ def export_plx50_mapping_report(
     mapping_source: Path,
     destination: Path,
     stdout: TextIO,
-) -> tuple[Path, Path]:
+    base_library_path: Path | None = None,
+) -> tuple[Path, ...]:
     """Correlate four source formats and write human and machine reports."""
 
     try:
@@ -74,6 +76,17 @@ def export_plx50_mapping_report(
             plx50_logix_mapping_json(result),
             encoding="utf-8",
         )
+        generated_paths = [report_path, json_path]
+        if base_library_path is not None:
+            automationml_path = destination / "plx50_gateway.aml"
+            AutomationMLExporter().export(
+                controllers[0],
+                project_name=f"{gateway.name} communication model",
+                base_library_path=base_library_path,
+                destination=automationml_path,
+                gateways=(gateway,),
+            )
+            generated_paths.append(automationml_path)
     except Plx50ReportError:
         raise
     except (ET.ParseError, OSError, UnicodeError, ValueError) as error:
@@ -81,12 +94,12 @@ def export_plx50_mapping_report(
             f"cannot generate PLX50 mapping report: {error}"
         ) from error
 
+    output_paths = "".join(f"- {path}\n" for path in generated_paths)
     stdout.write(
         f"Exported PLX50 mapping reports to {destination}\n"
-        f"- {report_path}\n"
-        f"- {json_path}\n"
+        f"{output_paths}"
         f"- Correlated points: {len(result.correlations)}\n"
         f"- Unresolved points: {len(result.unresolved_points)}\n"
         f"- Diagnostics: {len(result.diagnostics)}\n"
     )
-    return report_path, json_path
+    return tuple(generated_paths)
