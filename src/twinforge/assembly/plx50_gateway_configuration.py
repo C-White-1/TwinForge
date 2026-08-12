@@ -9,6 +9,7 @@ from twinforge.model import (
     CommunicationInterface,
     CommunicationRole,
     GatewayDevice,
+    GatewayProtocolMapping,
     ModbusAddressingConvention,
     ModbusAccess,
     ModbusAddress,
@@ -126,11 +127,151 @@ def apply_plx50_gateway_configuration(
             modbus_configuration,
             diagnostics,
         )
+        _lower_profibus_modbus_mappings(
+            gateway,
+            configuration,
+            register_map,
+            modbus_configuration,
+            diagnostics,
+        )
     return Plx50GatewayConfigurationResult(
         primary_interface=endpoint,
         modbus_register_map=register_map,
         diagnostics=tuple(diagnostics),
     )
+
+
+def _lower_profibus_modbus_mappings(
+    gateway: GatewayDevice,
+    configuration: Plx50DeviceConfiguration,
+    register_map: ModbusRegisterMap,
+    endpoint: ModbusEndpointConfiguration,
+    diagnostics: list[ConversionDiagnostic],
+) -> None:
+    for device in configuration.profibus_devices:
+        for slot in device.slots:
+            for point in slot.data_points:
+                entered = point.interface_connection_offset
+                if entered is None or entered == 0:
+                    continue
+                if endpoint.addressing_convention is ModbusAddressingConvention.UNKNOWN:
+                    continue
+                area = {
+                    "HR": ModbusArea.HOLDING_REGISTERS,
+                    "IR": ModbusArea.INPUT_REGISTERS,
+                    "CS": ModbusArea.COILS,
+                    "IS": ModbusArea.DISCRETE_INPUTS,
+                }.get(point.modbus_register_type or "")
+                if area is None:
+                    diagnostics.append(
+                        _warning(
+                            "plx50_data_point_modbus_area_unresolved",
+                            "unrecognized PLX50 data-point Modbus register type",
+                            point.modbus_register_type,
+                        )
+                    )
+                    continue
+                quantity = _modbus_quantity(point.byte_length, area, diagnostics)
+                if quantity is None:
+                    continue
+                offset = (
+                    entered - 1
+                    if endpoint.addressing_convention
+                    is ModbusAddressingConvention.ONE_BASED
+                    else entered
+                )
+                if offset < 0:
+                    continue
+                point_name = point.description or (
+                    f"station {device.station_address} slot {slot.slot_id}"
+                )
+                modbus_point = ModbusPoint(
+                    name=point_name,
+                    address=ModbusAddress(
+                        area=area,
+                        source_reference=str(entered),
+                        offset=offset,
+                        convention=endpoint.addressing_convention,
+                        unit_id=endpoint.unit_id,
+                        quantity=quantity,
+                    ),
+                    access=(
+                        ModbusAccess.READ_ONLY
+                        if point.data_point_type == "Input"
+                        else ModbusAccess.READ_WRITE
+                    ),
+                    data_type=point.data_format,
+                    metadata={
+                        "source_format": "PLX50-PSJ",
+                        "profibus_station": device.station_address,
+                        "profibus_slot": slot.slot_id,
+                        "profibus_local_offset": point.local_offset,
+                        "byte_length": point.byte_length,
+                    },
+                    source_extensions=[point.source_extension],
+                )
+                register_map.add_point(modbus_point)
+                profibus_reference = (
+                    f"station {device.station_address}/slot {slot.slot_id}/"
+                    f"{point.data_point_type or 'data'} offset "
+                    f"{point.local_offset}"
+                )
+                modbus_reference = (
+                    f"{area.value} {entered} quantity {quantity}"
+                )
+                if point.data_point_type == "Input":
+                    source_interface = "PROFIBUS DP"
+                    source_reference = profibus_reference
+                    target_interface = "Modbus TCP"
+                    target_reference = modbus_reference
+                else:
+                    source_interface = "Modbus TCP"
+                    source_reference = modbus_reference
+                    target_interface = "PROFIBUS DP"
+                    target_reference = profibus_reference
+                gateway.add_protocol_mapping(
+                    GatewayProtocolMapping(
+                        source_interface=source_interface,
+                        source_reference=source_reference,
+                        target_interface=target_interface,
+                        target_reference=target_reference,
+                        evidence=(
+                            "PLX50 PSJ configured PROFIBUS data-point "
+                            "InterfaceConnectionOffset"
+                        ),
+                        metadata={
+                            "profibus_device": device.instance_name,
+                            "profibus_station": device.station_address,
+                            "profibus_slot": slot.slot_id,
+                            "data_point": point_name,
+                            "native_interface_connection_offset": entered,
+                        },
+                        source_extensions=(point.source_extension,),
+                    )
+                )
+    if gateway.protocol_mappings:
+        gateway.metadata["protocol_mapping_status"] = "partially_evidenced"
+
+
+def _modbus_quantity(
+    byte_length: int | None,
+    area: ModbusArea,
+    diagnostics: list[ConversionDiagnostic],
+) -> int | None:
+    if byte_length is None or byte_length < 1:
+        return None
+    if area in (ModbusArea.COILS, ModbusArea.DISCRETE_INPUTS):
+        return byte_length * 8
+    if byte_length % 2:
+        diagnostics.append(
+            _warning(
+                "plx50_data_point_register_alignment_invalid",
+                "PLX50 register data-point byte length must be even",
+                str(byte_length),
+            )
+        )
+        return None
+    return byte_length // 2
 
 
 def _modbus_register_map(

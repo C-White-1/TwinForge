@@ -10,6 +10,11 @@ from twinforge.model import (
     SourceNode,
 )
 from twinforge.parsers.plx50 import Plx50DeviceConfiguration
+from twinforge.parsers.plx50 import (
+    Plx50ProfibusDataPoint,
+    Plx50ProfibusDevice,
+    Plx50ProfibusSlot,
+)
 
 
 def _configuration(
@@ -17,6 +22,7 @@ def _configuration(
     *,
     mode: str = "StandaloneMaster",
     extra: dict[str, str] | None = None,
+    profibus_devices: tuple[Plx50ProfibusDevice, ...] = (),
 ) -> Plx50DeviceConfiguration:
     attributes = {
         "InstanceName": "TF_PLX51_PBM_Tes",
@@ -37,7 +43,7 @@ def _configuration(
         primary_interface=primary_interface,
         device_attributes=(("DeviceName", "TF_PLX51_PBM_Tes"),),
         config_attributes=tuple(attributes.items()),
-        profibus_devices=(),
+        profibus_devices=profibus_devices,
         source_extension=SourceExtension(
             format="PLX50-PSJ",
             root=SourceNode(name="GenericDevice"),
@@ -154,3 +160,74 @@ def test_unknown_native_values_are_diagnosed_without_guessed_endpoints():
         "plx50_mode_unresolved",
         "plx50_primary_interface_unresolved",
     ]
+
+
+def test_lowers_explicit_profibus_input_to_modbus_mapping():
+    extension = SourceExtension(
+        format="PLX50-PSJ",
+        root=SourceNode(name="PSPBConfigSlotDataPoint"),
+    )
+    data_point = Plx50ProfibusDataPoint(
+        data_point_type="Input",
+        data_format="REAL",
+        byte_length=4,
+        local_offset=0,
+        description="Input4Bytes",
+        modbus_register_type="HR",
+        interface_connection_offset=301,
+        attributes=(),
+        source_extension=extension,
+    )
+    slot = Plx50ProfibusSlot(
+        slot_id=1,
+        module_id=3,
+        data_points=(data_point,),
+        attributes=(),
+        source_extension=extension,
+    )
+    device = Plx50ProfibusDevice(
+        vendor_name="ProSoft",
+        model_name="PLX51-PBM",
+        instance_name="TF_DP_SLAVE_01",
+        station_address=3,
+        ident_number=0x10FE,
+        gsd_revision=5,
+        gsd_filename="PSFT10FE.GSD",
+        slots=(slot,),
+        attributes=(),
+        source_extension=extension,
+    )
+    gateway = _gateway()
+
+    result = apply_plx50_gateway_configuration(
+        gateway,
+        _configuration(
+            "ModbusTCPSlave",
+            extra={
+                "ModbusLocalNodeNumber": "7",
+                "ModbusTCPPort": "1502",
+                "ModbusAddressOffset": "PLC",
+                "ModbusMasterControlEnable": "false",
+                "ModbusStatusRegisterType": "HR",
+                "ModbusStatusOffset": "201",
+            },
+            profibus_devices=(device,),
+        ),
+    )
+
+    register_map = result.modbus_register_map
+    assert register_map is not None
+    mapped = register_map.points[-1]
+    assert mapped.name == "Input4Bytes"
+    assert mapped.address.source_reference == "301"
+    assert mapped.address.offset == 300
+    assert mapped.address.quantity == 2
+    assert mapped.data_type == "REAL"
+    assert len(gateway.protocol_mappings) == 1
+    mapping = gateway.protocol_mappings[0]
+    assert mapping.source_interface == "PROFIBUS DP"
+    assert mapping.target_interface == "Modbus TCP"
+    assert mapping.source_reference == "station 3/slot 1/Input offset 0"
+    assert mapping.target_reference == "holding_registers 301 quantity 2"
+    assert mapping.source_extensions == (extension,)
+    assert gateway.metadata["protocol_mapping_status"] == "partially_evidenced"
