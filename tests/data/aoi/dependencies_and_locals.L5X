@@ -34,6 +34,8 @@
           </Parameter>
           <Parameter Name="Status" TagType="Alias" Usage="Output"
            AliasFor="State.0" Required="false" Visible="true"/>
+          <Parameter Name="ConfigValue" TagType="Alias" Usage="Output"
+           AliasFor="Config.Value" Required="false" Visible="true"/>
         </Parameters>
         <LocalTags>
           <LocalTag Name="ConfigState" DataType="ExampleData"

@@ -10,7 +10,7 @@ from .routine import Routine
 from .source_extension import SourceExtension
 from .tag import Tag
 from .tag_value import CompositeTagValue, TagValue
-from .datatype import Datatype
+from .datatype import Datatype, DatatypeMember
 
 
 @dataclass
@@ -31,6 +31,9 @@ class AddOnInstructionParameter:
     alias_for: str | None = None
     alias_target: AddOnInstructionParameter | Tag | None = field(
         default=None, repr=False
+    )
+    alias_member_path: tuple[DatatypeMember, ...] = field(
+        default=(), repr=False
     )
     description: str | None = None
     default_value: TagValue | None = None

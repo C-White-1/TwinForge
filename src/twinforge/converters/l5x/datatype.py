@@ -7,6 +7,7 @@ from twinforge.converters.diagnostics import (
     DiagnosticSeverity,
 )
 from twinforge.model import (
+    AddOnInstruction,
     CompositeTagValue,
     CompositeTagValueNode,
     Controller,
@@ -128,6 +129,66 @@ def resolve_datatype_references(
                 diagnostics,
                 f"{instruction.name}.{tag.name}",
             )
+        _resolve_aoi_alias_members(instruction, diagnostics)
+
+
+def _resolve_aoi_alias_members(
+    instruction: AddOnInstruction,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> None:
+    """Resolve explicit AOI alias member paths against known UDT schemas."""
+
+    for parameter in instruction.parameters.values():
+        if parameter.alias_for is None or parameter.alias_target is None:
+            continue
+        _, separator, suffix = parameter.alias_for.partition(".")
+        if not separator or not suffix or suffix.split(".", 1)[0].isdigit():
+            continue
+        target_type = parameter.alias_target.data_type_definition
+        if target_type is None:
+            continue
+        path = []
+        current_type: Datatype | None = target_type
+        for selector in suffix.split("."):
+            if current_type is None:
+                previous = path[-1]
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "unresolved_aoi_alias_member",
+                    (
+                        f"AOI {instruction.name!r} parameter "
+                        f"{parameter.name!r} cannot traverse {selector!r} "
+                        f"through scalar member {previous.name!r}"
+                    ),
+                    instruction.name,
+                    "AliasFor",
+                    parameter.alias_for,
+                )
+                path = []
+                break
+            member = _member(current_type, selector)
+            if member is None:
+                _emit(
+                    diagnostics,
+                    DiagnosticSeverity.WARNING,
+                    "unresolved_aoi_alias_member",
+                    (
+                        f"AOI {instruction.name!r} parameter "
+                        f"{parameter.name!r} aliases member {selector!r} "
+                        f"not declared by {current_type.name!r}"
+                    ),
+                    instruction.name,
+                    "AliasFor",
+                    parameter.alias_for,
+                )
+                path = []
+                break
+            path.append(member)
+            current_type = member.data_type
+        parameter.alias_member_path = tuple(path)
+        if path and parameter.data_type is None:
+            parameter.resolved_data_type = path[-1].data_type_name
 
 
 def _resolve_composite_value(

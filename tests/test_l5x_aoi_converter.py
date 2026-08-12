@@ -91,6 +91,10 @@ def test_converts_local_tags_alias_parameters_and_dependencies() -> None:
     assert instruction.parameters["Status"].data_type is None
     assert instruction.parameters["Status"].resolved_data_type == "BOOL"
     assert instruction.parameters["Status"].effective_data_type == "BOOL"
+    config_value_alias = instruction.parameters["ConfigValue"]
+    assert config_value_alias.alias_target is config
+    assert config_value_alias.alias_member_path == (datatype.members[0],)
+    assert config_value_alias.effective_data_type == "DINT"
     assert state.data_type == "DINT"
     assert state.initial_value is not None
     assert state.initial_value.value == 0
@@ -140,6 +144,49 @@ def test_unresolved_aoi_parameter_alias_target_is_diagnosed_and_preserved(
         "unresolved_aoi_parameter_alias_target"
     ]
     assert parser.diagnostics[0].raw_value == "MissingState.0"
+
+
+def test_unresolved_aoi_alias_udt_member_is_diagnosed_and_preserved(
+    tmp_path,
+) -> None:
+    source = tmp_path / "missing_alias_member.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="AOIContext">
+          <Controller Name="TestController">
+            <DataTypes>
+              <DataType Name="ConfigType">
+                <Members><Member Name="Value" DataType="DINT"/></Members>
+              </DataType>
+            </DataTypes>
+            <AddOnInstructionDefinitions>
+              <AddOnInstructionDefinition Name="AliasAOI">
+                <Parameters>
+                  <Parameter Name="Config" DataType="ConfigType"
+                   Usage="Input"/>
+                  <Parameter Name="Ready" TagType="Alias" Usage="Output"
+                   AliasFor="Config.Missing"/>
+                </Parameters>
+              </AddOnInstructionDefinition>
+            </AddOnInstructionDefinitions>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    controller = parser.parse(source, report_mode=None).controllers[0]
+
+    parameter = controller.add_on_instructions["AliasAOI"].parameters["Ready"]
+    assert parameter.alias_for == "Config.Missing"
+    assert parameter.alias_target is not None
+    assert parameter.alias_member_path == ()
+    assert parameter.resolved_data_type is None
+    assert [item.code for item in parser.diagnostics] == [
+        "unresolved_aoi_alias_member"
+    ]
+    assert parser.diagnostics[0].raw_value == "Config.Missing"
 
 
 def test_captures_scan_mode_routines_separately_from_primary_logic():
