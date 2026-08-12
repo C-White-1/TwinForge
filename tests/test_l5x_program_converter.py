@@ -118,3 +118,53 @@ def test_rll_conversion_reports_bad_rungs_without_losing_logic():
         "duplicate_rung_number",
         "rung_number_missing",
     }
+
+
+def test_routine_description_is_promoted_for_structured_text():
+    section = _program(
+        """
+        <Program Name="Described" MainRoutineName="Logic">
+          <Routines>
+            <Routine Name="Logic" Type="ST">
+              <Description>Controls the transfer sequence.</Description>
+              <STContent><Line Number="0">Run := Enable;</Line></STContent>
+            </Routine>
+          </Routines>
+        </Program>
+        """
+    )
+    diagnostics = []
+
+    program = convert_program(section, diagnostics=diagnostics)
+
+    routine = program.routines["Logic"]
+    assert routine.description == "Controls the transfer sequence."
+    assert routine.structured_text == "Run := Enable;"
+    assert diagnostics == []
+
+
+def test_routine_body_language_mismatch_is_diagnosed_and_preserved():
+    section = _program(
+        """
+        <Program Name="Mismatch">
+          <Routines>
+            <Routine Name="Logic" Type="ST">
+              <RLLContent>
+                <Rung Number="0" Type="N"><Text>OTE(Run);</Text></Rung>
+              </RLLContent>
+            </Routine>
+          </Routines>
+        </Program>
+        """
+    )
+    diagnostics = []
+
+    program = convert_program(section, diagnostics=diagnostics)
+
+    routine = program.routines["Logic"]
+    assert routine.language == "ST"
+    assert routine.structured_text_lines == []
+    assert routine.source_extensions[0].root.children[0].name == "RLLContent"
+    assert [item.code for item in diagnostics] == [
+        "routine_body_language_mismatch"
+    ]

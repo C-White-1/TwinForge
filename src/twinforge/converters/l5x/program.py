@@ -126,9 +126,11 @@ def convert_routine(
 
     routine = Routine(
         name=name,
+        description=_child_text(section, "Description"),
         language=language,
         source_extensions=[captured_to_source_extension(section)],
     )
+    _diagnose_body_applicability(section, routine, diagnostics)
     if language == "RLL":
         routine.ladder_rungs = _convert_rungs(section, name, diagnostics)
     elif language == "ST":
@@ -136,6 +138,35 @@ def convert_routine(
             section, name, diagnostics
         )
     return routine
+
+
+def _diagnose_body_applicability(
+    section: CapturedSection,
+    routine: Routine,
+    diagnostics: list[ConversionDiagnostic] | None,
+) -> None:
+    """Diagnose known body containers that contradict the routine language."""
+
+    expected = {"RLL": "RLLContent", "ST": "STContent"}.get(
+        routine.language or ""
+    )
+    if expected is None:
+        return
+    for body in ("RLLContent", "STContent"):
+        if body == expected or not section.elements.get(body):
+            continue
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "routine_body_language_mismatch",
+            (
+                f"routine {routine.name!r} has language {routine.language!r} "
+                f"but contains {body}"
+            ),
+            routine.name,
+            "Type",
+            routine.language,
+        )
 
 
 def _convert_structured_text(

@@ -31,6 +31,7 @@ class StructuredTextLine:
 @dataclass
 class Routine:
     name: str = ""
+    description: str | None = None
     source: object | None = None
     target: object | None = None
     protocol: str = ""

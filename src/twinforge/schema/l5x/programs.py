@@ -120,6 +120,12 @@ ST_CONTENT_ELEMENTS: dict[str, ElementSpec] = {
 }
 
 ROUTINE_ELEMENTS: dict[str, ElementSpec] = {
+    "Description": ElementSpec(
+        name="Description",
+        description="User description associated with the routine.",
+        content_type="cdata",
+        manual_ref="1756-RM014D-EN-P September 2025, routine structure.",
+    ),
     "RLLContent": ElementSpec(
         name="RLLContent", description="Relay ladder logic content of an RLL routine.",
         elements=RLL_CONTENT_ELEMENTS,
