@@ -201,7 +201,7 @@ placing protocol registers directly on Rockwell modules or tags.
 - [ ] MSG and CIP Generic instruction analysis
 - [ ] External address and controller-reference discovery
 - [ ] Modbus device, area and register-map model
-- [ ] CSV/manual import for mappings absent from L5X
+- [x] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces
 - [ ] Multi-controller communication graph
 - [ ] Multi-protocol gateway modelling
@@ -216,6 +216,7 @@ placing protocol registers directly on Rockwell modules or tags.
   - [x] Model gateway protocol endpoints without conflating their mappings
     - [x] Correlate paired EDS/GSD descriptions into unmapped endpoints
   - [ ] Ingest PLX50 configuration exports or generated mapping reports
+    - [x] Add neutral CSV/manual mapping-report ingestion
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
 

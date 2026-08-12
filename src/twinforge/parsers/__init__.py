@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from .l5x.parser import L5XParser
     from .eds import EDSParser
     from .gsd import GSDParser
+    from .gateway_mapping_csv import GatewayMappingCSVParser
 
 __all__ = [
     "L5XParser",
@@ -15,6 +16,7 @@ __all__ = [
     "CodesysNativeProfile",
     "EDSParser",
     "GSDParser",
+    "GatewayMappingCSVParser",
 ]
 
 
@@ -39,4 +41,8 @@ def __getattr__(name: str) -> Any:
         from .gsd import GSDParser
 
         return GSDParser
+    if name == "GatewayMappingCSVParser":
+        from .gateway_mapping_csv import GatewayMappingCSVParser
+
+        return GatewayMappingCSVParser
     raise AttributeError(name)

@@ -23,6 +23,10 @@ from .gateway_descriptions import (
     GatewayDescriptionAssemblyResult,
     assemble_gateway_descriptions,
 )
+from .gateway_mappings import (
+    GatewayMappingApplicationResult,
+    apply_gateway_mapping_document,
+)
 from .network_graph import (
     AcceptedNetworkGraph,
     NetworkGraphLink,
@@ -64,6 +68,7 @@ __all__ = [
     "CrossLayerDeviceCorrelationResult",
     "DeviceAssemblyProvider",
     "GatewayDescriptionAssemblyResult",
+    "GatewayMappingApplicationResult",
     "InMemoryPromotionRepository",
     "NetworkGraphLink",
     "NetworkGraphLoweringError",
@@ -78,6 +83,7 @@ __all__ = [
     "SqlitePromotionRepository",
     "assemble_corpus_devices",
     "assemble_gateway_descriptions",
+    "apply_gateway_mapping_document",
     "accepted_network_graph_data",
     "accepted_network_graph_json",
     "build_controller_communication_graph",
