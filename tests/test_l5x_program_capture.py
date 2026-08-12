@@ -65,3 +65,35 @@ def test_program_source_extension_preserves_routine_logic_content():
     source_text = rll_content.children[0].children[1].text
     assert source_text is not None
     assert "JSR(R00_AnalogAlarms,0);" in source_text
+
+
+def test_context_program_name_and_use_are_captured_as_documented_evidence():
+    element = ET.fromstring(
+        """
+        <Controller>
+          <Programs>
+            <Program Use="Context" ProgramName="MainProgram">
+              <Routines>
+                <Routine Use="Target" Name="GeneratedMap" Type="RLL" />
+              </Routines>
+            </Program>
+          </Programs>
+        </Controller>
+        """
+    )
+
+    controller = capture_section(
+        element,
+        CONTROLLER_ATTRIBUTES,
+        CONTROLLER_ELEMENTS,
+    )
+    program = controller.elements["Programs"][0].elements["Program"][0]
+    routine = program.elements["Routines"][0].elements["Routine"][0]
+
+    assert program.attributes == {
+        "Use": "Context",
+        "ProgramName": "MainProgram",
+    }
+    assert program.extra_attributes == {}
+    assert routine.attributes["Use"] == "Target"
+    assert routine.extra_attributes == {}

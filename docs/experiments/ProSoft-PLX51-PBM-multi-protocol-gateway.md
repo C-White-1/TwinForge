@@ -81,6 +81,30 @@ write, and alarm; Class 2 initiate, abort, read, and write; global control; and
 slave diagnostic requests. It is not, by itself, the cyclic I/O or Modbus
 register map.
 
+## Generated Logix mapping evidence
+
+The PLX50 Configuration Utility generated a routine-context L5X for the
+EtherNet/IP configuration. It provides the missing cyclic mapping evidence:
+
+- master status is copied from `TF_PLX51_PBM_Tes:I1.Data[0]`;
+- master control is copied to `TF_PLX51_PBM_Tes:O1.Data[0]`;
+- station 3 input data is copied from `TF_PLX51_PBM_Tes:I1.Data[72]` into
+  `TF_PLX51_PBM_Tes_TF_DP_SLAVE_01.Input`;
+- station 3 output data is copied from
+  `TF_PLX51_PBM_Tes_TF_DP_SLAVE_01.Output` to
+  `TF_PLX51_PBM_Tes:O1.Data[20]`; and
+- generated input and output UDT members retain the configured names
+  `Input4Bytes` and `Output2Bytes`.
+
+The generated context uses `ProgramName` instead of `Name` on its containing
+program and assigns rung number `0` to both generated rungs. TwinForge retains
+both rungs and reports the duplicate number as a warning. The `CPS` operands,
+not the rung numbers, are the mapping evidence.
+
+The PSJ retains dormant Modbus register fields after its primary interface is
+changed to EtherNet/IP. Those retained values are not treated as Logix assembly
+offsets. The generated mapping L5X is authoritative for the Logix data path.
+
 ## Evidence boundaries
 
 The artifacts describe three related but distinct data paths:

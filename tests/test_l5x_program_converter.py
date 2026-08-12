@@ -118,6 +118,41 @@ def test_rll_conversion_reports_bad_rungs_without_losing_logic():
         "duplicate_rung_number",
         "rung_number_missing",
     }
+    duplicate = next(
+        item for item in diagnostics if item.code == "duplicate_rung_number"
+    )
+    assert duplicate.severity is DiagnosticSeverity.WARNING
+
+
+def test_context_program_name_and_duplicate_generated_rungs_are_retained():
+    section = _program(
+        """
+        <Program Use="Context" ProgramName="MainProgram">
+          <Routines>
+            <Routine Use="Target" Name="GeneratedMap" Type="RLL">
+              <RLLContent>
+                <Rung Number="0" Type="N"><Text>CPS(Module:I.Data,Status,1);</Text></Rung>
+                <Rung Number="0" Type="N"><Text>CPS(Control,Module:O.Data,1);</Text></Rung>
+              </RLLContent>
+            </Routine>
+          </Routines>
+        </Program>
+        """
+    )
+    diagnostics = []
+
+    program = convert_program(section, diagnostics=diagnostics)
+
+    assert program.name == "MainProgram"
+    routine = program.get_routine("GeneratedMap")
+    assert routine is not None
+    assert [rung.number for rung in routine.ladder_rungs] == [0, 0]
+    assert [rung.text for rung in routine.ladder_rungs] == [
+        "CPS(Module:I.Data,Status,1);",
+        "CPS(Control,Module:O.Data,1);",
+    ]
+    assert [item.code for item in diagnostics] == ["duplicate_rung_number"]
+    assert diagnostics[0].severity is DiagnosticSeverity.WARNING
 
 
 def test_routine_description_is_promoted_for_structured_text():

@@ -3,12 +3,28 @@ from .tags import TAGS_ELEMENTS
 
 
 PROGRAM_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "Use": AttributeSpec(
+        name="Use",
+        description="Context or target role in the export.",
+        valid_values=("Context", "Target"),
+        l5x_only=True,
+        manual_ref="Observed L5X routine-context export metadata.",
+    ),
     "Name": AttributeSpec(
         name="Name",
         description="Name of the program.",
         required=True,
         l5x_only=True,
+        applicable_when=(("Use", (None, "Target")),),
         manual_ref="1756-RM014D-EN-P September 2025, Program attributes.",
+    ),
+    "ProgramName": AttributeSpec(
+        name="ProgramName",
+        description="Name of the containing program in a context export.",
+        required=True,
+        l5x_only=True,
+        applicable_when=(("Use", ("Context",)),),
+        manual_ref="Observed L5X routine-context export metadata.",
     ),
     "TestEdits": AttributeSpec(
         name="TestEdits",
@@ -50,6 +66,13 @@ PROGRAM_ATTRIBUTES: dict[str, AttributeSpec] = {
 
 
 ROUTINE_ATTRIBUTES: dict[str, AttributeSpec] = {
+    "Use": AttributeSpec(
+        name="Use",
+        description="Context or target role in the export.",
+        valid_values=("Context", "Target"),
+        l5x_only=True,
+        manual_ref="Observed L5X routine-context export metadata.",
+    ),
     "Name": AttributeSpec(
         name="Name",
         description="Name of the routine.",
