@@ -108,3 +108,60 @@ def test_missing_scheduled_program_name_is_preserved_in_source():
     reference = task.source_extensions[0].root.children[0].children[0]
     assert reference.attributes == {"Future": "keep"}
     assert diagnostics[0].code == "scheduled_program_missing_name"
+
+
+def test_event_task_promotes_trigger_and_resolves_program():
+    program = Program(name="EventProgram")
+    section = _task(
+        """
+        <Task Name="DriveEvent" Type="EVENT" EventTrigger="Module Input Data"
+              Priority="5" Watchdog="250">
+          <Description>Triggered by new drive input data</Description>
+          <ScheduledPrograms>
+            <ScheduledProgram Name="EventProgram"/>
+          </ScheduledPrograms>
+        </Task>
+        """
+    )
+    diagnostics = []
+
+    task = convert_task(
+        section,
+        {"EventProgram": program},
+        diagnostics=diagnostics,
+    )
+
+    assert task.task_type == "EVENT"
+    assert task.event_trigger == "Module Input Data"
+    assert task.description == "Triggered by new drive input data"
+    assert task.scheduled_programs == [program]
+    assert diagnostics == []
+
+
+def test_task_converter_diagnoses_event_trigger_applicability():
+    missing_diagnostics = []
+    inapplicable_diagnostics = []
+
+    event = convert_task(
+        _task('<Task Name="Event" Type="EVENT"/>'),
+        {},
+        diagnostics=missing_diagnostics,
+    )
+    periodic = convert_task(
+        _task(
+            '<Task Name="Periodic" Type="PERIODIC" Rate="100" '
+            'EventTrigger="Unexpected"/>'
+        ),
+        {},
+        diagnostics=inapplicable_diagnostics,
+    )
+
+    assert event.event_trigger is None
+    assert periodic.event_trigger == "Unexpected"
+    assert [item.code for item in missing_diagnostics] == [
+        "event_trigger_missing"
+    ]
+    assert [item.code for item in inapplicable_diagnostics] == [
+        "event_trigger_not_applicable"
+    ]
+    assert inapplicable_diagnostics[0].raw_value == "Unexpected"

@@ -64,6 +64,28 @@ def convert_task(
             name,
             "Rate",
         )
+    if task_type == "EVENT" and "EventTrigger" not in section.attributes:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "event_trigger_missing",
+            f"event task {name!r} does not specify EventTrigger",
+            name,
+            "EventTrigger",
+        )
+    if task_type != "EVENT" and "EventTrigger" in section.attributes:
+        _emit(
+            diagnostics,
+            DiagnosticSeverity.WARNING,
+            "event_trigger_not_applicable",
+            (
+                f"task {name!r} specifies EventTrigger but has type "
+                f"{task_type!r}"
+            ),
+            name,
+            "EventTrigger",
+            section.attributes.get("EventTrigger"),
+        )
 
     for containers in section.elements.get("ScheduledPrograms", []):
         for reference in containers.elements.get("ScheduledProgram", []):

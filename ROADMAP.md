@@ -68,6 +68,7 @@ That is a project-specific result, not universal Logix coverage.
   - [x] Resolve indexed AOI aliases and validate declared array bounds
   - [x] Recognize Logix decorated BIT/BOOL and string-member equivalence
 - [ ] Additional task and routine-body forms
+  - [x] Promote event-task trigger configuration and validate applicability
 - [ ] Explicit cross-reference and tag dependency graphs
   - [x] Resolve Ladder and Structured Text call operands with scope, member,
     access-direction, source-location, and unresolved-evidence retention
