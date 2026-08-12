@@ -52,6 +52,10 @@ from .promotion_repository import (
     PromotionRepositoryError,
     persist_promotions,
 )
+from .plx50_gateway_configuration import (
+    Plx50GatewayConfigurationResult,
+    apply_plx50_gateway_configuration,
+)
 from .sqlite_promotion_repository import SqlitePromotionRepository
 
 __all__ = [
@@ -75,6 +79,7 @@ __all__ = [
     "NetworkGraphNode",
     "NetworkInterfaceEvidence",
     "PowerFlex525AssemblyProvider",
+    "Plx50GatewayConfigurationResult",
     "PromotionPersistenceItem",
     "PromotionPersistenceResult",
     "PromotionPersistenceStatus",
@@ -84,6 +89,7 @@ __all__ = [
     "assemble_corpus_devices",
     "assemble_gateway_descriptions",
     "apply_gateway_mapping_document",
+    "apply_plx50_gateway_configuration",
     "accepted_network_graph_data",
     "accepted_network_graph_json",
     "build_controller_communication_graph",

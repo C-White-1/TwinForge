@@ -218,6 +218,7 @@ placing protocol registers directly on Rockwell modules or tags.
   - [ ] Ingest PLX50 configuration exports or generated mapping reports
     - [x] Add neutral CSV/manual mapping-report ingestion
     - [x] Decode native PSJ containers and preserve project XML
+    - [x] Apply native operating mode and primary endpoint configuration
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
 
