@@ -5,6 +5,7 @@ from twinforge.model import (
     GatewayDevice,
     ModbusAddressingConvention,
     ModbusEndpointConfiguration,
+    ModbusArea,
     SourceExtension,
     SourceNode,
 )
@@ -73,6 +74,10 @@ def test_applies_modbus_tcp_slave_and_configured_profibus_master_role():
                 "ModbusLocalNodeNumber": "7",
                 "ModbusTCPPort": "1502",
                 "ModbusAddressOffset": "PLC",
+                "ModbusMasterControlEnable": "true",
+                "ModbusMasterControlHROffset": "101",
+                "ModbusStatusRegisterType": "HR",
+                "ModbusStatusOffset": "201",
             },
         ),
     )
@@ -94,6 +99,23 @@ def test_applies_modbus_tcp_slave_and_configured_profibus_master_role():
         "tcp_port": "1502",
         "address_offset": "PLC",
     }
+    register_map = result.modbus_register_map
+    assert register_map is not None
+    assert register_map.interface_name == "Modbus TCP"
+    assert [point.name for point in register_map.points] == [
+        "PROFIBUS Master Control",
+        "PROFIBUS Status Base",
+    ]
+    control, status = register_map.points
+    assert control.address.area is ModbusArea.HOLDING_REGISTERS
+    assert control.address.source_reference == "101"
+    assert control.address.offset == 100
+    assert control.address.quantity == 1
+    assert status.address.area is ModbusArea.HOLDING_REGISTERS
+    assert status.address.source_reference == "201"
+    assert status.address.offset == 200
+    assert status.address.quantity is None
+    assert status.metadata["extent_status"] == "not_derived"
     profibus = gateway.communication_interfaces[1]
     assert profibus.role is CommunicationRole.MASTER
     assert profibus.metadata["description_role"] == "slave"

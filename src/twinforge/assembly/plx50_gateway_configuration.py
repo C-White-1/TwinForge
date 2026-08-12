@@ -10,7 +10,12 @@ from twinforge.model import (
     CommunicationRole,
     GatewayDevice,
     ModbusAddressingConvention,
+    ModbusAccess,
+    ModbusAddress,
+    ModbusArea,
     ModbusEndpointConfiguration,
+    ModbusPoint,
+    ModbusRegisterMap,
 )
 from twinforge.parsers.plx50 import Plx50DeviceConfiguration
 
@@ -20,6 +25,7 @@ class Plx50GatewayConfigurationResult:
     """The configured endpoint and any unresolved native values."""
 
     primary_interface: CommunicationInterface | None
+    modbus_register_map: ModbusRegisterMap | None = None
     diagnostics: tuple[ConversionDiagnostic, ...] = ()
 
 
@@ -78,6 +84,7 @@ def apply_plx50_gateway_configuration(
         )
         return Plx50GatewayConfigurationResult(
             primary_interface=None,
+            modbus_register_map=None,
             diagnostics=tuple(diagnostics),
         )
 
@@ -100,6 +107,7 @@ def apply_plx50_gateway_configuration(
             "native_primary_interface": configuration.primary_interface,
         }
     )
+    register_map: ModbusRegisterMap | None = None
     if protocol == "Modbus TCP":
         modbus_configuration = _modbus_configuration(configuration, diagnostics)
         endpoint.metadata["modbus_configuration"] = modbus_configuration
@@ -112,9 +120,122 @@ def apply_plx50_gateway_configuration(
                 "ModbusAddressOffset"
             ),
         }
+        register_map = _modbus_register_map(
+            configuration,
+            endpoint.name,
+            modbus_configuration,
+            diagnostics,
+        )
     return Plx50GatewayConfigurationResult(
         primary_interface=endpoint,
+        modbus_register_map=register_map,
         diagnostics=tuple(diagnostics),
+    )
+
+
+def _modbus_register_map(
+    configuration: Plx50DeviceConfiguration,
+    interface_name: str,
+    endpoint: ModbusEndpointConfiguration,
+    diagnostics: list[ConversionDiagnostic],
+) -> ModbusRegisterMap:
+    register_map = ModbusRegisterMap(
+        name="PLX50 built-in Modbus registers",
+        interface_name=interface_name,
+    )
+    if configuration.config_value("ModbusMasterControlEnable") == "true":
+        point = _configured_modbus_point(
+            configuration,
+            native_field="ModbusMasterControlHROffset",
+            name="PROFIBUS Master Control",
+            area=ModbusArea.HOLDING_REGISTERS,
+            convention=endpoint.addressing_convention,
+            unit_id=endpoint.unit_id,
+            quantity=1,
+            access=ModbusAccess.UNKNOWN,
+            diagnostics=diagnostics,
+        )
+        if point is not None:
+            register_map.add_point(point)
+    status_area = {
+        "CS": ModbusArea.COILS,
+        "HR": ModbusArea.HOLDING_REGISTERS,
+    }.get(configuration.config_value("ModbusStatusRegisterType") or "")
+    if status_area is None:
+        diagnostics.append(
+            _warning(
+                "plx50_modbus_status_area_unresolved",
+                "unrecognized PLX50 Modbus status register type",
+                configuration.config_value("ModbusStatusRegisterType"),
+            )
+        )
+    else:
+        point = _configured_modbus_point(
+            configuration,
+            native_field="ModbusStatusOffset",
+            name="PROFIBUS Status Base",
+            area=status_area,
+            convention=endpoint.addressing_convention,
+            unit_id=endpoint.unit_id,
+            quantity=None,
+            access=ModbusAccess.READ_ONLY,
+            diagnostics=diagnostics,
+        )
+        if point is not None:
+            register_map.add_point(point)
+    return register_map
+
+
+def _configured_modbus_point(
+    configuration: Plx50DeviceConfiguration,
+    *,
+    native_field: str,
+    name: str,
+    area: ModbusArea,
+    convention: ModbusAddressingConvention,
+    unit_id: int | None,
+    quantity: int | None,
+    access: ModbusAccess,
+    diagnostics: list[ConversionDiagnostic],
+) -> ModbusPoint | None:
+    source_reference = configuration.config_value(native_field)
+    if source_reference is None:
+        return None
+    entered = _native_integer(configuration, native_field, diagnostics)
+    if entered is None or convention is ModbusAddressingConvention.UNKNOWN:
+        return None
+    offset = (
+        entered - 1
+        if convention is ModbusAddressingConvention.ONE_BASED
+        else entered
+    )
+    if offset < 0:
+        diagnostics.append(
+            _warning(
+                "plx50_modbus_address_out_of_range",
+                f"PLX50 {native_field} does not resolve to a valid offset",
+                source_reference,
+            )
+        )
+        return None
+    return ModbusPoint(
+        name=name,
+        address=ModbusAddress(
+            area=area,
+            source_reference=source_reference,
+            offset=offset,
+            convention=convention,
+            unit_id=unit_id,
+            quantity=quantity,
+        ),
+        access=access,
+        metadata={
+            "source_format": "PLX50-PSJ",
+            "native_field": native_field,
+            "extent_status": (
+                "documented" if quantity is not None else "not_derived"
+            ),
+        },
     )
 
 

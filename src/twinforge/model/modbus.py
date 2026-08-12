@@ -66,14 +66,14 @@ class ModbusAddress:
     offset: int | None = None
     convention: ModbusAddressingConvention = ModbusAddressingConvention.UNKNOWN
     unit_id: int | None = None
-    quantity: int = 1
+    quantity: int | None = 1
 
     def __post_init__(self) -> None:
         if not self.source_reference.strip():
             raise ValueError("Modbus source reference must not be empty")
         if self.offset is not None and self.offset < 0:
             raise ValueError("Modbus offset must not be negative")
-        if self.quantity < 1:
+        if self.quantity is not None and self.quantity < 1:
             raise ValueError("Modbus quantity must be positive")
         if self.unit_id is not None and not 0 <= self.unit_id <= 255:
             raise ValueError("Modbus unit ID must be between 0 and 255")
@@ -127,6 +127,8 @@ def _overlaps(left: ModbusAddress, right: ModbusAddress) -> bool:
     if left.area is not right.area or left.unit_id != right.unit_id:
         return False
     if left.offset is None or right.offset is None:
+        return False
+    if left.quantity is None or right.quantity is None:
         return False
     left_end = left.offset + left.quantity
     right_end = right.offset + right.quantity

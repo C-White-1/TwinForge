@@ -63,6 +63,15 @@ def test_unknown_address_convention_retains_reference_without_offset():
     assert address.offset is None
     assert address.convention is ModbusAddressingConvention.UNKNOWN
 
+    region = ModbusAddress(
+        area=ModbusArea.COILS,
+        source_reference="status base",
+        offset=0,
+        convention=ModbusAddressingConvention.ZERO_BASED,
+        quantity=None,
+    )
+    assert region.quantity is None
+
     with pytest.raises(ValueError, match="explicit addressing convention"):
         ModbusAddress(
             area=ModbusArea.HOLDING_REGISTERS,
