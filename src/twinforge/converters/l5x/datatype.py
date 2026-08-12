@@ -291,7 +291,11 @@ def _resolve_composite_node(
         and containing_type is not None
         and member.data_type_name is not None
         and node.data_type is not None
-        and member.data_type_name.casefold() != node.data_type.casefold()
+        and not _compatible_decorated_member_type(
+            containing_type,
+            member,
+            node.data_type,
+        )
     ):
         _emit(
             diagnostics,
@@ -326,6 +330,26 @@ def _resolve_composite_node(
             )
             for child in node.children
         ),
+    )
+
+
+def _compatible_decorated_member_type(
+    containing_type: Datatype,
+    member: DatatypeMember,
+    decorated_type: str,
+) -> bool:
+    """Apply documented Logix decorated-value representation equivalences."""
+
+    declared = (member.data_type_name or "").casefold()
+    decorated = decorated_type.casefold()
+    if declared == decorated:
+        return True
+    if declared == "bit" and decorated == "bool":
+        return True
+    return (
+        containing_type.family == "StringFamily"
+        and member.name == "DATA"
+        and decorated == containing_type.name.casefold()
     )
 
 

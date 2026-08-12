@@ -190,3 +190,53 @@ def test_composite_values_diagnose_only_explicit_udt_schema_conflicts(tmp_path):
     assert composite is not None
     assert composite.root.children[0].member_definition is not None
     assert composite.root.children[1].member_definition is None
+
+
+def test_logix_decorated_bit_and_string_members_are_type_compatible(tmp_path):
+    source = tmp_path / "decorated_equivalence.L5X"
+    source.write_text(
+        """
+        <RSLogix5000Content TargetName="Demo">
+          <Controller Name="Demo">
+            <DataTypes>
+              <DataType Name="Status">
+                <Members>
+                  <Member Name="Storage" DataType="SINT" Dimension="0"/>
+                  <Member Name="Ready" DataType="BIT" Dimension="0"
+                   Target="Storage" BitNumber="0"/>
+                </Members>
+              </DataType>
+              <DataType Name="ShortString" Family="StringFamily">
+                <Members>
+                  <Member Name="LEN" DataType="DINT" Dimension="0"/>
+                  <Member Name="DATA" DataType="SINT" Dimension="8"/>
+                </Members>
+              </DataType>
+            </DataTypes>
+            <Tags>
+              <Tag Name="State" TagType="Base" DataType="Status">
+                <Data Format="Decorated">
+                  <Structure DataType="Status">
+                    <DataValueMember Name="Ready" DataType="BOOL" Value="0"/>
+                  </Structure>
+                </Data>
+              </Tag>
+              <Tag Name="Label" TagType="Base" DataType="ShortString">
+                <Data Format="Decorated">
+                  <Structure DataType="ShortString">
+                    <DataValueMember Name="LEN" DataType="DINT" Value="0"/>
+                    <DataValueMember Name="DATA" DataType="ShortString"/>
+                  </Structure>
+                </Data>
+              </Tag>
+            </Tags>
+          </Controller>
+        </RSLogix5000Content>
+        """,
+        encoding="utf-8",
+    )
+    parser = L5XParser()
+
+    parser.parse(source, report_mode=None)
+
+    assert parser.diagnostics == []
