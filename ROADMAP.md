@@ -206,9 +206,10 @@ placing protocol registers directly on Rockwell modules or tags.
 - [ ] Multi-controller communication graph
 - [ ] Multi-protocol gateway modelling
   - [x] Catalogue PLX51-PBM EDS, GSD, AOI, manuals, and configuration tools
-  - [ ] Parse EDS identity, assemblies, and Class 1 connection definitions
+  - [x] Parse EDS identity, assemblies, and Class 1 connection definitions
     - [x] Parse EDS sections losslessly and promote CIP device identity
     - [x] Promote EDS assembly declarations without inferring instances
+    - [x] Promote EDS Class 1 connection declarations and raw paths
   - [ ] Parse GSD identity, limits, and modular cyclic-data definitions
   - [ ] Model gateway protocol endpoints without conflating their mappings
   - [ ] Ingest PLX50 configuration exports or generated mapping reports

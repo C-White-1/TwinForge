@@ -39,6 +39,18 @@ Assem1 =
     0x0000,
     ,,
     4000,Param2;
+
+[Connection Manager]
+Connection1 =
+    0x04010002,
+    0x44640405,
+    Param1,496,Assem2,
+    Param1,500,Assem1,
+    ,,
+    0,,
+    "I/O Connection",
+    "Cyclic data",
+    "20 04 24 66 2C 85 2C 84";
 """,
         encoding="utf-8",
     )
@@ -76,6 +88,23 @@ Assem1 =
     assert assembly.parameter_reference == "Param2"
     assert len(assembly.fields) == 8
     assert "4000,Param2" in assembly.raw_statement
+    assert len(document.connections) == 1
+    connection = document.connections[0]
+    assert connection.reference == "Connection1"
+    assert connection.transport_class_trigger == 0x04010002
+    assert connection.connection_parameters == 0x44640405
+    assert connection.originator_to_target.parameter_reference == "Param1"
+    assert connection.originator_to_target.declared_size == 496
+    assert connection.originator_to_target.assembly_reference == "Assem2"
+    assert connection.target_to_originator.declared_size == 500
+    assert connection.target_to_originator.assembly_reference == "Assem1"
+    assert connection.proxy_config_size is None
+    assert connection.target_config_size == 0
+    assert connection.name == "I/O Connection"
+    assert connection.help_text == "Cyclic data"
+    assert connection.path_text == "20 04 24 66 2C 85 2C 84"
+    assert connection.path == (0x20, 0x04, 0x24, 0x66, 0x2C, 0x85, 0x2C, 0x84)
+    assert len(connection.fields) == 15
     assert document.diagnostics == ()
 
 
@@ -145,4 +174,33 @@ Assem10 = "Bad Count",,,0,,,many,Param7;
     assert {item.code for item in document.diagnostics} == {
         "invalid_eds_assembly",
         "invalid_eds_assembly_integer",
+    }
+
+
+def test_malformed_connection_fields_are_diagnosed_without_loss(tmp_path: Path):
+    source = tmp_path / "connection.eds"
+    source.write_text(
+        """
+[Device]
+VendCode = 1;
+[Connection Manager]
+Connection9 = future,broken;
+Connection10 = 2,4,Param1,many,Assem2,Param1,8,Assem1,,,0,,"Test","","GG";
+""",
+        encoding="utf-8",
+    )
+
+    document = EDSParser().parse(source)
+
+    assert [item.reference for item in document.connections] == [
+        "Connection9",
+        "Connection10",
+    ]
+    assert document.connections[0].fields == ("future", "broken")
+    assert document.connections[1].originator_to_target.declared_size is None
+    assert document.connections[1].path is None
+    assert {item.code for item in document.diagnostics} == {
+        "invalid_eds_connection",
+        "invalid_eds_connection_integer",
+        "invalid_eds_connection_path",
     }

@@ -63,12 +63,43 @@ class EdsAssembly:
 
 
 @dataclass(frozen=True)
+class EdsConnectionEndpoint:
+    """One declared direction of an EDS Class 1 connection."""
+
+    parameter_reference: str | None
+    declared_size: int | None
+    assembly_reference: str | None
+
+
+@dataclass(frozen=True)
+class EdsConnection:
+    """One EDS Connection Manager declaration with raw capability words."""
+
+    reference: str
+    transport_class_trigger: int | None
+    connection_parameters: int | None
+    originator_to_target: EdsConnectionEndpoint
+    target_to_originator: EdsConnectionEndpoint
+    proxy_config_size: int | None
+    proxy_config_reference: str | None
+    target_config_size: int | None
+    target_config_reference: str | None
+    name: str | None
+    help_text: str | None
+    path: tuple[int, ...] | None
+    path_text: str | None
+    fields: tuple[str, ...] = field(repr=False)
+    raw_statement: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class EdsDocument:
     """One parsed EDS document and its promoted CIP identity."""
 
     source_path: Path
     identity: Identity
     assemblies: tuple[EdsAssembly, ...]
+    connections: tuple[EdsConnection, ...]
     sections: tuple[EdsSection, ...]
     preamble: tuple[str, ...] = field(default=(), repr=False)
     diagnostics: tuple[ConversionDiagnostic, ...] = ()
@@ -99,14 +130,83 @@ class EDSParser:
         device = _section(sections, "Device")
         identity = self._identity(device)
         assemblies = self._assemblies(_section(sections, "Assembly"))
+        connections = self._connections(
+            _section(sections, "Connection Manager")
+        )
         return EdsDocument(
             source_path=path,
             identity=identity,
             assemblies=assemblies,
+            connections=connections,
             sections=sections,
             preamble=preamble,
             diagnostics=tuple(self.diagnostics),
         )
+
+    def _connections(
+        self,
+        section: EdsSection | None,
+    ) -> tuple[EdsConnection, ...]:
+        if section is None:
+            return ()
+        connections: list[EdsConnection] = []
+        for assignment in section.assignments:
+            suffix = assignment.name.removeprefix("Connection")
+            if not assignment.name.startswith("Connection") or not suffix.isdigit():
+                continue
+            fields = _fields(assignment.value)
+            if len(fields) < 15:
+                self._diagnostic(
+                    DiagnosticSeverity.WARNING,
+                    "invalid_eds_connection",
+                    (
+                        f"EDS connection {assignment.name} requires at least "
+                        f"15 positional fields, got {len(fields)}"
+                    ),
+                    field=assignment.name,
+                    raw_value=assignment.value,
+                )
+            path_text = _string(_field(fields, 14))
+            connections.append(
+                EdsConnection(
+                    reference=assignment.name,
+                    transport_class_trigger=self._connection_integer(
+                        fields, 0, assignment.name, "transport class/trigger"
+                    ),
+                    connection_parameters=self._connection_integer(
+                        fields, 1, assignment.name, "connection parameters"
+                    ),
+                    originator_to_target=EdsConnectionEndpoint(
+                        parameter_reference=_optional_text(_field(fields, 2)),
+                        declared_size=self._connection_integer(
+                            fields, 3, assignment.name, "O-to-T size"
+                        ),
+                        assembly_reference=_optional_text(_field(fields, 4)),
+                    ),
+                    target_to_originator=EdsConnectionEndpoint(
+                        parameter_reference=_optional_text(_field(fields, 5)),
+                        declared_size=self._connection_integer(
+                            fields, 6, assignment.name, "T-to-O size"
+                        ),
+                        assembly_reference=_optional_text(_field(fields, 7)),
+                    ),
+                    proxy_config_size=self._connection_integer(
+                        fields, 8, assignment.name, "proxy config size"
+                    ),
+                    proxy_config_reference=_optional_text(_field(fields, 9)),
+                    target_config_size=self._connection_integer(
+                        fields, 10, assignment.name, "target config size"
+                    ),
+                    target_config_reference=_optional_text(_field(fields, 11)),
+                    name=_string(_field(fields, 12)),
+                    help_text=_string(_field(fields, 13)),
+                    path=self._connection_path(path_text, assignment.name),
+                    path_text=path_text,
+                    fields=fields,
+                    raw_statement=assignment.raw_statement,
+                )
+            )
+        return tuple(connections)
 
     def _assemblies(self, section: EdsSection | None) -> tuple[EdsAssembly, ...]:
         if section is None:
@@ -218,6 +318,53 @@ class EDSParser:
                 (
                     f"EDS assembly {assignment} {label} must be an integer, "
                     f"got {value!r}"
+                ),
+                field=assignment,
+                raw_value=value,
+            )
+            return None
+
+    def _connection_integer(
+        self,
+        fields: tuple[str, ...],
+        index: int,
+        assignment: str,
+        label: str,
+    ) -> int | None:
+        value = _optional_text(_field(fields, index))
+        if value is None:
+            return None
+        try:
+            return int(value, 0)
+        except ValueError:
+            self._diagnostic(
+                DiagnosticSeverity.WARNING,
+                "invalid_eds_connection_integer",
+                (
+                    f"EDS connection {assignment} {label} must be an integer, "
+                    f"got {value!r}"
+                ),
+                field=assignment,
+                raw_value=value,
+            )
+            return None
+
+    def _connection_path(
+        self,
+        value: str | None,
+        assignment: str,
+    ) -> tuple[int, ...] | None:
+        if value is None:
+            return None
+        try:
+            return tuple(int(item, 16) for item in value.split())
+        except ValueError:
+            self._diagnostic(
+                DiagnosticSeverity.WARNING,
+                "invalid_eds_connection_path",
+                (
+                    f"EDS connection {assignment} path contains a non-hex byte: "
+                    f"{value!r}"
                 ),
                 field=assignment,
                 raw_value=value,
