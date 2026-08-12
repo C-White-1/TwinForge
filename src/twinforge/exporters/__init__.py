@@ -97,6 +97,9 @@ from .plcopen import (
     validate_plcopen_xml,
 )
 from .parameter_markdown import ParameterMarkdownExporter
+from .plx50_logix_mapping_markdown import (
+    Plx50LogixMappingMarkdownExporter,
+)
 from .module_schedule_report import (
     ModuleScheduleCSVExporter,
     ModuleScheduleMarkdownExporter,
@@ -181,6 +184,7 @@ __all__ = [
     "PLCopenValidationError",
     "PLCopenValidationUnavailable",
     "ParameterMarkdownExporter",
+    "Plx50LogixMappingMarkdownExporter",
     "ModuleScheduleCSVExporter",
     "ModuleScheduleMarkdownExporter",
     "ParameterReportCSVExporter",
