@@ -225,6 +225,7 @@ placing protocol registers directly on Rockwell modules or tags.
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
     - [x] Correlate configured PROFIBUS data points with Modbus registers
+    - [x] Preserve bidirectional PROFIBUS/Modbus mapping flow
 
 The Booster Compressor fixture contains no confirmed Modbus register map.
 Protocol mappings must therefore remain external evidence unless another

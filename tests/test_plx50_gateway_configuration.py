@@ -3,6 +3,7 @@ from twinforge.model import (
     CommunicationInterface,
     CommunicationRole,
     GatewayDevice,
+    ModbusAccess,
     ModbusAddressingConvention,
     ModbusEndpointConfiguration,
     ModbusArea,
@@ -162,7 +163,7 @@ def test_unknown_native_values_are_diagnosed_without_guessed_endpoints():
     ]
 
 
-def test_lowers_explicit_profibus_input_to_modbus_mapping():
+def test_lowers_bidirectional_profibus_modbus_mappings():
     extension = SourceExtension(
         format="PLX50-PSJ",
         root=SourceNode(name="PSPBConfigSlotDataPoint"),
@@ -178,10 +179,28 @@ def test_lowers_explicit_profibus_input_to_modbus_mapping():
         attributes=(),
         source_extension=extension,
     )
+    output_point = Plx50ProfibusDataPoint(
+        data_point_type="Output",
+        data_format="SINT",
+        byte_length=2,
+        local_offset=0,
+        description="Output2Bytes",
+        modbus_register_type="HR",
+        interface_connection_offset=401,
+        attributes=(),
+        source_extension=extension,
+    )
     slot = Plx50ProfibusSlot(
         slot_id=1,
         module_id=3,
         data_points=(data_point,),
+        attributes=(),
+        source_extension=extension,
+    )
+    output_slot = Plx50ProfibusSlot(
+        slot_id=2,
+        module_id=7,
+        data_points=(output_point,),
         attributes=(),
         source_extension=extension,
     )
@@ -193,7 +212,7 @@ def test_lowers_explicit_profibus_input_to_modbus_mapping():
         ident_number=0x10FE,
         gsd_revision=5,
         gsd_filename="PSFT10FE.GSD",
-        slots=(slot,),
+        slots=(slot, output_slot),
         attributes=(),
         source_extension=extension,
     )
@@ -217,17 +236,29 @@ def test_lowers_explicit_profibus_input_to_modbus_mapping():
 
     register_map = result.modbus_register_map
     assert register_map is not None
-    mapped = register_map.points[-1]
+    mapped = register_map.points[-2]
     assert mapped.name == "Input4Bytes"
     assert mapped.address.source_reference == "301"
     assert mapped.address.offset == 300
     assert mapped.address.quantity == 2
     assert mapped.data_type == "REAL"
-    assert len(gateway.protocol_mappings) == 1
+    output = register_map.points[-1]
+    assert output.name == "Output2Bytes"
+    assert output.address.source_reference == "401"
+    assert output.address.offset == 400
+    assert output.address.quantity == 1
+    assert output.access is ModbusAccess.READ_WRITE
+    assert output.data_type == "SINT"
+    assert len(gateway.protocol_mappings) == 2
     mapping = gateway.protocol_mappings[0]
     assert mapping.source_interface == "PROFIBUS DP"
     assert mapping.target_interface == "Modbus TCP"
     assert mapping.source_reference == "station 3/slot 1/Input offset 0"
     assert mapping.target_reference == "holding_registers 301 quantity 2"
     assert mapping.source_extensions == (extension,)
+    output_mapping = gateway.protocol_mappings[1]
+    assert output_mapping.source_interface == "Modbus TCP"
+    assert output_mapping.target_interface == "PROFIBUS DP"
+    assert output_mapping.source_reference == "holding_registers 401 quantity 1"
+    assert output_mapping.target_reference == "station 3/slot 2/Output offset 0"
     assert gateway.metadata["protocol_mapping_status"] == "partially_evidenced"
