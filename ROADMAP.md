@@ -204,6 +204,14 @@ placing protocol registers directly on Rockwell modules or tags.
 - [ ] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces
 - [ ] Multi-controller communication graph
+- [ ] Multi-protocol gateway modelling
+  - [x] Catalogue PLX51-PBM EDS, GSD, AOI, manuals, and configuration tools
+  - [ ] Parse EDS identity, assemblies, and Class 1 connection definitions
+  - [ ] Parse GSD identity, limits, and modular cyclic-data definitions
+  - [ ] Model gateway protocol endpoints without conflating their mappings
+  - [ ] Ingest PLX50 configuration exports or generated mapping reports
+  - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
+    and controller tags
 
 The Booster Compressor fixture contains no confirmed Modbus register map.
 Protocol mappings must therefore remain external evidence unless another
@@ -236,6 +244,7 @@ The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 ## Additional inputs and outputs
 
 - [ ] EDS parser and module capability profiles
+- [ ] GSD parser and PROFIBUS device/module profiles
 - [ ] JSON model export
 - [ ] Asset Administration Shell
 - [ ] Graphviz and graph-database exports
