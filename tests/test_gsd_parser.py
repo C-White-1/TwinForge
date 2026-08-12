@@ -27,6 +27,11 @@ Max_User_Prm_Data_Len = 3
 Min_Slave_Intervall = 6
 Future_Keyword = "keep"
 Future_Keyword = "duplicate"
+Module = "Input: 4 Bytes" 0x93
+opaque module body
+EndModule
+Module = "Output: 2 Words" 0xE1
+EndModule
 """,
         encoding="latin-1",
     )
@@ -51,6 +56,23 @@ Future_Keyword = "duplicate"
     assert document.limits.minimum_slave_interval == 6
     assert document.values("future_keyword") == ('"keep"', '"duplicate"')
     assert "Future_Keyword = \"keep\"" in document.raw_lines
+    assert len(document.modules) == 2
+    input_module = document.modules[0]
+    assert input_module.name == "Input: 4 Bytes"
+    assert input_module.body_values == ("opaque module body",)
+    assert input_module.raw_lines[-1] == "EndModule"
+    assert len(input_module.configuration) == 1
+    assert input_module.configuration[0].identifier == 0x93
+    assert input_module.configuration[0].direction == "input"
+    assert input_module.configuration[0].unit == "byte"
+    assert input_module.configuration[0].count == 4
+    assert input_module.configuration[0].byte_length == 4
+    assert input_module.configuration[0].consistent is True
+    output_module = document.modules[1]
+    assert output_module.configuration[0].direction == "output"
+    assert output_module.configuration[0].unit == "word"
+    assert output_module.configuration[0].count == 2
+    assert output_module.configuration[0].byte_length == 4
     assert document.diagnostics == ()
 
 
@@ -71,3 +93,22 @@ def test_invalid_promoted_integer_is_diagnosed_and_retained(tmp_path: Path):
     assert diagnostic.code == "invalid_gsd_integer"
     assert diagnostic.severity is DiagnosticSeverity.WARNING
     assert diagnostic.raw_value == "future"
+
+
+def test_malformed_module_evidence_is_preserved_and_diagnosed(tmp_path: Path):
+    source = tmp_path / "module.gsd"
+    source.write_text(
+        '#Profibus_DP\nModule = "Future" nope 0x100\nbody\n',
+        encoding="latin-1",
+    )
+
+    document = GSDParser().parse(source)
+
+    assert len(document.modules) == 1
+    assert document.modules[0].name == "Future"
+    assert document.modules[0].body_values == ("body",)
+    assert document.modules[0].configuration == ()
+    assert {item.code for item in document.diagnostics} == {
+        "invalid_gsd_module_identifier",
+        "unterminated_gsd_module",
+    }
