@@ -19,6 +19,10 @@ from .cross_layer_device_correlation import (
     cross_layer_device_correlation_data,
     cross_layer_device_correlation_json,
 )
+from .gateway_descriptions import (
+    GatewayDescriptionAssemblyResult,
+    assemble_gateway_descriptions,
+)
 from .network_graph import (
     AcceptedNetworkGraph,
     NetworkGraphLink,
@@ -59,6 +63,7 @@ __all__ = [
     "CrossLayerCorrelationError",
     "CrossLayerDeviceCorrelationResult",
     "DeviceAssemblyProvider",
+    "GatewayDescriptionAssemblyResult",
     "InMemoryPromotionRepository",
     "NetworkGraphLink",
     "NetworkGraphLoweringError",
@@ -72,6 +77,7 @@ __all__ = [
     "PromotionRepositoryError",
     "SqlitePromotionRepository",
     "assemble_corpus_devices",
+    "assemble_gateway_descriptions",
     "accepted_network_graph_data",
     "accepted_network_graph_json",
     "build_controller_communication_graph",

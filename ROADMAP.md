@@ -214,6 +214,7 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Parse GSD source losslessly and promote identity and station limits
     - [x] Promote selectable modules and standard cyclic-data identifiers
   - [x] Model gateway protocol endpoints without conflating their mappings
+    - [x] Correlate paired EDS/GSD descriptions into unmapped endpoints
   - [ ] Ingest PLX50 configuration exports or generated mapping reports
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
