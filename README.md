@@ -92,6 +92,12 @@ twinforge discover fake-snapshot `
 twinforge inspect project.L5X
 twinforge inspect project.L5X --format json
 twinforge report project.L5X --output reports
+twinforge gateway report `
+  --eds gateway.eds `
+  --gsd gateway.gsd `
+  --config gateway.psj `
+  --mapping generated-mapping.L5X `
+  --output reports\gateway
 twinforge export project.L5X --target plcopen --output project.xml
 twinforge export project.L5X --target plcopen --output project.xml `
   --xsd reference\PLCopenXML\standard\tc6_xml_v201.xsd
@@ -135,6 +141,13 @@ known channel capacity while retaining unknown module capability. Unestablished
 alarm-philosophy, causality, process intent, and I/O-assignment facts remain
 explicitly unknown. Existing files with deterministic report names are
 replaced; unrelated files in the destination are left untouched.
+
+`gateway report` performs an entirely offline PLX50 correlation across an EDS,
+GSD, native PSJ configuration, and PLX50-generated Logix mapping L5X. It writes
+`plx50_logix_mapping.md` with evidenced PROFIBUS points, controller-tag paths,
+assembly operands, copy lengths, directions, unresolved points, and diagnostics.
+The PSJ must select EtherNet/IP as its primary interface. Missing, malformed,
+or incompatible inputs return a non-zero status without creating a report.
 
 `export --target plcopen` writes target-neutral PLCopen XML 2.01 without
 CODESYS extensions. Supplying `--xsd` validates the complete document before

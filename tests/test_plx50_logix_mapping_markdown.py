@@ -43,6 +43,7 @@ def test_exports_reviewable_point_and_transfer_tables() -> None:
     report = Plx50LogixMappingMarkdownExporter().export(_result())
 
     assert "- Correlated PROFIBUS points: 1" in report
+    assert "<!-- markdownlint-disable MD013 -->" in report
     assert "PROFIBUS DP → EtherNet/IP" in report
     assert "`Gateway_Device03.Input.Input4Bytes`" in report
     assert "`Gateway:I1.Data[72]`" in report

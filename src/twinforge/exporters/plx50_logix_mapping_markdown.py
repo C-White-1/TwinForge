@@ -19,6 +19,8 @@ class Plx50LogixMappingMarkdownExporter:
         lines = [
             f"# {title}",
             "",
+            "<!-- markdownlint-disable MD013 -->",
+            "",
             (
                 "This report correlates native PLX50 PROFIBUS configuration "
                 "with controller tags and module assembly operands explicitly "

@@ -21,6 +21,7 @@ from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
+from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .snmp_conversion import convert_walk_command
 
 
@@ -222,6 +223,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write conversion outputs; otherwise print the dry-run plan.",
     )
+
+    gateway = commands.add_parser(
+        "gateway",
+        help="Correlate offline multi-protocol gateway evidence.",
+    )
+    gateway_commands = gateway.add_subparsers(
+        dest="gateway_command",
+        required=True,
+    )
+    plx50_report = gateway_commands.add_parser(
+        "report",
+        help="Generate a PLX50 PROFIBUS-to-Logix mapping report.",
+    )
+    plx50_report.add_argument("--eds", required=True, type=Path)
+    plx50_report.add_argument("--gsd", required=True, type=Path)
+    plx50_report.add_argument("--config", required=True, type=Path)
+    plx50_report.add_argument("--mapping", required=True, type=Path)
+    plx50_report.add_argument("--output", required=True, type=Path)
     return parser
 
 
@@ -305,6 +324,15 @@ def main(
                 execute=arguments.execute,
                 stdout=output,
             )
+        elif arguments.command == "gateway":
+            export_plx50_mapping_report(
+                eds_source=arguments.eds,
+                gsd_source=arguments.gsd,
+                configuration_source=arguments.config,
+                mapping_source=arguments.mapping,
+                destination=arguments.output,
+                stdout=output,
+            )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -338,6 +366,7 @@ def main(
         SnmpConversionError,
         L5XInspectionError,
         L5XReportError,
+        Plx50ReportError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
