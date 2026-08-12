@@ -29,6 +29,16 @@ Repeated = 2;
 Multiline =
     "first",
     "second";
+
+[Assembly]
+Object_Name = "Assembly Object";
+Assem1 =
+    "Input, Primary",
+    ,
+    ,
+    0x0000,
+    ,,
+    4000,Param2;
 """,
         encoding="utf-8",
     )
@@ -57,6 +67,15 @@ Multiline =
     assert extension.format == "EDS"
     assert extension.root.children[-1].name == "FutureIdentity"
     assert extension.root.children[-1].text == '"keep"'
+    assert len(document.assemblies) == 1
+    assembly = document.assemblies[0]
+    assert assembly.reference == "Assem1"
+    assert assembly.name == "Input, Primary"
+    assert assembly.descriptor == 0
+    assert assembly.declared_count == 4000
+    assert assembly.parameter_reference == "Param2"
+    assert len(assembly.fields) == 8
+    assert "4000,Param2" in assembly.raw_statement
     assert document.diagnostics == ()
 
 
@@ -100,3 +119,30 @@ def test_missing_device_section_returns_preserved_document_with_diagnostic(
         "eds_device_section_missing"
     ]
     assert document.diagnostics[0].severity is DiagnosticSeverity.ERROR
+
+
+def test_malformed_assembly_fields_are_diagnosed_without_loss(tmp_path: Path):
+    source = tmp_path / "assembly.eds"
+    source.write_text(
+        """
+[Device]
+VendCode = 1;
+[Assembly]
+Assem9 = "Future",,;
+Assem10 = "Bad Count",,,0,,,many,Param7;
+""",
+        encoding="utf-8",
+    )
+
+    document = EDSParser().parse(source)
+
+    assert [item.reference for item in document.assemblies] == [
+        "Assem9",
+        "Assem10",
+    ]
+    assert document.assemblies[0].fields == ('"Future"', "", "")
+    assert document.assemblies[1].declared_count is None
+    assert {item.code for item in document.diagnostics} == {
+        "invalid_eds_assembly",
+        "invalid_eds_assembly_integer",
+    }

@@ -50,11 +50,25 @@ class EdsSection:
 
 
 @dataclass(frozen=True)
+class EdsAssembly:
+    """One EDS assembly declaration before connection-path resolution."""
+
+    reference: str
+    name: str | None
+    descriptor: int | None
+    declared_count: int | None
+    parameter_reference: str | None
+    fields: tuple[str, ...] = field(repr=False)
+    raw_statement: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class EdsDocument:
     """One parsed EDS document and its promoted CIP identity."""
 
     source_path: Path
     identity: Identity
+    assemblies: tuple[EdsAssembly, ...]
     sections: tuple[EdsSection, ...]
     preamble: tuple[str, ...] = field(default=(), repr=False)
     diagnostics: tuple[ConversionDiagnostic, ...] = ()
@@ -84,13 +98,58 @@ class EDSParser:
         preamble, sections = _parse_sections(text)
         device = _section(sections, "Device")
         identity = self._identity(device)
+        assemblies = self._assemblies(_section(sections, "Assembly"))
         return EdsDocument(
             source_path=path,
             identity=identity,
+            assemblies=assemblies,
             sections=sections,
             preamble=preamble,
             diagnostics=tuple(self.diagnostics),
         )
+
+    def _assemblies(self, section: EdsSection | None) -> tuple[EdsAssembly, ...]:
+        if section is None:
+            return ()
+        assemblies: list[EdsAssembly] = []
+        for assignment in section.assignments:
+            suffix = assignment.name.removeprefix("Assem")
+            if not assignment.name.startswith("Assem") or not suffix.isdigit():
+                continue
+            fields = _fields(assignment.value)
+            if len(fields) < 8:
+                self._diagnostic(
+                    DiagnosticSeverity.WARNING,
+                    "invalid_eds_assembly",
+                    (
+                        f"EDS assembly {assignment.name} requires at least "
+                        f"8 positional fields, got {len(fields)}"
+                    ),
+                    field=assignment.name,
+                    raw_value=assignment.value,
+                )
+            assemblies.append(
+                EdsAssembly(
+                    reference=assignment.name,
+                    name=_string(_field(fields, 0)),
+                    descriptor=self._positional_integer(
+                        fields,
+                        3,
+                        assignment.name,
+                        "descriptor",
+                    ),
+                    declared_count=self._positional_integer(
+                        fields,
+                        6,
+                        assignment.name,
+                        "declared count",
+                    ),
+                    parameter_reference=_optional_text(_field(fields, 7)),
+                    fields=fields,
+                    raw_statement=assignment.raw_statement,
+                )
+            )
+        return tuple(assemblies)
 
     def _identity(self, device: EdsSection | None) -> Identity:
         if device is None:
@@ -136,6 +195,31 @@ class EDSParser:
                 "invalid_eds_integer",
                 f"EDS [Device] {name} must be an integer, got {value!r}",
                 field=name,
+                raw_value=value,
+            )
+            return None
+
+    def _positional_integer(
+        self,
+        fields: tuple[str, ...],
+        index: int,
+        assignment: str,
+        label: str,
+    ) -> int | None:
+        value = _optional_text(_field(fields, index))
+        if value is None:
+            return None
+        try:
+            return int(value, 0)
+        except ValueError:
+            self._diagnostic(
+                DiagnosticSeverity.WARNING,
+                "invalid_eds_assembly_integer",
+                (
+                    f"EDS assembly {assignment} {label} must be an integer, "
+                    f"got {value!r}"
+                ),
+                field=assignment,
                 raw_value=value,
             )
             return None
@@ -241,6 +325,42 @@ def _string(value: str | None) -> str | None:
     if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
         return stripped[1:-1]
     return stripped
+
+
+def _optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _field(fields: tuple[str, ...], index: int) -> str | None:
+    return fields[index] if index < len(fields) else None
+
+
+def _fields(value: str) -> tuple[str, ...]:
+    """Split EDS positional fields while retaining commas inside strings."""
+
+    fields: list[str] = []
+    current: list[str] = []
+    quoted = False
+    index = 0
+    while index < len(value):
+        character = value[index]
+        if character == '"':
+            if quoted and index + 1 < len(value) and value[index + 1] == '"':
+                current.extend(('"', '"'))
+                index += 2
+                continue
+            quoted = not quoted
+        if character == "," and not quoted:
+            fields.append("".join(current).strip())
+            current = []
+        else:
+            current.append(character)
+        index += 1
+    fields.append("".join(current).strip())
+    return tuple(fields)
 
 
 def _section(
