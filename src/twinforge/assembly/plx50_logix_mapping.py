@@ -14,6 +14,8 @@ from twinforge.model import (
     Datatype,
     GatewayDevice,
     GatewayProtocolMapping,
+    GatewayTagBinding,
+    GatewayTagBindingRole,
     SourceExtension,
     Tag,
 )
@@ -223,6 +225,9 @@ def apply_plx50_logix_mapping(
                 )
                 correlations.append(correlation)
                 gateway.add_protocol_mapping(_gateway_mapping(correlation))
+                gateway.add_tag_binding(
+                    _gateway_tag_binding(correlation, tag)
+                )
 
     if correlations:
         gateway.metadata["protocol_mapping_status"] = "partially_evidenced"
@@ -372,6 +377,28 @@ def _gateway_mapping(
             "assembly_reference": item.assembly_reference,
             "copy_length": item.copy_length,
         },
+        source_extensions=item.source_extensions,
+    )
+
+
+def _gateway_tag_binding(
+    item: Plx50LogixPointCorrelation,
+    tag: Tag,
+) -> GatewayTagBinding:
+    """Create the neutral tag link corroborated by MOV/CPS evidence."""
+
+    role = (
+        GatewayTagBindingRole.TARGET
+        if item.point_type == "Input"
+        else GatewayTagBindingRole.SOURCE
+    )
+    return GatewayTagBinding(
+        interface_name="EtherNet/IP",
+        endpoint_reference=item.assembly_reference,
+        tag=tag,
+        tag_path=item.controller_tag_path,
+        role=role,
+        evidence="PLX50 generated Logix MOV/CPS mapping",
         source_extensions=item.source_extensions,
     )
 

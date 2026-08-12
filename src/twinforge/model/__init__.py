@@ -31,7 +31,12 @@ from .engineering_unit import (
     EngineeringUnitEvidence,
     EngineeringUnitSource,
 )
-from .gateway import GatewayDevice, GatewayProtocolMapping
+from .gateway import (
+    GatewayDevice,
+    GatewayProtocolMapping,
+    GatewayTagBinding,
+    GatewayTagBindingRole,
+)
 from .identity import Identity, VendorIdentity
 from .module import Module
 from .modbus import (
@@ -122,6 +127,8 @@ __all__ = [
     "EngineeringUnitSource",
     "GatewayDevice",
     "GatewayProtocolMapping",
+    "GatewayTagBinding",
+    "GatewayTagBindingRole",
     "Identity",
     "IODirection",
     "IOSignalType",

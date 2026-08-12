@@ -179,6 +179,16 @@ def test_correlates_bidirectional_points_with_generated_logix_evidence(
     assert gateway.protocol_mappings[0].target_interface == "EtherNet/IP"
     assert gateway.protocol_mappings[1].source_interface == "EtherNet/IP"
     assert gateway.protocol_mappings[1].target_interface == "PROFIBUS DP"
+    assert len(gateway.tag_bindings) == 2
+    input_binding, output_binding = gateway.tag_bindings
+    assert input_binding.interface_name == "EtherNet/IP"
+    assert input_binding.endpoint_reference == "Gateway:I1.Data[72]"
+    assert input_binding.tag.name == "Gateway_Device03"
+    assert input_binding.tag_path == "Gateway_Device03.Input.Input4Bytes"
+    assert input_binding.role.value == "target"
+    assert output_binding.endpoint_reference == "Gateway:O1.Data[20]"
+    assert output_binding.tag.name == "Gateway_Device03"
+    assert output_binding.role.value == "source"
 
 
 def test_retains_point_when_generated_station_assignment_is_missing(

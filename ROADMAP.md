@@ -203,8 +203,10 @@ placing protocol registers directly on Rockwell modules or tags.
 - [x] Modbus device, area and register-map model
 - [x] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces
+  - [x] Bind evidenced PLX50 EtherNet/IP assembly points to controller tags
+  - [ ] Expose neutral communication/tag bindings as AutomationML interfaces
 - [ ] Multi-controller communication graph
-- [ ] Multi-protocol gateway modelling
+- [x] Multi-protocol gateway modelling
   - [x] Catalogue PLX51-PBM EDS, GSD, AOI, manuals, and configuration tools
   - [x] Parse EDS identity, assemblies, and Class 1 connection definitions
     - [x] Parse EDS sections losslessly and promote CIP device identity
@@ -215,7 +217,7 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Promote selectable modules and standard cyclic-data identifiers
   - [x] Model gateway protocol endpoints without conflating their mappings
     - [x] Correlate paired EDS/GSD descriptions into unmapped endpoints
-  - [ ] Ingest PLX50 configuration exports or generated mapping reports
+  - [x] Ingest PLX50 configuration exports or generated mapping reports
     - [x] Add neutral CSV/manual mapping-report ingestion
     - [x] Decode native PSJ containers and preserve project XML
     - [x] Apply native operating mode and primary endpoint configuration
