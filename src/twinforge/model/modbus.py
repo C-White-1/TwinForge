@@ -36,6 +36,23 @@ class ModbusAccess(str, Enum):
 
 
 @dataclass(frozen=True, kw_only=True)
+class ModbusEndpointConfiguration:
+    """Transport and addressing settings for one Modbus endpoint."""
+
+    unit_id: int | None = None
+    tcp_port: int | None = None
+    addressing_convention: ModbusAddressingConvention = (
+        ModbusAddressingConvention.UNKNOWN
+    )
+
+    def __post_init__(self) -> None:
+        if self.unit_id is not None and not 0 <= self.unit_id <= 255:
+            raise ValueError("Modbus unit ID must be between 0 and 255")
+        if self.tcp_port is not None and not 0 <= self.tcp_port <= 65535:
+            raise ValueError("Modbus TCP port must be between 0 and 65535")
+
+
+@dataclass(frozen=True, kw_only=True)
 class ModbusAddress:
     """One Modbus address without guessing its source convention.
 

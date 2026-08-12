@@ -9,6 +9,8 @@ from twinforge.model import (
     CommunicationInterface,
     CommunicationRole,
     GatewayDevice,
+    ModbusAddressingConvention,
+    ModbusEndpointConfiguration,
 )
 from twinforge.parsers.plx50 import Plx50DeviceConfiguration
 
@@ -98,10 +100,83 @@ def apply_plx50_gateway_configuration(
             "native_primary_interface": configuration.primary_interface,
         }
     )
+    if protocol == "Modbus TCP":
+        modbus_configuration = _modbus_configuration(configuration, diagnostics)
+        endpoint.metadata["modbus_configuration"] = modbus_configuration
+        endpoint.metadata["native_modbus_configuration"] = {
+            "local_node_number": configuration.config_value(
+                "ModbusLocalNodeNumber"
+            ),
+            "tcp_port": configuration.config_value("ModbusTCPPort"),
+            "address_offset": configuration.config_value(
+                "ModbusAddressOffset"
+            ),
+        }
     return Plx50GatewayConfigurationResult(
         primary_interface=endpoint,
         diagnostics=tuple(diagnostics),
     )
+
+
+def _modbus_configuration(
+    configuration: Plx50DeviceConfiguration,
+    diagnostics: list[ConversionDiagnostic],
+) -> ModbusEndpointConfiguration:
+    unit_id = _native_integer(
+        configuration,
+        "ModbusLocalNodeNumber",
+        diagnostics,
+    )
+    tcp_port = _native_integer(configuration, "ModbusTCPPort", diagnostics)
+    native_convention = configuration.config_value("ModbusAddressOffset")
+    convention = {
+        "Normal": ModbusAddressingConvention.ZERO_BASED,
+        "PLC": ModbusAddressingConvention.ONE_BASED,
+    }.get(native_convention or "", ModbusAddressingConvention.UNKNOWN)
+    if native_convention not in (None, "Normal", "PLC"):
+        diagnostics.append(
+            _warning(
+                "plx50_modbus_addressing_unresolved",
+                f"unrecognized PLX50 Modbus addressing: {native_convention!r}",
+                native_convention,
+            )
+        )
+    try:
+        return ModbusEndpointConfiguration(
+            unit_id=unit_id,
+            tcp_port=tcp_port,
+            addressing_convention=convention,
+        )
+    except ValueError as error:
+        diagnostics.append(
+            _warning(
+                "plx50_modbus_endpoint_value_out_of_range",
+                str(error),
+                None,
+            )
+        )
+        return ModbusEndpointConfiguration(addressing_convention=convention)
+
+
+def _native_integer(
+    configuration: Plx50DeviceConfiguration,
+    name: str,
+    diagnostics: list[ConversionDiagnostic],
+) -> int | None:
+    value = configuration.config_value(name)
+    if value is None:
+        return None
+    try:
+        return int(value, 10)
+    except ValueError:
+        diagnostics.append(
+            _warning(
+                "invalid_plx50_configuration_integer",
+                f"PLX50 {name} must be an integer, got {value!r}",
+                value,
+            )
+        )
+        return None
 
 
 def _interface(

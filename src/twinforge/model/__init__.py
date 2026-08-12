@@ -39,6 +39,7 @@ from .modbus import (
     ModbusAddress,
     ModbusAddressingConvention,
     ModbusArea,
+    ModbusEndpointConfiguration,
     ModbusPoint,
     ModbusRegisterMap,
 )
@@ -132,6 +133,7 @@ __all__ = [
     "ModbusAddress",
     "ModbusAddressingConvention",
     "ModbusArea",
+    "ModbusEndpointConfiguration",
     "ModbusPoint",
     "ModbusRegisterMap",
     "ModuleDataDirection",

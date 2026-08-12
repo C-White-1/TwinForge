@@ -3,6 +3,8 @@ from twinforge.model import (
     CommunicationInterface,
     CommunicationRole,
     GatewayDevice,
+    ModbusAddressingConvention,
+    ModbusEndpointConfiguration,
     SourceExtension,
     SourceNode,
 )
@@ -13,6 +15,7 @@ def _configuration(
     primary_interface: str,
     *,
     mode: str = "StandaloneMaster",
+    extra: dict[str, str] | None = None,
 ) -> Plx50DeviceConfiguration:
     attributes = {
         "InstanceName": "TF_PLX51_PBM_Tes",
@@ -21,6 +24,7 @@ def _configuration(
         "Mode": mode,
         "PrimaryInterface": primary_interface,
     }
+    attributes.update(extra or {})
     return Plx50DeviceConfiguration(
         device_type="PSPBDevicePLX51PBM",
         device_name="TF_PLX51_PBM_Tes",
@@ -63,7 +67,14 @@ def test_applies_modbus_tcp_slave_and_configured_profibus_master_role():
 
     result = apply_plx50_gateway_configuration(
         gateway,
-        _configuration("ModbusTCPSlave"),
+        _configuration(
+            "ModbusTCPSlave",
+            extra={
+                "ModbusLocalNodeNumber": "7",
+                "ModbusTCPPort": "1502",
+                "ModbusAddressOffset": "PLC",
+            },
+        ),
     )
 
     assert result.primary_interface is not None
@@ -71,6 +82,18 @@ def test_applies_modbus_tcp_slave_and_configured_profibus_master_role():
     assert result.primary_interface.role is CommunicationRole.SERVER
     assert result.primary_interface.address == "192.0.2.10"
     assert result.primary_interface.metadata["configured_primary"] is True
+    assert result.primary_interface.metadata["modbus_configuration"] == (
+        ModbusEndpointConfiguration(
+            unit_id=7,
+            tcp_port=1502,
+            addressing_convention=ModbusAddressingConvention.ONE_BASED,
+        )
+    )
+    assert result.primary_interface.metadata["native_modbus_configuration"] == {
+        "local_node_number": "7",
+        "tcp_port": "1502",
+        "address_offset": "PLC",
+    }
     profibus = gateway.communication_interfaces[1]
     assert profibus.role is CommunicationRole.MASTER
     assert profibus.metadata["description_role"] == "slave"

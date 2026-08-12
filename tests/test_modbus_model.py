@@ -5,6 +5,7 @@ from twinforge.model import (
     ModbusAddress,
     ModbusAddressingConvention,
     ModbusArea,
+    ModbusEndpointConfiguration,
     ModbusPoint,
     ModbusRegisterMap,
 )
@@ -37,6 +38,20 @@ def test_register_map_preserves_source_notation_and_normalized_offset():
     assert point.address.offset == 0
     assert point.address.quantity == 2
     assert register_map.overlaps() == ()
+
+
+def test_endpoint_configuration_validates_unit_and_tcp_port():
+    configuration = ModbusEndpointConfiguration(
+        unit_id=7,
+        tcp_port=1502,
+        addressing_convention=ModbusAddressingConvention.ONE_BASED,
+    )
+
+    assert configuration.unit_id == 7
+    assert configuration.tcp_port == 1502
+
+    with pytest.raises(ValueError, match="TCP port"):
+        ModbusEndpointConfiguration(tcp_port=65536)
 
 
 def test_unknown_address_convention_retains_reference_without_offset():
