@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from twinforge.analysis import extract_program_calls
 from twinforge.converters import ConversionDiagnostic, DiagnosticSeverity
@@ -73,6 +75,67 @@ class Plx50LogixMappingResult:
     correlations: tuple[Plx50LogixPointCorrelation, ...]
     unresolved_points: tuple[str, ...]
     diagnostics: tuple[ConversionDiagnostic, ...]
+
+
+def plx50_logix_mapping_data(
+    result: Plx50LogixMappingResult,
+) -> dict[str, Any]:
+    """Return a deterministic, JSON-compatible correlation contract."""
+
+    return {
+        "schema_version": "1.0",
+        "transfers": [
+            {
+                "module_name": item.module_name,
+                "direction": item.direction,
+                "connection_number": item.connection_number,
+                "assembly_offset": item.assembly_offset,
+                "assembly_reference": item.assembly_reference,
+                "copy_length": item.copy_length,
+                "controller_tag": item.controller_tag,
+                "source_text": item.source_text,
+            }
+            for item in result.transfers
+        ],
+        "correlations": [
+            {
+                "station_address": item.station_address,
+                "slot_id": item.slot_id,
+                "point_type": item.point_type,
+                "point_name": item.point_name,
+                "data_type": item.data_type,
+                "byte_length": item.byte_length,
+                "profibus_reference": item.profibus_reference,
+                "controller_tag_path": item.controller_tag_path,
+                "assembly_reference": item.assembly_reference,
+                "copy_length": item.copy_length,
+                "evidence": list(item.evidence),
+            }
+            for item in result.correlations
+        ],
+        "unresolved_points": list(result.unresolved_points),
+        "diagnostics": [
+            {
+                "severity": item.severity.value,
+                "code": item.code,
+                "message": item.message,
+                "object_name": item.object_name,
+                "field": item.field,
+                "raw_value": item.raw_value,
+            }
+            for item in result.diagnostics
+        ],
+    }
+
+
+def plx50_logix_mapping_json(result: Plx50LogixMappingResult) -> str:
+    """Serialize the stable correlation contract with a final newline."""
+
+    return json.dumps(
+        plx50_logix_mapping_data(result),
+        indent=2,
+        ensure_ascii=False,
+    ) + "\n"
 
 
 def apply_plx50_logix_mapping(

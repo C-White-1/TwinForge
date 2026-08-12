@@ -144,8 +144,10 @@ replaced; unrelated files in the destination are left untouched.
 
 `gateway report` performs an entirely offline PLX50 correlation across an EDS,
 GSD, native PSJ configuration, and PLX50-generated Logix mapping L5X. It writes
-`plx50_logix_mapping.md` with evidenced PROFIBUS points, controller-tag paths,
-assembly operands, copy lengths, directions, unresolved points, and diagnostics.
+`plx50_logix_mapping.md` for engineering review and a stable, versioned
+`plx50_logix_mapping.json` contract for downstream tools. Both retain evidenced
+PROFIBUS points, controller-tag paths, assembly operands, copy lengths,
+directions, unresolved points, and diagnostics.
 The PSJ must select EtherNet/IP as its primary interface. Missing, malformed,
 or incompatible inputs return a non-zero status without creating a report.
 

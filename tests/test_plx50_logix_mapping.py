@@ -1,6 +1,11 @@
+import json
 from pathlib import Path
 
-from twinforge.assembly import apply_plx50_logix_mapping
+from twinforge.assembly import (
+    apply_plx50_logix_mapping,
+    plx50_logix_mapping_data,
+    plx50_logix_mapping_json,
+)
 from twinforge.model import (
     CommunicationInterface,
     CommunicationRole,
@@ -199,3 +204,24 @@ def test_retains_point_when_generated_station_assignment_is_missing(
     assert {item.code for item in result.diagnostics} == {
         "plx50_logix_point_mapping_unresolved"
     }
+
+
+def test_serializes_versioned_machine_readable_mapping(tmp_path: Path) -> None:
+    result = apply_plx50_logix_mapping(
+        _gateway(),
+        _configuration(),
+        _controller(tmp_path),
+    )
+
+    data = plx50_logix_mapping_data(result)
+    serialized = plx50_logix_mapping_json(result)
+
+    assert data["schema_version"] == "1.0"
+    assert data["transfers"][0]["assembly_reference"] == "Gateway:I1.Data[72]"
+    assert data["correlations"][1]["controller_tag_path"] == (
+        "Gateway_Device03.Output.Output2Bytes"
+    )
+    assert data["unresolved_points"] == []
+    assert data["diagnostics"] == []
+    assert json.loads(serialized) == data
+    assert serialized.endswith("\n")

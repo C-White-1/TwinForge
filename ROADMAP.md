@@ -229,6 +229,7 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Parse generated Logix mapping context and retain its source rungs
     - [x] Correlate generated UDT members with CPS assembly transfers
     - [x] Render deterministic PLX50 Logix mapping review reports
+    - [x] Publish a versioned machine-readable PLX50 mapping contract
 
 The Booster Compressor fixture contains no confirmed Modbus register map.
 Protocol mappings must therefore remain external evidence unless another

@@ -10,6 +10,7 @@ from twinforge.assembly import (
     apply_plx50_gateway_configuration,
     apply_plx50_logix_mapping,
     assemble_gateway_descriptions,
+    plx50_logix_mapping_json,
 )
 from twinforge.exporters import Plx50LogixMappingMarkdownExporter
 from twinforge.parsers import EDSParser, GSDParser, L5XParser, PLX50PSJParser
@@ -27,8 +28,8 @@ def export_plx50_mapping_report(
     mapping_source: Path,
     destination: Path,
     stdout: TextIO,
-) -> Path:
-    """Correlate four source formats and write one reviewable report."""
+) -> tuple[Path, Path]:
+    """Correlate four source formats and write human and machine reports."""
 
     try:
         eds = EDSParser().parse(eds_source)
@@ -68,6 +69,11 @@ def export_plx50_mapping_report(
         destination.mkdir(parents=True, exist_ok=True)
         report_path = destination / "plx50_logix_mapping.md"
         report_path.write_text(report, encoding="utf-8")
+        json_path = destination / "plx50_logix_mapping.json"
+        json_path.write_text(
+            plx50_logix_mapping_json(result),
+            encoding="utf-8",
+        )
     except Plx50ReportError:
         raise
     except (ET.ParseError, OSError, UnicodeError, ValueError) as error:
@@ -76,9 +82,11 @@ def export_plx50_mapping_report(
         ) from error
 
     stdout.write(
-        f"Exported PLX50 mapping report to {report_path}\n"
+        f"Exported PLX50 mapping reports to {destination}\n"
+        f"- {report_path}\n"
+        f"- {json_path}\n"
         f"- Correlated points: {len(result.correlations)}\n"
         f"- Unresolved points: {len(result.unresolved_points)}\n"
         f"- Diagnostics: {len(result.diagnostics)}\n"
     )
-    return report_path
+    return report_path, json_path

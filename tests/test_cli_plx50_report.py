@@ -1,4 +1,5 @@
 import base64
+import json
 from io import StringIO
 from pathlib import Path
 
@@ -126,6 +127,15 @@ def test_gateway_report_correlates_offline_sources(tmp_path: Path) -> None:
     )
     assert "Gateway_Device03.Input.Input4Bytes" in report
     assert "Gateway:I1.Data[72]" in report
+    machine_report = json.loads(
+        (destination / "plx50_logix_mapping.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert machine_report["schema_version"] == "1.0"
+    assert machine_report["correlations"][0]["controller_tag_path"] == (
+        "Gateway_Device03.Input.Input4Bytes"
+    )
 
 
 def test_gateway_report_rejects_non_logix_primary_without_writing(

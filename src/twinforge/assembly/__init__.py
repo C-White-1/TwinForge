@@ -61,6 +61,8 @@ from .plx50_logix_mapping import (
     Plx50LogixPointCorrelation,
     Plx50LogixTransfer,
     apply_plx50_logix_mapping,
+    plx50_logix_mapping_data,
+    plx50_logix_mapping_json,
 )
 from .sqlite_promotion_repository import SqlitePromotionRepository
 
@@ -100,6 +102,8 @@ __all__ = [
     "apply_gateway_mapping_document",
     "apply_plx50_gateway_configuration",
     "apply_plx50_logix_mapping",
+    "plx50_logix_mapping_data",
+    "plx50_logix_mapping_json",
     "accepted_network_graph_data",
     "accepted_network_graph_json",
     "build_controller_communication_graph",
