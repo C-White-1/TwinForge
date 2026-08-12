@@ -217,6 +217,7 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Correlate paired EDS/GSD descriptions into unmapped endpoints
   - [ ] Ingest PLX50 configuration exports or generated mapping reports
     - [x] Add neutral CSV/manual mapping-report ingestion
+    - [x] Decode native PSJ containers and preserve project XML
   - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
 

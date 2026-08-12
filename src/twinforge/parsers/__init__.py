@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .eds import EDSParser
     from .gsd import GSDParser
     from .gateway_mapping_csv import GatewayMappingCSVParser
+    from .plx50 import PLX50PSJParser
 
 __all__ = [
     "L5XParser",
@@ -17,6 +18,7 @@ __all__ = [
     "EDSParser",
     "GSDParser",
     "GatewayMappingCSVParser",
+    "PLX50PSJParser",
 ]
 
 
@@ -45,4 +47,8 @@ def __getattr__(name: str) -> Any:
         from .gateway_mapping_csv import GatewayMappingCSVParser
 
         return GatewayMappingCSVParser
+    if name == "PLX50PSJParser":
+        from .plx50 import PLX50PSJParser
+
+        return PLX50PSJParser
     raise AttributeError(name)
