@@ -222,11 +222,12 @@ placing protocol registers directly on Rockwell modules or tags.
     - [x] Apply native Modbus address, unit, port, and base convention
     - [x] Lower evidenced built-in Modbus register-region bases
     - [x] Parse configured PROFIBUS devices, slots, and data points
-  - [ ] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
+  - [x] Correlate configured PROFIBUS points, CIP offsets, Modbus registers,
     and controller tags
     - [x] Correlate configured PROFIBUS data points with Modbus registers
     - [x] Preserve bidirectional PROFIBUS/Modbus mapping flow
     - [x] Parse generated Logix mapping context and retain its source rungs
+    - [x] Correlate generated UDT members with CPS assembly transfers
 
 The Booster Compressor fixture contains no confirmed Modbus register map.
 Protocol mappings must therefore remain external evidence unless another

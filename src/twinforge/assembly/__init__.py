@@ -56,6 +56,12 @@ from .plx50_gateway_configuration import (
     Plx50GatewayConfigurationResult,
     apply_plx50_gateway_configuration,
 )
+from .plx50_logix_mapping import (
+    Plx50LogixMappingResult,
+    Plx50LogixPointCorrelation,
+    Plx50LogixTransfer,
+    apply_plx50_logix_mapping,
+)
 from .sqlite_promotion_repository import SqlitePromotionRepository
 
 __all__ = [
@@ -80,6 +86,9 @@ __all__ = [
     "NetworkInterfaceEvidence",
     "PowerFlex525AssemblyProvider",
     "Plx50GatewayConfigurationResult",
+    "Plx50LogixMappingResult",
+    "Plx50LogixPointCorrelation",
+    "Plx50LogixTransfer",
     "PromotionPersistenceItem",
     "PromotionPersistenceResult",
     "PromotionPersistenceStatus",
@@ -90,6 +99,7 @@ __all__ = [
     "assemble_gateway_descriptions",
     "apply_gateway_mapping_document",
     "apply_plx50_gateway_configuration",
+    "apply_plx50_logix_mapping",
     "accepted_network_graph_data",
     "accepted_network_graph_json",
     "build_controller_communication_graph",
