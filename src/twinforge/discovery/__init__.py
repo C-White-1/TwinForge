@@ -74,6 +74,14 @@ from .cip_infrastructure_plan import (
     cip_infrastructure_plan_data,
     cip_infrastructure_plan_json,
 )
+from .cip_infrastructure_capture import (
+    CipInfrastructureCapture,
+    CipInfrastructureTransport,
+    CipInfrastructureTransportResult,
+    PermittedCipInfrastructureExecutor,
+    cip_infrastructure_capture_data,
+    cip_infrastructure_capture_json,
+)
 from .cip_routes import (
     CipRouteDeclaration,
     CipRouteSegment,
@@ -380,8 +388,11 @@ __all__ = [
     "CipIdentityObservation",
     "CipIdentityCapturePlan",
     "CipInfrastructureDiscoveryPlan",
+    "CipInfrastructureCapture",
     "CipInfrastructureObject",
     "CipInfrastructureReadRequest",
+    "CipInfrastructureTransport",
+    "CipInfrastructureTransportResult",
     "CipIdentityPlanTarget",
     "CipIdentityReply",
     "CipIdentityTransport",
@@ -464,6 +475,7 @@ __all__ = [
     "PermittedPycomm3RoutedControllerProvider",
     "PermittedPycomm3ChassisProvider",
     "PermittedControllerMetadataExecutor",
+    "PermittedCipInfrastructureExecutor",
     "PermittedSoftwareInventoryExecutor",
     "Pycomm3CipIdentityProvider",
     "Pycomm3IdentityTransport",
@@ -557,6 +569,8 @@ __all__ = [
     "cip_identity_plan_json",
     "cip_infrastructure_plan_data",
     "cip_infrastructure_plan_json",
+    "cip_infrastructure_capture_data",
+    "cip_infrastructure_capture_json",
     "cip_route_data",
     "cip_route_json",
     "cip_routed_snapshot_data",

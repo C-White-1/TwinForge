@@ -42,6 +42,18 @@ The planning milestone does not:
 - read application tag values; or
 - decode payload fields without a cited profile.
 
-Raw evidence capture will be added behind the existing routed execution-permit
-pattern. Semantic decoding remains a separate profile-driven stage so unknown
-bytes and status words can be retained unchanged.
+`PermittedCipInfrastructureExecutor` applies the existing routed
+execution-permit pattern. It preflights the authorization reference and exact
+route before transport I/O, executes each allowlisted request once, and then
+exhausts the plan budget.
+
+Every result is preserved as `CipObjectEvidence`, including:
+
+- general and additional status words;
+- the response payload as hexadecimal text;
+- the raw reply when supplied by the transport; and
+- any transport-provided diagnostic message.
+
+Successful and failed reads follow the same evidence path. Semantic decoding
+remains a separate profile-driven stage so unknown bytes and status words stay
+unchanged.

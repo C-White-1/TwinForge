@@ -270,7 +270,7 @@ source explicitly supplies them.
   - [ ] Verify experimental Logix Symbol pagination on an authorized controller
 - [ ] Assembly and connection-manager discovery
   - [x] Add explicit specification-attributed, request-budgeted read plans
-  - [ ] Add raw evidence capture behind a preflighted execution permit
+  - [x] Add raw evidence capture behind a preflighted execution permit
   - [ ] Decode only profile-defined assembly and connection-manager fields
 
 - [x] EtherNet/IP topology and bridge-evidence correlation
