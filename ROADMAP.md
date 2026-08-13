@@ -268,10 +268,12 @@ source explicitly supplies them.
 - [x] Controller metadata and structural program, routine, task, and tag
   discovery
   - [ ] Verify experimental Logix Symbol pagination on an authorized controller
-- [ ] Assembly and connection-manager discovery
+- [x] Assembly and connection-manager discovery
   - [x] Add explicit specification-attributed, request-budgeted read plans
   - [x] Add raw evidence capture behind a preflighted execution permit
   - [x] Decode only profile-defined assembly and connection-manager fields
+  - [x] Add a read-only routed `pycomm3` transport for exact planned requests
+  - [ ] Validate the transport against authorized physical devices
 
 - [x] EtherNet/IP topology and bridge-evidence correlation
 - [x] Compare discovered CIP identity with explicitly bound offline L5X modules

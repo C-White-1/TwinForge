@@ -88,6 +88,7 @@ from .cip_infrastructure_decode import (
     CipInfrastructureDecodeProfile,
     decode_cip_infrastructure_capture,
 )
+from .cip_infrastructure_pycomm3 import LivePycomm3InfrastructureTransport
 from .cip_routes import (
     CipRouteDeclaration,
     CipRouteSegment,
@@ -474,6 +475,7 @@ __all__ = [
     "IdentityTransitionDirective",
     "JsonEvidence",
     "LivePycomm3RoutedTransport",
+    "LivePycomm3InfrastructureTransport",
     "LogixSymbolPageRequest",
     "LogixSymbolRecord",
     "LivePycomm3MetadataTransport",

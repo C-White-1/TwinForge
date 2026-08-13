@@ -75,3 +75,20 @@ instance number 1. Connection paths and endpoint declarations remain source
 evidence, but a field layout requires a separate exact profile supported by the
 EDS, device manual, applicable specification, or approved configuration
 evidence.
+
+## pycomm3 transport
+
+`LivePycomm3InfrastructureTransport` translates one planned request into one
+routed `pycomm3` generic message. It uses UCMM Unconnected Send with the exact
+encoded route and preserves packet evidence through the shared CIP packet
+extractor.
+
+The transport cannot select an object, instance, attribute, or service. Those
+values come from the validated immutable plan. It does not issue
+`Forward_Open`, `Large_Forward_Open`, writes, resets, or arbitrary instance
+enumeration.
+
+Packet-shaped tests verify the complete `pycomm3` call and status extraction
+without opening sockets. Validation against an authorized physical Assembly
+Object and Connection Manager Object remains pending and must use a
+device-profile-derived plan.
