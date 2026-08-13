@@ -92,3 +92,23 @@ Packet-shaped tests verify the complete `pycomm3` call and status extraction
 without opening sockets. Validation against an authorized physical Assembly
 Object and Connection Manager Object remains pending and must use a
 device-profile-derived plan.
+
+## EDS candidate extraction
+
+`assess_eds_cip_infrastructure` is an assembly-layer bridge between the EDS
+parser and the parser-neutral discovery contracts. It decodes supported logical
+EPATH class, instance, and connection-point segments from each EDS Connection
+Manager declaration.
+
+For an Assembly class path, every explicit instance or connection point becomes
+an exact read candidate for Assembly attribute 3. The candidate keeps the EDS
+connection reference, path position, endpoint reference, declared size, and
+source citation. These values remain distinct:
+
+- path values identify CIP object instances or connection points;
+- EDS names such as `Assem1` identify source declarations; and
+- declared endpoint sizes describe the connection declaration.
+
+The bridge does not infer a binary field layout from the size or EDS label.
+Unsupported, truncated, non-Assembly, or unavailable paths are retained as
+diagnostics rather than becoming speculative requests.

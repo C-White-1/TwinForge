@@ -273,6 +273,7 @@ source explicitly supplies them.
   - [x] Add raw evidence capture behind a preflighted execution permit
   - [x] Decode only profile-defined assembly and connection-manager fields
   - [x] Add a read-only routed `pycomm3` transport for exact planned requests
+  - [x] Derive exact Assembly read candidates from EDS logical path evidence
   - [ ] Validate the transport against authorized physical devices
 
 - [x] EtherNet/IP topology and bridge-evidence correlation

@@ -23,6 +23,15 @@ from .gateway_descriptions import (
     GatewayDescriptionAssemblyResult,
     assemble_gateway_descriptions,
 )
+from .eds_cip_infrastructure import (
+    EdsCipInfrastructureAssessment,
+    EdsCipInfrastructureCandidate,
+    EdsCipInfrastructureDiagnostic,
+    EdsLogicalPathSegment,
+    EdsLogicalSegmentType,
+    assess_eds_cip_infrastructure,
+    decode_eds_logical_path,
+)
 from .gateway_mappings import (
     GatewayMappingApplicationResult,
     apply_gateway_mapping_document,
@@ -79,6 +88,11 @@ __all__ = [
     "CrossLayerCorrelationError",
     "CrossLayerDeviceCorrelationResult",
     "DeviceAssemblyProvider",
+    "EdsCipInfrastructureAssessment",
+    "EdsCipInfrastructureCandidate",
+    "EdsCipInfrastructureDiagnostic",
+    "EdsLogicalPathSegment",
+    "EdsLogicalSegmentType",
     "GatewayDescriptionAssemblyResult",
     "GatewayMappingApplicationResult",
     "InMemoryPromotionRepository",
@@ -98,6 +112,7 @@ __all__ = [
     "PromotionRepositoryError",
     "SqlitePromotionRepository",
     "assemble_corpus_devices",
+    "assess_eds_cip_infrastructure",
     "assemble_gateway_descriptions",
     "apply_gateway_mapping_document",
     "apply_plx50_gateway_configuration",
@@ -113,5 +128,6 @@ __all__ = [
     "cross_layer_device_correlation_data",
     "cross_layer_device_correlation_json",
     "lower_accepted_network_graph",
+    "decode_eds_logical_path",
     "persist_promotions",
 ]
