@@ -206,7 +206,10 @@ placing protocol registers directly on Rockwell modules or tags.
   - [x] Resolve Ladder and Structured Text MSG calls to scoped MESSAGE tags
   - [x] Identify CIP Generic only from captured tag configuration evidence
   - [x] Preserve malformed and unresolved MSG calls for engineering review
-- [ ] External address and controller-reference discovery
+- [x] External address and controller-reference discovery
+  - [x] Inventory module Address and MESSAGE ConnectionPath fields
+  - [x] Inventory consumed-tag Producer, RemoteTag, and RemoteFile fields
+  - [x] Classify only exact IPv4 literals; retain all other paths symbolically
 - [x] Modbus device, area and register-map model
 - [x] CSV/manual import for mappings absent from L5X
 - [ ] Link communication points to tags, signals and AutomationML interfaces

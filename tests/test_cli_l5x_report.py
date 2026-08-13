@@ -47,8 +47,10 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "module_schedule.md",
         "module_schedule.csv",
         "module_schedule.json",
+        "external_references.md",
+        "external_references.json",
     }
-    assert "Exported 23 reports" in output.getvalue()
+    assert "Exported 25 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(
         encoding="utf-8"
     )
@@ -86,6 +88,13 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert "module and spare-I/O schedule" in module_schedule
     assert "AI_Slot4" in module_schedule
     assert "Unknown capability is retained" in module_schedule
+    external_references = (destination / "external_references.md").read_text(
+        encoding="utf-8"
+    )
+    assert "external address and controller-reference inventory" in (
+        external_references
+    )
+    assert "does not prove that a target exists" in external_references
 
 
 def test_report_rejects_non_controller_target(tmp_path: Path) -> None:

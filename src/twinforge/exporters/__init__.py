@@ -64,6 +64,7 @@ from .discovery_drift_report import (
 from .functional_description_markdown import (
     FunctionalDescriptionMarkdownExporter,
 )
+from .external_reference_markdown import ExternalReferenceMarkdownExporter
 from .codesys_ir_integration import (
     CodesysArgumentBinding,
     CodesysProgramCall,
@@ -150,6 +151,7 @@ __all__ = [
     "CyclicIOContractMarkdownExporter",
     "DeviceDiagnosticMarkdownExporter",
     "DiscoveryDriftMarkdownExporter",
+    "ExternalReferenceMarkdownExporter",
     "FunctionalDescriptionMarkdownExporter",
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",

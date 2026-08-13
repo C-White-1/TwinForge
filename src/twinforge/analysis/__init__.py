@@ -115,6 +115,14 @@ from .produced_consumed_tags import (
     produced_consumed_tag_analysis_data,
     produced_consumed_tag_analysis_json,
 )
+from .external_references import (
+    ExternalReferenceEvidence,
+    ExternalReferenceInventory,
+    ExternalReferenceKind,
+    discover_external_references,
+    external_reference_inventory_data,
+    external_reference_inventory_json,
+)
 from .tag_dependencies import (
     TagDependencyGraph,
     TagReference,
@@ -186,6 +194,9 @@ __all__ = [
     "DiagnosticPolicy",
     "DependencyReadiness",
     "FaultHistoryEntry",
+    "ExternalReferenceEvidence",
+    "ExternalReferenceInventory",
+    "ExternalReferenceKind",
     "FunctionalBehaviorDescription",
     "OperatingModeDescription",
     "ModuleScheduleEntry",
@@ -247,6 +258,7 @@ __all__ = [
     "build_cause_effect_candidate_report",
     "build_controller_functional_description",
     "extract_structured_text_calls",
+    "discover_external_references",
     "evaluate_runtime_compatibility",
     "extract_rll_mnemonics",
     "extract_program_calls",
@@ -264,6 +276,8 @@ __all__ = [
     "message_instruction_analysis_json",
     "produced_consumed_tag_analysis_data",
     "produced_consumed_tag_analysis_json",
+    "external_reference_inventory_data",
+    "external_reference_inventory_json",
     "cause_effect_candidate_report_data",
     "cause_effect_candidate_report_json",
 ]

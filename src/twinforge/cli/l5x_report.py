@@ -17,6 +17,8 @@ from twinforge.analysis import (
     io_list_report_json,
     module_schedule_report_json,
     cause_effect_candidate_report_json,
+    discover_external_references,
+    external_reference_inventory_json,
     tag_dependency_graph_json,
 )
 from twinforge.exporters import (
@@ -25,6 +27,7 @@ from twinforge.exporters import (
     CauseEffectCandidateCSVExporter,
     CauseEffectCandidateMarkdownExporter,
     ControllerFunctionalDescriptionMarkdownExporter,
+    ExternalReferenceMarkdownExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
     ModuleScheduleCSVExporter,
@@ -74,6 +77,7 @@ def export_l5x_reports(
             cause_effect,
         )
         module_schedule = build_module_schedule_report(controller, io_list)
+        external_references = discover_external_references(controller)
         files.update(
             {
                 "tag_dependencies.md": TagDependencyMarkdownExporter().export(
@@ -134,6 +138,18 @@ def export_l5x_reports(
                 ),
                 "module_schedule.json": module_schedule_report_json(
                     module_schedule
+                ),
+                "external_references.md": (
+                    ExternalReferenceMarkdownExporter().export(
+                        external_references,
+                        title=(
+                            f"{controller.name} external address and "
+                            "controller-reference inventory"
+                        ),
+                    )
+                ),
+                "external_references.json": external_reference_inventory_json(
+                    external_references
                 ),
             }
         )
