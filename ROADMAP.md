@@ -271,7 +271,7 @@ source explicitly supplies them.
 - [ ] Assembly and connection-manager discovery
   - [x] Add explicit specification-attributed, request-budgeted read plans
   - [x] Add raw evidence capture behind a preflighted execution permit
-  - [ ] Decode only profile-defined assembly and connection-manager fields
+  - [x] Decode only profile-defined assembly and connection-manager fields
 
 - [x] EtherNet/IP topology and bridge-evidence correlation
 - [x] Compare discovered CIP identity with explicitly bound offline L5X modules

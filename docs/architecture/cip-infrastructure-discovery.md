@@ -57,3 +57,21 @@ Every result is preserved as `CipObjectEvidence`, including:
 Successful and failed reads follow the same evidence path. Semantic decoding
 remains a separate profile-driven stage so unknown bytes and status words stay
 unchanged.
+
+## Profile-driven decoding
+
+`CipInfrastructureDecodeProfile` must match the planned class, instance,
+attribute, and service exactly. Each decoded field declares its byte offset,
+width, primitive representation, byte order, and specification reference.
+Profiles reject duplicate names, overlapping fields, invalid widths, and
+payload-size conflicts.
+
+Only successful responses are decoded. The original response payload remains
+unchanged and bytes not claimed by the profile are retained as
+`unclaimed_payload_hex`.
+
+An EDS assembly reference such as `Assem1` is not assumed to identify CIP
+instance number 1. Connection paths and endpoint declarations remain source
+evidence, but a field layout requires a separate exact profile supported by the
+EDS, device manual, applicable specification, or approved configuration
+evidence.

@@ -82,6 +82,12 @@ from .cip_infrastructure_capture import (
     cip_infrastructure_capture_data,
     cip_infrastructure_capture_json,
 )
+from .cip_infrastructure_decode import (
+    CipBinaryField,
+    CipBinaryFieldType,
+    CipInfrastructureDecodeProfile,
+    decode_cip_infrastructure_capture,
+)
 from .cip_routes import (
     CipRouteDeclaration,
     CipRouteSegment,
@@ -389,6 +395,9 @@ __all__ = [
     "CipIdentityCapturePlan",
     "CipInfrastructureDiscoveryPlan",
     "CipInfrastructureCapture",
+    "CipBinaryField",
+    "CipBinaryFieldType",
+    "CipInfrastructureDecodeProfile",
     "CipInfrastructureObject",
     "CipInfrastructureReadRequest",
     "CipInfrastructureTransport",
@@ -603,6 +612,7 @@ __all__ = [
     "electronic_key_evaluation_data",
     "evaluate_electronic_key",
     "decode_logix_symbol_page",
+    "decode_cip_infrastructure_capture",
     "detect_discovery_drift",
     "discovery_drift_data",
     "discovery_drift_json",
