@@ -198,7 +198,10 @@ Introduce vendor-neutral communication endpoints and mappings rather than
 placing protocol registers directly on Rockwell modules or tags.
 
 - [ ] Produced/consumed tag relationships
-- [ ] MSG and CIP Generic instruction analysis
+- [x] MSG and CIP Generic instruction analysis
+  - [x] Resolve Ladder and Structured Text MSG calls to scoped MESSAGE tags
+  - [x] Identify CIP Generic only from captured tag configuration evidence
+  - [x] Preserve malformed and unresolved MSG calls for engineering review
 - [ ] External address and controller-reference discovery
 - [x] Modbus device, area and register-map model
 - [x] CSV/manual import for mappings absent from L5X

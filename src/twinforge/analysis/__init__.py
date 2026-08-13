@@ -99,6 +99,14 @@ from .structured_text_semantics import (
     analyze_structured_text_semantics,
 )
 from .software_calls import extract_program_calls
+from .message_instructions import (
+    MessageInstructionAnalysis,
+    MessageInstructionEvidence,
+    UnresolvedMessageInstruction,
+    analyze_message_instructions,
+    message_instruction_analysis_data,
+    message_instruction_analysis_json,
+)
 from .tag_dependencies import (
     TagDependencyGraph,
     TagReference,
@@ -174,6 +182,8 @@ __all__ = [
     "OperatingModeDescription",
     "ModuleScheduleEntry",
     "ModuleScheduleReport",
+    "MessageInstructionAnalysis",
+    "MessageInstructionEvidence",
     "InstructionCoverage",
     "IOChannel",
     "IOListReport",
@@ -199,10 +209,12 @@ __all__ = [
     "TaskExecutionDescription",
     "UnresolvedTagReference",
     "UnresolvedIOAlias",
+    "UnresolvedMessageInstruction",
     "UnresolvedCauseEvidence",
     "RLLCoverageReport",
     "RungCoverageIssue",
     "analyze_aoi_portability",
+    "analyze_message_instructions",
     "analyze_cyclic_io_contract",
     "analyze_rll_coverage",
     "analyze_structured_text",
@@ -236,6 +248,8 @@ __all__ = [
     "io_list_report_json",
     "module_schedule_report_data",
     "module_schedule_report_json",
+    "message_instruction_analysis_data",
+    "message_instruction_analysis_json",
     "cause_effect_candidate_report_data",
     "cause_effect_candidate_report_json",
 ]
