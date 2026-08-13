@@ -67,6 +67,13 @@ from .cip_plan import (
     cip_identity_plan_json,
     plan_cip_identity_capture,
 )
+from .cip_infrastructure_plan import (
+    CipInfrastructureDiscoveryPlan,
+    CipInfrastructureObject,
+    CipInfrastructureReadRequest,
+    cip_infrastructure_plan_data,
+    cip_infrastructure_plan_json,
+)
 from .cip_routes import (
     CipRouteDeclaration,
     CipRouteSegment,
@@ -372,6 +379,9 @@ __all__ = [
     "CipControllerReadPlan",
     "CipIdentityObservation",
     "CipIdentityCapturePlan",
+    "CipInfrastructureDiscoveryPlan",
+    "CipInfrastructureObject",
+    "CipInfrastructureReadRequest",
     "CipIdentityPlanTarget",
     "CipIdentityReply",
     "CipIdentityTransport",
@@ -545,6 +555,8 @@ __all__ = [
     "cip_controller_metadata_capture_json",
     "cip_identity_plan_data",
     "cip_identity_plan_json",
+    "cip_infrastructure_plan_data",
+    "cip_infrastructure_plan_json",
     "cip_route_data",
     "cip_route_json",
     "cip_routed_snapshot_data",

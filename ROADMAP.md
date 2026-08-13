@@ -269,9 +269,16 @@ source explicitly supplies them.
   discovery
   - [ ] Verify experimental Logix Symbol pagination on an authorized controller
 - [ ] Assembly and connection-manager discovery
+  - [x] Add explicit specification-attributed, request-budgeted read plans
+  - [ ] Add raw evidence capture behind a preflighted execution permit
+  - [ ] Decode only profile-defined assembly and connection-manager fields
+
 - [x] EtherNet/IP topology and bridge-evidence correlation
 - [x] Compare discovered CIP identity with explicitly bound offline L5X modules
 - [x] Detect hardware, firmware, configuration, and network drift
+
+The conservative planning and evidence boundary is documented in
+[CIP Infrastructure Discovery](docs/architecture/cip-infrastructure-discovery.md).
 
 The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 [Authorized Online Discovery Roadmap](docs/roadmaps/online-discovery-roadmap.md).
