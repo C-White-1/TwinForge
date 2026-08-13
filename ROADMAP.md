@@ -205,7 +205,10 @@ placing protocol registers directly on Rockwell modules or tags.
 - [ ] Link communication points to tags, signals and AutomationML interfaces
   - [x] Bind evidenced PLX50 EtherNet/IP assembly points to controller tags
   - [x] Expose neutral communication/tag bindings as AutomationML interfaces
-- [ ] Multi-controller communication graph
+- [x] Multi-controller communication graph
+  - [x] Inventory configured MESSAGE evidence without inferred edges
+  - [x] Apply explicit versioned controller-workspace bindings
+  - [x] Export a deterministic machine-readable graph from the CLI
 - [x] Multi-protocol gateway modelling
   - [x] Catalogue PLX51-PBM EDS, GSD, AOI, manuals, and configuration tools
   - [x] Parse EDS identity, assemblies, and Class 1 connection definitions

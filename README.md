@@ -99,6 +99,11 @@ twinforge gateway report `
   --mapping generated-mapping.L5X `
   --output reports\gateway `
   --base-library path\to\AutomationMLBaseLibraries.aml
+twinforge communication graph path\to\l5x-corpus `
+  --output reports\communication-inventory.json
+twinforge communication graph path\to\l5x-corpus `
+  --bindings communication-bindings.json `
+  --output reports\communication-graph.json
 twinforge export project.L5X --target plcopen --output project.xml
 twinforge export project.L5X --target plcopen --output project.xml `
   --xsd reference\PLCopenXML\standard\tc6_xml_v201.xsd
@@ -154,6 +159,26 @@ interfaces, typed controller-tag interfaces, and deterministic CAEX links.
 Without that option, the command still produces the Markdown and JSON reports.
 The PSJ must select EtherNet/IP as its primary interface. Missing, malformed,
 or incompatible inputs return a non-zero status without creating a report.
+
+`communication graph` parses an explicit directory of L5X documents and emits
+a versioned inventory of controller workspaces and configured MESSAGE evidence.
+It never creates an edge from names or paths alone. Confirmed relationships are
+provided through a versioned JSON binding document:
+
+```json
+{
+  "schema_version": "1.0",
+  "bindings": [
+    {
+      "evidence_key": "copy exactly from unbound_messages",
+      "target_workspace_key": "copy exactly from nodes"
+    }
+  ]
+}
+```
+
+Running the command again with `--bindings` creates only those explicitly
+bound directed edges and retains all remaining messages as unbound evidence.
 
 `export --target plcopen` writes target-neutral PLCopen XML 2.01 without
 CODESYS extensions. Supplying `--xsd` validates the complete document before

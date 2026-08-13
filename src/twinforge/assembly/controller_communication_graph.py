@@ -216,6 +216,7 @@ def controller_communication_graph_data(
         }
 
     return {
+        "schema_version": "1.0",
         "nodes": [item.__dict__ for item in graph.nodes],
         "edges": [
             {

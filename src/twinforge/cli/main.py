@@ -15,6 +15,10 @@ from twinforge.discovery import (
 )
 
 from .cip_software import CipSoftwareCommandError, discover_cip_software
+from .communication_graph import (
+    CommunicationGraphCommandError,
+    export_communication_graph,
+)
 from .discovery_state import initialise_state, inspect_state, validate_state
 from .discovery_fake import FakeSnapshotCommandError, generate_fake_snapshot
 from .diagnostics import ExitCode, write_json_diagnostic
@@ -249,6 +253,31 @@ def build_parser() -> argparse.ArgumentParser:
             "write the gateway communication model."
         ),
     )
+    communication = commands.add_parser(
+        "communication",
+        help="Build evidence-backed communication models.",
+    )
+    communication_commands = communication.add_subparsers(
+        dest="communication_command",
+        required=True,
+    )
+    graph = communication_commands.add_parser(
+        "graph",
+        help="Build a multi-controller graph from an L5X corpus.",
+    )
+    graph.add_argument("source", type=Path)
+    graph.add_argument("--output", required=True, type=Path)
+    graph.add_argument(
+        "--bindings",
+        type=Path,
+        help="Optional versioned JSON file of explicit message bindings.",
+    )
+    graph.add_argument(
+        "--recursive",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Search the corpus directory recursively (default: true).",
+    )
     return parser
 
 
@@ -342,6 +371,14 @@ def main(
                 stdout=output,
                 base_library_path=arguments.base_library,
             )
+        elif arguments.command == "communication":
+            export_communication_graph(
+                arguments.source,
+                arguments.output,
+                bindings_source=arguments.bindings,
+                recursive=arguments.recursive,
+                stdout=output,
+            )
         elif arguments.state_command == "init":
             initialise_state(arguments.path, stdout=output)
         elif arguments.state_command == "validate":
@@ -376,6 +413,7 @@ def main(
         L5XInspectionError,
         L5XReportError,
         Plx50ReportError,
+        CommunicationGraphCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
