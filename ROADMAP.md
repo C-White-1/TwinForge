@@ -264,12 +264,14 @@ source explicitly supplies them.
 - [x] Atomic Plant promotion repository boundary with idempotent replay
 - [x] Versioned atomic JSON persistence for lifecycle and promotion state
 - [x] Bounded `pycomm3` CIP Identity adapter
-- [ ] CIP chassis/slot discovery
-- [ ] Controller, program, routine and tag discovery
+- [x] Bounded CIP chassis/slot discovery with typed slot outcomes
+- [x] Controller metadata and structural program, routine, task, and tag
+  discovery
+  - [ ] Verify experimental Logix Symbol pagination on an authorized controller
 - [ ] Assembly and connection-manager discovery
-- [ ] EtherNet/IP topology and bridge discovery
+- [x] EtherNet/IP topology and bridge-evidence correlation
 - [x] Compare discovered CIP identity with explicitly bound offline L5X modules
-- [ ] Detect hardware, firmware and network drift
+- [x] Detect hardware, firmware, configuration, and network drift
 
 The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 [Authorized Online Discovery Roadmap](docs/roadmaps/online-discovery-roadmap.md).
