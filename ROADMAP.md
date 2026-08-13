@@ -197,7 +197,11 @@ The immediate structural priorities are maintained in the
 Introduce vendor-neutral communication endpoints and mappings rather than
 placing protocol registers directly on Rockwell modules or tags.
 
-- [ ] Produced/consumed tag relationships
+- [x] Produced/consumed tag relationships
+  - [x] Capture specification-defined ProduceInfo and ConsumeInfo fields
+  - [x] Preserve unknown produced/consumed attributes as source evidence
+  - [x] Resolve only unique controller and remote produced-tag matches
+  - [x] Retain unresolved RemoteTag and legacy RemoteFile relationships
 - [x] MSG and CIP Generic instruction analysis
   - [x] Resolve Ladder and Structured Text MSG calls to scoped MESSAGE tags
   - [x] Identify CIP Generic only from captured tag configuration evidence

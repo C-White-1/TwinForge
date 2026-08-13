@@ -13,7 +13,7 @@ TAG_ATTRIBUTES: dict[str, AttributeSpec] = {
         name="TagType",
         description="Indicates whether the tag is a base tag or alias.",
         required=True,
-        valid_values=("Base", "Alias"),
+        valid_values=("Base", "Alias", "Produced", "Consumed"),
         manual_ref="1756-RM014D-EN-P September 2025, Tag attributes.",
     ),
     "DataType": AttributeSpec(
@@ -62,6 +62,45 @@ TAG_ATTRIBUTES: dict[str, AttributeSpec] = {
 }
 
 
+PRODUCE_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
+    name: AttributeSpec(
+        name=name,
+        description=f"Logix produced-tag configuration field {name}.",
+        manual_ref=(
+            "1756-RM014D-EN-P September 2025, Produced tag attributes."
+        ),
+    )
+    for name in (
+        "ProduceCount",
+        "MinimumRPI",
+        "MaximumRPI",
+        "DefaultRPI",
+        "PLCMappingFile",
+        "PLC2Mapping",
+        "ProgrammaticallySendEventTrigger",
+        "UnicastPermitted",
+    )
+}
+
+
+CONSUME_INFO_ATTRIBUTES: dict[str, AttributeSpec] = {
+    name: AttributeSpec(
+        name=name,
+        description=f"Logix consumed-tag configuration field {name}.",
+        manual_ref=(
+            "1756-RM014D-EN-P September 2025, Consumed tag attributes."
+        ),
+    )
+    for name in (
+        "Producer",
+        "RemoteTag",
+        "RemoteFile",
+        "RPI",
+        "ProgrammaticallySendEventTrigger",
+    )
+}
+
+
 TAG_DATA_ATTRIBUTES: dict[str, AttributeSpec] = {
     "Format": AttributeSpec(
         name="Format",
@@ -106,6 +145,22 @@ TAG_DATA_ELEMENTS: dict[str, ElementSpec] = {
 
 
 TAG_ELEMENTS: dict[str, ElementSpec] = {
+    "ConsumeInfo": ElementSpec(
+        name="ConsumeInfo",
+        description="Remote producer configuration for a consumed tag.",
+        attributes=CONSUME_INFO_ATTRIBUTES,
+        manual_ref=(
+            "1756-RM014D-EN-P September 2025, Consumed tag attributes."
+        ),
+    ),
+    "ProduceInfo": ElementSpec(
+        name="ProduceInfo",
+        description="Consumer and packet interval configuration for a produced tag.",
+        attributes=PRODUCE_INFO_ATTRIBUTES,
+        manual_ref=(
+            "1756-RM014D-EN-P September 2025, Produced tag attributes."
+        ),
+    ),
     "Description": ElementSpec(
         name="Description",
         description="User description of the tag.",

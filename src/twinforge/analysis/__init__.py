@@ -107,6 +107,14 @@ from .message_instructions import (
     message_instruction_analysis_data,
     message_instruction_analysis_json,
 )
+from .produced_consumed_tags import (
+    ProducedConsumedTagAnalysis,
+    ProducedConsumedTagRelationship,
+    UnresolvedConsumedTag,
+    analyze_produced_consumed_tags,
+    produced_consumed_tag_analysis_data,
+    produced_consumed_tag_analysis_json,
+)
 from .tag_dependencies import (
     TagDependencyGraph,
     TagReference,
@@ -195,6 +203,8 @@ __all__ = [
     "ParameterSetpointBinding",
     "RecommendedPOU",
     "ProgramStructureDescription",
+    "ProducedConsumedTagAnalysis",
+    "ProducedConsumedTagRelationship",
     "RuntimeCapability",
     "RuntimeCapabilityProvider",
     "RuntimeCompatibility",
@@ -210,11 +220,13 @@ __all__ = [
     "UnresolvedTagReference",
     "UnresolvedIOAlias",
     "UnresolvedMessageInstruction",
+    "UnresolvedConsumedTag",
     "UnresolvedCauseEvidence",
     "RLLCoverageReport",
     "RungCoverageIssue",
     "analyze_aoi_portability",
     "analyze_message_instructions",
+    "analyze_produced_consumed_tags",
     "analyze_cyclic_io_contract",
     "analyze_rll_coverage",
     "analyze_structured_text",
@@ -250,6 +262,8 @@ __all__ = [
     "module_schedule_report_json",
     "message_instruction_analysis_data",
     "message_instruction_analysis_json",
+    "produced_consumed_tag_analysis_data",
+    "produced_consumed_tag_analysis_json",
     "cause_effect_candidate_report_data",
     "cause_effect_candidate_report_json",
 ]

@@ -35,6 +35,33 @@ class MessageTagConfiguration:
     raw_attributes: dict[str, str] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class ProducedTagConfiguration:
+    """Captured Logix produced-tag connection configuration."""
+
+    produce_count: int | None = None
+    minimum_rpi: float | None = None
+    maximum_rpi: float | None = None
+    default_rpi: float | None = None
+    plc_mapping_file: int | None = None
+    plc2_mapping: int | None = None
+    programmatically_send_event_trigger: bool | None = None
+    unicast_permitted: bool | None = None
+    raw_attributes: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class ConsumedTagConfiguration:
+    """Captured Logix consumed-tag remote producer configuration."""
+
+    producer: str | None = None
+    remote_tag: str | None = None
+    remote_file: int | None = None
+    rpi: float | None = None
+    programmatically_send_event_trigger: bool | None = None
+    raw_attributes: dict[str, str] = field(default_factory=dict)
+
+
 @dataclass
 class Tag:
     name: str = ""
@@ -51,6 +78,8 @@ class Tag:
     initial_value: TagValue | None = None
     composite_initial_value: CompositeTagValue | None = None
     message_configuration: MessageTagConfiguration | None = None
+    produced_configuration: ProducedTagConfiguration | None = None
+    consumed_configuration: ConsumedTagConfiguration | None = None
     engineering_unit: EngineeringUnitEvidence | None = None
     engineering_unit_evidence: list[EngineeringUnitEvidence] = field(
         default_factory=list

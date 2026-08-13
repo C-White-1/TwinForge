@@ -8,7 +8,9 @@ from twinforge.converters.diagnostics import (
 )
 from twinforge.model import (
     CompositeTagValue,
+    ConsumedTagConfiguration,
     MessageTagConfiguration,
+    ProducedTagConfiguration,
     Tag,
     TagValue,
 )
@@ -18,7 +20,7 @@ from .source_extension import captured_to_source_extension
 from .decorated_value import parse_composite_value, parse_scalar_value
 
 
-_KNOWN_TAG_TYPES = {"Base", "Alias"}
+_KNOWN_TAG_TYPES = {"Base", "Alias", "Produced", "Consumed"}
 
 
 def convert_tag(
@@ -84,7 +86,52 @@ def convert_tag(
         initial_value=_initial_value(section, diagnostics),
         composite_initial_value=_composite_initial_value(section, diagnostics),
         message_configuration=_message_configuration(section),
+        produced_configuration=_produced_configuration(section),
+        consumed_configuration=_consumed_configuration(section),
         source_extensions=[captured_to_source_extension(section)],
+    )
+
+
+def _produced_configuration(
+    section: CapturedSection,
+) -> ProducedTagConfiguration | None:
+    items = section.elements.get("ProduceInfo", [])
+    if not items:
+        return None
+    attributes = items[0].attributes
+    return ProducedTagConfiguration(
+        produce_count=_logix_int(attributes.get("ProduceCount")),
+        minimum_rpi=_logix_float(attributes.get("MinimumRPI")),
+        maximum_rpi=_logix_float(attributes.get("MaximumRPI")),
+        default_rpi=_logix_float(attributes.get("DefaultRPI")),
+        plc_mapping_file=_logix_int(attributes.get("PLCMappingFile")),
+        plc2_mapping=_logix_int(attributes.get("PLC2Mapping")),
+        programmatically_send_event_trigger=_lexical_bool(
+            attributes.get("ProgrammaticallySendEventTrigger")
+        ),
+        unicast_permitted=_lexical_bool(
+            attributes.get("UnicastPermitted")
+        ),
+        raw_attributes={**attributes, **items[0].extra_attributes},
+    )
+
+
+def _consumed_configuration(
+    section: CapturedSection,
+) -> ConsumedTagConfiguration | None:
+    items = section.elements.get("ConsumeInfo", [])
+    if not items:
+        return None
+    attributes = items[0].attributes
+    return ConsumedTagConfiguration(
+        producer=attributes.get("Producer"),
+        remote_tag=attributes.get("RemoteTag"),
+        remote_file=_logix_int(attributes.get("RemoteFile")),
+        rpi=_logix_float(attributes.get("RPI")),
+        programmatically_send_event_trigger=_lexical_bool(
+            attributes.get("ProgrammaticallySendEventTrigger")
+        ),
+        raw_attributes={**attributes, **items[0].extra_attributes},
     )
 
 
@@ -128,6 +175,10 @@ def _logix_int(value: str | None) -> int | None:
         radix, digits = value.split("#", 1)
         return int(digits.replace("_", ""), int(radix))
     return int(value, 0)
+
+
+def _logix_float(value: str | None) -> float | None:
+    return float(value) if value is not None else None
 
 
 def _lexical_bool(value: str | None) -> bool | None:

@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from twinforge.analysis import extract_program_calls
+from twinforge.analysis.software_calls import extract_program_calls
 from twinforge.model import (
     AddOnInstruction,
     Controller,

@@ -76,7 +76,12 @@ from .software_call import (
     SoftwareParameterFlow,
     SoftwareTagScope,
 )
-from .tag import MessageTagConfiguration, Tag
+from .tag import (
+    ConsumedTagConfiguration,
+    MessageTagConfiguration,
+    ProducedTagConfiguration,
+    Tag,
+)
 from .tag_value import (
     CompositeTagValue,
     CompositeTagValueNode,
@@ -146,6 +151,8 @@ __all__ = [
     "ModuleDataDirection",
     "ModuleCapability",
     "MessageTagConfiguration",
+    "ConsumedTagConfiguration",
+    "ProducedTagConfiguration",
     "Network",
     "ObservedParameterAccess",
     "Plant",
