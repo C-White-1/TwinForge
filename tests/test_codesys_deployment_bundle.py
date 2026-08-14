@@ -7,6 +7,7 @@ from pydantic import ValidationError
 import pytest
 
 from twinforge.targets.codesys import (
+    CodesysEtherNetIPConnectionManifest,
     CodesysPowerFlex525BundleExporter,
     CodesysPowerFlex525DeploymentManifest,
     load_codesys_powerflex525_manifest,
@@ -28,6 +29,35 @@ def test_manifest_loads_two_unique_validated_devices() -> None:
     assert len(manifest.devices) == 2
     assert str(manifest.devices[0].ip_address) == "192.168.1.80"
     assert manifest.devices[1].device_variable == "Dev_PF525_02"
+
+
+def test_powerflex_device_uses_reusable_ethernetip_connection_contract() -> None:
+    manifest = load_codesys_powerflex525_manifest(MANIFEST)
+    device = manifest.devices[0]
+
+    assert isinstance(device, CodesysEtherNetIPConnectionManifest)
+    assert device.rpi_ms == 10
+    assert device.output_bytes == 4
+    assert device.input_bytes == 8
+    assert device.connection_path == (32, 4, 36, 6, 44, 2, 44, 1)
+
+
+def test_generic_ethernetip_connection_requires_explicit_valid_evidence() -> None:
+    connection = CodesysEtherNetIPConnectionManifest(
+        rpi_ms=20,
+        output_bytes=496,
+        input_bytes=500,
+        connection_path=(32, 4, 36, 102, 44, 133, 44, 132),
+    )
+
+    assert connection.connection_path[-2:] == (44, 132)
+    with pytest.raises(ValidationError, match="must not be empty"):
+        CodesysEtherNetIPConnectionManifest(
+            rpi_ms=20,
+            output_bytes=496,
+            input_bytes=500,
+            connection_path=(),
+        )
 
 
 @pytest.mark.parametrize(

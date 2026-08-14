@@ -23,6 +23,7 @@ from .powerflex525 import (
     PowerFlex525CodesysDevice,
     powerflex525_codesys_multi_application_integration,
 )
+from .ethernetip_manifest import CodesysEtherNetIPConnectionManifest
 
 
 _IEC_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -38,7 +39,7 @@ _POWERFLEX_CONNECTION_PATH = (
 )
 
 
-class CodesysPowerFlex525DeviceManifest(BaseModel):
+class CodesysPowerFlex525DeviceManifest(CodesysEtherNetIPConnectionManifest):
     """External configuration for one PowerFlex 525 deployment instance."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -57,19 +58,6 @@ class CodesysPowerFlex525DeviceManifest(BaseModel):
         if _IEC_IDENTIFIER.fullmatch(value) is None:
             raise ValueError("must be an IEC 61131-3 identifier")
         return value
-
-    @field_validator("connection_path")
-    @classmethod
-    def _connection_path(
-        cls,
-        value: tuple[int, ...],
-    ) -> tuple[int, ...]:
-        if not value:
-            raise ValueError("must not be empty")
-        if any(item < 0 or item > 0xFF for item in value):
-            raise ValueError("bytes must be between 0 and 255")
-        return value
-
 
 class CodesysPowerFlex525DeploymentManifest(BaseModel):
     """Validated boundary model for a CODESYS PowerFlex deployment."""

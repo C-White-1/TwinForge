@@ -7,6 +7,7 @@ from .deployment import (
     CodesysPowerFlex525DeviceManifest,
     load_codesys_powerflex525_manifest,
 )
+from .ethernetip_manifest import CodesysEtherNetIPConnectionManifest
 from .module_service import (
     CodesysEtherNetIPModuleAdapter,
     CodesysEtherNetIPObservation,
@@ -28,6 +29,7 @@ __all__ = [
     "CodesysModuleAdapterError",
     "CodesysPowerFlex525BundleExporter",
     "CodesysPowerFlex525DeploymentManifest",
+    "CodesysEtherNetIPConnectionManifest",
     "CodesysPowerFlex525DeviceManifest",
     "PowerFlex525CodesysDevice",
     "load_codesys_powerflex525_manifest",

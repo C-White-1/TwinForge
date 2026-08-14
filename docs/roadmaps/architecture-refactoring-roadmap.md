@@ -293,7 +293,7 @@ device profile is proven.
 Deferred until another device profile or target exists:
 
 - [ ] Separate generic CODESYS bundle packaging from PowerFlex fields
-- [ ] Introduce reusable EtherNet/IP connection-manifest types
+- [x] Introduce reusable EtherNet/IP connection-manifest types
 - [ ] Add profile-specific native evidence validators
 - [ ] Avoid abstract base classes until two real implementations establish
   the common behavior
