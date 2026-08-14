@@ -88,6 +88,20 @@ The schema validates the envelope and recursive control-node shapes. Use
 `twinforge model validate` when semantic validation is required: JSON Schema
 cannot prove that an RFC 6901 `$ref` resolves to an already established node.
 
+## Read-only queries
+
+Select a precise evidence node without reconstructing the object graph:
+
+```powershell
+uv run twinforge model query build\project-model.json `
+  "#/document/target/modules/Local%3A1"
+```
+
+Pointers use RFC 6901 fragment form. `--resolve-reference` follows the selected
+node when it is exactly a `$ref`; it does not recursively expand the graph, so
+cycles and shared identity remain explicit. `--compact` produces a compact
+JSON response suitable for scripts and future read-only adapters.
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. References must resolve to an already established complex evidence

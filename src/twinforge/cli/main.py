@@ -33,6 +33,7 @@ from .model_json import (
     ModelJSONCommandError,
     export_model_json_schema,
     inspect_model_json_file,
+    query_model_json_file,
     validate_model_json_file,
 )
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
@@ -178,6 +179,25 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Destination for the JSON Schema file.",
+    )
+    model_query = model_commands.add_parser(
+        "query",
+        help="Select validated model evidence with an RFC 6901 JSON Pointer.",
+    )
+    model_query.add_argument("path", type=Path)
+    model_query.add_argument(
+        "pointer",
+        help="Fragment-form JSON Pointer, such as '#/document/target'.",
+    )
+    model_query.add_argument(
+        "--resolve-reference",
+        action="store_true",
+        help="Resolve the selected node when it is exactly a $ref object.",
+    )
+    model_query.add_argument(
+        "--compact",
+        action="store_true",
+        help="Write compact rather than indented JSON.",
     )
 
     state = commands.add_parser(
@@ -398,8 +418,16 @@ def main(
                     output_format=arguments.format,
                     stdout=output,
                 )
-            else:
+            elif arguments.model_command == "schema":
                 export_model_json_schema(arguments.output, stdout=output)
+            else:
+                query_model_json_file(
+                    arguments.path,
+                    arguments.pointer,
+                    resolve_reference=arguments.resolve_reference,
+                    compact=arguments.compact,
+                    stdout=output,
+                )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(

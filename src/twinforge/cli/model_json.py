@@ -8,8 +8,10 @@ from typing import Any, TextIO
 
 from twinforge.exporters import (
     ModelJSONValidationError,
+    ModelJSONPointerError,
     model_json_inventory,
     model_json_schema_text,
+    resolve_model_json_pointer,
     validate_model_json,
 )
 
@@ -73,6 +75,38 @@ def export_model_json_schema(path: Path, *, stdout: TextIO) -> None:
             f"could not write TwinForge model JSON schema '{path}': {error}"
         ) from error
     stdout.write(f"Exported TwinForge model JSON 1.0 schema to {path}\n")
+
+
+def query_model_json_file(
+    path: Path,
+    pointer: str,
+    *,
+    resolve_reference: bool,
+    compact: bool,
+    stdout: TextIO,
+) -> None:
+    """Write one validated evidence node selected by JSON Pointer."""
+
+    try:
+        selected = resolve_model_json_pointer(
+            _read_model_json_file(path),
+            pointer,
+            resolve_reference=resolve_reference,
+        )
+    except ModelJSONPointerError as error:
+        raise ModelJSONCommandError(
+            f"could not query TwinForge model JSON '{path}': {error}"
+        ) from error
+    if compact:
+        stdout.write(
+            json.dumps(selected, ensure_ascii=False, separators=(",", ":"))
+            + "\n"
+        )
+    else:
+        stdout.write(
+            json.dumps(selected, indent=2, sort_keys=True, ensure_ascii=False)
+            + "\n"
+        )
 
 
 def _read_model_json_file(path: Path) -> dict[str, Any]:

@@ -9,6 +9,7 @@ from importlib.resources import files
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import unquote_to_bytes
 import xml.etree.ElementTree as ET
 
 from twinforge.model import Asset
@@ -23,6 +24,10 @@ class ModelJSONSerializationError(TypeError):
 
 class ModelJSONValidationError(ValueError):
     """Raised when a JSON document violates the model-evidence contract."""
+
+
+class ModelJSONPointerError(ValueError):
+    """Raised when a model-evidence JSON Pointer cannot be resolved."""
 
 
 _RESERVED_KEYS = frozenset({"$bytes_hex", "$map", "$ref", "$type"})
@@ -223,6 +228,106 @@ def model_json_inventory(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
             len(source_extensions) if isinstance(source_extensions, list) else 0
         ),
     }
+
+
+def resolve_model_json_pointer(
+    value: str | bytes | dict[str, Any],
+    pointer: str,
+    *,
+    resolve_reference: bool = False,
+) -> Any:
+    """Resolve one RFC 6901 fragment pointer in validated model evidence."""
+
+    document = validate_model_json(value)
+    selected = _resolve_json_pointer(document, pointer)
+    if (
+        resolve_reference
+        and isinstance(selected, dict)
+        and set(selected) == {"$ref"}
+    ):
+        selected = _resolve_json_pointer(document, selected["$ref"])
+    return selected
+
+
+def _resolve_json_pointer(document: Any, pointer: str) -> Any:
+    """Traverse a validated JSON value with strict fragment-pointer syntax."""
+
+    if pointer == "#":
+        return document
+    if not pointer.startswith("#/"):
+        raise ModelJSONPointerError(
+            "pointer must be '#' or start with '#/'"
+        )
+
+    current = document
+    for encoded_token in pointer[2:].split("/"):
+        token = _decode_pointer_token(encoded_token, pointer)
+        if isinstance(current, dict):
+            if token not in current:
+                raise ModelJSONPointerError(
+                    f"pointer does not exist: {pointer}"
+                )
+            current = current[token]
+            continue
+        if isinstance(current, list):
+            if not token.isdigit() or (len(token) > 1 and token.startswith("0")):
+                raise ModelJSONPointerError(
+                    f"invalid array index in pointer: {pointer}"
+                )
+            index = int(token)
+            if index >= len(current):
+                raise ModelJSONPointerError(
+                    f"array index out of range in pointer: {pointer}"
+                )
+            current = current[index]
+            continue
+        raise ModelJSONPointerError(
+            f"pointer traverses a scalar value: {pointer}"
+        )
+    return current
+
+
+def _decode_pointer_token(token: str, pointer: str) -> str:
+    """Decode one RFC 6901 token while rejecting malformed escapes."""
+
+    percent_index = 0
+    while percent_index < len(token):
+        if token[percent_index] != "%":
+            percent_index += 1
+            continue
+        if (
+            percent_index + 2 >= len(token)
+            or any(
+                character not in "0123456789abcdefABCDEF"
+                for character in token[percent_index + 1 : percent_index + 3]
+            )
+        ):
+            raise ModelJSONPointerError(
+                f"invalid percent escape in pointer: {pointer}"
+            )
+        percent_index += 3
+    try:
+        token = unquote_to_bytes(token).decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise ModelJSONPointerError(
+            f"invalid UTF-8 escape in pointer: {pointer}"
+        ) from error
+
+    result: list[str] = []
+    index = 0
+    while index < len(token):
+        character = token[index]
+        if character != "~":
+            result.append(character)
+            index += 1
+            continue
+        if index + 1 >= len(token) or token[index + 1] not in "01":
+            raise ModelJSONPointerError(
+                f"invalid RFC 6901 escape in pointer: {pointer}"
+            )
+        result.append("~" if token[index + 1] == "0" else "/")
+        index += 2
+    return "".join(result)
 
 
 def _inventory_evidence_node(

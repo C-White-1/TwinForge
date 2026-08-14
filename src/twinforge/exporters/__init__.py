@@ -35,10 +35,12 @@ from .codesys_visualization_markdown import (
 )
 from .model_json import (
     ModelJSONExporter,
+    ModelJSONPointerError,
     ModelJSONSerializationError,
     ModelJSONValidationError,
     model_json_inventory,
     model_json_schema_text,
+    resolve_model_json_pointer,
     validate_model_json,
 )
 from .codesys_visualization_opaque_markdown import (
@@ -198,10 +200,12 @@ __all__ = [
     "ModuleScheduleCSVExporter",
     "ModuleScheduleMarkdownExporter",
     "ModelJSONExporter",
+    "ModelJSONPointerError",
     "ModelJSONSerializationError",
     "ModelJSONValidationError",
     "model_json_inventory",
     "model_json_schema_text",
+    "resolve_model_json_pointer",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",

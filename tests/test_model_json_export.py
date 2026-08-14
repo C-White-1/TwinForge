@@ -12,8 +12,10 @@ import pytest
 
 from twinforge.exporters import (
     ModelJSONExporter,
+    ModelJSONPointerError,
     ModelJSONValidationError,
     model_json_schema_text,
+    resolve_model_json_pointer,
     validate_model_json,
 )
 from jsonschema import Draft202012Validator
@@ -91,6 +93,51 @@ def test_packaged_model_json_schema_accepts_exported_evidence() -> None:
     Draft202012Validator(schema).validate(
         json.loads(ModelJSONExporter().export(_document()))
     )
+
+
+def test_model_json_pointer_selects_and_resolves_evidence() -> None:
+    exported = ModelJSONExporter().export(_document())
+    pointer = (
+        "#/document/target/programs/MainProgram/routines/MainRoutine/metadata"
+        "/$map/0/value"
+    )
+    assert resolve_model_json_pointer(exported, pointer) == "source-value"
+
+    reference = (
+        "#/document/target/programs/MainProgram/main_routine"
+    )
+    selected = resolve_model_json_pointer(exported, reference)
+    assert selected == {
+        "$ref": "#/document/target/programs/MainProgram/routines/MainRoutine"
+    }
+    resolved = resolve_model_json_pointer(
+        exported,
+        reference,
+        resolve_reference=True,
+    )
+    assert resolved["name"] == "MainRoutine"
+    escaped = resolve_model_json_pointer(
+        exported,
+        "#/document/source_extensions/0/root/attributes/Future%41ttribute",
+    )
+    assert escaped == "retained"
+
+
+@pytest.mark.parametrize(
+    "pointer",
+    (
+        "/document",
+        "#/document/not-there",
+        "#/document/~2bad",
+        "#/document/%ZZ",
+        "#/document/source_extensions/01",
+    ),
+)
+def test_model_json_pointer_rejects_invalid_or_missing_paths(
+    pointer: str,
+) -> None:
+    with pytest.raises(ModelJSONPointerError):
+        resolve_model_json_pointer(ModelJSONExporter().export(_document()), pointer)
 
 
 @pytest.mark.parametrize(

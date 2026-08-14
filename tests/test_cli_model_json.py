@@ -122,3 +122,60 @@ def test_model_schema_exports_packaged_contract(tmp_path: Path) -> None:
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["properties"]["schema_version"]["const"] == "1.0"
     assert "Exported TwinForge model JSON 1.0 schema" in output.getvalue()
+
+
+def test_model_query_selects_validated_evidence(tmp_path: Path) -> None:
+    destination = tmp_path / "module.json"
+    assert main(
+        (
+            "export",
+            str(DATA),
+            "--target",
+            "json",
+            "--output",
+            str(destination),
+        )
+    ) == 0
+    output = StringIO()
+
+    result = main(
+        (
+            "model",
+            "query",
+            str(destination),
+            "#/document/target/catalog",
+            "--compact",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    assert json.loads(output.getvalue()) == "ETHERNET-MODULE"
+
+
+def test_model_query_reports_missing_pointer(tmp_path: Path) -> None:
+    destination = tmp_path / "module.json"
+    assert main(
+        (
+            "export",
+            str(DATA),
+            "--target",
+            "json",
+            "--output",
+            str(destination),
+        )
+    ) == 0
+    errors = StringIO()
+
+    result = main(
+        (
+            "model",
+            "query",
+            str(destination),
+            "#/document/not-present",
+        ),
+        stderr=errors,
+    )
+
+    assert result == 1
+    assert "pointer does not exist" in errors.getvalue()
