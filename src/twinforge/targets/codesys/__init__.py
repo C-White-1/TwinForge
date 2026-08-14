@@ -23,6 +23,10 @@ from .powerflex525 import (
     powerflex525_codesys_integration,
     powerflex525_codesys_multi_application_integration,
 )
+from .powerflex525_native_evidence import (
+    PowerFlex525NativeDeviceExpectation,
+    PowerFlex525NativeEvidenceValidator,
+)
 
 __all__ = [
     "CodesysDeploymentBundle",
@@ -36,6 +40,8 @@ __all__ = [
     "CodesysEtherNetIPConnectionManifest",
     "CodesysPowerFlex525DeviceManifest",
     "PowerFlex525CodesysDevice",
+    "PowerFlex525NativeDeviceExpectation",
+    "PowerFlex525NativeEvidenceValidator",
     "load_codesys_powerflex525_manifest",
     "powerflex525_codesys_application_integration",
     "powerflex525_codesys_integration",

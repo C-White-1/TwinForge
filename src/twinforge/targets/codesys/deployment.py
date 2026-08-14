@@ -6,7 +6,6 @@ from ipaddress import IPv4Address
 from pathlib import Path
 import re
 from typing import Literal
-import xml.etree.ElementTree as ET
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -24,6 +23,10 @@ from .ethernetip_manifest import CodesysEtherNetIPConnectionManifest
 from .deployment_bundle import (
     CodesysDeploymentBundle,
     CodesysDeploymentBundlePackager,
+)
+from .powerflex525_native_evidence import (
+    PowerFlex525NativeDeviceExpectation,
+    PowerFlex525NativeEvidenceValidator,
 )
 
 
@@ -122,7 +125,21 @@ class CodesysPowerFlex525BundleExporter:
             raise FileNotFoundError(
                 f"native CODESYS template does not exist: {native_source}"
             )
-        self._validate_native_template(manifest, native_source)
+        PowerFlex525NativeEvidenceValidator().validate(
+            native_source,
+            template_scope=manifest.native_template_scope,
+            devices=tuple(
+                PowerFlex525NativeDeviceExpectation(
+                    device_variable=item.device_variable,
+                    ip_address=item.ip_address,
+                    rpi_ms=item.rpi_ms,
+                    output_bytes=item.output_bytes,
+                    input_bytes=item.input_bytes,
+                    connection_path=item.connection_path,
+                )
+                for item in manifest.devices
+            ),
+        )
 
         integration = powerflex525_codesys_multi_application_integration(
             tuple(
@@ -156,164 +173,6 @@ class CodesysPowerFlex525BundleExporter:
             native_template_source=native_source,
             instructions_markdown=self._instructions(manifest),
         )
-
-    @staticmethod
-    def _validate_native_template(
-        manifest: CodesysPowerFlex525DeploymentManifest,
-        native_source: Path,
-    ) -> None:
-        """Require matching native identity, address, and connection evidence."""
-
-        root = ET.parse(native_source).getroot()
-        missing: list[str] = []
-        object_names = {
-            element.text
-            for element in root.findall(".//Single[@Name='Name']")
-            if element.text
-        }
-        application_objects = {
-            "PLC_PRG",
-            "TF_PowerFlex525_Core",
-            "TF_Codesys_ENIP_ModuleBinding",
-        }
-        present_application_objects = application_objects & object_names
-        if (
-            manifest.native_template_scope == "device_configuration"
-            and present_application_objects
-        ):
-            names = ", ".join(sorted(present_application_objects))
-            missing.append(
-                "device-configuration template contains application "
-                f"objects: {names}"
-            )
-        if (
-            manifest.native_template_scope == "complete_project"
-            and "PLC_PRG" not in object_names
-        ):
-            missing.append(
-                "complete-project template does not contain PLC_PRG"
-            )
-        for device in manifest.devices:
-            native_device = (
-                CodesysPowerFlex525BundleExporter._native_device(
-                    root,
-                    device.device_variable,
-                )
-            )
-            if native_device is None:
-                missing.append(f"device {device.device_variable}")
-                continue
-            address_evidence = "[" + ",".join(
-                f"16#{octet:02X}"
-                for octet in device.ip_address.packed
-            ) + "]"
-            actual_address = CodesysPowerFlex525BundleExporter._native_value(
-                native_device,
-                "IP address of Target",
-            )
-            if actual_address != address_evidence:
-                missing.append(
-                    f"address {device.ip_address} for "
-                    f"{device.device_variable}"
-                )
-            actual_rpi = CodesysPowerFlex525BundleExporter._native_value(
-                native_device,
-                "Requested packet interval",
-            )
-            if actual_rpi != str(device.rpi_ms * 1000):
-                missing.append(
-                    f"RPI {device.rpi_ms} ms for "
-                    f"{device.device_variable}"
-                )
-            path_evidence = "[" + ",".join(
-                f"16#{item:02X}" for item in device.connection_path
-            ) + "]"
-            actual_path = CodesysPowerFlex525BundleExporter._native_value(
-                native_device,
-                "Connection Path",
-            )
-            if actual_path != path_evidence:
-                missing.append(
-                    f"connection path for {device.device_variable}"
-                )
-            native_text = ET.tostring(
-                native_device,
-                encoding="unicode",
-            )
-            output_count = sum(
-                f">Output_Param{index}<" in native_text
-                for index in range(device.output_bytes)
-            )
-            input_count = sum(
-                f">Input_Param{index}<" in native_text
-                for index in range(device.input_bytes)
-            )
-            if (
-                output_count != device.output_bytes
-                or f">Output_Param{device.output_bytes}<" in native_text
-            ):
-                missing.append(
-                    f"O->T size {device.output_bytes} for "
-                    f"{device.device_variable}"
-                )
-            if (
-                input_count != device.input_bytes
-                or f">Input_Param{device.input_bytes}<" in native_text
-            ):
-                missing.append(
-                    f"T->O size {device.input_bytes} for "
-                    f"{device.device_variable}"
-                )
-        if missing:
-            raise ValueError(
-                "native CODESYS template is inconsistent with manifest: "
-                + "; ".join(missing)
-            )
-
-    @staticmethod
-    def _native_device(
-        root: ET.Element,
-        device_variable: str,
-    ) -> ET.Element | None:
-        """Find the native object that owns one generated IEC variable."""
-
-        parents = {
-            child: parent
-            for parent in root.iter()
-            for child in parent
-        }
-        for name in root.findall(".//Single[@Name='Name']"):
-            if name.text != device_variable:
-                continue
-            element = parents.get(name)
-            while element is not None:
-                if CodesysPowerFlex525BundleExporter._native_value(
-                    element,
-                    "IP address of Target",
-                ) is not None:
-                    return element
-                element = parents.get(element)
-        return None
-
-    @staticmethod
-    def _native_value(
-        root: ET.Element,
-        visible_name: str,
-    ) -> str | None:
-        """Read a named CODESYS property from one native object."""
-
-        for data in root.findall(".//Single"):
-            name = data.find(
-                "./Single[@Name='VisibleName']/Single[@Name='Default']"
-            )
-            value = data.find("./Single[@Name='Value']")
-            if (
-                name is not None
-                and name.text == visible_name
-                and value is not None
-            ):
-                return value.text
-        return None
 
     @staticmethod
     def _instructions(

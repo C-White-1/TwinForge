@@ -294,7 +294,7 @@ Deferred until another device profile or target exists:
 
 - [x] Separate generic CODESYS bundle packaging from PowerFlex fields
 - [x] Introduce reusable EtherNet/IP connection-manifest types
-- [ ] Add profile-specific native evidence validators
+- [x] Add profile-specific native evidence validators
 - [ ] Avoid abstract base classes until two real implementations establish
   the common behavior
 
