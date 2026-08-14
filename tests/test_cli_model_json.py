@@ -220,3 +220,48 @@ def test_model_records_lists_typed_evidence_with_queryable_pointers(
             "type": "twinforge.model.module.Module",
         }
     ]
+
+
+def test_model_compare_reports_machine_readable_evidence_changes(
+    tmp_path: Path,
+) -> None:
+    before = tmp_path / "before.json"
+    after = tmp_path / "after.json"
+    assert main(
+        (
+            "export",
+            str(DATA),
+            "--target",
+            "json",
+            "--output",
+            str(before),
+        )
+    ) == 0
+    payload = json.loads(before.read_text(encoding="utf-8"))
+    payload["document"]["target"]["catalog"] = "CHANGED-CATALOG"
+    after.write_text(json.dumps(payload), encoding="utf-8")
+    output = StringIO()
+
+    result = main(
+        (
+            "model",
+            "compare",
+            str(before),
+            str(after),
+            "--format",
+            "json",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    comparison = json.loads(output.getvalue())
+    assert comparison["change_count"] == 1
+    assert comparison["changes"] == [
+        {
+            "operation": "replace",
+            "pointer": "#/document/target/catalog",
+            "before": "ETHERNET-MODULE",
+            "after": "CHANGED-CATALOG",
+        }
+    ]

@@ -115,6 +115,21 @@ Type matching is exact. A short class name matches the final component of
 stable pointers to first-occurrence records and never follow `$ref` objects,
 avoiding duplicates and recursive traversal.
 
+## Structural comparison
+
+Compare two validated model artifacts without reparsing their L5X sources:
+
+```powershell
+uv run twinforge model compare build\before.json build\after.json
+uv run twinforge model compare build\before.json build\after.json `
+  --format json
+```
+
+Comparison reports deterministic `add`, `remove`, and `replace` operations at
+RFC 6901 pointers. JSON output retains the exact before and after evidence.
+Lists are compared by position and dictionaries by key; TwinForge does not
+guess that reordered or renamed records are equivalent.
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. References must resolve to an already established complex evidence

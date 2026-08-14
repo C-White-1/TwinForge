@@ -30,6 +30,7 @@ from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
 from .model_json import (
+    compare_model_json_files,
     ModelJSONCommandError,
     export_model_json_schema,
     inspect_model_json_file,
@@ -215,6 +216,18 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Record-list output format (default: text).",
+    )
+    model_compare = model_commands.add_parser(
+        "compare",
+        help="Compare two validated neutral-model JSON documents.",
+    )
+    model_compare.add_argument("before", type=Path)
+    model_compare.add_argument("after", type=Path)
+    model_compare.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Comparison output format (default: text).",
     )
 
     state = commands.add_parser(
@@ -445,10 +458,17 @@ def main(
                     compact=arguments.compact,
                     stdout=output,
                 )
-            else:
+            elif arguments.model_command == "records":
                 list_model_json_records(
                     arguments.path,
                     record_type=arguments.record_type,
+                    output_format=arguments.format,
+                    stdout=output,
+                )
+            else:
+                compare_model_json_files(
+                    arguments.before,
+                    arguments.after,
                     output_format=arguments.format,
                     stdout=output,
                 )

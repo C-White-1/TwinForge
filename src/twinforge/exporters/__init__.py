@@ -34,6 +34,7 @@ from .codesys_visualization_markdown import (
     CodesysVisualizationMarkdownExporter,
 )
 from .model_json import (
+    compare_model_json,
     ModelJSONExporter,
     ModelJSONPointerError,
     ModelJSONSerializationError,
@@ -146,6 +147,7 @@ __all__ = [
     "AutomationMLValidationUnavailable",
     "CauseEffectCandidateCSVExporter",
     "CauseEffectCandidateMarkdownExporter",
+    "compare_model_json",
     "CodesysSTDialect",
     "CodesysModuleEquivalenceMarkdownExporter",
     "build_codesys_sys_module_binding_unit",

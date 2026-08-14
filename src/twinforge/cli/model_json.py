@@ -7,6 +7,7 @@ import json
 from typing import Any, TextIO
 
 from twinforge.exporters import (
+    compare_model_json,
     ModelJSONValidationError,
     ModelJSONPointerError,
     model_json_inventory,
@@ -144,6 +145,42 @@ def list_model_json_records(
     for record in records:
         name = f" '{record['name']}'" if "name" in record else ""
         stdout.write(f"  {record['type']}{name}: {record['pointer']}\n")
+
+
+def compare_model_json_files(
+    before_path: Path,
+    after_path: Path,
+    *,
+    output_format: str,
+    stdout: TextIO,
+) -> None:
+    """Compare two validated model artifacts without semantic inference."""
+
+    changes = compare_model_json(
+        _read_model_json_file(before_path),
+        _read_model_json_file(after_path),
+    )
+    if output_format == "json":
+        stdout.write(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "before": str(before_path),
+                    "after": str(after_path),
+                    "change_count": len(changes),
+                    "changes": changes,
+                },
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+        return
+
+    stdout.write(f"Model evidence changes: {len(changes)}\n")
+    for change in changes:
+        stdout.write(f"  {change['operation']} {change['pointer']}\n")
 
 
 def _read_model_json_file(path: Path) -> dict[str, Any]:

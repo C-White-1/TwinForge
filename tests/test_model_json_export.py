@@ -11,6 +11,7 @@ from twinforge.cli import main
 import pytest
 
 from twinforge.exporters import (
+    compare_model_json,
     ModelJSONExporter,
     ModelJSONPointerError,
     ModelJSONValidationError,
@@ -159,6 +160,30 @@ def test_model_json_record_index_provides_queryable_stable_pointers() -> None:
         "name"
     ] == "MainRoutine"
     assert model_json_records(exported, record_type="NotARecord") == ()
+
+
+def test_model_json_comparison_preserves_exact_structural_changes() -> None:
+    before = json.loads(ModelJSONExporter().export(_document()))
+    after = json.loads(ModelJSONExporter().export(_document()))
+    after["document"]["target"]["name"] = "RenamedController"
+    after["document"]["target"]["metadata"] = {"reviewed": True}
+
+    changes = compare_model_json(before, after)
+
+    assert changes == (
+        {
+            "operation": "add",
+            "pointer": "#/document/target/metadata",
+            "after": {"reviewed": True},
+        },
+        {
+            "operation": "replace",
+            "pointer": "#/document/target/name",
+            "before": "Controller",
+            "after": "RenamedController",
+        },
+    )
+    assert compare_model_json(before, before) == ()
 
 
 @pytest.mark.parametrize(

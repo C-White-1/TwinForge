@@ -267,6 +267,106 @@ def model_json_records(
     return tuple(records)
 
 
+def compare_model_json(
+    before: str | bytes | dict[str, Any],
+    after: str | bytes | dict[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    """Return deterministic structural changes between validated documents."""
+
+    before_document = validate_model_json(before)
+    after_document = validate_model_json(after)
+    changes: list[dict[str, Any]] = []
+    _compare_model_json_node(
+        before_document,
+        after_document,
+        "#",
+        changes,
+    )
+    return tuple(changes)
+
+
+def _compare_model_json_node(
+    before: Any,
+    after: Any,
+    path: str,
+    changes: list[dict[str, Any]],
+) -> None:
+    """Compare JSON nodes without inferring identity or collection semantics."""
+
+    if type(before) is not type(after):
+        changes.append(
+            {
+                "operation": "replace",
+                "pointer": path,
+                "before": before,
+                "after": after,
+            }
+        )
+        return
+    if isinstance(before, dict):
+        before_keys = set(before)
+        after_keys = set(after)
+        for key in sorted(before_keys - after_keys):
+            changes.append(
+                {
+                    "operation": "remove",
+                    "pointer": f"{path}/{_pointer_token(key)}",
+                    "before": before[key],
+                }
+            )
+        for key in sorted(after_keys - before_keys):
+            changes.append(
+                {
+                    "operation": "add",
+                    "pointer": f"{path}/{_pointer_token(key)}",
+                    "after": after[key],
+                }
+            )
+        for key in sorted(before_keys & after_keys):
+            _compare_model_json_node(
+                before[key],
+                after[key],
+                f"{path}/{_pointer_token(key)}",
+                changes,
+            )
+        return
+    if isinstance(before, list):
+        common_length = min(len(before), len(after))
+        for index in range(common_length):
+            _compare_model_json_node(
+                before[index],
+                after[index],
+                f"{path}/{index}",
+                changes,
+            )
+        for index in range(common_length, len(before)):
+            changes.append(
+                {
+                    "operation": "remove",
+                    "pointer": f"{path}/{index}",
+                    "before": before[index],
+                }
+            )
+        for index in range(common_length, len(after)):
+            changes.append(
+                {
+                    "operation": "add",
+                    "pointer": f"{path}/{index}",
+                    "after": after[index],
+                }
+            )
+        return
+    if before != after:
+        changes.append(
+            {
+                "operation": "replace",
+                "pointer": path,
+                "before": before,
+                "after": after,
+            }
+        )
+
+
 def _collect_model_json_records(
     value: Any,
     path: str,
