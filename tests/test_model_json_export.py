@@ -102,6 +102,26 @@ def test_model_json_validator_rejects_malformed_control_objects(
         validate_model_json(payload)
 
 
+@pytest.mark.parametrize(
+    "reference",
+    (
+        "#/document/not_present",
+        "#/document/source_extensions",
+    ),
+)
+def test_model_json_validator_rejects_dangling_and_forward_references(
+    reference: str,
+) -> None:
+    payload = json.loads(ModelJSONExporter().export(_document()))
+    payload["document"]["target"] = {"$ref": reference}
+
+    with pytest.raises(
+        ModelJSONValidationError,
+        match="unresolved or forward \\$ref",
+    ):
+        validate_model_json(payload)
+
+
 def test_cli_exports_standalone_l5x_model_json(tmp_path: Path) -> None:
     destination = tmp_path / "module.json"
     output = StringIO()

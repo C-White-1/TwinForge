@@ -176,7 +176,11 @@ def validate_model_json(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
         raise ModelJSONValidationError("schema_version must be '1.0'")
     if document["source_format"] != "l5x":
         raise ModelJSONValidationError("source_format must be 'l5x'")
-    _validate_evidence_node(document["document"], "#/document")
+    _validate_evidence_node(
+        document["document"],
+        "#/document",
+        referenceable_paths=set(),
+    )
     root = document["document"]
     if not isinstance(root, dict) or not str(root.get("$type", "")).endswith(
         ".L5XDocument"
@@ -187,7 +191,12 @@ def validate_model_json(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
     return document
 
 
-def _validate_evidence_node(value: Any, path: str) -> None:
+def _validate_evidence_node(
+    value: Any,
+    path: str,
+    *,
+    referenceable_paths: set[str],
+) -> None:
     """Validate one recursive model-evidence node."""
 
     if value is None or isinstance(value, (bool, int, str)):
@@ -197,21 +206,35 @@ def _validate_evidence_node(value: Any, path: str) -> None:
             raise ModelJSONValidationError(f"non-finite number at {path}")
         return
     if isinstance(value, list):
+        referenceable_paths.add(path)
         for index, item in enumerate(value):
-            _validate_evidence_node(item, f"{path}/{index}")
+            _validate_evidence_node(
+                item,
+                f"{path}/{index}",
+                referenceable_paths=referenceable_paths,
+            )
         return
     if not isinstance(value, dict):
         raise ModelJSONValidationError(f"unsupported JSON value at {path}")
 
     reserved = _RESERVED_KEYS & value.keys()
     if not reserved:
+        referenceable_paths.add(path)
         for key, item in value.items():
-            _validate_evidence_node(item, f"{path}/{_pointer_token(key)}")
+            _validate_evidence_node(
+                item,
+                f"{path}/{_pointer_token(key)}",
+                referenceable_paths=referenceable_paths,
+            )
         return
     if reserved == {"$ref"} and set(value) == {"$ref"}:
         reference = value["$ref"]
         if not isinstance(reference, str) or not reference.startswith("#/"):
             raise ModelJSONValidationError(f"invalid $ref at {path}")
+        if reference not in referenceable_paths:
+            raise ModelJSONValidationError(
+                f"unresolved or forward $ref at {path}: {reference}"
+            )
         return
     if reserved == {"$bytes_hex"} and set(value) == {"$bytes_hex"}:
         encoded = value["$bytes_hex"]
@@ -225,6 +248,7 @@ def _validate_evidence_node(value: Any, path: str) -> None:
             ) from error
         return
     if reserved == {"$map"} and set(value) == {"$map"}:
+        referenceable_paths.add(path)
         entries = value["$map"]
         if not isinstance(entries, list):
             raise ModelJSONValidationError(f"invalid $map at {path}")
@@ -234,14 +258,27 @@ def _validate_evidence_node(value: Any, path: str) -> None:
                 raise ModelJSONValidationError(
                     f"invalid map entry at {entry_path}"
                 )
-            _validate_evidence_node(entry["key"], f"{entry_path}/key")
-            _validate_evidence_node(entry["value"], f"{entry_path}/value")
+            _validate_evidence_node(
+                entry["key"],
+                f"{entry_path}/key",
+                referenceable_paths=referenceable_paths,
+            )
+            _validate_evidence_node(
+                entry["value"],
+                f"{entry_path}/value",
+                referenceable_paths=referenceable_paths,
+            )
         return
     if reserved == {"$type"} and isinstance(value.get("$type"), str):
         if not value["$type"]:
             raise ModelJSONValidationError(f"blank $type at {path}")
+        referenceable_paths.add(path)
         for key, item in value.items():
             if key != "$type":
-                _validate_evidence_node(item, f"{path}/{_pointer_token(key)}")
+                _validate_evidence_node(
+                    item,
+                    f"{path}/{_pointer_token(key)}",
+                    referenceable_paths=referenceable_paths,
+                )
         return
     raise ModelJSONValidationError(f"invalid reserved-key object at {path}")

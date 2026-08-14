@@ -38,6 +38,7 @@ the same commit.
 - [x] Pydantic-validated CODESYS deployment manifests and reproducible
   native-device/PLCopen bundles
 - [x] Responsibility-focused L5X module and AutomationML components
+- [x] Deterministic, versioned neutral-model JSON export and validation
 - [x] Pyright, Ruff, and automated test checks in CI
 
 The current fixture converts all 134 rungs and 474 instruction occurrences.

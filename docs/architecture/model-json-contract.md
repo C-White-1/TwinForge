@@ -64,5 +64,8 @@ uv run twinforge model validate build\project-model.json
 
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
-numbers. Model fields remain forward-compatible: new non-reserved fields can
-be added to typed records without changing the evidence-node grammar.
+numbers. References must resolve to an already established complex evidence
+node. This rejects dangling and forward references and preserves the
+first-occurrence ordering used by deterministic serialization. Model fields
+remain forward-compatible: new non-reserved fields can be added to typed
+records without changing the evidence-node grammar.
