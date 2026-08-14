@@ -9,6 +9,7 @@ from typing import Any, TextIO
 from twinforge.exporters import (
     ModelJSONValidationError,
     model_json_inventory,
+    model_json_schema_text,
     validate_model_json,
 )
 
@@ -59,6 +60,19 @@ def inspect_model_json_file(
     )
     for record_type, count in inventory["record_types"].items():
         stdout.write(f"  {record_type}: {count}\n")
+
+
+def export_model_json_schema(path: Path, *, stdout: TextIO) -> None:
+    """Write the packaged neutral-model JSON Schema to a user path."""
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(model_json_schema_text(), encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        raise ModelJSONCommandError(
+            f"could not write TwinForge model JSON schema '{path}': {error}"
+        ) from error
+    stdout.write(f"Exported TwinForge model JSON 1.0 schema to {path}\n")
 
 
 def _read_model_json_file(path: Path) -> dict[str, Any]:

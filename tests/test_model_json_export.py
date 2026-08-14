@@ -13,8 +13,10 @@ import pytest
 from twinforge.exporters import (
     ModelJSONExporter,
     ModelJSONValidationError,
+    model_json_schema_text,
     validate_model_json,
 )
+from jsonschema import Draft202012Validator
 from twinforge.model import (
     Controller,
     Identity,
@@ -80,6 +82,15 @@ def test_model_json_is_deterministic_and_preserves_references_and_source() -> No
         ]
     }
     assert validate_model_json(first) == payload
+
+
+def test_packaged_model_json_schema_accepts_exported_evidence() -> None:
+    schema = json.loads(model_json_schema_text())
+    Draft202012Validator.check_schema(schema)
+
+    Draft202012Validator(schema).validate(
+        json.loads(ModelJSONExporter().export(_document()))
+    )
 
 
 @pytest.mark.parametrize(

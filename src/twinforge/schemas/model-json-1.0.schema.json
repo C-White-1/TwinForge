@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/model-json-1.0.schema.json",
+  "title": "TwinForge neutral model JSON 1.0",
+  "description": "Structural grammar for deterministic TwinForge L5X model evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_format",
+    "document"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "source_format": {
+      "const": "l5x"
+    },
+    "document": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/typedRecord"
+        },
+        {
+          "properties": {
+            "$type": {
+              "type": "string",
+              "pattern": "(^|\\.)L5XDocument$"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "node": {
+      "anyOf": [
+        {
+          "type": [
+            "null",
+            "boolean",
+            "number",
+            "string"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        {
+          "$ref": "#/$defs/reference"
+        },
+        {
+          "$ref": "#/$defs/byteSequence"
+        },
+        {
+          "$ref": "#/$defs/typedMap"
+        },
+        {
+          "$ref": "#/$defs/typedRecord"
+        },
+        {
+          "$ref": "#/$defs/ordinaryObject"
+        }
+      ]
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$ref"
+      ],
+      "properties": {
+        "$ref": {
+          "type": "string",
+          "pattern": "^#/"
+        }
+      }
+    },
+    "byteSequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$bytes_hex"
+      ],
+      "properties": {
+        "$bytes_hex": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-fA-F]{2})*$"
+        }
+      }
+    },
+    "typedMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$map"
+      ],
+      "properties": {
+        "$map": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "value"
+            ],
+            "properties": {
+              "key": {
+                "$ref": "#/$defs/node"
+              },
+              "value": {
+                "$ref": "#/$defs/node"
+              }
+            }
+          }
+        }
+      }
+    },
+    "typedRecord": {
+      "type": "object",
+      "required": [
+        "$type"
+      ],
+      "properties": {
+        "$type": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/node"
+      },
+      "not": {
+        "anyOf": [
+          {
+            "required": [
+              "$ref"
+            ]
+          },
+          {
+            "required": [
+              "$bytes_hex"
+            ]
+          },
+          {
+            "required": [
+              "$map"
+            ]
+          }
+        ]
+      }
+    },
+    "ordinaryObject": {
+      "type": "object",
+      "propertyNames": {
+        "not": {
+          "enum": [
+            "$bytes_hex",
+            "$map",
+            "$ref",
+            "$type"
+          ]
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/node"
+      }
+    }
+  }
+}

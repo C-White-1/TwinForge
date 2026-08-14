@@ -31,6 +31,7 @@ from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
 from .model_json import (
     ModelJSONCommandError,
+    export_model_json_schema,
     inspect_model_json_file,
     validate_model_json_file,
 )
@@ -167,6 +168,16 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Inventory output format (default: text).",
+    )
+    model_schema = model_commands.add_parser(
+        "schema",
+        help="Export the maintained neutral-model JSON Schema.",
+    )
+    model_schema.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Destination for the JSON Schema file.",
     )
 
     state = commands.add_parser(
@@ -381,12 +392,14 @@ def main(
         elif arguments.command == "model":
             if arguments.model_command == "validate":
                 validate_model_json_file(arguments.path, stdout=output)
-            else:
+            elif arguments.model_command == "inspect":
                 inspect_model_json_file(
                     arguments.path,
                     output_format=arguments.format,
                     stdout=output,
                 )
+            else:
+                export_model_json_schema(arguments.output, stdout=output)
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(

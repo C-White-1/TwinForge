@@ -74,6 +74,20 @@ The inventory reports typed records, references, source extensions, exact byte
 sequences, and typed maps. It is suitable for inspection and automation, but
 does not claim that the JSON document is a replacement source format.
 
+## JSON Schema
+
+TwinForge packages a maintained JSON Schema Draft 2020-12 definition of the
+version 1.0 structural grammar. Export it for editors, CI, or tools that do not
+import the Python package:
+
+```powershell
+uv run twinforge model schema --output build\model-json-1.0.schema.json
+```
+
+The schema validates the envelope and recursive control-node shapes. Use
+`twinforge model validate` when semantic validation is required: JSON Schema
+cannot prove that an RFC 6901 `$ref` resolves to an already established node.
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. References must resolve to an already established complex evidence

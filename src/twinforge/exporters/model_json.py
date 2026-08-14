@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import fields, is_dataclass
 from collections import Counter
 from enum import Enum
+from importlib.resources import files
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -25,6 +26,13 @@ class ModelJSONValidationError(ValueError):
 
 
 _RESERVED_KEYS = frozenset({"$bytes_hex", "$map", "$ref", "$type"})
+
+
+def model_json_schema_text() -> str:
+    """Return the packaged TwinForge model JSON 1.0 schema text."""
+
+    schema = files("twinforge.schemas").joinpath("model-json-1.0.schema.json")
+    return schema.read_text(encoding="utf-8")
 
 
 class ModelJSONExporter:

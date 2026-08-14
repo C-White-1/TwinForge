@@ -106,3 +106,19 @@ def test_model_inspect_reports_deterministic_evidence_inventory(
     assert inventory["record_types"] == dict(
         sorted(inventory["record_types"].items())
     )
+
+
+def test_model_schema_exports_packaged_contract(tmp_path: Path) -> None:
+    destination = tmp_path / "schemas/model-json-1.0.schema.json"
+    output = StringIO()
+
+    result = main(
+        ("model", "schema", "--output", str(destination)),
+        stdout=output,
+    )
+
+    assert result == 0
+    schema = json.loads(destination.read_text(encoding="utf-8"))
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    assert schema["properties"]["schema_version"]["const"] == "1.0"
+    assert "Exported TwinForge model JSON 1.0 schema" in output.getvalue()

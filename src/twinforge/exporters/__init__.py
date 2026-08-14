@@ -38,6 +38,7 @@ from .model_json import (
     ModelJSONSerializationError,
     ModelJSONValidationError,
     model_json_inventory,
+    model_json_schema_text,
     validate_model_json,
 )
 from .codesys_visualization_opaque_markdown import (
@@ -200,6 +201,7 @@ __all__ = [
     "ModelJSONSerializationError",
     "ModelJSONValidationError",
     "model_json_inventory",
+    "model_json_schema_text",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",
