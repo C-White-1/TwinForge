@@ -284,19 +284,27 @@ composition live in `targets.codesys.powerflex525`. Package-level and former
 boundary test prevents CODESYS dependencies from returning to the neutral
 core, and fixed-time hashes protect single- and multi-drive documents.
 
-### Priority 4: split deployment packaging after a second profile
+### Priority 4: split CODESYS deployment responsibilities
 
-The current CODESYS deployment module deliberately keeps manifest validation,
-native-template checks, instructions, and packaging together while only one
-device profile is proven.
-
-Deferred until another device profile or target exists:
+The original CODESYS deployment module combined validated PowerFlex manifest
+data, native-template evidence checks, generated application content,
+instructions, and filesystem packaging. Reusable EtherNet/IP connection data
+and bundle writing now have device-neutral boundaries, while native evidence
+rules remain explicitly PowerFlex-specific.
 
 - [x] Separate generic CODESYS bundle packaging from PowerFlex fields
 - [x] Introduce reusable EtherNet/IP connection-manifest types
 - [x] Add profile-specific native evidence validators
-- [ ] Avoid abstract base classes until two real implementations establish
+- [x] Avoid abstract base classes until two real implementations establish
   the common behavior
+
+Priority 4 is complete. `CodesysDeploymentBundlePackager` owns deterministic
+bundle writing, `CodesysEtherNetIPConnectionManifest` owns reusable cyclic
+connection settings, and `PowerFlex525NativeEvidenceValidator` owns the
+profile-specific interpretation of native CODESYS exports. The exporter
+composes these concrete collaborators. No generic evidence-validator base
+class or plugin registry was introduced; a second proven implementation must
+establish any future shared interface.
 
 ### Priority 5: split native OpenPLC project generation
 

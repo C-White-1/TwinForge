@@ -166,8 +166,8 @@ The immediate structural priorities are maintained in the
   façade
 - [x] Improve repository navigation with architecture diagrams, a
   documentation index, directory responsibilities, and an artifact policy
-- [ ] Generalize deployment packaging only after a second real device profile
-  establishes the reusable boundary
+- [x] Generalize CODESYS bundle packaging and EtherNet/IP manifest data while
+  retaining concrete profile-specific native-evidence validation
 
 ### User-facing command line
 
