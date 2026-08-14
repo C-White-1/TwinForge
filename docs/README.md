@@ -51,6 +51,14 @@ Native OpenPLC generation is a separate target path because the observed
 OpenPLC editor stores working projects in its own directory and `.ld` JSON
 representation rather than importing the tested PLCopen XML exchange output.
 
+### IEC 61499 and Eclipse 4diac
+
+- [IEC 61499 and Eclipse 4diac target roadmap](roadmaps/iec61499-4diac-roadmap.md)
+
+IEC 61499 is a prospective, distinct distributed-automation target. The first
+gate is a native 4diac project deployed to a localhost FORTE runtime; TwinForge
+does not currently generate IEC 61499 artifacts.
+
 ### AutomationML
 
 - [AutomationML capability and proof of concept](automationml-proof-of-concept.md)
@@ -102,6 +110,7 @@ automatically general product guarantees.
 - [Sys_Module AOI](roadmaps/Sys_Module-AOI-roadmap.md)
 - [Online discovery](roadmaps/online-discovery-roadmap.md)
 - [Architecture and refactoring](roadmaps/architecture-refactoring-roadmap.md)
+- [IEC 61499 and Eclipse 4diac](roadmaps/iec61499-4diac-roadmap.md)
 
 ## Reference provenance
 

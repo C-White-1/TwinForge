@@ -320,6 +320,12 @@ evidence, authorization, or vendor-neutral boundaries.
     budgets, audit evidence and human acceptance for consequential actions.
   - Do not assume MCP transport provides industrial safety, authorization or
     semantic interoperability by itself.
+- [ ] Evaluate IEC 61499 generation and Eclipse 4diac FORTE deployment.
+  - Establish native localhost evidence before generating project files.
+  - Treat Allen-Bradley controllers as external devices, not FORTE targets.
+  - Define event scheduling explicitly before translating Logix behavior.
+  - See the
+    [IEC 61499 and Eclipse 4diac roadmap](docs/roadmaps/iec61499-4diac-roadmap.md).
 
 ## Deferred model entities
 
