@@ -56,6 +56,12 @@ from twinforge.exporters import validate_model_json
 document = validate_model_json(json_text)
 ```
 
+The installed CLI exposes the same validation boundary:
+
+```powershell
+uv run twinforge model validate build\project-model.json
+```
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. Model fields remain forward-compatible: new non-reserved fields can

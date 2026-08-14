@@ -29,6 +29,7 @@ from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
+from .model_json import ModelJSONCommandError, validate_model_json_file
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .snmp_conversion import convert_walk_command
 
@@ -138,6 +139,20 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Directory in which to write the deployment bundle.",
     )
+
+    model = commands.add_parser(
+        "model",
+        help="Validate and inspect neutral TwinForge model artifacts.",
+    )
+    model_commands = model.add_subparsers(
+        dest="model_command",
+        required=True,
+    )
+    model_validate = model_commands.add_parser(
+        "validate",
+        help="Validate a versioned neutral-model JSON document.",
+    )
+    model_validate.add_argument("path", type=Path)
 
     state = commands.add_parser(
         "state",
@@ -348,6 +363,8 @@ def main(
                 arguments.output,
                 stdout=output,
             )
+        elif arguments.command == "model":
+            validate_model_json_file(arguments.path, stdout=output)
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(
@@ -445,6 +462,7 @@ def main(
         Plx50ReportError,
         CommunicationGraphCommandError,
         CodesysDeploymentCommandError,
+        ModelJSONCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1

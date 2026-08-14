@@ -270,6 +270,12 @@ Generated runtime UUIDs and parent back-references are not serialized. Shared
 model objects are represented by stable `$ref` JSON pointers, while retained
 source extensions and unknown L5X evidence remain in the document.
 
+Validate a saved model document without reparsing its source L5X:
+
+```powershell
+uv run twinforge model validate build\project-model.json
+```
+
 The separate native CODESYS deployment workflow packages a validated
 PowerFlex 525 application, native device-tree evidence, manifest, and import
 instructions:
