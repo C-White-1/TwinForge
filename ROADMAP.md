@@ -339,6 +339,7 @@ evidence, authorization, or vendor-neutral boundaries.
   - Keep the CLI, Python API and non-agent workflows fully usable without MCP.
   - [x] Establish versioned model JSON, schema, validation, inventory, and
     read-only JSON Pointer query services beneath any future adapter.
+  - [x] Add deterministic typed-record discovery returning queryable pointers.
   - Expose narrowly scoped inspection, conversion, reporting, planning and
     authorized capture operations instead of arbitrary protocol primitives.
   - Require nonhuman identity, least privilege, explicit permits, request

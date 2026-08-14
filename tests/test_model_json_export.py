@@ -15,6 +15,7 @@ from twinforge.exporters import (
     ModelJSONPointerError,
     ModelJSONValidationError,
     model_json_schema_text,
+    model_json_records,
     resolve_model_json_pointer,
     validate_model_json,
 )
@@ -138,6 +139,26 @@ def test_model_json_pointer_rejects_invalid_or_missing_paths(
 ) -> None:
     with pytest.raises(ModelJSONPointerError):
         resolve_model_json_pointer(ModelJSONExporter().export(_document()), pointer)
+
+
+def test_model_json_record_index_provides_queryable_stable_pointers() -> None:
+    exported = ModelJSONExporter().export(_document())
+
+    records = model_json_records(exported, record_type="Routine")
+
+    assert records == (
+        {
+            "pointer": (
+                "#/document/target/programs/MainProgram/routines/MainRoutine"
+            ),
+            "type": "twinforge.model.routine.Routine",
+            "name": "MainRoutine",
+        },
+    )
+    assert resolve_model_json_pointer(exported, records[0]["pointer"])[
+        "name"
+    ] == "MainRoutine"
+    assert model_json_records(exported, record_type="NotARecord") == ()
 
 
 @pytest.mark.parametrize(

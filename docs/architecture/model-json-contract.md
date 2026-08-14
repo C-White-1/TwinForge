@@ -102,6 +102,19 @@ node when it is exactly a `$ref`; it does not recursively expand the graph, so
 cycles and shared identity remain explicit. `--compact` produces a compact
 JSON response suitable for scripts and future read-only adapters.
 
+Discover typed records before querying a particular node:
+
+```powershell
+uv run twinforge model records build\project-model.json --type Module
+uv run twinforge model records build\project-model.json `
+  --type twinforge.model.tag.Tag --format json
+```
+
+Type matching is exact. A short class name matches the final component of
+`$type`; a fully qualified name matches the complete value. Results contain
+stable pointers to first-occurrence records and never follow `$ref` objects,
+avoiding duplicates and recursive traversal.
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. References must resolve to an already established complex evidence

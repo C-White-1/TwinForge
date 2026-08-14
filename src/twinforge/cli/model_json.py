@@ -10,6 +10,7 @@ from twinforge.exporters import (
     ModelJSONValidationError,
     ModelJSONPointerError,
     model_json_inventory,
+    model_json_records,
     model_json_schema_text,
     resolve_model_json_pointer,
     validate_model_json,
@@ -107,6 +108,42 @@ def query_model_json_file(
             json.dumps(selected, indent=2, sort_keys=True, ensure_ascii=False)
             + "\n"
         )
+
+
+def list_model_json_records(
+    path: Path,
+    *,
+    record_type: str | None,
+    output_format: str,
+    stdout: TextIO,
+) -> None:
+    """List typed evidence records and their stable JSON Pointers."""
+
+    records = model_json_records(
+        _read_model_json_file(path),
+        record_type=record_type,
+    )
+    if output_format == "json":
+        stdout.write(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "record_type": record_type,
+                    "count": len(records),
+                    "records": records,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        )
+        return
+
+    heading = f"Typed records ({record_type or 'all'}): {len(records)}\n"
+    stdout.write(heading)
+    for record in records:
+        name = f" '{record['name']}'" if "name" in record else ""
+        stdout.write(f"  {record['type']}{name}: {record['pointer']}\n")
 
 
 def _read_model_json_file(path: Path) -> dict[str, Any]:

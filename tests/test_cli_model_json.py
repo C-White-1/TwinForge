@@ -179,3 +179,44 @@ def test_model_query_reports_missing_pointer(tmp_path: Path) -> None:
 
     assert result == 1
     assert "pointer does not exist" in errors.getvalue()
+
+
+def test_model_records_lists_typed_evidence_with_queryable_pointers(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "module.json"
+    assert main(
+        (
+            "export",
+            str(DATA),
+            "--target",
+            "json",
+            "--output",
+            str(destination),
+        )
+    ) == 0
+    output = StringIO()
+
+    result = main(
+        (
+            "model",
+            "records",
+            str(destination),
+            "--type",
+            "Module",
+            "--format",
+            "json",
+        ),
+        stdout=output,
+    )
+
+    assert result == 0
+    listing = json.loads(output.getvalue())
+    assert listing["count"] == 1
+    assert listing["records"] == [
+        {
+            "name": "DriveModule",
+            "pointer": "#/document/target",
+            "type": "twinforge.model.module.Module",
+        }
+    ]

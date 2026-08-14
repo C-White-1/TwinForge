@@ -249,6 +249,94 @@ def resolve_model_json_pointer(
     return selected
 
 
+def model_json_records(
+    value: str | bytes | dict[str, Any],
+    *,
+    record_type: str | None = None,
+) -> tuple[dict[str, str], ...]:
+    """Index typed records and their stable pointers in validated evidence."""
+
+    document = validate_model_json(value)
+    records: list[dict[str, str]] = []
+    _collect_model_json_records(
+        document["document"],
+        "#/document",
+        records,
+        record_type=record_type,
+    )
+    return tuple(records)
+
+
+def _collect_model_json_records(
+    value: Any,
+    path: str,
+    records: list[dict[str, str]],
+    *,
+    record_type: str | None,
+) -> None:
+    """Collect first-occurrence typed nodes without following `$ref` links."""
+
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _collect_model_json_records(
+                item,
+                f"{path}/{index}",
+                records,
+                record_type=record_type,
+            )
+        return
+    if not isinstance(value, dict) or set(value) in (
+        {"$ref"},
+        {"$bytes_hex"},
+    ):
+        return
+    if set(value) == {"$map"}:
+        for index, entry in enumerate(value["$map"]):
+            entry_path = f"{path}/$map/{index}"
+            _collect_model_json_records(
+                entry["key"],
+                f"{entry_path}/key",
+                records,
+                record_type=record_type,
+            )
+            _collect_model_json_records(
+                entry["value"],
+                f"{entry_path}/value",
+                records,
+                record_type=record_type,
+            )
+        return
+
+    encoded_type = value.get("$type")
+    if isinstance(encoded_type, str) and _record_type_matches(
+        encoded_type,
+        record_type,
+    ):
+        record = {"pointer": path, "type": encoded_type}
+        name = value.get("name", value.get("target_name"))
+        if isinstance(name, str) and name:
+            record["name"] = name
+        records.append(record)
+    for key, item in value.items():
+        if key != "$type":
+            _collect_model_json_records(
+                item,
+                f"{path}/{_pointer_token(key)}",
+                records,
+                record_type=record_type,
+            )
+
+
+def _record_type_matches(encoded_type: str, requested: str | None) -> bool:
+    """Match either a fully qualified `$type` or its exact short name."""
+
+    if requested is None:
+        return True
+    if "." in requested:
+        return encoded_type == requested
+    return encoded_type.rsplit(".", maxsplit=1)[-1] == requested
+
+
 def _resolve_json_pointer(document: Any, pointer: str) -> Any:
     """Traverse a validated JSON value with strict fragment-pointer syntax."""
 

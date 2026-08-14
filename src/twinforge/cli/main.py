@@ -33,6 +33,7 @@ from .model_json import (
     ModelJSONCommandError,
     export_model_json_schema,
     inspect_model_json_file,
+    list_model_json_records,
     query_model_json_file,
     validate_model_json_file,
 )
@@ -198,6 +199,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--compact",
         action="store_true",
         help="Write compact rather than indented JSON.",
+    )
+    model_records = model_commands.add_parser(
+        "records",
+        help="List typed model records and their stable JSON Pointers.",
+    )
+    model_records.add_argument("path", type=Path)
+    model_records.add_argument(
+        "--type",
+        dest="record_type",
+        help="Exact short or fully qualified $type to include.",
+    )
+    model_records.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Record-list output format (default: text).",
     )
 
     state = commands.add_parser(
@@ -420,12 +437,19 @@ def main(
                 )
             elif arguments.model_command == "schema":
                 export_model_json_schema(arguments.output, stdout=output)
-            else:
+            elif arguments.model_command == "query":
                 query_model_json_file(
                     arguments.path,
                     arguments.pointer,
                     resolve_reference=arguments.resolve_reference,
                     compact=arguments.compact,
+                    stdout=output,
+                )
+            else:
+                list_model_json_records(
+                    arguments.path,
+                    record_type=arguments.record_type,
+                    output_format=arguments.format,
                     stdout=output,
                 )
         elif arguments.command == "discover":
