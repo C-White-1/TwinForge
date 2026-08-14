@@ -539,6 +539,13 @@ Acceptance criteria:
 - [ ] Review this document whenever a module gains a second independent
   reason to change
 
+The PLX51-PBM EDS now supplies real Assembly Object and connection-path
+evidence, but it proves a gateway description rather than a general physical
+channel model. TwinForge retains that evidence in the EDS and communication
+boundaries; introducing core `Channel` or `Assembly` entities remains deferred
+until another device family establishes reusable identity, ownership, and
+direction semantics.
+
 Generated `src/twinforge.egg-info` metadata is no longer tracked.
 `*.egg-info/` was already ignored; authoritative package configuration remains
 in `pyproject.toml` and the resolved development environment remains in

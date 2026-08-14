@@ -213,7 +213,7 @@ placing protocol registers directly on Rockwell modules or tags.
   - [x] Classify only exact IPv4 literals; retain all other paths symbolically
 - [x] Modbus device, area and register-map model
 - [x] CSV/manual import for mappings absent from L5X
-- [ ] Link communication points to tags, signals and AutomationML interfaces
+- [x] Link evidenced communication points to tags and AutomationML interfaces
   - [x] Bind evidenced PLX50 EtherNet/IP assembly points to controller tags
   - [x] Expose neutral communication/tag bindings as AutomationML interfaces
 - [x] Multi-controller communication graph
@@ -289,8 +289,12 @@ The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 
 ## Additional inputs and outputs
 
-- [ ] EDS parser and module capability profiles
-- [ ] GSD parser and PROFIBUS device/module profiles
+- [x] Lossless EDS parser with identity, assembly, connection, and CIP-path
+  evidence promotion
+- [x] Lossless GSD parser with identity, station-limit, module, and cyclic-data
+  evidence promotion
+- [ ] Broaden EDS and GSD device-profile coverage with additional lawful
+  fixtures
 - [ ] JSON model export
 - [ ] Asset Administration Shell
 - [ ] Graphviz and graph-database exports
