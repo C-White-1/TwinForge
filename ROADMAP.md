@@ -182,7 +182,8 @@ The immediate structural priorities are maintained in the
   wrappers
 - [x] Add versioned OpenPLC target configuration with explicit CLI overrides
 - [x] Generalize validated configuration to PLCopen and AutomationML targets
-- [ ] Add CODESYS configuration after evidenced target settings require it
+- [x] Add an installed CODESYS deployment command backed by the validated
+  PowerFlex manifest and native-template evidence
 - [x] Add side-effect-free pre-export readiness through `export --dry-run`
   target output
 - [x] Provide stable process exit codes and optional machine-readable

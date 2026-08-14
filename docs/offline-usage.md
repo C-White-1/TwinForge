@@ -256,6 +256,21 @@ uv run twinforge export project.L5X `
   --output build\codesys.xml
 ```
 
+The separate native CODESYS deployment workflow packages a validated
+PowerFlex 525 application, native device-tree evidence, manifest, and import
+instructions:
+
+```powershell
+uv run twinforge codesys bundle `
+  examples\deployment\powerflex525_two_drive.json `
+  --output build\powerflex525-codesys
+```
+
+Paths inside the deployment manifest, including `native_template`, resolve
+relative to the manifest file. This command does not replace the ordinary
+L5X-to-CODESYS PLCopen XML export above; it packages the separately proven
+native EtherNet/IP deployment workflow.
+
 Native OpenPLC project output:
 
 ```powershell

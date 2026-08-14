@@ -15,6 +15,10 @@ from twinforge.discovery import (
 )
 
 from .cip_software import CipSoftwareCommandError, discover_cip_software
+from .codesys_deployment import (
+    CodesysDeploymentCommandError,
+    export_codesys_powerflex525_bundle,
+)
 from .communication_graph import (
     CommunicationGraphCommandError,
     export_communication_graph,
@@ -113,6 +117,26 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Diagnostic output format (default: text).",
+    )
+
+    codesys = commands.add_parser(
+        "codesys",
+        help="Build validated native CODESYS deployment artifacts.",
+    )
+    codesys_commands = codesys.add_subparsers(
+        dest="codesys_command",
+        required=True,
+    )
+    codesys_bundle = codesys_commands.add_parser(
+        "bundle",
+        help="Build a PowerFlex 525 deployment bundle from a JSON manifest.",
+    )
+    codesys_bundle.add_argument("manifest", type=Path)
+    codesys_bundle.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Directory in which to write the deployment bundle.",
     )
 
     state = commands.add_parser(
@@ -318,6 +342,12 @@ def main(
                 diagnostics_format=arguments.diagnostics_format,
                 stdout=output,
             )
+        elif arguments.command == "codesys":
+            export_codesys_powerflex525_bundle(
+                arguments.manifest,
+                arguments.output,
+                stdout=output,
+            )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(
@@ -414,6 +444,7 @@ def main(
         L5XReportError,
         Plx50ReportError,
         CommunicationGraphCommandError,
+        CodesysDeploymentCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
