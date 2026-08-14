@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import StringIO
+import json
 from pathlib import Path
 
 from twinforge.cli import main
@@ -66,3 +67,42 @@ def test_model_validate_rejects_missing_file(tmp_path: Path) -> None:
 
     assert result == 1
     assert "model JSON file does not exist" in errors.getvalue()
+
+
+def test_model_inspect_reports_deterministic_evidence_inventory(
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "module.json"
+    assert main(
+        (
+            "export",
+            str(DATA),
+            "--target",
+            "json",
+            "--output",
+            str(destination),
+        )
+    ) == 0
+    text_output = StringIO()
+
+    assert main(
+        ("model", "inspect", str(destination)),
+        stdout=text_output,
+    ) == 0
+    assert "Target: Module 'DriveModule'" in text_output.getvalue()
+    assert "Typed records:" in text_output.getvalue()
+    assert "Source extensions: 1" in text_output.getvalue()
+
+    json_output = StringIO()
+    assert main(
+        ("model", "inspect", str(destination), "--format", "json"),
+        stdout=json_output,
+    ) == 0
+    inventory = json.loads(json_output.getvalue())
+    assert inventory["target_type"] == "Module"
+    assert inventory["target_name"] == "DriveModule"
+    assert inventory["record_count"] > 0
+    assert inventory["reference_count"] >= 0
+    assert inventory["record_types"] == dict(
+        sorted(inventory["record_types"].items())
+    )

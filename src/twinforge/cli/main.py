@@ -29,7 +29,11 @@ from .diagnostics import ExitCode, write_json_diagnostic
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
 from .l5x_report import L5XReportError, export_l5x_reports
-from .model_json import ModelJSONCommandError, validate_model_json_file
+from .model_json import (
+    ModelJSONCommandError,
+    inspect_model_json_file,
+    validate_model_json_file,
+)
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .snmp_conversion import convert_walk_command
 
@@ -153,6 +157,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Validate a versioned neutral-model JSON document.",
     )
     model_validate.add_argument("path", type=Path)
+    model_inspect = model_commands.add_parser(
+        "inspect",
+        help="Inventory a validated neutral-model JSON document.",
+    )
+    model_inspect.add_argument("path", type=Path)
+    model_inspect.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Inventory output format (default: text).",
+    )
 
     state = commands.add_parser(
         "state",
@@ -364,7 +379,14 @@ def main(
                 stdout=output,
             )
         elif arguments.command == "model":
-            validate_model_json_file(arguments.path, stdout=output)
+            if arguments.model_command == "validate":
+                validate_model_json_file(arguments.path, stdout=output)
+            else:
+                inspect_model_json_file(
+                    arguments.path,
+                    output_format=arguments.format,
+                    stdout=output,
+                )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(

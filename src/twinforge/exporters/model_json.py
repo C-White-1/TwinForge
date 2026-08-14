@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import fields, is_dataclass
+from collections import Counter
 from enum import Enum
 import json
 from pathlib import Path
@@ -189,6 +190,65 @@ def validate_model_json(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
             "#/document must be an L5XDocument record"
         )
     return document
+
+
+def model_json_inventory(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
+    """Return a deterministic inventory of one validated evidence document."""
+
+    document = validate_model_json(value)
+    counters: Counter[str] = Counter()
+    record_types: Counter[str] = Counter()
+    _inventory_evidence_node(document["document"], counters, record_types)
+    evidence = document["document"]
+    source_extensions = evidence.get("source_extensions", [])
+    return {
+        "schema_version": document["schema_version"],
+        "source_format": document["source_format"],
+        "target_type": evidence.get("target_type", "unknown"),
+        "target_name": evidence.get("target_name", ""),
+        "record_count": counters["record"],
+        "record_types": dict(sorted(record_types.items())),
+        "reference_count": counters["reference"],
+        "byte_sequence_count": counters["bytes"],
+        "typed_map_count": counters["map"],
+        "source_extension_count": (
+            len(source_extensions) if isinstance(source_extensions, list) else 0
+        ),
+    }
+
+
+def _inventory_evidence_node(
+    value: Any,
+    counters: Counter[str],
+    record_types: Counter[str],
+) -> None:
+    """Accumulate control-node and typed-record counts without rehydration."""
+
+    if isinstance(value, list):
+        for item in value:
+            _inventory_evidence_node(item, counters, record_types)
+        return
+    if not isinstance(value, dict):
+        return
+    if set(value) == {"$ref"}:
+        counters["reference"] += 1
+        return
+    if set(value) == {"$bytes_hex"}:
+        counters["bytes"] += 1
+        return
+    if set(value) == {"$map"}:
+        counters["map"] += 1
+        for entry in value["$map"]:
+            _inventory_evidence_node(entry["key"], counters, record_types)
+            _inventory_evidence_node(entry["value"], counters, record_types)
+        return
+    record_type = value.get("$type")
+    if isinstance(record_type, str):
+        counters["record"] += 1
+        record_types[record_type] += 1
+    for key, item in value.items():
+        if key != "$type":
+            _inventory_evidence_node(item, counters, record_types)
 
 
 def _validate_evidence_node(

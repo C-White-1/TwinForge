@@ -62,6 +62,18 @@ The installed CLI exposes the same validation boundary:
 uv run twinforge model validate build\project-model.json
 ```
 
+Validated evidence can be inventoried without reconstructing mutable Python
+objects:
+
+```powershell
+uv run twinforge model inspect build\project-model.json
+uv run twinforge model inspect build\project-model.json --format json
+```
+
+The inventory reports typed records, references, source extensions, exact byte
+sequences, and typed maps. It is suitable for inspection and automation, but
+does not claim that the JSON document is a replacement source format.
+
 Validation rejects unsupported versions, malformed references, invalid byte
 encoding, malformed typed maps, mixed reserved-key forms, and non-finite
 numbers. References must resolve to an already established complex evidence

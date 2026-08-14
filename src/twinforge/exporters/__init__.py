@@ -37,6 +37,7 @@ from .model_json import (
     ModelJSONExporter,
     ModelJSONSerializationError,
     ModelJSONValidationError,
+    model_json_inventory,
     validate_model_json,
 )
 from .codesys_visualization_opaque_markdown import (
@@ -198,6 +199,7 @@ __all__ = [
     "ModelJSONExporter",
     "ModelJSONSerializationError",
     "ModelJSONValidationError",
+    "model_json_inventory",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",
