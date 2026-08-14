@@ -33,7 +33,12 @@ from .codesys_sys_module_iec import (
 from .codesys_visualization_markdown import (
     CodesysVisualizationMarkdownExporter,
 )
-from .model_json import ModelJSONExporter, ModelJSONSerializationError
+from .model_json import (
+    ModelJSONExporter,
+    ModelJSONSerializationError,
+    ModelJSONValidationError,
+    validate_model_json,
+)
 from .codesys_visualization_opaque_markdown import (
     CodesysVisualizationOpaqueMarkdownExporter,
 )
@@ -192,6 +197,7 @@ __all__ = [
     "ModuleScheduleMarkdownExporter",
     "ModelJSONExporter",
     "ModelJSONSerializationError",
+    "ModelJSONValidationError",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",
@@ -201,6 +207,7 @@ __all__ = [
     "sanitized_discovery_drift_data",
     "sanitized_discovery_drift_json",
     "validate_plcopen_xml",
+    "validate_model_json",
     "TextReportBundle",
     "TextReportExporter",
     "TagDependencyCSVExporter",

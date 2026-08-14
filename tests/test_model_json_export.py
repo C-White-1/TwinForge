@@ -5,9 +5,16 @@ from __future__ import annotations
 from io import StringIO
 import json
 from pathlib import Path
+import re
 
 from twinforge.cli import main
-from twinforge.exporters import ModelJSONExporter
+import pytest
+
+from twinforge.exporters import (
+    ModelJSONExporter,
+    ModelJSONValidationError,
+    validate_model_json,
+)
 from twinforge.model import (
     Controller,
     Identity,
@@ -26,7 +33,10 @@ def _document() -> L5XDocument:
     controller = Controller(name="Controller", identity=Identity())
     program = Program(name="MainProgram")
     program.add_routine(
-        Routine(name="MainRoutine", metadata={1: "slot-one"})
+        Routine(
+            name="MainRoutine",
+            metadata={1: "slot-one", "$ref": "source-value"},
+        )
     )
     controller.add_program(program)
     return L5XDocument(
@@ -64,8 +74,32 @@ def test_model_json_is_deterministic_and_preserves_references_and_source() -> No
         "MainRoutine"
     ]["metadata"]
     assert routine_metadata == {
-        "$map": [{"key": 1, "value": "slot-one"}]
+        "$map": [
+            {"key": "$ref", "value": "source-value"},
+            {"key": 1, "value": "slot-one"},
+        ]
     }
+    assert validate_model_json(first) == payload
+
+
+@pytest.mark.parametrize(
+    "replacement, message",
+    (
+        ({"$ref": "not-a-pointer"}, "invalid $ref"),
+        ({"$bytes_hex": "not-hex"}, "invalid $bytes_hex"),
+        ({"$map": [{"key": "missing-value"}]}, "invalid map entry"),
+        ({"$type": "", "name": "bad"}, "blank $type"),
+    ),
+)
+def test_model_json_validator_rejects_malformed_control_objects(
+    replacement: dict[str, object],
+    message: str,
+) -> None:
+    payload = json.loads(ModelJSONExporter().export(_document()))
+    payload["document"]["target"] = replacement
+
+    with pytest.raises(ModelJSONValidationError, match=re.escape(message)):
+        validate_model_json(payload)
 
 
 def test_cli_exports_standalone_l5x_model_json(tmp_path: Path) -> None:

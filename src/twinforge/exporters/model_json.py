@@ -19,6 +19,13 @@ class ModelJSONSerializationError(TypeError):
     """Raised when a model value has no evidence-preserving JSON form."""
 
 
+class ModelJSONValidationError(ValueError):
+    """Raised when a JSON document violates the model-evidence contract."""
+
+
+_RESERVED_KEYS = frozenset({"$bytes_hex", "$map", "$ref", "$type"})
+
+
 class ModelJSONExporter:
     """Serialize converted L5X evidence without runtime object identities."""
 
@@ -92,7 +99,9 @@ class _ModelEvidenceEncoder:
         reference = self._reference(value, path)
         if reference is not None:
             return reference
-        if all(isinstance(key, str) for key in value):
+        if all(isinstance(key, str) for key in value) and not (
+            _RESERVED_KEYS & value.keys()
+        ):
             return {
                 key: self.encode(value[key], f"{path}/{_pointer_token(key)}")
                 for key in sorted(value)
@@ -147,3 +156,92 @@ def _mapping_key(value: Any) -> str:
         "unsupported mapping key: "
         f"{type(value).__module__}.{type(value).__qualname__}"
     )
+
+
+def validate_model_json(value: str | bytes | dict[str, Any]) -> dict[str, Any]:
+    """Validate and return one version 1.0 model-evidence document."""
+
+    try:
+        document = json.loads(value) if isinstance(value, (str, bytes)) else value
+    except json.JSONDecodeError as error:
+        raise ModelJSONValidationError(f"invalid JSON: {error}") from error
+    if not isinstance(document, dict):
+        raise ModelJSONValidationError("document must be a JSON object")
+    if set(document) != {"schema_version", "source_format", "document"}:
+        raise ModelJSONValidationError(
+            "document must contain only schema_version, source_format, "
+            "and document"
+        )
+    if document["schema_version"] != "1.0":
+        raise ModelJSONValidationError("schema_version must be '1.0'")
+    if document["source_format"] != "l5x":
+        raise ModelJSONValidationError("source_format must be 'l5x'")
+    _validate_evidence_node(document["document"], "#/document")
+    root = document["document"]
+    if not isinstance(root, dict) or not str(root.get("$type", "")).endswith(
+        ".L5XDocument"
+    ):
+        raise ModelJSONValidationError(
+            "#/document must be an L5XDocument record"
+        )
+    return document
+
+
+def _validate_evidence_node(value: Any, path: str) -> None:
+    """Validate one recursive model-evidence node."""
+
+    if value is None or isinstance(value, (bool, int, str)):
+        return
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            raise ModelJSONValidationError(f"non-finite number at {path}")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_evidence_node(item, f"{path}/{index}")
+        return
+    if not isinstance(value, dict):
+        raise ModelJSONValidationError(f"unsupported JSON value at {path}")
+
+    reserved = _RESERVED_KEYS & value.keys()
+    if not reserved:
+        for key, item in value.items():
+            _validate_evidence_node(item, f"{path}/{_pointer_token(key)}")
+        return
+    if reserved == {"$ref"} and set(value) == {"$ref"}:
+        reference = value["$ref"]
+        if not isinstance(reference, str) or not reference.startswith("#/"):
+            raise ModelJSONValidationError(f"invalid $ref at {path}")
+        return
+    if reserved == {"$bytes_hex"} and set(value) == {"$bytes_hex"}:
+        encoded = value["$bytes_hex"]
+        if not isinstance(encoded, str):
+            raise ModelJSONValidationError(f"invalid $bytes_hex at {path}")
+        try:
+            bytes.fromhex(encoded)
+        except ValueError as error:
+            raise ModelJSONValidationError(
+                f"invalid $bytes_hex at {path}"
+            ) from error
+        return
+    if reserved == {"$map"} and set(value) == {"$map"}:
+        entries = value["$map"]
+        if not isinstance(entries, list):
+            raise ModelJSONValidationError(f"invalid $map at {path}")
+        for index, entry in enumerate(entries):
+            entry_path = f"{path}/$map/{index}"
+            if not isinstance(entry, dict) or set(entry) != {"key", "value"}:
+                raise ModelJSONValidationError(
+                    f"invalid map entry at {entry_path}"
+                )
+            _validate_evidence_node(entry["key"], f"{entry_path}/key")
+            _validate_evidence_node(entry["value"], f"{entry_path}/value")
+        return
+    if reserved == {"$type"} and isinstance(value.get("$type"), str):
+        if not value["$type"]:
+            raise ModelJSONValidationError(f"blank $type at {path}")
+        for key, item in value.items():
+            if key != "$type":
+                _validate_evidence_node(item, f"{path}/{_pointer_token(key)}")
+        return
+    raise ModelJSONValidationError(f"invalid reserved-key object at {path}")

@@ -41,6 +41,7 @@ maintained relationships; the SVG files are derived viewing artifacts.
 - [PLCopen standards and local schema handling](standards/plcopen.md)
 - [AOI portability and runtime contracts](aoi-portability.md)
 - [CODESYS EtherNet/IP module adapter](architecture/codesys-ethernetip-module-adapter.md)
+- [Neutral model JSON contract](architecture/model-json-contract.md)
 
 ### Native OpenPLC
 
