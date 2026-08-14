@@ -281,6 +281,20 @@ source explicitly supplies them.
 - [x] Compare discovered CIP identity with explicitly bound offline L5X modules
 - [x] Detect hardware, firmware, configuration, and network drift
 
+### Offline PROFINET packet evidence
+
+- [ ] Admit lawful PCAP and PCAPNG sources through versioned provenance,
+  checksum, sanitization, and resource-limit manifests
+- [ ] Qualify discovery, configuration, and sustained cyclic PROFINET traffic
+  without treating capture loss as a telegram gap
+- [ ] Add evidence-preserving per-stream timing analysis only after capture
+  quality is established
+- [ ] Correlate qualified traffic with GSDML and neutral communication
+  endpoints
+
+The phased evidence and safety boundary is documented in the
+[PROFINET PCAP analysis roadmap](docs/roadmaps/profinet-pcap-roadmap.md).
+
 The conservative planning and evidence boundary is documented in
 [CIP Infrastructure Discovery](docs/architecture/cip-infrastructure-discovery.md).
 

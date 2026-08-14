@@ -112,6 +112,7 @@ automatically general product guarantees.
 - [Online discovery](roadmaps/online-discovery-roadmap.md)
 - [Architecture and refactoring](roadmaps/architecture-refactoring-roadmap.md)
 - [IEC 61499 and Eclipse 4diac](roadmaps/iec61499-4diac-roadmap.md)
+- [PROFINET PCAP analysis](roadmaps/profinet-pcap-roadmap.md)
 
 ## Reference provenance
 
@@ -120,6 +121,7 @@ automatically general product guarantees.
 - [PowerFlex 525 reference notes](references/PowerFlex525.md)
 - [PLCopen source and schema handling](standards/plcopen.md)
 - [AutomationML source and schema handling](standards/automationml.md)
+- [PROFINET PCAP source catalogue](references/profinet-pcap-sources.md)
 
 The repository's `reference/` directory is intentionally ignored. Standards,
 schemas, manuals, native editor exports, packet captures, and other externally
