@@ -8,6 +8,9 @@ from .deployment import (
     load_codesys_powerflex525_manifest,
 )
 from .ethernetip_manifest import CodesysEtherNetIPConnectionManifest
+from .deployment_bundle import (
+    CodesysDeploymentBundlePackager,
+)
 from .module_service import (
     CodesysEtherNetIPModuleAdapter,
     CodesysEtherNetIPObservation,
@@ -23,6 +26,7 @@ from .powerflex525 import (
 
 __all__ = [
     "CodesysDeploymentBundle",
+    "CodesysDeploymentBundlePackager",
     "CodesysEtherNetIPModuleAdapter",
     "CodesysEtherNetIPObservation",
     "CodesysEtherNetIPProvider",

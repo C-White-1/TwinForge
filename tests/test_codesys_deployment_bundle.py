@@ -8,6 +8,7 @@ import pytest
 
 from twinforge.targets.codesys import (
     CodesysEtherNetIPConnectionManifest,
+    CodesysDeploymentBundlePackager,
     CodesysPowerFlex525BundleExporter,
     CodesysPowerFlex525DeploymentManifest,
     load_codesys_powerflex525_manifest,
@@ -58,6 +59,37 @@ def test_generic_ethernetip_connection_requires_explicit_valid_evidence() -> Non
             input_bytes=500,
             connection_path=(),
         )
+
+
+def test_generic_packager_writes_supplied_profile_artifacts(tmp_path: Path) -> None:
+    native = tmp_path / "source.export"
+    native.write_text("<native-profile />", encoding="utf-8")
+
+    bundle = CodesysDeploymentBundlePackager().package(
+        tmp_path / "generic-bundle",
+        manifest_payload={
+            "schema_version": 1,
+            "profile": "fixture",
+            "native_template": str(native),
+        },
+        application_xml="<project />",
+        native_template_source=native,
+        instructions_markdown="# Import fixture\n",
+    )
+
+    assert bundle.application.read_text(encoding="utf-8") == "<project />"
+    assert bundle.native_template.read_text(encoding="utf-8") == (
+        "<native-profile />"
+    )
+    payload = json.loads(bundle.manifest.read_text(encoding="utf-8"))
+    assert payload == {
+        "schema_version": 1,
+        "profile": "fixture",
+        "native_template": "native-device-template.export",
+    }
+    assert bundle.instructions.read_text(encoding="utf-8") == (
+        "# Import fixture\n"
+    )
 
 
 @pytest.mark.parametrize(

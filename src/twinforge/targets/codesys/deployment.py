@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from ipaddress import IPv4Address
-import json
 from pathlib import Path
 import re
-import shutil
 from typing import Literal
 import xml.etree.ElementTree as ET
 
@@ -24,6 +21,10 @@ from .powerflex525 import (
     powerflex525_codesys_multi_application_integration,
 )
 from .ethernetip_manifest import CodesysEtherNetIPConnectionManifest
+from .deployment_bundle import (
+    CodesysDeploymentBundle,
+    CodesysDeploymentBundlePackager,
+)
 
 
 _IEC_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -98,17 +99,6 @@ class CodesysPowerFlex525DeploymentManifest(BaseModel):
         return self
 
 
-@dataclass(frozen=True)
-class CodesysDeploymentBundle:
-    """Files written for one self-contained CODESYS deployment bundle."""
-
-    directory: Path
-    manifest: Path
-    application: Path
-    native_template: Path
-    instructions: Path
-
-
 class CodesysPowerFlex525BundleExporter:
     """Package validated application and native CODESYS deployment evidence."""
 
@@ -134,7 +124,6 @@ class CodesysPowerFlex525BundleExporter:
             )
         self._validate_native_template(manifest, native_source)
 
-        application = directory / "application.xml"
         integration = powerflex525_codesys_multi_application_integration(
             tuple(
                 PowerFlex525CodesysDevice(
@@ -147,7 +136,6 @@ class CodesysPowerFlex525BundleExporter:
         result = CodesysIRPLCopenExporter().export(
             build_powerflex525_iec_unit(),
             additional_units=(build_codesys_sys_module_binding_unit(),),
-            destination=application,
             project_name=manifest.project_name,
             integration=integration,
         )
@@ -160,26 +148,13 @@ class CodesysPowerFlex525BundleExporter:
                 + (f": {requirements}" if requirements else "")
             )
 
-        native_destination = directory / "native-device-template.export"
-        shutil.copyfile(native_source, native_destination)
-        normalized_manifest = directory / "manifest.json"
         payload = manifest.model_dump(mode="json")
-        payload["native_template"] = native_destination.name
-        normalized_manifest.write_text(
-            json.dumps(payload, indent=2) + "\n",
-            encoding="utf-8",
-        )
-        instructions = directory / "IMPORT.md"
-        instructions.write_text(
-            self._instructions(manifest),
-            encoding="utf-8",
-        )
-        return CodesysDeploymentBundle(
+        return CodesysDeploymentBundlePackager().package(
             directory,
-            normalized_manifest,
-            application,
-            native_destination,
-            instructions,
+            manifest_payload=payload,
+            application_xml=result.xml,
+            native_template_source=native_source,
+            instructions_markdown=self._instructions(manifest),
         )
 
     @staticmethod
