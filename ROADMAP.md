@@ -295,7 +295,8 @@ The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
   evidence promotion
 - [ ] Broaden EDS and GSD device-profile coverage with additional lawful
   fixtures
-- [ ] JSON model export
+- [x] Deterministic, cycle-safe JSON export of converted model and retained
+  source evidence
 - [ ] Asset Administration Shell
 - [ ] Graphviz and graph-database exports
 - [ ] OPC UA information model

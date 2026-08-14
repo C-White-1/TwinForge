@@ -238,6 +238,8 @@ standard error. Export commands use these stable exit codes:
   versioned JSON configuration.
 - `automationml` writes an AutomationML 2.1 / CAEX 3.0 file. It requires the
   AutomationML base library and accepts optional CAEX XSD and PLCopen inputs.
+- `json` writes a deterministic, cycle-safe representation of the converted
+  neutral model and retained source evidence.
 
 Target-neutral PLCopen XML with optional validation:
 
@@ -255,6 +257,18 @@ uv run twinforge export project.L5X `
   --target codesys `
   --output build\codesys.xml
 ```
+
+Neutral model JSON for downstream tools and inspection:
+
+```powershell
+uv run twinforge export project.L5X `
+  --target json `
+  --output build\project-model.json
+```
+
+Generated runtime UUIDs and parent back-references are not serialized. Shared
+model objects are represented by stable `$ref` JSON pointers, while retained
+source extensions and unknown L5X evidence remain in the document.
 
 The separate native CODESYS deployment workflow packages a validated
 PowerFlex 525 application, native device-tree evidence, manifest, and import

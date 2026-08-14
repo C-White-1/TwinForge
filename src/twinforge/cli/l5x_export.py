@@ -11,6 +11,8 @@ from twinforge.exporters import (
     AutomationMLExporter,
     AutomationMLValidationError,
     AutomationMLValidationUnavailable,
+    ModelJSONExporter,
+    ModelJSONSerializationError,
     PLCopenExporter,
     PLCopenProfile,
     PLCopenValidationError,
@@ -73,6 +75,20 @@ def export_l5x_target(
     """Export a Controller L5X using one explicit target adapter."""
     try:
         _require_input_file(source, "L5X source")
+        if target == "json":
+            _export_model_json(
+                source,
+                destination=destination,
+                schema_path=schema_path,
+                compile_only=compile_only,
+                config_path=config_path,
+                base_library_path=base_library_path,
+                plcopen_reference=plcopen_reference,
+                dry_run=dry_run,
+                diagnostics_format=diagnostics_format,
+                stdout=stdout,
+            )
+            return
         if target == "openplc":
             config = (
                 load_openplc_export_config(config_path)
@@ -195,6 +211,7 @@ def export_l5x_target(
         ) from error
     except (
         ET.ParseError,
+        ModelJSONSerializationError,
         ValueError,
     ) as error:
         raise L5XExportError(
@@ -232,6 +249,63 @@ def export_l5x_target(
             f"{diagnostic.severity.value.upper()} {diagnostic.code}"
             f"{object_name}: {diagnostic.message}\n"
         )
+
+
+def _export_model_json(
+    source: Path,
+    *,
+    destination: Path,
+    schema_path: Path | None,
+    compile_only: bool | None,
+    config_path: Path | None,
+    base_library_path: Path | None,
+    plcopen_reference: Path | None,
+    dry_run: bool,
+    diagnostics_format: str,
+    stdout: TextIO,
+) -> None:
+    """Write deterministic JSON for the converted neutral model graph."""
+
+    if any(
+        value is not None
+        for value in (
+            schema_path,
+            compile_only,
+            config_path,
+            base_library_path,
+            plcopen_reference,
+        )
+    ):
+        raise L5XExportError(
+            "--xsd, --compile-only, --config, --base-library, and "
+            "--plcopen-reference do not apply to --target json"
+        )
+    document = L5XParser().parse_document(source, report_mode=None)
+    serialized = ModelJSONExporter().export(document)
+    if not dry_run:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(serialized, encoding="utf-8")
+
+    verb = "Ready to export" if dry_run else "Exported"
+    message = f"{verb} neutral model JSON to {destination}"
+    if diagnostics_format == "json":
+        write_json_diagnostic(
+            stdout,
+            status="ready" if dry_run else "exported",
+            operation="export",
+            exit_code=ExitCode.SUCCESS,
+            message=message,
+            target="json",
+            source=source,
+            destination=destination,
+            dry_run=dry_run,
+            outputs=(destination,),
+            diagnostics=tuple(
+                _diagnostic_value(item) for item in document.diagnostics
+            ),
+        )
+        return
+    stdout.write(message + "\n")
 
 
 def _export_automationml(

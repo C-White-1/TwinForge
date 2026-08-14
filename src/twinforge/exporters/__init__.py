@@ -33,6 +33,7 @@ from .codesys_sys_module_iec import (
 from .codesys_visualization_markdown import (
     CodesysVisualizationMarkdownExporter,
 )
+from .model_json import ModelJSONExporter, ModelJSONSerializationError
 from .codesys_visualization_opaque_markdown import (
     CodesysVisualizationOpaqueMarkdownExporter,
 )
@@ -189,6 +190,8 @@ __all__ = [
     "Plx50LogixMappingMarkdownExporter",
     "ModuleScheduleCSVExporter",
     "ModuleScheduleMarkdownExporter",
+    "ModelJSONExporter",
+    "ModelJSONSerializationError",
     "ParameterReportCSVExporter",
     "ParameterReportMarkdownExporter",
     "SanitizedDriftFinding",

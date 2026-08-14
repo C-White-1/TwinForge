@@ -72,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     export_l5x_command.add_argument(
         "--target",
         required=True,
-        choices=("plcopen", "codesys", "openplc", "automationml"),
+        choices=("plcopen", "codesys", "openplc", "automationml", "json"),
         help="Export target.",
     )
     export_l5x_command.add_argument(
