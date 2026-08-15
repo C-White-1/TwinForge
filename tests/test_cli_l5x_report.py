@@ -126,6 +126,21 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert not any(
         item["name"] == "report_manifest.json" for item in manifest["reports"]
     )
+    verification = StringIO()
+    verification_errors = StringIO()
+    assert main(
+        (
+            "reports",
+            "verify",
+            str(destination),
+            "--source",
+            str(CONTROLLER),
+        ),
+        stdout=verification,
+        stderr=verification_errors,
+    ) == 0
+    assert verification_errors.getvalue() == ""
+    assert "Verified 1 inputs and 28 reports" in verification.getvalue()
     functional_description = (destination / "functional_description.md").read_text(
         encoding="utf-8"
     )

@@ -41,6 +41,7 @@ from .model_json import (
 )
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .review_schema import ReviewSchemaCommandError, export_review_schema
+from .report_bundle import ReportBundleCommandError, verify_report_bundle
 from .snmp_conversion import convert_walk_command
 
 
@@ -265,6 +266,28 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Destination for the JSON Schema file.",
     )
+
+    reports = commands.add_parser(
+        "reports",
+        help="Verify generated engineering-report bundles.",
+    )
+    reports_commands = reports.add_subparsers(
+        dest="reports_command",
+        required=True,
+    )
+    reports_verify = reports_commands.add_parser(
+        "verify",
+        help="Verify a report manifest against all source and report bytes.",
+    )
+    reports_verify.add_argument("directory", type=Path)
+    reports_verify.add_argument(
+        "--source",
+        required=True,
+        type=Path,
+        help="Original L5X input recorded by the manifest.",
+    )
+    reports_verify.add_argument("--alarm-review", type=Path)
+    reports_verify.add_argument("--cause-effect-review", type=Path)
 
     state = commands.add_parser(
         "state",
@@ -531,6 +554,14 @@ def main(
                 arguments.output,
                 stdout=output,
             )
+        elif arguments.command == "reports":
+            verify_report_bundle(
+                arguments.directory,
+                source=arguments.source,
+                alarm_review=arguments.alarm_review,
+                cause_effect_review=arguments.cause_effect_review,
+                stdout=output,
+            )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(
@@ -641,6 +672,7 @@ def main(
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
         ReviewSchemaCommandError,
+        ReportBundleCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1

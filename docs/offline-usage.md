@@ -216,6 +216,19 @@ every other generated report. The manifest intentionally omits timestamps and
 does not hash itself, avoiding circular content while keeping identical inputs
 reproducible.
 
+Verify the complete bundle against the original evidence files:
+
+```powershell
+uv run twinforge reports verify reports\project-reviewed `
+  --source project.L5X `
+  --alarm-review alarm-review.json `
+  --cause-effect-review cause-effect-review.json
+```
+
+Omit a review option only when that review kind is absent from the manifest.
+Verification fails for missing, unexpected, added, removed, renamed, or changed
+files.
+
 Export the exact schemas installed with the active TwinForge version when
 configuring an editor, CI job, or MCP client:
 

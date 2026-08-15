@@ -139,6 +139,7 @@ from .review_coverage_markdown import (
 from .report_manifest import (
     ReportManifestError,
     engineering_report_manifest_json,
+    verify_engineering_report_bundle,
 )
 from .text_report import TextReportBundle, TextReportExporter
 
@@ -177,6 +178,7 @@ __all__ = [
     "EngineeringReviewCoverageCSVExporter",
     "engineering_report_manifest_json",
     "ReportManifestError",
+    "verify_engineering_report_bundle",
     "FunctionalDescriptionMarkdownExporter",
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",

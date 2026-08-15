@@ -151,6 +151,8 @@ own project-directory and `.ld` JSON representation.
     engineering approval
   - [x] Emit a deterministic integrity manifest for source evidence, review
     overlays, and generated engineering reports
+  - [x] Verify complete report bundles against every manifested source and
+    generated file
   - [ ] Validate polarity, voting, delays, operating modes, and shutdown actions
     against process design and the applicable alarm philosophy
 - [x] PowerFlex device functional-description draft
