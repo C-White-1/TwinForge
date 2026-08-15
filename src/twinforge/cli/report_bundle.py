@@ -7,12 +7,30 @@ from typing import TextIO
 
 from twinforge.exporters import (
     ReportManifestError,
+    engineering_report_manifest_schema_text,
     verify_engineering_report_bundle,
 )
 
 
 class ReportBundleCommandError(RuntimeError):
     """Raised when an engineering-report bundle cannot be verified."""
+
+
+def export_report_manifest_schema(destination: Path, *, stdout: TextIO) -> None:
+    """Write the installed report-manifest JSON Schema."""
+
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            engineering_report_manifest_schema_text(),
+            encoding="utf-8",
+            newline="",
+        )
+    except (OSError, UnicodeError) as error:
+        raise ReportBundleCommandError(
+            f"could not export report manifest schema to '{destination}': {error}"
+        ) from error
+    stdout.write(f"Exported TwinForge report manifest v1 schema to {destination}\n")
 
 
 def verify_report_bundle(

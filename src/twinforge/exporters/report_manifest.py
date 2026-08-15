@@ -5,11 +5,21 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from hashlib import sha256
+from importlib.resources import files
 from pathlib import Path
 
 
 class ReportManifestError(ValueError):
     """Raised when manifest evidence cannot be read or represented."""
+
+
+def engineering_report_manifest_schema_text() -> str:
+    """Return the packaged engineering-report manifest v1 JSON Schema."""
+
+    schema = files("twinforge.schemas").joinpath(
+        "engineering-report-manifest.v1.schema.json"
+    )
+    return schema.read_text(encoding="utf-8")
 
 
 def verify_engineering_report_bundle(

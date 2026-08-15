@@ -5,9 +5,14 @@ from hashlib import sha256
 from pathlib import Path
 from io import StringIO
 
-from twinforge.exporters import engineering_report_manifest_json
+from jsonschema import Draft202012Validator
+
 from twinforge.cli import main
-from twinforge.exporters import TextReportBundle
+from twinforge.exporters import (
+    TextReportBundle,
+    engineering_report_manifest_json,
+    engineering_report_manifest_schema_text,
+)
 
 
 def test_manifest_hashes_exact_input_and_generated_report_bytes(
@@ -43,6 +48,18 @@ def test_manifest_hashes_exact_input_and_generated_report_bytes(
     ]
     assert [item["name"] for item in manifest["reports"]] == ["a.csv", "b.md"]
     assert manifest["reports"][0]["sha256"] == sha256(b"alpha\n").hexdigest()
+
+
+def test_packaged_schema_accepts_generated_manifest(tmp_path: Path) -> None:
+    source = tmp_path / "controller.L5X"
+    source.write_bytes(b"<Controller/>")
+    document = json.loads(
+        engineering_report_manifest_json(source, {"report.md": "evidence\n"})
+    )
+    schema = json.loads(engineering_report_manifest_schema_text())
+
+    Draft202012Validator.check_schema(schema)
+    assert list(Draft202012Validator(schema).iter_errors(document)) == []
 
 
 def test_manifest_is_reproducible_for_identical_inputs(tmp_path: Path) -> None:
@@ -116,3 +133,24 @@ def test_cli_verification_requires_every_manifested_review(tmp_path: Path) -> No
 
     assert result == 1
     assert "missing alarm_review" in errors.getvalue()
+
+
+def test_cli_exports_report_manifest_schema(tmp_path: Path) -> None:
+    destination = tmp_path / "schemas" / "report-manifest.schema.json"
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        ("reports", "schema", "--output", str(destination)),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    schema = json.loads(destination.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    assert schema["properties"]["schema_version"]["const"] == (
+        "twinforge.engineering-report-manifest.v1"
+    )
+    assert "Exported TwinForge report manifest v1 schema" in output.getvalue()

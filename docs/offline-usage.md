@@ -229,6 +229,14 @@ Omit a review option only when that review kind is absent from the manifest.
 Verification fails for missing, unexpected, added, removed, renamed, or changed
 files.
 
+Export the exact manifest schema installed with TwinForge for independent CI or
+MCP validation:
+
+```powershell
+uv run twinforge reports schema `
+  --output schemas\engineering-report-manifest.v1.schema.json
+```
+
 Export the exact schemas installed with the active TwinForge version when
 configuring an editor, CI job, or MCP client:
 

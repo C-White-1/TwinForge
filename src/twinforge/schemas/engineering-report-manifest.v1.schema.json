@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/engineering-report-manifest.v1.schema.json",
+  "title": "TwinForge engineering-report integrity manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "hash_algorithm", "inputs", "reports"],
+  "properties": {
+    "schema_version": {
+      "const": "twinforge.engineering-report-manifest.v1"
+    },
+    "hash_algorithm": {
+      "const": "sha256"
+    },
+    "inputs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "reports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/report" }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "sha256", "size_bytes"],
+      "properties": {
+        "kind": {
+          "enum": ["l5x", "alarm_review", "cause_effect_review"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "size_bytes": { "$ref": "#/$defs/size" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "sha256", "size_bytes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/\\\\]+$"
+        },
+        "sha256": { "$ref": "#/$defs/digest" },
+        "size_bytes": { "$ref": "#/$defs/size" }
+      }
+    }
+  }
+}

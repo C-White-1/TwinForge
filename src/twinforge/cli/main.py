@@ -41,7 +41,11 @@ from .model_json import (
 )
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .review_schema import ReviewSchemaCommandError, export_review_schema
-from .report_bundle import ReportBundleCommandError, verify_report_bundle
+from .report_bundle import (
+    ReportBundleCommandError,
+    export_report_manifest_schema,
+    verify_report_bundle,
+)
 from .snmp_conversion import convert_walk_command
 
 
@@ -288,6 +292,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     reports_verify.add_argument("--alarm-review", type=Path)
     reports_verify.add_argument("--cause-effect-review", type=Path)
+    reports_schema = reports_commands.add_parser(
+        "schema",
+        help="Export the installed engineering-report manifest JSON Schema.",
+    )
+    reports_schema.add_argument("--output", required=True, type=Path)
 
     state = commands.add_parser(
         "state",
@@ -555,13 +564,16 @@ def main(
                 stdout=output,
             )
         elif arguments.command == "reports":
-            verify_report_bundle(
-                arguments.directory,
-                source=arguments.source,
-                alarm_review=arguments.alarm_review,
-                cause_effect_review=arguments.cause_effect_review,
-                stdout=output,
-            )
+            if arguments.reports_command == "schema":
+                export_report_manifest_schema(arguments.output, stdout=output)
+            else:
+                verify_report_bundle(
+                    arguments.directory,
+                    source=arguments.source,
+                    alarm_review=arguments.alarm_review,
+                    cause_effect_review=arguments.cause_effect_review,
+                    stdout=output,
+                )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(
