@@ -143,8 +143,10 @@ The opt-in OSPFv2 and OSPFv3 evidence boundary is documented in
 - [x] Compare discovered modules with L5X module and electronic-key evidence
 
 The offline metadata and raw-object boundary is defined in
-[CIP Controller Evidence](../architecture/cip-controller-evidence.md). A live
-provider remains pending.
+[CIP Controller Evidence](../architecture/cip-controller-evidence.md). The
+bounded provider and packet-preserving transports are implemented; physical
+controller compatibility remains subject to the authorized laboratory
+procedures and is not inferred from localhost simulator testing.
 
 The bounded slot plan and outcome semantics are documented in
 [CIP Chassis Evidence](../architecture/cip-chassis-evidence.md).

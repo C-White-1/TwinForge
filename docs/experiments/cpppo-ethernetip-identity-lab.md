@@ -202,6 +202,11 @@ TwinForge: vendor ID `0`, device type `0`, product code `4242`, revision
 `1.2`, status `0`, serial number `0x12345678`, product name
 `TwinForge cpppo Lab`, and operational state `3`.
 
+This result verifies the simulator's explicit, unconnected Identity Object
+Get Attributes All path. The experiment did not exercise broadcast List
+Identity, a connected CIP session, a Logix backplane route, or chassis-slot
+enumeration. No compatibility claim is made for those distinct operations.
+
 The independent decode also identified the three bytes preserved by TwinForge
 after the primary identity fields. They encode Configuration Consistency Value
 `0x0000` and Heartbeat Interval `0x00`, Identity attributes 9 and 10. Retaining
@@ -255,8 +260,8 @@ decoder. The source PCAP remains ignored.
 1. Capture simulator startup and one known-good identity transaction.
 2. Decode the encapsulation header, CPF items, CIP service, path, general
    status, additional status, and returned fields with Wireshark.
-3. Record whether the simulator implements List Identity, routed Identity, or
-   only explicit Identity Object attributes.
+3. Record which Identity mechanism was actually exercised, keeping untested
+   List Identity and routed Identity capabilities explicitly unverified.
 4. Keep simulator-specific behavior distinct from ODVA-defined behavior.
 
 ### Gate 3: TwinForge adapter validation
