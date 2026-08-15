@@ -95,7 +95,18 @@ def test_applies_review_to_one_exact_resolved_relationship() -> None:
         if row["RelationshipKey"] == key
     )
     assert row["CausalRelationshipVerified"] == "true"
+    assert row["ExplicitlyReviewed"] == "true"
     assert row["ShutdownAction"] == "Trip compressor"
+    unreviewed_row = next(
+        row
+        for row in csv.DictReader(
+            StringIO(CauseEffectCandidateCSVExporter().export(reviewed))
+        )
+        if row["ReviewStatus"] == "unreviewed"
+    )
+    assert unreviewed_row["ExplicitlyReviewed"] == "false"
+    assert unreviewed_row["ReviewedBy"] == ""
+    assert unreviewed_row["ReviewAuthorityReference"] == ""
     markdown = CauseEffectCandidateMarkdownExporter().export(reviewed)
     reviewed_row = next(
         line for line in markdown.splitlines() if line.startswith(f"| {key} |")

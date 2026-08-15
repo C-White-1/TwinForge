@@ -140,6 +140,7 @@ class CauseEffectCandidateCSVExporter:
         "WriteInstruction",
         "EvidenceBasis",
         "CausalRelationshipVerified",
+        "ExplicitlyReviewed",
         "ReviewStatus",
         "Polarity",
         "Voting",
@@ -169,16 +170,6 @@ class CauseEffectCandidateCSVExporter:
                 "WriteInstruction": item.writer_instruction,
                 "EvidenceBasis": item.evidence_basis,
                 "CausalRelationshipVerified": "false",
-                "ReviewedBy": report.review.reviewed_by if report.review else "",
-                "ReviewedAt": (
-                    report.review.reviewed_at.isoformat() if report.review else ""
-                ),
-                "ReviewAuthorityReference": (
-                    report.review.authority_reference if report.review else ""
-                ),
-                "ReviewSourceReference": (
-                    report.review.source_reference if report.review else ""
-                ),
             }
             if not item.causes and not item.unresolved_causes:
                 writer.writerow(
@@ -190,12 +181,14 @@ class CauseEffectCandidateCSVExporter:
                         "CauseStatus": "not_observed",
                         "CauseOperand": "",
                         "ReadInstruction": "",
+                        "ExplicitlyReviewed": "false",
                         "ReviewStatus": "unreviewed",
                         "Polarity": "",
                         "Voting": "",
                         "Delay": "",
                         "OperatingModes": "",
                         "ShutdownAction": "",
+                        **_review_provenance(report, explicitly_reviewed=False),
                     }
                 )
             for cause in item.causes:
@@ -211,12 +204,21 @@ class CauseEffectCandidateCSVExporter:
                         "CausalRelationshipVerified": str(
                             cause.review_status == "verified"
                         ).lower(),
+                        "ExplicitlyReviewed": str(
+                            cause.review_status != "unreviewed"
+                        ).lower(),
                         "ReviewStatus": cause.review_status,
                         "Polarity": cause.polarity or "",
                         "Voting": cause.voting or "",
                         "Delay": cause.delay or "",
                         "OperatingModes": cause.operating_modes or "",
                         "ShutdownAction": cause.shutdown_action or "",
+                        **_review_provenance(
+                            report,
+                            explicitly_reviewed=(
+                                cause.review_status != "unreviewed"
+                            ),
+                        ),
                     }
                 )
             for cause in item.unresolved_causes:
@@ -229,12 +231,21 @@ class CauseEffectCandidateCSVExporter:
                         "CauseStatus": "unresolved",
                         "CauseOperand": cause.operand,
                         "ReadInstruction": cause.instruction,
+                        "ExplicitlyReviewed": str(
+                            cause.review_status != "unreviewed"
+                        ).lower(),
                         "ReviewStatus": cause.review_status,
                         "Polarity": cause.polarity or "",
                         "Voting": cause.voting or "",
                         "Delay": cause.delay or "",
                         "OperatingModes": cause.operating_modes or "",
                         "ShutdownAction": cause.shutdown_action or "",
+                        **_review_provenance(
+                            report,
+                            explicitly_reviewed=(
+                                cause.review_status != "unreviewed"
+                            ),
+                        ),
                     }
                 )
         return stream.getvalue()
@@ -254,3 +265,17 @@ def _location(rung: int | None, line: int | None) -> str:
     if line is not None:
         return f"line {line}"
     return "unavailable"
+
+
+def _review_provenance(
+    report: CauseEffectCandidateReport,
+    *,
+    explicitly_reviewed: bool,
+) -> dict[str, str]:
+    review = report.review if explicitly_reviewed else None
+    return {
+        "ReviewedBy": review.reviewed_by if review else "",
+        "ReviewedAt": review.reviewed_at.isoformat() if review else "",
+        "ReviewAuthorityReference": review.authority_reference if review else "",
+        "ReviewSourceReference": review.source_reference if review else "",
+    }

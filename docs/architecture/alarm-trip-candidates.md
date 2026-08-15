@@ -106,6 +106,8 @@ as `unreviewed`. A template is provided at
 
 All asserted relationship fields appear in Markdown, CSV, and JSON. Missing
 Markdown values remain visible as em dashes rather than being silently omitted.
+CSV relationship rows also expose `ExplicitlyReviewed`; reviewer provenance is
+populated only for exact keys included in the overlay, never for untouched rows.
 
 Its packaged Draft 2020-12 schema is
 `twinforge.schemas/cause-effect-review.v1.schema.json`. Schema validation can
