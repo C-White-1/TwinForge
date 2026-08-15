@@ -132,6 +132,7 @@ from twinforge.targets.codesys.powerflex525 import (
     powerflex525_codesys_multi_application_integration,
 )
 from .powerflex525_core import build_powerflex525_iec_unit
+from .review_coverage_markdown import EngineeringReviewCoverageMarkdownExporter
 from .text_report import TextReportBundle, TextReportExporter
 
 __all__ = [
@@ -165,6 +166,7 @@ __all__ = [
     "DeviceDiagnosticMarkdownExporter",
     "DiscoveryDriftMarkdownExporter",
     "ExternalReferenceMarkdownExporter",
+    "EngineeringReviewCoverageMarkdownExporter",
     "FunctionalDescriptionMarkdownExporter",
     "CodesysIRPLCopenExporter",
     "CodesysPLCopenIRResult",

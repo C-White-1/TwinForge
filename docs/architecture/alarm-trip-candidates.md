@@ -104,3 +104,9 @@ Its packaged Draft 2020-12 schema is
 check document shape independently; runtime application remains authoritative
 for controller matching, known relationship keys, and the rule that unresolved
 relationships cannot be verified.
+
+Every report bundle also includes `engineering_review_coverage.md` and
+`engineering_review_coverage.json`. These summarize reviewed and complete
+alarm candidates plus verified, rejected, unreviewed, and unresolved
+relationships. Coverage is deliberately not labelled approval: completion and
+safety acceptance remain engineering governance decisions.

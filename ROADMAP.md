@@ -147,6 +147,8 @@ own project-directory and `.ld` JSON representation.
     evidence and an explicit unverified-causality state
   - [x] Assign deterministic relationship identities and apply attributable,
     fail-closed engineering dispositions without replacing inferred evidence
+  - [x] Report review coverage and remaining field gaps without implying
+    engineering approval
   - [ ] Validate polarity, voting, delays, operating modes, and shutdown actions
     against process design and the applicable alarm philosophy
 - [x] PowerFlex device functional-description draft

@@ -44,6 +44,8 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "cause_effect_candidates.md",
         "cause_effect_candidates.csv",
         "cause_effect_candidates.json",
+        "engineering_review_coverage.md",
+        "engineering_review_coverage.json",
         "functional_description.md",
         "module_schedule.md",
         "module_schedule.csv",
@@ -51,7 +53,7 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "external_references.md",
         "external_references.json",
     }
-    assert "Exported 25 reports" in output.getvalue()
+    assert "Exported 27 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(encoding="utf-8")
     dependency_report = (destination / "tag_dependencies.md").read_text(
         encoding="utf-8"
@@ -73,6 +75,13 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     assert "cause-and-effect candidate matrix" in cause_effect_report
     assert "PT102_HH_Alm" in cause_effect_report
     assert "not proof of a causal relationship" in cause_effect_report
+    review_coverage = json.loads(
+        (destination / "engineering_review_coverage.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert review_coverage["summary"]["reviewed_alarm_count"] == 0
+    assert review_coverage["summary"]["verified_relationship_count"] == 0
     functional_description = (destination / "functional_description.md").read_text(
         encoding="utf-8"
     )
@@ -188,6 +197,12 @@ def test_report_applies_explicit_alarm_review_overlay(tmp_path: Path) -> None:
     assert candidate["setpoint"] == "12.5"
     assert candidate["engineering_unit"] == "barg"
     assert report["review"]["reviewed_by"] == "Control systems engineer"
+    coverage = json.loads(
+        (destination / "engineering_review_coverage.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert coverage["summary"]["reviewed_alarm_count"] == 1
 
 
 def test_report_rejects_unknown_alarm_review_before_writing(tmp_path: Path) -> None:
@@ -281,3 +296,9 @@ def test_report_applies_exact_cause_effect_review_overlay(tmp_path: Path) -> Non
     assert cause["review_status"] == "verified"
     assert cause["shutdown_action"] == "Trip compressor"
     assert reviewed["review"]["applied_relationship_keys"] == [relationship_key]
+    coverage = json.loads(
+        (destination / "engineering_review_coverage.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert coverage["summary"]["verified_relationship_count"] == 1

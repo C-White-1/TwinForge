@@ -13,6 +13,7 @@ from twinforge.analysis import (
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
     build_controller_functional_description,
+    build_engineering_review_coverage,
     build_io_list_report,
     build_module_schedule_report,
     build_tag_dependency_graph,
@@ -23,6 +24,7 @@ from twinforge.analysis import (
     cause_effect_candidate_report_json,
     discover_external_references,
     external_reference_inventory_json,
+    engineering_review_coverage_json,
     tag_dependency_graph_json,
 )
 from twinforge.exporters import (
@@ -32,6 +34,7 @@ from twinforge.exporters import (
     CauseEffectCandidateMarkdownExporter,
     ControllerFunctionalDescriptionMarkdownExporter,
     ExternalReferenceMarkdownExporter,
+    EngineeringReviewCoverageMarkdownExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
     ModuleScheduleCSVExporter,
@@ -85,6 +88,10 @@ def export_l5x_reports(
                 cause_effect,
                 load_cause_effect_review(cause_effect_review_path),
             )
+        review_coverage = build_engineering_review_coverage(
+            alarm_candidates,
+            cause_effect,
+        )
         functional_description = build_controller_functional_description(
             controller,
             dependency_graph,
@@ -133,6 +140,14 @@ def export_l5x_reports(
                 ),
                 "cause_effect_candidates.json": (
                     cause_effect_candidate_report_json(cause_effect)
+                ),
+                "engineering_review_coverage.md": (
+                    EngineeringReviewCoverageMarkdownExporter().export(
+                        review_coverage
+                    )
+                ),
+                "engineering_review_coverage.json": (
+                    engineering_review_coverage_json(review_coverage)
                 ),
                 "functional_description.md": (
                     ControllerFunctionalDescriptionMarkdownExporter().export(
