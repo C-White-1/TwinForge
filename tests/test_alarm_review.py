@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from dataclasses import replace
 from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
@@ -94,6 +95,43 @@ def test_applies_attributable_review_without_mutating_candidate_evidence() -> No
     )
     assert rows[0]["ReviewedBy"] == "Control systems engineer"
     assert rows[0]["Priority"] == "High"
+    assert rows[0]["ExplicitlyReviewed"] == "true"
+
+
+def test_partial_review_does_not_attribute_unreviewed_candidate() -> None:
+    source = _report()
+    other = replace(
+        source.candidates[0],
+        tag_key="controller:PT103_HH_Alm",
+        tag_name="PT103_HH_Alm",
+    )
+    reviewed = apply_alarm_review(
+        replace(source, candidates=source.candidates + (other,)),
+        _review(),
+    )
+
+    document = json.loads(alarm_trip_candidate_report_json(reviewed))
+    by_key = {item["tag_key"]: item for item in document["candidates"]}
+    assert by_key["controller:PT102_HH_Alm"]["explicitly_reviewed"] is True
+    assert by_key["controller:PT103_HH_Alm"]["explicitly_reviewed"] is False
+    rows = {
+        row["TagKey"]: row
+        for row in csv.DictReader(
+            StringIO(AlarmTripCandidateCSVExporter().export(reviewed))
+        )
+    }
+    assert rows["controller:PT102_HH_Alm"]["ReviewedBy"] == (
+        "Control systems engineer"
+    )
+    assert rows["controller:PT103_HH_Alm"]["ExplicitlyReviewed"] == "false"
+    assert rows["controller:PT103_HH_Alm"]["ReviewedBy"] == ""
+    markdown = AlarmTripCandidateMarkdownExporter().export(reviewed)
+    table_lines = [line for line in markdown.splitlines() if line.startswith("|")]
+    assert {line.count("|") for line in table_lines} == {19}
+    unreviewed_row = next(
+        line for line in markdown.splitlines() if "PT103_HH_Alm" in line
+    )
+    assert "| false |" in unreviewed_row
 
 
 def test_rejects_unknown_candidate_without_partial_application() -> None:

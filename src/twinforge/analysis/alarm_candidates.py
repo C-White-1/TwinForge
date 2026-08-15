@@ -223,6 +223,10 @@ def alarm_trip_candidate_report_data(
         "candidates": [
             {
                 **item.__dict__,
+                "explicitly_reviewed": (
+                    report.review is not None
+                    and item.tag_key in report.review.applied_tag_keys
+                ),
                 "tag_scope": item.tag_scope.value,
                 "kinds": [kind.value for kind in item.kinds],
             }

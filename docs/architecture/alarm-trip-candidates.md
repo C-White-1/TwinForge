@@ -78,6 +78,11 @@ Reviewed Markdown, CSV, and JSON outputs carry the reviewer, review time,
 authority reference, and source reference. A copyable input document is
 provided at `examples/reporting/alarm-review.example.json`.
 
+Partial reviews are represented per candidate. Markdown, CSV, and JSON expose
+an explicit reviewed flag, and CSV reviewer provenance is populated only for
+rows whose exact `tag_key` was included in the overlay. An unreviewed row never
+inherits attribution merely because another candidate was reviewed.
+
 The installed package also carries the machine-readable Draft 2020-12 schema
 `twinforge.schemas/alarm-review.v1.schema.json`. Editors, CI jobs, and MCP
 tools may validate review documents against it before submitting them to

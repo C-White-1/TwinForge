@@ -22,6 +22,11 @@ class AlarmTripCandidateMarkdownExporter:
         counts = Counter(
             kind.value for candidate in report.candidates for kind in candidate.kinds
         )
+        reviewed_keys = (
+            frozenset(report.review.applied_tag_keys)
+            if report.review is not None
+            else frozenset()
+        )
         lines = [
             f"# {title}",
             "",
@@ -34,9 +39,10 @@ class AlarmTripCandidateMarkdownExporter:
             "",
             "| Tag | Scope | Kind | Description | Priority | Setpoint | Units | "
             "Delay | Latching | Acknowledgement | Suppression | Shutdown action | "
-            "Applicability | Readers | Writers | Aliases | Classification evidence |",
+            "Applicability | Explicitly reviewed | Readers | Writers | Aliases | "
+            "Classification evidence |",
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
-            "--- | --- | --- | --- | --- | --- |",
+            "--- | --- | --- | --- | --- | --- | --- |",
         ]
         if report.review is not None:
             lines[8:8] = [
@@ -59,6 +65,7 @@ class AlarmTripCandidateMarkdownExporter:
                 f"| {_cell(item.delay)} | {_cell(item.latching)} "
                 f"| {_cell(item.acknowledgement)} | {_cell(item.suppression)} "
                 f"| {_cell(item.shutdown_action)} | {_cell(item.applicability)} "
+                f"| {str(item.tag_key in reviewed_keys).lower()} "
                 f"| {_cell('; '.join(item.reader_locations))} "
                 f"| {_cell('; '.join(item.writer_locations))} "
                 f"| {_cell('; '.join(item.alias_source_keys))} "
@@ -86,6 +93,7 @@ class AlarmTripCandidateCSVExporter:
         "Suppression",
         "ShutdownAction",
         "Applicability",
+        "ExplicitlyReviewed",
         "Readers",
         "Writers",
         "AliasSources",
@@ -101,7 +109,13 @@ class AlarmTripCandidateCSVExporter:
         stream = StringIO(newline="")
         writer = csv.DictWriter(stream, fieldnames=self._FIELDS)
         writer.writeheader()
+        reviewed_keys = (
+            frozenset(report.review.applied_tag_keys)
+            if report.review is not None
+            else frozenset()
+        )
         for item in report.candidates:
+            explicitly_reviewed = item.tag_key in reviewed_keys
             writer.writerow(
                 {
                     "TagKey": item.tag_key,
@@ -119,19 +133,30 @@ class AlarmTripCandidateCSVExporter:
                     "Suppression": item.suppression or "",
                     "ShutdownAction": item.shutdown_action or "",
                     "Applicability": item.applicability or "",
+                    "ExplicitlyReviewed": str(explicitly_reviewed).lower(),
                     "Readers": ";".join(item.reader_locations),
                     "Writers": ";".join(item.writer_locations),
                     "AliasSources": ";".join(item.alias_source_keys),
                     "ClassificationEvidence": ";".join(item.classification_evidence),
-                    "ReviewedBy": (report.review.reviewed_by if report.review else ""),
+                    "ReviewedBy": (
+                        report.review.reviewed_by
+                        if explicitly_reviewed and report.review
+                        else ""
+                    ),
                     "ReviewedAt": (
-                        report.review.reviewed_at.isoformat() if report.review else ""
+                        report.review.reviewed_at.isoformat()
+                        if explicitly_reviewed and report.review
+                        else ""
                     ),
                     "ReviewAuthorityReference": (
-                        report.review.authority_reference if report.review else ""
+                        report.review.authority_reference
+                        if explicitly_reviewed and report.review
+                        else ""
                     ),
                     "ReviewSourceReference": (
-                        report.review.source_reference if report.review else ""
+                        report.review.source_reference
+                        if explicitly_reviewed and report.review
+                        else ""
                     ),
                 }
             )
