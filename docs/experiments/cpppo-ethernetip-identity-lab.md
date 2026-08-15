@@ -123,7 +123,10 @@ disables the additional UDP listener. In a second terminal, make the one
 authorized request through TwinForge's actual adapter:
 
 ```powershell
-uv run python examples/discovery/capture_cpppo_identity.py --execute `
+uv run twinforge discover identity 127.0.0.1 `
+  --engagement "TwinForge localhost cpppo identity laboratory" `
+  --authorization-reference "operator laboratory approval" `
+  --execute `
   --output cpppo-identity-snapshot.json
 ```
 
@@ -164,6 +167,33 @@ Two negative observations were also retained during setup:
 This verifies the reproducible simulator and TwinForge adapter interaction.
 It does not complete Gate 2: the transaction still requires an independent
 packet decode before the roadmap compatibility item can be checked.
+
+The installed TwinForge CLI was also verified through both paths:
+
+- without `--execute`, it emitted the exact one-request dry-run plan and made
+  no connection; and
+- with `--execute`, it returned the configured identity and retained raw
+  response evidence.
+
+### Gate 2 status
+
+Wireshark installation metadata reported version 4.6.0 on the Windows test
+host. However, both `tshark.exe` and `dumpcap.exe` hung before printing their
+version or interface list. Their processes were allowed to exit or explicitly
+stopped, and no packet capture was claimed. This is currently a local capture
+tooling issue, not evidence of a TwinForge or EtherNet/IP failure.
+
+After repairing or restarting Wireshark/Npcap, enumerate interfaces with the
+full executable path because the installation is not currently on `PATH`:
+
+```powershell
+& "C:\Program Files\Wireshark\tshark.exe" -D
+```
+
+Select the Npcap loopback interface, capture only TCP port 44818, run one
+`twinforge discover identity ... --execute` command, and stop after that
+transaction. The resulting capture must be reviewed and sanitized before it
+is considered for Gate 4 or committed to the repository.
 
 ### Gate 2: independent protocol baseline
 

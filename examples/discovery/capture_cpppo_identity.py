@@ -1,4 +1,9 @@
-"""Capture one identity from the localhost-only cpppo laboratory."""
+"""Legacy API example for the localhost-only cpppo identity laboratory.
+
+Prefer the public ``twinforge discover identity`` command documented in the
+laboratory procedure. This example remains useful when developing the Python
+API directly.
+"""
 
 from __future__ import annotations
 

@@ -14,6 +14,7 @@ from twinforge.discovery import (
     SnmpConversionError,
 )
 
+from .cip_identity import CipIdentityCommandError, discover_cip_identity
 from .cip_software import CipSoftwareCommandError, discover_cip_software
 from .codesys_deployment import (
     CodesysDeploymentCommandError,
@@ -280,6 +281,25 @@ def build_parser() -> argparse.ArgumentParser:
         help="Timezone-qualified ISO 8601 capture time.",
     )
     fake_snapshot.add_argument("--output", type=Path)
+    identity = discover_commands.add_parser(
+        "identity",
+        help="Plan a bounded CIP Identity read (dry-run by default).",
+    )
+    identity.add_argument("address")
+    identity.add_argument("--engagement", required=True)
+    identity.add_argument("--authorization-reference", required=True)
+    identity.add_argument(
+        "--timeout",
+        type=float,
+        default=2.0,
+        help="Request timeout in seconds, greater than 0 and at most 10.",
+    )
+    identity.add_argument("--output", type=Path)
+    identity.add_argument(
+        "--execute",
+        action="store_true",
+        help="Confirm the single live request; otherwise emit only a plan.",
+    )
     software = discover_commands.add_parser(
         "software",
         help="Plan structural Logix software inventory (dry-run by default).",
@@ -481,6 +501,16 @@ def main(
                     destination=arguments.output,
                     stdout=output,
                 )
+            elif arguments.discover_command == "identity":
+                discover_cip_identity(
+                    arguments.address,
+                    engagement=arguments.engagement,
+                    authorization_reference=arguments.authorization_reference,
+                    timeout=arguments.timeout,
+                    execute=arguments.execute,
+                    destination=arguments.output,
+                    stdout=output,
+                )
             else:
                 discover_cip_software(
                     arguments.address,
@@ -562,6 +592,7 @@ def main(
     except (
         DiscoveryStatePersistenceError,
         FakeSnapshotCommandError,
+        CipIdentityCommandError,
         CipSoftwareCommandError,
         SnmpConversionError,
         L5XInspectionError,
