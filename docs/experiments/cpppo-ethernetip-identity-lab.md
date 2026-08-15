@@ -205,8 +205,8 @@ TwinForge: vendor ID `0`, device type `0`, product code `4242`, revision
 The independent decode also identified the three bytes preserved by TwinForge
 after the primary identity fields. They encode Configuration Consistency Value
 `0x0000` and Heartbeat Interval `0x00`, Identity attributes 9 and 10. Retaining
-the original bytes remains correct even before those optional attributes gain
-dedicated model fields.
+the original bytes alongside their dedicated optional model fields protects
+against truncated or future-extended Identity responses.
 
 The capture was 1,988 bytes with SHA-256
 `02280c1dfd54d857bf46063991495fa2bb3ffc8a443c85fdf6cba3bb792f6247`.

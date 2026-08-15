@@ -43,6 +43,8 @@ class _DecodedIdentity(TypedDict):
     serial_number: int
     product_name: str
     state: int | None
+    configuration_consistency_value: int | None
+    heartbeat_interval: int | None
 
 
 class Pycomm3IdentityTransport:
@@ -176,7 +178,7 @@ def validate_cip_identity_target(target: DiscoveryTarget) -> None:
 
 
 def decode_cip_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:
-    """Decode CIP Identity attributes 1-8 from Get_Attributes_All data."""
+    """Decode available CIP Identity attributes without discarding bytes."""
     if len(payload) < 15:
         raise DiscoveryProviderError(
             "cip_invalid_identity_payload",
@@ -198,6 +200,11 @@ def decode_cip_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:
         ) from error
     state = payload[name_end] if len(payload) > name_end else None
     trailing_start = name_end + (1 if state is not None else 0)
+    trailing = payload[trailing_start:]
+    configuration_consistency_value = (
+        int.from_bytes(trailing[:2], "little") if len(trailing) >= 2 else None
+    )
+    heartbeat_interval = trailing[2] if len(trailing) >= 3 else None
     return (
         {
             "vendor_id": int.from_bytes(payload[0:2], "little"),
@@ -209,6 +216,8 @@ def decode_cip_identity(payload: bytes) -> tuple[_DecodedIdentity, bytes]:
             "serial_number": int.from_bytes(payload[10:14], "little"),
             "product_name": product_name,
             "state": state,
+            "configuration_consistency_value": (configuration_consistency_value),
+            "heartbeat_interval": heartbeat_interval,
         },
-        payload[trailing_start:],
+        trailing,
     )

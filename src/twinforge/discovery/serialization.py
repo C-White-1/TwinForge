@@ -38,6 +38,10 @@ def snapshot_data(snapshot: DiscoverySnapshot) -> dict[str, Any]:
                 "serial_number": identity.serial_number,
                 "product_name": identity.product_name,
                 "state": identity.state,
+                "configuration_consistency_value": (
+                    identity.configuration_consistency_value
+                ),
+                "heartbeat_interval": identity.heartbeat_interval,
                 "raw_payload_hex": identity.raw_payload_hex,
                 "raw_attributes": dict(sorted(identity.raw_attributes.items())),
             }
@@ -91,9 +95,7 @@ def snapshot_data(snapshot: DiscoverySnapshot) -> dict[str, Any]:
                         "remote_chassis_id": neighbour.remote_chassis_id,
                         "remote_port_id": neighbour.remote_port_id,
                         "remote_system_name": neighbour.remote_system_name,
-                        "management_addresses": sorted(
-                            neighbour.management_addresses
-                        ),
+                        "management_addresses": sorted(neighbour.management_addresses),
                         "raw_oids": dict(sorted(neighbour.raw_oids.items())),
                     }
                     for neighbour in sorted(
@@ -169,8 +171,11 @@ def snapshot_data(snapshot: DiscoverySnapshot) -> dict[str, Any]:
 
 def snapshot_json(snapshot: DiscoverySnapshot) -> str:
     """Serialize a snapshot with stable formatting and a final newline."""
-    return json.dumps(
-        snapshot_data(snapshot),
-        indent=2,
-        ensure_ascii=False,
-    ) + "\n"
+    return (
+        json.dumps(
+            snapshot_data(snapshot),
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n"
+    )

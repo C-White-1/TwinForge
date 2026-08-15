@@ -20,9 +20,7 @@ from twinforge.discovery.cip_pycomm3 import (
 )
 
 
-PAYLOAD = bytes.fromhex(
-    "01000e00a60023116000785634120a436f6e74726f6c6c657203"
-)
+PAYLOAD = bytes.fromhex("01000e00a60023116000785634120a436f6e74726f6c6c657203")
 
 
 class FakeTransport:
@@ -103,6 +101,8 @@ def test_provider_decodes_identity_and_preserves_raw_evidence() -> None:
     assert identity.serial_number == 0x12345678
     assert identity.product_name == "Controller"
     assert identity.state == 3
+    assert identity.configuration_consistency_value is None
+    assert identity.heartbeat_interval is None
     assert identity.raw_payload_hex == PAYLOAD.hex()
     assert identity.raw_attributes["raw_reply_hex"] == b"raw".hex()
     assert identity.raw_attributes["adapter"] == "pycomm3"
@@ -110,10 +110,7 @@ def test_provider_decodes_identity_and_preserves_raw_evidence() -> None:
 
 def test_decodes_independently_verified_cpppo_response_fixture() -> None:
     fixture_path = (
-        Path(__file__).parent
-        / "data"
-        / "discovery"
-        / "cpppo-identity-response.json"
+        Path(__file__).parent / "data" / "discovery" / "cpppo-identity-response.json"
     )
     fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
     payload = bytes.fromhex(fixture["payload_hex"])
@@ -128,6 +125,14 @@ def test_decodes_independently_verified_cpppo_response_fixture() -> None:
     assert trailing.hex() == expected_trailing
     assert int.from_bytes(trailing[:2], "little") == 0
     assert trailing[2] == 0
+
+
+def test_decoder_preserves_incomplete_optional_identity_attribute() -> None:
+    decoded, trailing = decode_cip_identity(PAYLOAD + b"\x34")
+
+    assert decoded["configuration_consistency_value"] is None
+    assert decoded["heartbeat_interval"] is None
+    assert trailing == b"\x34"
 
 
 def test_provider_rejects_target_outside_exact_allowlist() -> None:

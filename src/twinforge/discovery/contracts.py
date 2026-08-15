@@ -58,9 +58,7 @@ class DiscoveryScope(BaseModel):
     engagement: str = Field(min_length=1)
     authorization_reference: str = Field(min_length=1)
     targets: tuple[DiscoveryTarget, ...] = Field(min_length=1)
-    operations: tuple[DiscoveryOperation, ...] = (
-        DiscoveryOperation.CIP_IDENTITY,
-    )
+    operations: tuple[DiscoveryOperation, ...] = (DiscoveryOperation.CIP_IDENTITY,)
 
     @field_validator("engagement", "authorization_reference")
     @classmethod
@@ -96,10 +94,10 @@ class CipIdentityObservation:
     serial_number: int
     product_name: str
     state: int | None = None
+    configuration_consistency_value: int | None = None
+    heartbeat_interval: int | None = None
     raw_payload_hex: str | None = None
-    raw_attributes: dict[str, str | int | bool | None] = field(
-        default_factory=dict
-    )
+    raw_attributes: dict[str, str | int | bool | None] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.captured_at.tzinfo is None:
@@ -115,6 +113,15 @@ class CipIdentityObservation:
         )
         if any(value < 0 for value in numeric):
             raise ValueError("CIP identity numeric fields must not be negative")
+        optional_numeric = (
+            self.state,
+            self.configuration_consistency_value,
+            self.heartbeat_interval,
+        )
+        if any(value is not None and value < 0 for value in optional_numeric):
+            raise ValueError(
+                "optional CIP identity numeric fields must not be negative"
+            )
 
 
 @dataclass(frozen=True)

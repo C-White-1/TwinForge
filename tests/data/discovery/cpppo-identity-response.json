@@ -23,10 +23,8 @@
     "serial_number": 305419896,
     "product_name": "TwinForge cpppo Lab",
     "state": 3,
-    "trailing_payload_hex": "000000"
-  },
-  "trailing_attributes": {
     "configuration_consistency_value": 0,
-    "heartbeat_interval": 0
+    "heartbeat_interval": 0,
+    "trailing_payload_hex": "000000"
   }
 }
