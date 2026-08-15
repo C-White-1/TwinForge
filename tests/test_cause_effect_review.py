@@ -8,11 +8,13 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
+from pydantic import ValidationError
 
 from twinforge.analysis import (
     CauseEffectCandidateReport,
     CauseEffectReviewDocument,
     CauseEffectReviewError,
+    CauseEffectReviewItem,
     apply_cause_effect_review,
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
@@ -160,3 +162,12 @@ def test_packaged_cause_effect_review_schema_accepts_example() -> None:
     )
 
     assert errors == []
+
+
+def test_relationship_review_rejects_explicit_null_assertion() -> None:
+    with pytest.raises(ValidationError, match="must not be null"):
+        CauseEffectReviewItem(
+            relationship_key="ce:0123456789abcdef01234567",
+            status="verified",
+            polarity=None,
+        )

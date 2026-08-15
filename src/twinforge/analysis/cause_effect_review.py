@@ -8,7 +8,7 @@ from importlib.resources import files
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .cause_effect import (
     CauseEvidence,
@@ -54,6 +54,19 @@ class CauseEffectReviewItem(BaseModel):
         if not stripped:
             raise ValueError("cause-and-effect review strings must not be blank")
         return stripped
+
+    @model_validator(mode="after")
+    def asserted_fields_must_not_be_null(self) -> CauseEffectReviewItem:
+        asserted = self.model_fields_set - {"relationship_key", "status"}
+        null_fields = sorted(
+            name for name in asserted if getattr(self, name) is None
+        )
+        if null_fields:
+            raise ValueError(
+                "explicit relationship review fields must not be null: "
+                + ", ".join(null_fields)
+            )
+        return self
 
 
 class CauseEffectReviewDocument(BaseModel):

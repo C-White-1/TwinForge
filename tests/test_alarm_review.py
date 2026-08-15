@@ -151,6 +151,12 @@ def test_review_contract_rejects_naive_time_duplicate_keys_and_empty_rows() -> N
         _review(items=(duplicate, duplicate))
     with pytest.raises(ValidationError, match="at least one"):
         AlarmReviewItem(tag_key="controller:PT102_HH_Alm")
+    with pytest.raises(ValidationError, match="must not be null"):
+        AlarmReviewItem(
+            tag_key="controller:PT102_HH_Alm",
+            priority="High",
+            setpoint=None,
+        )
 
 
 def test_packaged_alarm_review_schema_accepts_example() -> None:

@@ -57,8 +57,16 @@ class AlarmReviewItem(BaseModel):
     @model_validator(mode="after")
     def must_assert_at_least_one_review_field(self) -> AlarmReviewItem:
         asserted = self.model_fields_set - {"tag_key"}
-        if not asserted or all(getattr(self, name) is None for name in asserted):
+        if not asserted:
             raise ValueError("each review item must assert at least one field")
+        null_fields = sorted(
+            name for name in asserted if getattr(self, name) is None
+        )
+        if null_fields:
+            raise ValueError(
+                "explicit review fields must not be null: "
+                + ", ".join(null_fields)
+            )
         return self
 
 

@@ -88,6 +88,9 @@ The installed package also carries the machine-readable Draft 2020-12 schema
 tools may validate review documents against it before submitting them to
 TwinForge. Runtime validation remains authoritative because it also checks
 controller identity and exact candidate keys against the parsed L5X evidence.
+Explicit `null` review assertions are rejected rather than being interpreted as
+instructions to erase existing evidence; omit a field when no assertion is
+being made.
 
 Cause-and-effect CSV, Markdown, and JSON rows carry an opaque deterministic
 `relationship_key`. It is derived from the effect write, cause operand, source
