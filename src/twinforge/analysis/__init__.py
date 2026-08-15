@@ -39,11 +39,20 @@ from .cyclic_io import (
 from .cause_effect import (
     CauseEffectCandidate,
     CauseEffectCandidateReport,
+    CauseEffectReviewProvenance,
     CauseEvidence,
     UnresolvedCauseEvidence,
     build_cause_effect_candidate_report,
     cause_effect_candidate_report_data,
     cause_effect_candidate_report_json,
+)
+from .cause_effect_review import (
+    CauseEffectReviewDocument,
+    CauseEffectReviewError,
+    CauseEffectReviewItem,
+    apply_cause_effect_review,
+    cause_effect_review_schema_text,
+    load_cause_effect_review,
 )
 from .conversion_readiness import (
     ConversionDisposition,
@@ -191,6 +200,10 @@ __all__ = [
     "CyclicIOImage",
     "CauseEffectCandidate",
     "CauseEffectCandidateReport",
+    "CauseEffectReviewDocument",
+    "CauseEffectReviewError",
+    "CauseEffectReviewItem",
+    "CauseEffectReviewProvenance",
     "CauseEvidence",
     "ConversionDisposition",
     "ConversionReadinessItem",
@@ -271,6 +284,8 @@ __all__ = [
     "build_device_functional_description",
     "build_io_list_report",
     "build_cause_effect_candidate_report",
+    "apply_cause_effect_review",
+    "cause_effect_review_schema_text",
     "build_controller_functional_description",
     "extract_structured_text_calls",
     "discover_external_references",
@@ -286,6 +301,7 @@ __all__ = [
     "io_list_report_data",
     "io_list_report_json",
     "load_alarm_review",
+    "load_cause_effect_review",
     "module_schedule_report_data",
     "module_schedule_report_json",
     "message_instruction_analysis_data",

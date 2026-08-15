@@ -9,6 +9,7 @@ from typing import TextIO
 from twinforge.analysis import (
     alarm_trip_candidate_report_json,
     apply_alarm_review,
+    apply_cause_effect_review,
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
     build_controller_functional_description,
@@ -17,6 +18,7 @@ from twinforge.analysis import (
     build_tag_dependency_graph,
     io_list_report_json,
     load_alarm_review,
+    load_cause_effect_review,
     module_schedule_report_json,
     cause_effect_candidate_report_json,
     discover_external_references,
@@ -52,6 +54,7 @@ def export_l5x_reports(
     *,
     destination: Path,
     alarm_review_path: Path | None = None,
+    cause_effect_review_path: Path | None = None,
     stdout: TextIO,
 ) -> None:
     """Generate the supported controller report bundle at ``destination``."""
@@ -77,6 +80,11 @@ def export_l5x_reports(
         cause_effect = build_cause_effect_candidate_report(
             alarm_candidates, dependency_graph
         )
+        if cause_effect_review_path is not None:
+            cause_effect = apply_cause_effect_review(
+                cause_effect,
+                load_cause_effect_review(cause_effect_review_path),
+            )
         functional_description = build_controller_functional_description(
             controller,
             dependency_graph,

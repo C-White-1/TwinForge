@@ -1,0 +1,19 @@
+{
+  "schema_version": "twinforge.cause-effect-review.v1",
+  "controller_name": "ExampleController",
+  "reviewed_by": "Control systems engineer",
+  "reviewed_at": "2026-08-15T10:00:00+10:00",
+  "authority_reference": "ALARM-PHILOSOPHY-001",
+  "source_reference": "Cause-and-effect drawing CE-001 revision A",
+  "items": [
+    {
+      "relationship_key": "ce:0123456789abcdef01234567",
+      "status": "verified",
+      "polarity": "Cause true initiates effect",
+      "voting": "1oo1",
+      "delay": "2 s",
+      "operating_modes": "Running and starting",
+      "shutdown_action": "Trip compressor"
+    }
+  ]
+}

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from datetime import datetime
+from hashlib import sha256
 
 from .alarm_candidates import (
     AlarmTripCandidateKind,
@@ -21,20 +23,45 @@ from .tag_dependencies import (
 class CauseEvidence:
     """One resolved tag read at the same source location as an effect write."""
 
+    relationship_key: str
     tag_key: str
     tag_name: str
     member_path: str | None
     instruction: str
     operand: str
+    review_status: str = "unreviewed"
+    polarity: str | None = None
+    voting: str | None = None
+    delay: str | None = None
+    operating_modes: str | None = None
+    shutdown_action: str | None = None
 
 
 @dataclass(frozen=True)
 class UnresolvedCauseEvidence:
     """One unresolved operand retained at an effect's source location."""
 
+    relationship_key: str
     identifier: str
     instruction: str
     operand: str
+    review_status: str = "unreviewed"
+    polarity: str | None = None
+    voting: str | None = None
+    delay: str | None = None
+    operating_modes: str | None = None
+    shutdown_action: str | None = None
+
+
+@dataclass(frozen=True)
+class CauseEffectReviewProvenance:
+    """Attribution for a separately supplied engineering review overlay."""
+
+    reviewed_by: str
+    reviewed_at: datetime
+    authority_reference: str
+    source_reference: str
+    applied_relationship_keys: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -61,6 +88,7 @@ class CauseEffectCandidateReport:
 
     controller_name: str
     candidates: tuple[CauseEffectCandidate, ...]
+    review: CauseEffectReviewProvenance | None = None
 
 
 def build_cause_effect_candidate_report(
@@ -78,7 +106,7 @@ def build_cause_effect_candidate_report(
         }:
             continue
         causes = tuple(
-            _cause(item)
+            _cause(item, writer)
             for item in graph.references
             if _same_location(item, writer)
             and item.tag_key != writer.tag_key
@@ -88,7 +116,7 @@ def build_cause_effect_candidate_report(
             }
         )
         unresolved = tuple(
-            _unresolved_cause(item)
+            _unresolved_cause(item, writer)
             for item in graph.unresolved_references
             if _same_location(item, writer)
         )
@@ -120,6 +148,14 @@ def cause_effect_candidate_report_data(
     """Return deterministic JSON-compatible candidate data."""
     return {
         "controller_name": report.controller_name,
+        "review": (
+            {
+                **asdict(report.review),
+                "reviewed_at": report.review.reviewed_at.isoformat(),
+            }
+            if report.review is not None
+            else None
+        ),
         "candidates": [
             {
                 **asdict(item),
@@ -154,8 +190,15 @@ def _same_location(
     )
 
 
-def _cause(item: TagReference) -> CauseEvidence:
+def _cause(item: TagReference, writer: TagReference) -> CauseEvidence:
     return CauseEvidence(
+        relationship_key=_relationship_key(
+            writer,
+            cause_status="resolved",
+            cause_operand=item.operand,
+            cause_instruction=item.instruction,
+            cause_identity=(item.tag_key, item.member_path),
+        ),
         tag_key=item.tag_key,
         tag_name=item.tag_name,
         member_path=item.member_path,
@@ -164,8 +207,18 @@ def _cause(item: TagReference) -> CauseEvidence:
     )
 
 
-def _unresolved_cause(item: UnresolvedTagReference) -> UnresolvedCauseEvidence:
+def _unresolved_cause(
+    item: UnresolvedTagReference,
+    writer: TagReference,
+) -> UnresolvedCauseEvidence:
     return UnresolvedCauseEvidence(
+        relationship_key=_relationship_key(
+            writer,
+            cause_status="unresolved",
+            cause_operand=item.operand,
+            cause_instruction=item.instruction,
+            cause_identity=(item.identifier, None),
+        ),
         identifier=item.identifier,
         instruction=item.instruction,
         operand=item.operand,
@@ -194,3 +247,35 @@ def _candidate_key(item: CauseEffectCandidate) -> tuple[object, ...]:
         item.effect_tag_key,
         item.writer_instruction,
     )
+
+
+def _relationship_key(
+    writer: TagReference,
+    *,
+    cause_status: str,
+    cause_operand: str,
+    cause_instruction: str,
+    cause_identity: tuple[str, str | None],
+) -> str:
+    """Return a stable opaque identity for one exact matrix relationship."""
+
+    identity = json.dumps(
+        {
+            "program": writer.program_name,
+            "routine": writer.routine_name,
+            "rung": writer.rung_number,
+            "line": writer.line_number,
+            "effect_tag_key": writer.tag_key,
+            "write_instruction": writer.instruction,
+            "write_operand": writer.operand,
+            "cause_status": cause_status,
+            "cause_operand": cause_operand,
+            "cause_instruction": cause_instruction,
+            "cause_identity": cause_identity,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    digest = sha256(identity.encode("utf-8")).hexdigest()[:24]
+    return f"ce:{digest}"

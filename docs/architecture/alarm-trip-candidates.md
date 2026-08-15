@@ -83,3 +83,24 @@ The installed package also carries the machine-readable Draft 2020-12 schema
 tools may validate review documents against it before submitting them to
 TwinForge. Runtime validation remains authoritative because it also checks
 controller identity and exact candidate keys against the parsed L5X evidence.
+
+Cause-and-effect CSV, Markdown, and JSON rows carry an opaque deterministic
+`relationship_key`. It is derived from the effect write, cause operand, source
+location, instructions, and resolution status. Review tooling should use this
+key rather than tag names: the same tags may participate in more than one
+relationship or occur at multiple logic locations.
+
+The optional `--cause-effect-review` document uses schema version
+`twinforge.cause-effect-review.v1` and exact relationship keys from a previous
+report. Each assertion records a `verified` or `rejected` disposition and may
+add polarity, voting, delay, operating modes, and shutdown action. TwinForge
+rejects unknown keys and will not verify an unresolved operand. Partial review
+is allowed, remains visibly attributable, and leaves every omitted relationship
+as `unreviewed`. A template is provided at
+`examples/reporting/cause-effect-review.example.json`.
+
+Its packaged Draft 2020-12 schema is
+`twinforge.schemas/cause-effect-review.v1.schema.json`. Schema validation can
+check document shape independently; runtime application remains authoritative
+for controller matching, known relationship keys, and the rule that unresolved
+relationships cannot be verified.

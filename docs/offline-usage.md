@@ -195,6 +195,21 @@ controller name, exact candidate keys, review assertions, and provenance with
 the approved project information. TwinForge rejects unknown candidates and
 does not alter the source L5X.
 
+After first generating the cause-and-effect matrix and obtaining its exact
+relationship keys, a separately attributable relationship review may be
+applied as well:
+
+```powershell
+uv run twinforge report project.L5X `
+  --output reports\project-reviewed `
+  --alarm-review alarm-review.json `
+  --cause-effect-review cause-effect-review.json
+```
+
+Use `examples/reporting/cause-effect-review.example.json` as the starting
+contract. Unknown keys fail closed, and unresolved operands cannot be marked
+as verified.
+
 The bundle includes review-oriented Markdown, complete CSV, and deterministic
 JSON reports for tag dependencies and explicitly labelled alarm/trip candidates.
 It also includes a channel-level I/O list covering explicit assignments, spare

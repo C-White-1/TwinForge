@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/cause-effect-review.v1.schema.json",
+  "title": "TwinForge cause-and-effect engineering review overlay v1",
+  "description": "Attributable dispositions for exact inferred relationship keys without replacing source evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "controller_name", "reviewed_by", "reviewed_at", "authority_reference", "source_reference", "items"],
+  "properties": {
+    "schema_version": { "const": "twinforge.cause-effect-review.v1" },
+    "controller_name": { "type": "string", "minLength": 1 },
+    "reviewed_by": { "type": "string", "minLength": 1 },
+    "reviewed_at": { "type": "string", "format": "date-time" },
+    "authority_reference": { "type": "string", "minLength": 1 },
+    "source_reference": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewItem" }
+    }
+  },
+  "$defs": {
+    "assertion": { "type": "string", "minLength": 1 },
+    "reviewItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relationship_key", "status"],
+      "properties": {
+        "relationship_key": {
+          "type": "string",
+          "pattern": "^ce:[0-9a-f]{24}$"
+        },
+        "status": { "enum": ["verified", "rejected"] },
+        "polarity": { "$ref": "#/$defs/assertion" },
+        "voting": { "$ref": "#/$defs/assertion" },
+        "delay": { "$ref": "#/$defs/assertion" },
+        "operating_modes": { "$ref": "#/$defs/assertion" },
+        "shutdown_action": { "$ref": "#/$defs/assertion" }
+      }
+    }
+  }
+}

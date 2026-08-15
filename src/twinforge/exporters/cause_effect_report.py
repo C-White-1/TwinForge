@@ -31,18 +31,27 @@ class CauseEffectCandidateMarkdownExporter:
             "",
             f"- Effect write locations: {len(report.candidates)}",
             f"- Matrix rows: {rows}",
-            "- Verified causal relationships: 0",
+            "- Verified causal relationships: "
+            f"{sum(cause.review_status == 'verified' for item in report.candidates for cause in item.causes)}",
             "",
-            "| Cause | Cause status | Effect | Effect kind | Program | Routine | "
-            "Location | Read instruction | Write instruction | Evidence | Verified |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Relationship key | Cause | Cause status | Effect | Effect kind | Program | Routine | "
+            "Location | Read instruction | Write instruction | Evidence | Review status |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
+        if report.review is not None:
+            lines[8:8] = [
+                f"- Reviewed by: {report.review.reviewed_by}",
+                f"- Reviewed at: {report.review.reviewed_at.isoformat()}",
+                f"- Review authority: {report.review.authority_reference}",
+                f"- Review source: {report.review.source_reference}",
+            ]
         for item in report.candidates:
             location = _location(item.rung_number, item.line_number)
             effect_kinds = ", ".join(kind.value for kind in item.effect_kinds)
             if not item.causes and not item.unresolved_causes:
                 lines.append(
                     _row(
+                        "—",
                         "—",
                         "not observed",
                         item.effect_tag_name,
@@ -53,12 +62,14 @@ class CauseEffectCandidateMarkdownExporter:
                         "—",
                         item.writer_instruction,
                         item.evidence_basis,
+                        "unreviewed",
                     )
                 )
             for cause in item.causes:
                 name = cause.tag_name + (cause.member_path or "")
                 lines.append(
                     _row(
+                        cause.relationship_key,
                         name,
                         "resolved",
                         item.effect_tag_name,
@@ -69,11 +80,13 @@ class CauseEffectCandidateMarkdownExporter:
                         cause.instruction,
                         item.writer_instruction,
                         item.evidence_basis,
+                        cause.review_status,
                     )
                 )
             for cause in item.unresolved_causes:
                 lines.append(
                     _row(
+                        cause.relationship_key,
                         cause.identifier,
                         "unresolved",
                         item.effect_tag_name,
@@ -84,6 +97,7 @@ class CauseEffectCandidateMarkdownExporter:
                         cause.instruction,
                         item.writer_instruction,
                         item.evidence_basis,
+                        cause.review_status,
                     )
                 )
         return "\n".join(lines).rstrip() + "\n"
@@ -93,6 +107,7 @@ class CauseEffectCandidateCSVExporter:
     """Render one matrix row per resolved or unresolved cause candidate."""
 
     _FIELDS: tuple[str, ...] = (
+        "RelationshipKey",
         "CauseTagKey",
         "Cause",
         "CauseStatus",
@@ -108,6 +123,16 @@ class CauseEffectCandidateCSVExporter:
         "WriteInstruction",
         "EvidenceBasis",
         "CausalRelationshipVerified",
+        "ReviewStatus",
+        "Polarity",
+        "Voting",
+        "Delay",
+        "OperatingModes",
+        "ShutdownAction",
+        "ReviewedBy",
+        "ReviewedAt",
+        "ReviewAuthorityReference",
+        "ReviewSourceReference",
     )
 
     def export(self, report: CauseEffectCandidateReport) -> str:
@@ -127,38 +152,72 @@ class CauseEffectCandidateCSVExporter:
                 "WriteInstruction": item.writer_instruction,
                 "EvidenceBasis": item.evidence_basis,
                 "CausalRelationshipVerified": "false",
+                "ReviewedBy": report.review.reviewed_by if report.review else "",
+                "ReviewedAt": (
+                    report.review.reviewed_at.isoformat() if report.review else ""
+                ),
+                "ReviewAuthorityReference": (
+                    report.review.authority_reference if report.review else ""
+                ),
+                "ReviewSourceReference": (
+                    report.review.source_reference if report.review else ""
+                ),
             }
             if not item.causes and not item.unresolved_causes:
                 writer.writerow(
                     {
                         **common,
+                        "RelationshipKey": "",
                         "CauseTagKey": "",
                         "Cause": "",
                         "CauseStatus": "not_observed",
                         "CauseOperand": "",
                         "ReadInstruction": "",
+                        "ReviewStatus": "unreviewed",
+                        "Polarity": "",
+                        "Voting": "",
+                        "Delay": "",
+                        "OperatingModes": "",
+                        "ShutdownAction": "",
                     }
                 )
             for cause in item.causes:
                 writer.writerow(
                     {
                         **common,
+                        "RelationshipKey": cause.relationship_key,
                         "CauseTagKey": cause.tag_key,
                         "Cause": cause.tag_name + (cause.member_path or ""),
                         "CauseStatus": "resolved",
                         "CauseOperand": cause.operand,
                         "ReadInstruction": cause.instruction,
+                        "CausalRelationshipVerified": str(
+                            cause.review_status == "verified"
+                        ).lower(),
+                        "ReviewStatus": cause.review_status,
+                        "Polarity": cause.polarity or "",
+                        "Voting": cause.voting or "",
+                        "Delay": cause.delay or "",
+                        "OperatingModes": cause.operating_modes or "",
+                        "ShutdownAction": cause.shutdown_action or "",
                     }
                 )
             for cause in item.unresolved_causes:
                 writer.writerow(
                     {
                         **common,
+                        "RelationshipKey": cause.relationship_key,
                         "CauseTagKey": "",
                         "Cause": cause.identifier,
                         "CauseStatus": "unresolved",
                         "CauseOperand": cause.operand,
                         "ReadInstruction": cause.instruction,
+                        "ReviewStatus": cause.review_status,
+                        "Polarity": cause.polarity or "",
+                        "Voting": cause.voting or "",
+                        "Delay": cause.delay or "",
+                        "OperatingModes": cause.operating_modes or "",
+                        "ShutdownAction": cause.shutdown_action or "",
                     }
                 )
         return stream.getvalue()

@@ -145,6 +145,8 @@ own project-directory and `.ld` JSON representation.
 - [ ] Cause-and-effect matrix
   - [x] Export same-location read/write candidates with resolved and unresolved
     evidence and an explicit unverified-causality state
+  - [x] Assign deterministic relationship identities and apply attributable,
+    fail-closed engineering dispositions without replacing inferred evidence
   - [ ] Validate polarity, voting, delays, operating modes, and shutdown actions
     against process design and the applicable alarm philosophy
 - [x] PowerFlex device functional-description draft

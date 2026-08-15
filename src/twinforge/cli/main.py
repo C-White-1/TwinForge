@@ -78,6 +78,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Optional versioned JSON alarm/trip engineering review overlay.",
     )
+    report_l5x_command.add_argument(
+        "--cause-effect-review",
+        type=Path,
+        help="Optional versioned JSON cause-and-effect engineering review overlay.",
+    )
 
     export_l5x_command = commands.add_parser(
         "export",
@@ -439,6 +444,7 @@ def main(
                 arguments.path,
                 destination=arguments.output,
                 alarm_review_path=arguments.alarm_review,
+                cause_effect_review_path=arguments.cause_effect_review,
                 stdout=output,
             )
         elif arguments.command == "export":
