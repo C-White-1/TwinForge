@@ -210,6 +210,12 @@ Use `examples/reporting/cause-effect-review.example.json` as the starting
 contract. Unknown keys fail closed, and unresolved operands cannot be marked
 as verified.
 
+Each generated bundle includes `report_manifest.json`. It records SHA-256
+digests and byte sizes for the source L5X, any applied review overlays, and
+every other generated report. The manifest intentionally omits timestamps and
+does not hash itself, avoiding circular content while keeping identical inputs
+reproducible.
+
 Export the exact schemas installed with the active TwinForge version when
 configuring an editor, CI job, or MCP client:
 

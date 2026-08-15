@@ -36,6 +36,7 @@ from twinforge.exporters import (
     ExternalReferenceMarkdownExporter,
     EngineeringReviewCoverageMarkdownExporter,
     EngineeringReviewCoverageCSVExporter,
+    engineering_report_manifest_json,
     IOListCSVExporter,
     IOListMarkdownExporter,
     ModuleScheduleCSVExporter,
@@ -181,6 +182,12 @@ def export_l5x_reports(
                     external_references
                 ),
             }
+        )
+        files["report_manifest.json"] = engineering_report_manifest_json(
+            source,
+            files,
+            alarm_review=alarm_review_path,
+            cause_effect_review=cause_effect_review_path,
         )
         paths = TextReportBundle(files).write_to(destination)
     except L5XReportError:

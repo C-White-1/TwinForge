@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+from hashlib import sha256
 from io import StringIO
 from pathlib import Path
 
@@ -48,6 +49,7 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "engineering_review_coverage.md",
         "engineering_review_coverage.csv",
         "engineering_review_coverage.json",
+        "report_manifest.json",
         "functional_description.md",
         "module_schedule.md",
         "module_schedule.csv",
@@ -55,7 +57,7 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "external_references.md",
         "external_references.json",
     }
-    assert "Exported 28 reports" in output.getvalue()
+    assert "Exported 29 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(encoding="utf-8")
     dependency_report = (destination / "tag_dependencies.md").read_text(
         encoding="utf-8"
@@ -99,6 +101,30 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     }
     assert all(
         row["ExplicitlyReviewed"] == "false" for row in coverage_rows
+    )
+    manifest = json.loads(
+        (destination / "report_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["schema_version"] == (
+        "twinforge.engineering-report-manifest.v1"
+    )
+    assert manifest["inputs"] == [
+        {
+            "kind": "l5x",
+            "name": CONTROLLER.name,
+            "sha256": sha256(CONTROLLER.read_bytes()).hexdigest(),
+            "size_bytes": CONTROLLER.stat().st_size,
+        }
+    ]
+    alarm_entry = next(
+        item
+        for item in manifest["reports"]
+        if item["name"] == "alarm_trip_candidates.json"
+    )
+    alarm_content = (destination / alarm_entry["name"]).read_bytes()
+    assert alarm_entry["sha256"] == sha256(alarm_content).hexdigest()
+    assert not any(
+        item["name"] == "report_manifest.json" for item in manifest["reports"]
     )
     functional_description = (destination / "functional_description.md").read_text(
         encoding="utf-8"

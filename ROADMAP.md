@@ -149,6 +149,8 @@ own project-directory and `.ld` JSON representation.
     fail-closed engineering dispositions without replacing inferred evidence
   - [x] Report review coverage and remaining field gaps without implying
     engineering approval
+  - [x] Emit a deterministic integrity manifest for source evidence, review
+    overlays, and generated engineering reports
   - [ ] Validate polarity, voting, delays, operating modes, and shutdown actions
     against process design and the applicable alarm philosophy
 - [x] PowerFlex device functional-description draft

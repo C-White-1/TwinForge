@@ -23,7 +23,7 @@ class TextReportBundle:
         written: list[Path] = []
         for filename, content in self.files.items():
             path = destination / filename
-            path.write_text(content, encoding="utf-8")
+            path.write_text(content, encoding="utf-8", newline="")
             written.append(path)
         return tuple(written)
 
