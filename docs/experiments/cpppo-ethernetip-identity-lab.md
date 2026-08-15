@@ -177,14 +177,20 @@ The installed TwinForge CLI was also verified through both paths:
 
 ### Gate 2 status
 
-Wireshark installation metadata reported version 4.6.0 on the Windows test
-host. However, both `tshark.exe` and `dumpcap.exe` hung before printing their
-version or interface list. Their processes were allowed to exit or explicitly
-stopped, and no packet capture was claimed. This is currently a local capture
-tooling issue, not evidence of a TwinForge or EtherNet/IP failure.
+Wireshark was updated to 4.6.8 with Npcap 1.88. TShark then reported its
+version and enumerated `\Device\NPF_Loopback` as interface 7 with the BSD
+loopback link type. Two controlled captures completed while the bounded CIP
+request succeeded, but both reported zero captured packets. Their 460-byte
+pcapng files contained only capture metadata and were deleted.
 
-After repairing or restarting Wireshark/Npcap, enumerate interfaces with the
-full executable path because the installation is not currently on `PATH`:
+Npcap's service reported `Running`. Windows Packet Monitor could not
+communicate with its driver, and Wireshark's ETW backend did not enumerate a
+usable fallback. No packet-level validation is therefore claimed. This is a
+local packet-visibility issue rather than evidence of a TwinForge or
+EtherNet/IP failure.
+
+After restarting Windows or repairing Npcap loopback support, enumerate
+interfaces with the full executable path because Wireshark is not on `PATH`:
 
 ```powershell
 & "C:\Program Files\Wireshark\tshark.exe" -D
