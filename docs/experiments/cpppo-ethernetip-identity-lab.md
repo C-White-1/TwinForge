@@ -99,6 +99,72 @@ The following upstream capabilities are out of scope:
 5. Record startup configuration and a SHA-256 checksum for every retained
    fixture.
 
+TwinForge pins `cpppo==5.2.5` in the optional `cip-sim` dependency group. The
+package is dual-licensed under GPL-3.0-or-later or a commercial licence; it is
+therefore isolated from TwinForge's runtime dependencies and is not vendored.
+Install the laboratory dependency explicitly:
+
+```powershell
+uv sync --group cip-sim
+```
+
+Start the deterministic synthetic simulator from the repository root:
+
+```powershell
+uv run --group cip-sim python `
+  examples/discovery/run_cpppo_identity_lab.py
+```
+
+The launcher clears cpppo's ambient configuration search list before loading
+only `cpppo_identity_lab.cfg`. This is necessary because cpppo 5.2.5's
+`--config-basename` changes its configuration name but does not rebuild the
+already initialized search list. The launcher binds TCP to loopback only and
+disables the additional UDP listener. In a second terminal, make the one
+authorized request through TwinForge's actual adapter:
+
+```powershell
+uv run python examples/discovery/capture_cpppo_identity.py --execute `
+  --output cpppo-identity-snapshot.json
+```
+
+Omitting `--execute` exits before constructing the provider or opening a
+socket. The output path is intentionally operator-selected; live evidence is
+not a checked-in fixture until Gate 4 review is complete.
+
+### Gate 1 result
+
+Gate 1 completed successfully on 2026-08-15 with `cpppo==5.2.5` and
+`pycomm3==1.2.16`. TwinForge made one unconnected Identity Object
+`Get_Attributes_All` request and observed the configured synthetic values:
+
+| Field | Observed value |
+| --- | --- |
+| Vendor ID | `0` |
+| Device type | `0` |
+| Product code | `4242` |
+| Revision | `1.2` |
+| Status | `0` |
+| Serial number | `305419896` (`0x12345678`) |
+| Product name | `TwinForge cpppo Lab` |
+| State | `3` |
+
+The observation retained the Identity payload, encapsulated raw reply, three
+trailing payload bytes, adapter version, service, class, instance, and request
+number. The fixture SHA-256 is
+`5a2a132a022fda4f08277c8ce0dc4d73692ab0d7033bed3cef7efce2b9f85d97`.
+
+Two negative observations were also retained during setup:
+
+- cpppo's packaged default Identity was returned when its
+  `--config-basename` option failed to replace the initialized search list;
+  the dedicated launcher now clears that list; and
+- hexadecimal integer text in the INI file caused cpppo to close the session;
+  the fixture now uses decimal values accepted by `ConfigParser.getint`.
+
+This verifies the reproducible simulator and TwinForge adapter interaction.
+It does not complete Gate 2: the transaction still requires an independent
+packet decode before the roadmap compatibility item can be checked.
+
 ### Gate 2: independent protocol baseline
 
 1. Capture simulator startup and one known-good identity transaction.
