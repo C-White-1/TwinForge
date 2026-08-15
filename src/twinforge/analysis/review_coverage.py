@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
+from importlib.resources import files
 
 from .alarm_candidates import AlarmTripCandidateReport
 from .cause_effect import CauseEffectCandidateReport
@@ -20,6 +21,15 @@ _ALARM_REVIEW_FIELDS = (
     "shutdown_action",
     "applicability",
 )
+
+
+def engineering_review_coverage_schema_text() -> str:
+    """Return the packaged engineering-review coverage v1 JSON Schema."""
+
+    schema = files("twinforge.schemas").joinpath(
+        "engineering-review-coverage.v1.schema.json"
+    )
+    return schema.read_text(encoding="utf-8")
 
 
 @dataclass(frozen=True)
@@ -131,6 +141,7 @@ def engineering_review_coverage_data(
 
     relationships = coverage.cause_effect_relationships
     return {
+        "schema_version": "twinforge.engineering-review-coverage.v1",
         "controller_name": coverage.controller_name,
         "summary": {
             "alarm_candidate_count": len(coverage.alarm_candidates),

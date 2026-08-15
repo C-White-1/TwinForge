@@ -161,6 +161,7 @@ from .review_coverage import (
     build_engineering_review_coverage,
     engineering_review_coverage_data,
     engineering_review_coverage_json,
+    engineering_review_coverage_schema_text,
 )
 from .io_list import (
     IOChannel,
@@ -300,6 +301,7 @@ __all__ = [
     "cause_effect_review_schema_text",
     "engineering_review_coverage_data",
     "engineering_review_coverage_json",
+    "engineering_review_coverage_schema_text",
     "build_controller_functional_description",
     "extract_structured_text_calls",
     "discover_external_references",

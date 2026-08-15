@@ -8,6 +8,7 @@ from typing import TextIO
 from twinforge.analysis import (
     alarm_review_schema_text,
     cause_effect_review_schema_text,
+    engineering_review_coverage_schema_text,
 )
 
 
@@ -20,6 +21,10 @@ _SCHEMAS = {
     "cause-effect": (
         "cause-and-effect review v1",
         cause_effect_review_schema_text,
+    ),
+    "coverage": (
+        "engineering-review coverage v1",
+        engineering_review_coverage_schema_text,
     ),
 }
 

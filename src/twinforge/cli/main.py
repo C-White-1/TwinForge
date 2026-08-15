@@ -261,7 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_schema.add_argument(
         "kind",
-        choices=("alarm", "cause-effect"),
+        choices=("alarm", "cause-effect", "coverage"),
         help="Review contract to export.",
     )
     review_schema.add_argument(

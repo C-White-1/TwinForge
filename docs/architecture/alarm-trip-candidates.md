@@ -112,3 +112,12 @@ rejected, unreviewed, and unresolved relationships. The CSV provides a stable
 spreadsheet-oriented view but is still generated evidence, not a review input.
 Coverage is deliberately not labelled approval: completion and safety
 acceptance remain engineering governance decisions.
+
+The JSON coverage document uses schema version
+`twinforge.engineering-review-coverage.v1`. Export its installed Draft 2020-12
+schema with:
+
+```powershell
+uv run twinforge review schema coverage `
+  --output schemas\engineering-review-coverage.v1.schema.json
+```

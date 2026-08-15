@@ -19,6 +19,11 @@ from twinforge.cli import main
             "twinforge.cause-effect-review.v1",
             "cause-and-effect review v1",
         ),
+        (
+            "coverage",
+            "twinforge.engineering-review-coverage.v1",
+            "engineering-review coverage v1",
+        ),
     ),
 )
 def test_exports_installed_review_schema(

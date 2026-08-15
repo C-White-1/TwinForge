@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/engineering-review-coverage.v1.schema.json",
+  "title": "TwinForge engineering-review coverage v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "controller_name",
+    "summary",
+    "alarm_candidates",
+    "cause_effect_relationships"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "twinforge.engineering-review-coverage.v1"
+    },
+    "controller_name": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alarm_candidate_count",
+        "reviewed_alarm_count",
+        "complete_alarm_count",
+        "relationship_count",
+        "verified_relationship_count",
+        "rejected_relationship_count",
+        "unreviewed_relationship_count",
+        "unresolved_relationship_count"
+      ],
+      "properties": {
+        "alarm_candidate_count": { "$ref": "#/$defs/count" },
+        "reviewed_alarm_count": { "$ref": "#/$defs/count" },
+        "complete_alarm_count": { "$ref": "#/$defs/count" },
+        "relationship_count": { "$ref": "#/$defs/count" },
+        "verified_relationship_count": { "$ref": "#/$defs/count" },
+        "rejected_relationship_count": { "$ref": "#/$defs/count" },
+        "unreviewed_relationship_count": { "$ref": "#/$defs/count" },
+        "unresolved_relationship_count": { "$ref": "#/$defs/count" }
+      }
+    },
+    "alarm_candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/alarmCandidate" }
+    },
+    "cause_effect_relationships": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/relationship" }
+    }
+  },
+  "$defs": {
+    "count": { "type": "integer", "minimum": 0 },
+    "alarmCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag_key", "reviewed", "missing_fields"],
+      "properties": {
+        "tag_key": { "type": "string", "minLength": 1 },
+        "reviewed": { "type": "boolean" },
+        "missing_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "priority",
+              "setpoint",
+              "engineering_unit",
+              "delay",
+              "latching",
+              "acknowledgement",
+              "suppression",
+              "shutdown_action",
+              "applicability"
+            ]
+          }
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relationship_key", "cause_status", "review_status"],
+      "properties": {
+        "relationship_key": {
+          "type": "string",
+          "pattern": "^ce:[0-9a-f]{24}$"
+        },
+        "cause_status": { "enum": ["resolved", "unresolved"] },
+        "review_status": { "enum": ["unreviewed", "verified", "rejected"] }
+      }
+    }
+  }
+}
