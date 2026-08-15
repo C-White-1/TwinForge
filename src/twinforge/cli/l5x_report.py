@@ -35,6 +35,7 @@ from twinforge.exporters import (
     ControllerFunctionalDescriptionMarkdownExporter,
     ExternalReferenceMarkdownExporter,
     EngineeringReviewCoverageMarkdownExporter,
+    EngineeringReviewCoverageCSVExporter,
     IOListCSVExporter,
     IOListMarkdownExporter,
     ModuleScheduleCSVExporter,
@@ -143,6 +144,11 @@ def export_l5x_reports(
                 ),
                 "engineering_review_coverage.md": (
                     EngineeringReviewCoverageMarkdownExporter().export(
+                        review_coverage
+                    )
+                ),
+                "engineering_review_coverage.csv": (
+                    EngineeringReviewCoverageCSVExporter().export(
                         review_coverage
                     )
                 ),

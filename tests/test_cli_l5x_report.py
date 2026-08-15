@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 from io import StringIO
 from pathlib import Path
@@ -45,6 +46,7 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "cause_effect_candidates.csv",
         "cause_effect_candidates.json",
         "engineering_review_coverage.md",
+        "engineering_review_coverage.csv",
         "engineering_review_coverage.json",
         "functional_description.md",
         "module_schedule.md",
@@ -53,7 +55,7 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
         "external_references.md",
         "external_references.json",
     }
-    assert "Exported 27 reports" in output.getvalue()
+    assert "Exported 28 reports" in output.getvalue()
     assert "1756-IB16" in (destination / "modules.txt").read_text(encoding="utf-8")
     dependency_report = (destination / "tag_dependencies.md").read_text(
         encoding="utf-8"
@@ -82,6 +84,22 @@ def test_report_writes_controller_engineering_bundle(tmp_path: Path) -> None:
     )
     assert review_coverage["summary"]["reviewed_alarm_count"] == 0
     assert review_coverage["summary"]["verified_relationship_count"] == 0
+    coverage_rows = list(
+        csv.DictReader(
+            StringIO(
+                (destination / "engineering_review_coverage.csv").read_text(
+                    encoding="utf-8"
+                )
+            )
+        )
+    )
+    assert {row["RecordType"] for row in coverage_rows} == {
+        "alarm_candidate",
+        "cause_effect_relationship",
+    }
+    assert all(
+        row["ExplicitlyReviewed"] == "false" for row in coverage_rows
+    )
     functional_description = (destination / "functional_description.md").read_text(
         encoding="utf-8"
     )

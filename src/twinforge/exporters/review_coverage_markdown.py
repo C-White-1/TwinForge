@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import csv
+from io import StringIO
+
 from twinforge.analysis.review_coverage import EngineeringReviewCoverage
 
 
@@ -47,6 +50,51 @@ class EngineeringReviewCoverageMarkdownExporter:
             for item in coverage.alarm_candidates
         )
         return "\n".join(lines).rstrip() + "\n"
+
+
+class EngineeringReviewCoverageCSVExporter:
+    """Render alarm gaps and relationship dispositions in one stable table."""
+
+    _FIELDS = (
+        "RecordType",
+        "Key",
+        "ExplicitlyReviewed",
+        "MissingFields",
+        "CauseStatus",
+        "ReviewStatus",
+    )
+
+    def export(self, coverage: EngineeringReviewCoverage) -> str:
+        """Return deterministic UTF-8-ready coverage CSV text."""
+
+        stream = StringIO(newline="")
+        writer = csv.DictWriter(stream, fieldnames=self._FIELDS)
+        writer.writeheader()
+        for item in coverage.alarm_candidates:
+            writer.writerow(
+                {
+                    "RecordType": "alarm_candidate",
+                    "Key": item.tag_key,
+                    "ExplicitlyReviewed": str(item.reviewed).lower(),
+                    "MissingFields": ";".join(item.missing_fields),
+                    "CauseStatus": "",
+                    "ReviewStatus": "",
+                }
+            )
+        for item in coverage.cause_effect_relationships:
+            writer.writerow(
+                {
+                    "RecordType": "cause_effect_relationship",
+                    "Key": item.relationship_key,
+                    "ExplicitlyReviewed": str(
+                        item.review_status != "unreviewed"
+                    ).lower(),
+                    "MissingFields": "",
+                    "CauseStatus": item.cause_status,
+                    "ReviewStatus": item.review_status,
+                }
+            )
+        return stream.getvalue()
 
 
 def _cell(value: str) -> str:

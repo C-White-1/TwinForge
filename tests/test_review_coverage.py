@@ -6,6 +6,7 @@ from twinforge.analysis import (
     build_engineering_review_coverage,
     engineering_review_coverage_data,
 )
+from twinforge.exporters import EngineeringReviewCoverageCSVExporter
 
 
 def test_empty_reports_have_explicit_zero_coverage() -> None:
@@ -26,6 +27,9 @@ def test_empty_reports_have_explicit_zero_coverage() -> None:
         "unreviewed_relationship_count": 0,
         "unresolved_relationship_count": 0,
     }
+    assert EngineeringReviewCoverageCSVExporter().export(coverage) == (
+        "RecordType,Key,ExplicitlyReviewed,MissingFields,CauseStatus,ReviewStatus\r\n"
+    )
 
 
 def test_rejects_mixed_controller_reports() -> None:
