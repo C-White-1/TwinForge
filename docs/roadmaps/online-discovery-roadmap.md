@@ -48,7 +48,7 @@ No code in this phase opens a socket or communicates with a controller.
 - [x] Capture adapter/library version and protocol-operation provenance
 - [x] Preserve raw replies when the library exposes them
 - [x] Add an operator confirmation or dry-run display before live capture
-- [ ] Verify against a local simulator or authorized laboratory only
+- [x] Verify against a local simulator or authorized laboratory only
 
 The staged, read-only localhost experiment and its external-source QA boundary
 are documented in the

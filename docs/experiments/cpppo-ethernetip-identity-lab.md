@@ -2,10 +2,11 @@
 
 ## Purpose
 
-This experiment will determine whether a localhost `cpppo` EtherNet/IP
-simulator can provide reproducible, authorized evidence for TwinForge's bounded
-`pycomm3` Identity adapter. It is a proposed validation environment, not a
-verified compatibility claim.
+This experiment determines whether a localhost `cpppo` EtherNet/IP simulator
+can provide reproducible, authorized evidence for TwinForge's bounded
+`pycomm3` Identity adapter. The localhost compatibility target was verified on
+2026-08-15. It remains a simulator result, not a physical-device compatibility
+claim.
 
 The first acceptance target is deliberately narrow:
 
@@ -165,8 +166,6 @@ Two negative observations were also retained during setup:
   the fixture now uses decimal values accepted by `ConfigParser.getint`.
 
 This verifies the reproducible simulator and TwinForge adapter interaction.
-It does not complete Gate 2: the transaction still requires an independent
-packet decode before the roadmap compatibility item can be checked.
 
 The installed TwinForge CLI was also verified through both paths:
 
@@ -177,33 +176,64 @@ The installed TwinForge CLI was also verified through both paths:
 
 ### Gate 2 status
 
-Wireshark was updated to 4.6.8 with Npcap 1.88. TShark then reported its
-version and enumerated `\Device\NPF_Loopback` as interface 7 with the BSD
-loopback link type. Two controlled captures completed while the bounded CIP
-request succeeded, but both reported zero captured packets. Their 460-byte
-pcapng files contained only capture metadata and were deleted.
+Gate 2 completed successfully on 2026-08-15 with Wireshark/TShark 4.6.8 and
+Npcap 1.88. TShark captured the transaction from the explicit
+`\Device\NPF_Loopback` interface. Selecting the interface by name avoided the
+unstable numeric interface ordering observed between elevated and ordinary
+processes.
 
-Npcap's service reported `Running`, while Windows Packet Monitor could not
-communicate with its driver. An initial direct invocation of Wireshark's ETW
-helper failed because its parent Wireshark directory was absent from that
-process's DLL search path. With a process-local `PATH` correction, `etwdump`
-successfully enumerated the ETW interface, the `DLT_ETW` link type, and the
-`Microsoft-Windows-NDIS-PacketCapture` provider. ETW capture remains an
-unverified fallback; no packet-level validation is therefore claimed. The
-remaining problem is local packet visibility rather than evidence of a
-TwinForge or EtherNet/IP failure.
+The local, uncommitted capture contained 17 packets over approximately 32 ms:
 
-After restarting Windows or repairing Npcap loopback support, enumerate
-interfaces with the full executable path because Wireshark is not on `PATH`:
+| Frame | Direction | Decoded operation |
+| ---: | --- | --- |
+| 1-3 | Client/server | TCP session establishment |
+| 4 | Client to server | EtherNet/IP Register Session (`0x0065`) |
+| 6 | Server to client | Successful Register Session response |
+| 8 | Client to server | SendRRData with Get Attributes All request |
+| 10 | Server to client | Successful Get Attributes All response |
+| 12 | Client to server | EtherNet/IP Unregister Session (`0x0066`) |
+| 13-17 | Client/server | TCP acknowledgement and teardown |
+
+Wireshark independently decoded frame 8 as an unconnected CPF transaction
+containing a Null Address Item and an Unconnected Data Item. Its CIP request
+path was Identity class `0x01`, instance `0x01`. Frame 10 returned no
+additional-status words and decoded the same synthetic values retained by
+TwinForge: vendor ID `0`, device type `0`, product code `4242`, revision
+`1.2`, status `0`, serial number `0x12345678`, product name
+`TwinForge cpppo Lab`, and operational state `3`.
+
+The independent decode also identified the three bytes preserved by TwinForge
+after the primary identity fields. They encode Configuration Consistency Value
+`0x0000` and Heartbeat Interval `0x00`, Identity attributes 9 and 10. Retaining
+the original bytes remains correct even before those optional attributes gain
+dedicated model fields.
+
+The capture was 1,988 bytes with SHA-256
+`02280c1dfd54d857bf46063991495fa2bb3ffc8a443c85fdf6cba3bb792f6247`.
+It contains only loopback endpoints and deterministic synthetic values, but it
+remains ignored as `.cpppo-gate2.pcapng` pending the Gate 4 provenance,
+redistribution, and fixture review.
+
+For future reproduction, enumerate interfaces with the full executable path
+because Wireshark is not necessarily on `PATH`:
 
 ```powershell
 & "C:\Program Files\Wireshark\tshark.exe" -D
 ```
 
-Select the Npcap loopback interface, capture only TCP port 44818, run one
-`twinforge discover identity ... --execute` command, and stop after that
-transaction. The resulting capture must be reviewed and sanitized before it
-is considered for Gate 4 or committed to the repository.
+Capture by stable interface name, restrict the capture to TCP port 44818, run
+one `twinforge discover identity ... --execute` command, and stop after that
+transaction:
+
+```powershell
+& "C:\Program Files\Wireshark\tshark.exe" `
+  -i "\Device\NPF_Loopback" `
+  -f "tcp port 44818" `
+  -w .cpppo-gate2.pcapng
+```
+
+The resulting capture must still be reviewed before it is considered for Gate
+4 or committed to the repository.
 
 ### Gate 2: independent protocol baseline
 
