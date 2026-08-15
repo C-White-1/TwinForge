@@ -4,6 +4,9 @@ __pycache__/
 .venv/
 node_modules/
 .vscode/*.log
+# Ephemeral localhost protocol-laboratory capture and diagnostic files.
+/.cpppo-*.log
+/.cpppo-*.pcapng
 .pytest_cache/
 # Consolidated pytest output. The current run remains available for diagnosis.
 /.test-artifacts/

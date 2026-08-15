@@ -183,11 +183,15 @@ loopback link type. Two controlled captures completed while the bounded CIP
 request succeeded, but both reported zero captured packets. Their 460-byte
 pcapng files contained only capture metadata and were deleted.
 
-Npcap's service reported `Running`. Windows Packet Monitor could not
-communicate with its driver, and Wireshark's ETW backend did not enumerate a
-usable fallback. No packet-level validation is therefore claimed. This is a
-local packet-visibility issue rather than evidence of a TwinForge or
-EtherNet/IP failure.
+Npcap's service reported `Running`, while Windows Packet Monitor could not
+communicate with its driver. An initial direct invocation of Wireshark's ETW
+helper failed because its parent Wireshark directory was absent from that
+process's DLL search path. With a process-local `PATH` correction, `etwdump`
+successfully enumerated the ETW interface, the `DLT_ETW` link type, and the
+`Microsoft-Windows-NDIS-PacketCapture` provider. ETW capture remains an
+unverified fallback; no packet-level validation is therefore claimed. The
+remaining problem is local packet visibility rather than evidence of a
+TwinForge or EtherNet/IP failure.
 
 After restarting Windows or repairing Npcap loopback support, enumerate
 interfaces with the full executable path because Wireshark is not on `PATH`:
