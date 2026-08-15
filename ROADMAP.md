@@ -341,12 +341,28 @@ evidence, authorization, or vendor-neutral boundaries.
     read-only JSON Pointer query services beneath any future adapter.
   - [x] Add deterministic typed-record discovery returning queryable pointers.
   - [x] Add deterministic structural comparison of validated model artifacts.
+  - Expose bounded controller, program, routine, tag-reference, AOI,
+    diagnostic, communication, comparison, and report queries.
+  - Add deterministic code-review findings with stable source pointers,
+    confidence classes, and explicit separation from AI recommendations.
+  - Evaluate an explainable brownfield-change assessment whose rubric,
+    weights, unavailable evidence, and uncertainty are visible.
+  - Keep drawings, manuals, and other retrieved engineering artifacts under
+    separate provenance, licensing, revision, and confidence records.
+  - Support customer-controlled and offline deployment with explicit model,
+    prompt, retention, and telemetry policies.
   - Expose narrowly scoped inspection, conversion, reporting, planning and
     authorized capture operations instead of arbitrary protocol primitives.
   - Require nonhuman identity, least privilege, explicit permits, request
     budgets, audit evidence and human acceptance for consequential actions.
   - Do not assume MCP transport provides industrial safety, authorization or
     semantic interoperability by itself.
+  - Defer live-value polling, history, continuous troubleshooting, and safety
+    interpretation to separately authorized and laboratory-validated phases.
+  - Do not claim portable ACD conversion until its Rockwell dependencies,
+    licence, platform requirements, and loss behavior are evidenced.
+  - See the
+    [Plantwide Integration L5X and MCP analysis](docs/references/plantwide-l5x-mcp-analysis.md).
 - [ ] Evaluate IEC 61499 generation and Eclipse 4diac FORTE deployment.
   - Establish native localhost evidence before generating project files.
   - Treat Allen-Bradley controllers as external devices, not FORTE targets.

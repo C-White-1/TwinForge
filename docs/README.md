@@ -123,6 +123,7 @@ automatically general product guarantees.
 - [PLCopen source and schema handling](standards/plcopen.md)
 - [AutomationML source and schema handling](standards/automationml.md)
 - [PROFINET PCAP source catalogue](references/profinet-pcap-sources.md)
+- [Plantwide Integration L5X and MCP tool analysis](references/plantwide-l5x-mcp-analysis.md)
 
 The repository's `reference/` directory is intentionally ignored. Standards,
 schemas, manuals, native editor exports, packet captures, and other externally
