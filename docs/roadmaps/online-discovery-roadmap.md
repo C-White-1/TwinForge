@@ -50,6 +50,10 @@ No code in this phase opens a socket or communicates with a controller.
 - [x] Add an operator confirmation or dry-run display before live capture
 - [ ] Verify against a local simulator or authorized laboratory only
 
+The staged, read-only localhost experiment and its external-source QA boundary
+are documented in the
+[cpppo EtherNet/IP Identity laboratory](../experiments/cpppo-ethernetip-identity-lab.md).
+
 The implemented boundary and deliberately excluded operations are documented
 in the [bounded pycomm3 Identity adapter](../architecture/pycomm3-identity-adapter.md).
 

@@ -100,6 +100,7 @@ sources; public-address probing is outside the supported workflow.
 - [CODESYS visualization differential testing](references/CODESYS-visualization-differential-testing.md)
 - [OpenPLC native-project compatibility](experiments/OpenPLC-native-project-compatibility.md)
 - [pycomm3 software-inventory laboratory validation](experiments/pycomm3-software-inventory-lab-validation.md)
+- [cpppo EtherNet/IP Identity laboratory](experiments/cpppo-ethernetip-identity-lab.md)
 - [SNMPSim data compatibility](experiments/snmpsim-data-compatibility.md)
 
 Experiment documents record observed tool or runtime behavior. They are not
