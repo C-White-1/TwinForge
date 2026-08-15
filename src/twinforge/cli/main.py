@@ -40,6 +40,7 @@ from .model_json import (
     validate_model_json_file,
 )
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
+from .review_schema import ReviewSchemaCommandError, export_review_schema
 from .snmp_conversion import convert_walk_command
 
 
@@ -239,6 +240,30 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Comparison output format (default: text).",
+    )
+
+    review = commands.add_parser(
+        "review",
+        help="Export contracts for attributable engineering-review inputs.",
+    )
+    review_commands = review.add_subparsers(
+        dest="review_command",
+        required=True,
+    )
+    review_schema = review_commands.add_parser(
+        "schema",
+        help="Export an installed engineering-review JSON Schema.",
+    )
+    review_schema.add_argument(
+        "kind",
+        choices=("alarm", "cause-effect"),
+        help="Review contract to export.",
+    )
+    review_schema.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Destination for the JSON Schema file.",
     )
 
     state = commands.add_parser(
@@ -500,6 +525,12 @@ def main(
                     output_format=arguments.format,
                     stdout=output,
                 )
+        elif arguments.command == "review":
+            export_review_schema(
+                arguments.kind,
+                arguments.output,
+                stdout=output,
+            )
         elif arguments.command == "discover":
             if arguments.discover_command == "fake-snapshot":
                 generate_fake_snapshot(
@@ -609,6 +640,7 @@ def main(
         CommunicationGraphCommandError,
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
+        ReviewSchemaCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1

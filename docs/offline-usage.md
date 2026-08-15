@@ -210,6 +210,16 @@ Use `examples/reporting/cause-effect-review.example.json` as the starting
 contract. Unknown keys fail closed, and unresolved operands cannot be marked
 as verified.
 
+Export the exact schemas installed with the active TwinForge version when
+configuring an editor, CI job, or MCP client:
+
+```powershell
+uv run twinforge review schema alarm `
+  --output schemas\alarm-review.v1.schema.json
+uv run twinforge review schema cause-effect `
+  --output schemas\cause-effect-review.v1.schema.json
+```
+
 The bundle includes review-oriented Markdown, complete CSV, and deterministic
 JSON reports for tag dependencies and explicitly labelled alarm/trip candidates.
 It also includes a channel-level I/O list covering explicit assignments, spare
