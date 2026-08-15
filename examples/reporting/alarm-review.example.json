@@ -1,0 +1,22 @@
+{
+  "schema_version": "twinforge.alarm-review.v1",
+  "controller_name": "ExampleController",
+  "reviewed_by": "Control systems engineer",
+  "reviewed_at": "2026-08-15T10:00:00+10:00",
+  "authority_reference": "ALARM-PHILOSOPHY-001",
+  "source_reference": "Cause-and-effect drawing CE-001 revision A",
+  "items": [
+    {
+      "tag_key": "controller:PT102_HH_Alm",
+      "priority": "High",
+      "setpoint": "12.5",
+      "engineering_unit": "barg",
+      "delay": "2 s",
+      "latching": "Latched until operator reset",
+      "acknowledgement": "Operator acknowledgement required",
+      "suppression": "Not suppressed in normal operation",
+      "shutdown_action": "Trip compressor",
+      "applicability": "Running and starting modes"
+    }
+  ]
+}

@@ -181,6 +181,20 @@ Generate the supported controller engineering report bundle with:
 uv run twinforge report project.L5X --output reports\project
 ```
 
+Apply a separately reviewed alarm/trip overlay when engineering authority is
+available:
+
+```powershell
+uv run twinforge report project.L5X `
+  --output reports\project-reviewed `
+  --alarm-review alarm-review.json
+```
+
+Start from `examples/reporting/alarm-review.example.json`, then replace its
+controller name, exact candidate keys, review assertions, and provenance with
+the approved project information. TwinForge rejects unknown candidates and
+does not alter the source L5X.
+
 The bundle includes review-oriented Markdown, complete CSV, and deterministic
 JSON reports for tag dependencies and explicitly labelled alarm/trip candidates.
 It also includes a channel-level I/O list covering explicit assignments, spare

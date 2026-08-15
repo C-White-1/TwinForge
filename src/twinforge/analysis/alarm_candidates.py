@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from enum import Enum
 
 from twinforge.model import Controller, SoftwareTagScope, Tag
@@ -50,11 +51,23 @@ class AlarmTripCandidate:
 
 
 @dataclass(frozen=True)
+class AlarmTripReviewProvenance:
+    """Authority and scope for explicitly reviewed candidate fields."""
+
+    reviewed_by: str
+    reviewed_at: datetime
+    authority_reference: str
+    source_reference: str
+    applied_tag_keys: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class AlarmTripCandidateReport:
     """Deterministic candidates; absence is not proof of no alarms."""
 
     controller_name: str
     candidates: tuple[AlarmTripCandidate, ...]
+    review: AlarmTripReviewProvenance | None = None
 
 
 _ALARM_TOKENS = frozenset({"alarm", "alarms", "alm"})
@@ -154,9 +167,7 @@ def _classification(
 def _tokens(value: str) -> set[str]:
     separated = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", value)
     return {
-        token.casefold()
-        for token in re.split(r"[^A-Za-z0-9]+", separated)
-        if token
+        token.casefold() for token in re.split(r"[^A-Za-z0-9]+", separated) if token
     }
 
 
@@ -201,6 +212,14 @@ def alarm_trip_candidate_report_data(
     """Return deterministic JSON-compatible candidate report data."""
     return {
         "controller_name": report.controller_name,
+        "review": (
+            {
+                **asdict(report.review),
+                "reviewed_at": report.review.reviewed_at.isoformat(),
+            }
+            if report.review is not None
+            else None
+        ),
         "candidates": [
             {
                 **item.__dict__,

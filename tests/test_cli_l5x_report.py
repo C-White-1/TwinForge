@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from io import StringIO
 from pathlib import Path
 
@@ -129,3 +130,89 @@ def test_report_returns_failure_for_invalid_source(tmp_path: Path) -> None:
         stderr=errors,
     ) == 1
     assert "cannot generate reports" in errors.getvalue()
+
+
+def _write_alarm_review(path: Path, tag_key: str) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": "twinforge.alarm-review.v1",
+                "controller_name": "booster_compressor",
+                "reviewed_by": "Control systems engineer",
+                "reviewed_at": "2026-08-15T10:00:00+10:00",
+                "authority_reference": "ALARM-PHILOSOPHY-001",
+                "source_reference": "C&E drawing CE-102 revision B",
+                "items": [
+                    {
+                        "tag_key": tag_key,
+                        "priority": "High",
+                        "setpoint": "12.5",
+                        "engineering_unit": "barg",
+                        "shutdown_action": "Trip compressor",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_report_applies_explicit_alarm_review_overlay(tmp_path: Path) -> None:
+    destination = tmp_path / "reports"
+    review = tmp_path / "alarm-review.json"
+    _write_alarm_review(review, "controller:PT102_HH_Alm")
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        (
+            "report",
+            str(CONTROLLER),
+            "--output",
+            str(destination),
+            "--alarm-review",
+            str(review),
+        ),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    report = json.loads(
+        (destination / "alarm_trip_candidates.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    candidate = next(
+        item
+        for item in report["candidates"]
+        if item["tag_key"] == "controller:PT102_HH_Alm"
+    )
+    assert candidate["priority"] == "High"
+    assert candidate["setpoint"] == "12.5"
+    assert candidate["engineering_unit"] == "barg"
+    assert report["review"]["reviewed_by"] == "Control systems engineer"
+
+
+def test_report_rejects_unknown_alarm_review_before_writing(tmp_path: Path) -> None:
+    destination = tmp_path / "reports"
+    review = tmp_path / "alarm-review.json"
+    _write_alarm_review(review, "controller:Unknown_Alm")
+    errors = StringIO()
+
+    result = main(
+        (
+            "report",
+            str(CONTROLLER),
+            "--output",
+            str(destination),
+            "--alarm-review",
+            str(review),
+        ),
+        stderr=errors,
+    )
+
+    assert result == 1
+    assert not destination.exists()
+    assert "unknown candidate" in errors.getvalue()

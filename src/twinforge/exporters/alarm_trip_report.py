@@ -20,9 +20,7 @@ class AlarmTripCandidateMarkdownExporter:
     ) -> str:
         """Return deterministic, reviewable Markdown."""
         counts = Counter(
-            kind.value
-            for candidate in report.candidates
-            for kind in candidate.kinds
+            kind.value for candidate in report.candidates for kind in candidate.kinds
         )
         lines = [
             f"# {title}",
@@ -40,6 +38,15 @@ class AlarmTripCandidateMarkdownExporter:
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
             "--- | --- | --- | --- | --- | --- |",
         ]
+        if report.review is not None:
+            lines[8:8] = [
+                f"- Reviewed by: {_cell(report.review.reviewed_by)}",
+                f"- Reviewed at: {report.review.reviewed_at.isoformat()}",
+                f"- Review authority: {_cell(report.review.authority_reference)}",
+                f"- Review source: {_cell(report.review.source_reference)}",
+                f"- Reviewed candidates: {len(report.review.applied_tag_keys)}",
+                "",
+            ]
         for item in report.candidates:
             scope = item.tag_scope.value
             if item.program_name:
@@ -83,6 +90,10 @@ class AlarmTripCandidateCSVExporter:
         "Writers",
         "AliasSources",
         "ClassificationEvidence",
+        "ReviewedBy",
+        "ReviewedAt",
+        "ReviewAuthorityReference",
+        "ReviewSourceReference",
     )
 
     def export(self, report: AlarmTripCandidateReport) -> str:
@@ -111,8 +122,16 @@ class AlarmTripCandidateCSVExporter:
                     "Readers": ";".join(item.reader_locations),
                     "Writers": ";".join(item.writer_locations),
                     "AliasSources": ";".join(item.alias_source_keys),
-                    "ClassificationEvidence": ";".join(
-                        item.classification_evidence
+                    "ClassificationEvidence": ";".join(item.classification_evidence),
+                    "ReviewedBy": (report.review.reviewed_by if report.review else ""),
+                    "ReviewedAt": (
+                        report.review.reviewed_at.isoformat() if report.review else ""
+                    ),
+                    "ReviewAuthorityReference": (
+                        report.review.authority_reference if report.review else ""
+                    ),
+                    "ReviewSourceReference": (
+                        report.review.source_reference if report.review else ""
                     ),
                 }
             )

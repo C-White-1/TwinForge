@@ -73,6 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Directory in which to write the report bundle.",
     )
+    report_l5x_command.add_argument(
+        "--alarm-review",
+        type=Path,
+        help="Optional versioned JSON alarm/trip engineering review overlay.",
+    )
 
     export_l5x_command = commands.add_parser(
         "export",
@@ -351,12 +356,8 @@ def build_parser() -> argparse.ArgumentParser:
     convert_walk.add_argument("--approved-by", required=True)
     convert_walk.add_argument("--approved-at", required=True)
     convert_walk.add_argument("--rationale", required=True)
-    convert_walk.add_argument(
-        "--max-input-bytes", type=int, default=16 * 1024 * 1024
-    )
-    convert_walk.add_argument(
-        "--reject-unparsed-lines", action="store_true"
-    )
+    convert_walk.add_argument("--max-input-bytes", type=int, default=16 * 1024 * 1024)
+    convert_walk.add_argument("--reject-unparsed-lines", action="store_true")
     convert_walk.add_argument(
         "--execute",
         action="store_true",
@@ -437,6 +438,7 @@ def main(
             export_l5x_reports(
                 arguments.path,
                 destination=arguments.output,
+                alarm_review_path=arguments.alarm_review,
                 stdout=output,
             )
         elif arguments.command == "export":

@@ -138,6 +138,8 @@ own project-directory and `.ld` JSON representation.
     reader, writer, alias, scope, and classification evidence
   - [x] Export a candidate list with alarm-philosophy fields kept
     explicitly unknown when absent
+  - [x] Apply versioned, attributable, fail-closed engineering review overlays
+    without replacing source evidence
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix

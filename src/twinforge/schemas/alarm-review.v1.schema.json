@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/alarm-review.v1.schema.json",
+  "title": "TwinForge alarm/trip engineering review overlay v1",
+  "description": "Attributable engineering assertions applied to exact alarm/trip candidates without replacing source evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "controller_name", "reviewed_by", "reviewed_at", "authority_reference", "source_reference", "items"],
+  "properties": {
+    "schema_version": { "const": "twinforge.alarm-review.v1" },
+    "controller_name": { "type": "string", "minLength": 1 },
+    "reviewed_by": { "type": "string", "minLength": 1 },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timezone-qualified review timestamp; TwinForge also rejects naive timestamps at load time."
+    },
+    "authority_reference": { "type": "string", "minLength": 1 },
+    "source_reference": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reviewItem" }
+    }
+  },
+  "$defs": {
+    "assertion": { "type": "string", "minLength": 1 },
+    "reviewItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tag_key"],
+      "properties": {
+        "tag_key": { "type": "string", "minLength": 1 },
+        "priority": { "$ref": "#/$defs/assertion" },
+        "setpoint": { "$ref": "#/$defs/assertion" },
+        "engineering_unit": { "$ref": "#/$defs/assertion" },
+        "delay": { "$ref": "#/$defs/assertion" },
+        "latching": { "$ref": "#/$defs/assertion" },
+        "acknowledgement": { "$ref": "#/$defs/assertion" },
+        "suppression": { "$ref": "#/$defs/assertion" },
+        "shutdown_action": { "$ref": "#/$defs/assertion" },
+        "applicability": { "$ref": "#/$defs/assertion" }
+      },
+      "anyOf": [
+        { "required": ["priority"] },
+        { "required": ["setpoint"] },
+        { "required": ["engineering_unit"] },
+        { "required": ["delay"] },
+        { "required": ["latching"] },
+        { "required": ["acknowledgement"] },
+        { "required": ["suppression"] },
+        { "required": ["shutdown_action"] },
+        { "required": ["applicability"] }
+      ]
+    }
+  }
+}

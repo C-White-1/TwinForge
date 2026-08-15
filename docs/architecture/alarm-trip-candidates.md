@@ -43,6 +43,29 @@ units, delay, latching, acknowledgement, suppression, voting, shutdown action,
 and operating-state applicability. None of those properties are invented when
 the L5X evidence does not establish them.
 
+## Attributable review overlay
+
+The optional `--alarm-review` input applies engineer-reviewed fields without
+changing the parsed controller, dependency graph, classification evidence, or
+unreviewed candidates. The JSON document must use schema version
+`twinforge.alarm-review.v1` and provide:
+
+- the exact parsed controller name;
+- reviewer, timezone-qualified review time, authority, and source references;
+- unique, exact candidate `tag_key` values; and
+- at least one non-empty review assertion for each listed candidate.
+
+Unknown candidate keys, controller mismatches, duplicate rows, naive
+timestamps, blank assertions, unknown properties, and unsupported schema
+versions fail before the report directory is written. A partial review is
+allowed and is identified by the exact applied tag keys in report provenance.
+
+The overlay may assert priority, setpoint, engineering unit, delay, latching,
+acknowledgement, suppression, shutdown action, and applicability. It cannot
+change the derived alarm/trip classification or mark a cause-and-effect
+relationship as verified. Those relationships need a separate,
+location-specific engineering review.
+
 ## Report formats
 
 The `twinforge report` bundle writes the candidate evidence as Markdown, CSV,
@@ -50,3 +73,13 @@ and deterministic JSON. The review columns include priority, setpoint, units,
 delay, latching, acknowledgement, suppression, shutdown action, and
 applicability. Empty CSV values, JSON `null` values, and Markdown em dashes all
 mean that the source evidence did not establish the property.
+
+Reviewed Markdown, CSV, and JSON outputs carry the reviewer, review time,
+authority reference, and source reference. A copyable input document is
+provided at `examples/reporting/alarm-review.example.json`.
+
+The installed package also carries the machine-readable Draft 2020-12 schema
+`twinforge.schemas/alarm-review.v1.schema.json`. Editors, CI jobs, and MCP
+tools may validate review documents against it before submitting them to
+TwinForge. Runtime validation remains authoritative because it also checks
+controller identity and exact candidate keys against the parsed L5X evidence.

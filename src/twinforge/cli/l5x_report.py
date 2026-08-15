@@ -8,6 +8,7 @@ from typing import TextIO
 
 from twinforge.analysis import (
     alarm_trip_candidate_report_json,
+    apply_alarm_review,
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
     build_controller_functional_description,
@@ -15,6 +16,7 @@ from twinforge.analysis import (
     build_module_schedule_report,
     build_tag_dependency_graph,
     io_list_report_json,
+    load_alarm_review,
     module_schedule_report_json,
     cause_effect_candidate_report_json,
     discover_external_references,
@@ -49,6 +51,7 @@ def export_l5x_reports(
     source: Path,
     *,
     destination: Path,
+    alarm_review_path: Path | None = None,
     stdout: TextIO,
 ) -> None:
     """Generate the supported controller report bundle at ``destination``."""
@@ -65,6 +68,11 @@ def export_l5x_reports(
         alarm_candidates = build_alarm_trip_candidate_report(
             controller, dependency_graph
         )
+        if alarm_review_path is not None:
+            alarm_candidates = apply_alarm_review(
+                alarm_candidates,
+                load_alarm_review(alarm_review_path),
+            )
         io_list = build_io_list_report(controller)
         cause_effect = build_cause_effect_candidate_report(
             alarm_candidates, dependency_graph
@@ -87,15 +95,11 @@ def export_l5x_reports(
                 "tag_dependencies.csv": TagDependencyCSVExporter().export(
                     dependency_graph
                 ),
-                "tag_dependencies.json": tag_dependency_graph_json(
-                    dependency_graph
-                ),
+                "tag_dependencies.json": tag_dependency_graph_json(dependency_graph),
                 "alarm_trip_candidates.md": (
                     AlarmTripCandidateMarkdownExporter().export(
                         alarm_candidates,
-                        title=(
-                            f"{controller.name} alarm and trip candidate report"
-                        ),
+                        title=(f"{controller.name} alarm and trip candidate report"),
                     )
                 ),
                 "alarm_trip_candidates.csv": (
@@ -113,9 +117,7 @@ def export_l5x_reports(
                 "cause_effect_candidates.md": (
                     CauseEffectCandidateMarkdownExporter().export(
                         cause_effect,
-                        title=(
-                            f"{controller.name} cause-and-effect candidate matrix"
-                        ),
+                        title=(f"{controller.name} cause-and-effect candidate matrix"),
                     )
                 ),
                 "cause_effect_candidates.csv": (
@@ -136,9 +138,7 @@ def export_l5x_reports(
                 "module_schedule.csv": ModuleScheduleCSVExporter().export(
                     module_schedule
                 ),
-                "module_schedule.json": module_schedule_report_json(
-                    module_schedule
-                ),
+                "module_schedule.json": module_schedule_report_json(module_schedule),
                 "external_references.md": (
                     ExternalReferenceMarkdownExporter().export(
                         external_references,
