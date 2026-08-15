@@ -74,4 +74,5 @@ def test_markdown_exposes_relationship_key_in_first_column() -> None:
     row = next(line for line in markdown.splitlines() if relationship in line)
 
     assert row.startswith(f"| {relationship} |")
-    assert row.endswith("| unreviewed |")
+    assert "| unreviewed |" in row
+    assert row.endswith("| — | — | — | — | — |")

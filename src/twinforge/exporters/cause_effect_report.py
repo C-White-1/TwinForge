@@ -35,8 +35,10 @@ class CauseEffectCandidateMarkdownExporter:
             f"{sum(cause.review_status == 'verified' for item in report.candidates for cause in item.causes)}",
             "",
             "| Relationship key | Cause | Cause status | Effect | Effect kind | Program | Routine | "
-            "Location | Read instruction | Write instruction | Evidence | Review status |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            "Location | Read instruction | Write instruction | Evidence | Review status | "
+            "Polarity | Voting | Delay | Operating modes | Shutdown action |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | "
+            "--- | --- | --- | --- | --- |",
         ]
         if report.review is not None:
             lines[8:8] = [
@@ -63,6 +65,11 @@ class CauseEffectCandidateMarkdownExporter:
                         item.writer_instruction,
                         item.evidence_basis,
                         "unreviewed",
+                        "—",
+                        "—",
+                        "—",
+                        "—",
+                        "—",
                     )
                 )
             for cause in item.causes:
@@ -81,6 +88,11 @@ class CauseEffectCandidateMarkdownExporter:
                         item.writer_instruction,
                         item.evidence_basis,
                         cause.review_status,
+                        cause.polarity or "—",
+                        cause.voting or "—",
+                        cause.delay or "—",
+                        cause.operating_modes or "—",
+                        cause.shutdown_action or "—",
                     )
                 )
             for cause in item.unresolved_causes:
@@ -98,6 +110,11 @@ class CauseEffectCandidateMarkdownExporter:
                         item.writer_instruction,
                         item.evidence_basis,
                         cause.review_status,
+                        cause.polarity or "—",
+                        cause.voting or "—",
+                        cause.delay or "—",
+                        cause.operating_modes or "—",
+                        cause.shutdown_action or "—",
                     )
                 )
         return "\n".join(lines).rstrip() + "\n"

@@ -20,7 +20,10 @@ from twinforge.analysis import (
     cause_effect_review_schema_text,
     cause_effect_candidate_report_json,
 )
-from twinforge.exporters import CauseEffectCandidateCSVExporter
+from twinforge.exporters import (
+    CauseEffectCandidateCSVExporter,
+    CauseEffectCandidateMarkdownExporter,
+)
 from twinforge.parsers import L5XParser
 
 
@@ -93,6 +96,14 @@ def test_applies_review_to_one_exact_resolved_relationship() -> None:
     )
     assert row["CausalRelationshipVerified"] == "true"
     assert row["ShutdownAction"] == "Trip compressor"
+    markdown = CauseEffectCandidateMarkdownExporter().export(reviewed)
+    reviewed_row = next(
+        line for line in markdown.splitlines() if line.startswith(f"| {key} |")
+    )
+    assert "| verified | Cause true initiates effect | 1oo1 | 2 s | Running | " in (
+        reviewed_row
+    )
+    assert reviewed_row.endswith("| Trip compressor |")
 
 
 def test_rejects_unknown_relationship_key() -> None:

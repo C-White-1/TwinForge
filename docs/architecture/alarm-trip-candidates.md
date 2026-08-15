@@ -99,6 +99,9 @@ is allowed, remains visibly attributable, and leaves every omitted relationship
 as `unreviewed`. A template is provided at
 `examples/reporting/cause-effect-review.example.json`.
 
+All asserted relationship fields appear in Markdown, CSV, and JSON. Missing
+Markdown values remain visible as em dashes rather than being silently omitted.
+
 Its packaged Draft 2020-12 schema is
 `twinforge.schemas/cause-effect-review.v1.schema.json`. Schema validation can
 check document shape independently; runtime application remains authoritative
