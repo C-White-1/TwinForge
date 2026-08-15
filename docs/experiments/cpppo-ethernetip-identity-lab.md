@@ -235,6 +235,21 @@ transaction:
 The resulting capture must still be reviewed before it is considered for Gate
 4 or committed to the repository.
 
+### Gate 4 result
+
+Gate 4 promoted only the 38-byte CIP Identity response data, not the PCAP. The
+tracked
+[`cpppo-identity-response.json`](../../tests/data/discovery/cpppo-identity-response.json)
+fixture records its provenance, sanitization boundary, SHA-256, expected
+identity fields, and independently decoded optional trailing attributes.
+
+The extraction removed the EtherNet/IP encapsulation header, CPF framing, TCP
+and IP layers, session handle, sender context, ports, timing, and capture
+metadata. The retained values are deterministic synthetic values from the
+tracked simulator configuration. An offline regression test authenticates the
+payload checksum and passes the exact bytes through TwinForge's production
+decoder. The source PCAP remains ignored.
+
 ### Gate 2: independent protocol baseline
 
 1. Capture simulator startup and one known-good identity transaction.

@@ -1,0 +1,32 @@
+{
+  "schema_version": "twinforge.cip-identity-response-fixture.v1",
+  "provenance": {
+    "artifact_class": "independently-generated-synthetic-response",
+    "captured_at": "2026-08-15",
+    "generator": "cpppo 5.2.5",
+    "decoder": "Wireshark/TShark 4.6.8",
+    "capture_transport": "localhost EtherNet/IP over TCP",
+    "source_configuration": "examples/discovery/cpppo_identity_lab.cfg",
+    "sanitized": true,
+    "sanitization": "Extracted only CIP Identity response data; removed encapsulation, CPF, TCP, IP, session, port, context, timing, and capture metadata.",
+    "redistribution": "TwinForge-authored deterministic synthetic evidence"
+  },
+  "payload_hex": "0000000092100102000078563412135477696e466f72676520637070706f204c616203000000",
+  "payload_sha256": "aa7e82be6dcdb458060edc805e34161b72a9565b03029478398dc413f80d08df",
+  "expected": {
+    "vendor_id": 0,
+    "device_type": 0,
+    "product_code": 4242,
+    "major_revision": 1,
+    "minor_revision": 2,
+    "status": 0,
+    "serial_number": 305419896,
+    "product_name": "TwinForge cpppo Lab",
+    "state": 3,
+    "trailing_payload_hex": "000000"
+  },
+  "trailing_attributes": {
+    "configuration_consistency_value": 0,
+    "heartbeat_interval": 0
+  }
+}

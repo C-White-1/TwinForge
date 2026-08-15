@@ -1,4 +1,7 @@
 from datetime import datetime, timezone
+import hashlib
+import json
+from pathlib import Path
 
 import pytest
 
@@ -13,6 +16,7 @@ from twinforge.discovery.cip_pycomm3 import (
     CipIdentityReply,
     Pycomm3CipIdentityProvider,
     Pycomm3IdentityTransport,
+    decode_cip_identity,
 )
 
 
@@ -102,6 +106,28 @@ def test_provider_decodes_identity_and_preserves_raw_evidence() -> None:
     assert identity.raw_payload_hex == PAYLOAD.hex()
     assert identity.raw_attributes["raw_reply_hex"] == b"raw".hex()
     assert identity.raw_attributes["adapter"] == "pycomm3"
+
+
+def test_decodes_independently_verified_cpppo_response_fixture() -> None:
+    fixture_path = (
+        Path(__file__).parent
+        / "data"
+        / "discovery"
+        / "cpppo-identity-response.json"
+    )
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+    payload = bytes.fromhex(fixture["payload_hex"])
+
+    assert hashlib.sha256(payload).hexdigest() == fixture["payload_sha256"]
+
+    decoded, trailing = decode_cip_identity(payload)
+
+    expected = dict(fixture["expected"])
+    expected_trailing = expected.pop("trailing_payload_hex")
+    assert decoded == expected
+    assert trailing.hex() == expected_trailing
+    assert int.from_bytes(trailing[:2], "little") == 0
+    assert trailing[2] == 0
 
 
 def test_provider_rejects_target_outside_exact_allowlist() -> None:
