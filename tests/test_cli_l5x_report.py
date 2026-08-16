@@ -262,6 +262,21 @@ def test_report_applies_explicit_alarm_review_overlay(tmp_path: Path) -> None:
         )
     )
     assert coverage["summary"]["reviewed_alarm_count"] == 1
+    validation = json.loads(
+        (destination / "alarm_review_validation.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert validation["status"] == "valid"
+    assert validation["source_reconciled"] is True
+    assert validation["review_path"] == review.name
+    assert validation["source_path"] == CONTROLLER.name
+    manifest = json.loads(
+        (destination / "report_manifest.json").read_text(encoding="utf-8")
+    )
+    assert "alarm_review_validation.json" in {
+        item["name"] for item in manifest["reports"]
+    }
 
 
 def test_report_rejects_unknown_alarm_review_before_writing(tmp_path: Path) -> None:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import os
 import tempfile
 from importlib.resources import files
@@ -21,6 +19,7 @@ from twinforge.analysis import (
 )
 from twinforge.model import Controller
 from twinforge.parsers.l5x import L5XParser
+from twinforge.exporters import review_validation_result_json
 
 
 class ReviewValidationCommandError(RuntimeError):
@@ -82,26 +81,13 @@ def validate_review_document(
     except (OSError, ValueError) as error:
         raise ReviewValidationCommandError(str(error)) from error
 
-    result = {
-        "schema_version": "twinforge.review-validation-result.v1",
-        "status": "valid",
-        "review_kind": kind,
-        "review_schema_version": document.schema_version,
-        "review_path": str(source),
-        "review_sha256": _sha256(source),
-        "controller_name": document.controller_name,
-        "item_count": len(document.items),
-        "source_reconciled": l5x_source is not None,
-        **(
-            {
-                "source_path": str(l5x_source),
-                "source_sha256": _sha256(l5x_source),
-            }
-            if l5x_source is not None
-            else {}
-        ),
-    }
-    serialized = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    serialized = review_validation_result_json(
+        kind,
+        source,
+        controller_name=document.controller_name,
+        item_count=len(document.items),
+        source=l5x_source,
+    )
     if destination is not None:
         _write_atomic(destination, serialized)
     if output_format == "json":
@@ -115,12 +101,6 @@ def validate_review_document(
     )
     if destination is not None:
         stdout.write(f"Wrote validation receipt to {destination}\n")
-
-
-def _sha256(path: Path) -> str:
-    """Hash exact input bytes for a reproducible validation receipt."""
-
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _write_atomic(destination: Path, content: str) -> None:

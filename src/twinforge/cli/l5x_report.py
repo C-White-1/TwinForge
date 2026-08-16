@@ -41,6 +41,7 @@ from twinforge.exporters import (
     IOListMarkdownExporter,
     ModuleScheduleCSVExporter,
     ModuleScheduleMarkdownExporter,
+    review_validation_result_json,
     TagDependencyCSVExporter,
     TagDependencyMarkdownExporter,
     TextReportBundle,
@@ -76,19 +77,25 @@ def export_l5x_reports(
         alarm_candidates = build_alarm_trip_candidate_report(
             controller, dependency_graph
         )
+        alarm_review = None
         if alarm_review_path is not None:
+            alarm_review = load_alarm_review(alarm_review_path)
             alarm_candidates = apply_alarm_review(
                 alarm_candidates,
-                load_alarm_review(alarm_review_path),
+                alarm_review,
             )
         io_list = build_io_list_report(controller)
         cause_effect = build_cause_effect_candidate_report(
             alarm_candidates, dependency_graph
         )
+        cause_effect_review = None
         if cause_effect_review_path is not None:
+            cause_effect_review = load_cause_effect_review(
+                cause_effect_review_path
+            )
             cause_effect = apply_cause_effect_review(
                 cause_effect,
-                load_cause_effect_review(cause_effect_review_path),
+                cause_effect_review,
             )
         review_coverage = build_engineering_review_coverage(
             alarm_candidates,
@@ -183,6 +190,30 @@ def export_l5x_reports(
                 ),
             }
         )
+        if alarm_review_path is not None and alarm_review is not None:
+            files["alarm_review_validation.json"] = (
+                review_validation_result_json(
+                    "alarm",
+                    alarm_review_path,
+                    controller_name=controller.name,
+                    item_count=len(alarm_review.items),
+                    source=source,
+                    review_reference=alarm_review_path.name,
+                    source_reference=source.name,
+                )
+            )
+        if cause_effect_review_path is not None and cause_effect_review is not None:
+            files["cause_effect_review_validation.json"] = (
+                review_validation_result_json(
+                    "cause-effect",
+                    cause_effect_review_path,
+                    controller_name=controller.name,
+                    item_count=len(cause_effect_review.items),
+                    source=source,
+                    review_reference=cause_effect_review_path.name,
+                    source_reference=source.name,
+                )
+            )
         files["report_manifest.json"] = engineering_report_manifest_json(
             source,
             files,

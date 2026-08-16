@@ -136,6 +136,11 @@ from .review_coverage_markdown import (
     EngineeringReviewCoverageCSVExporter,
     EngineeringReviewCoverageMarkdownExporter,
 )
+from .review_validation_receipt import (
+    ReviewValidationReceiptError,
+    review_validation_result_data,
+    review_validation_result_json,
+)
 from .report_manifest import (
     ReportManifestError,
     engineering_report_manifest_json,
@@ -177,6 +182,9 @@ __all__ = [
     "ExternalReferenceMarkdownExporter",
     "EngineeringReviewCoverageMarkdownExporter",
     "EngineeringReviewCoverageCSVExporter",
+    "ReviewValidationReceiptError",
+    "review_validation_result_data",
+    "review_validation_result_json",
     "engineering_report_manifest_json",
     "engineering_report_manifest_schema_text",
     "ReportManifestError",

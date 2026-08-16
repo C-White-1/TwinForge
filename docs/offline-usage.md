@@ -256,6 +256,12 @@ success and failure without scraping prose.
 `--output` writes the same JSON receipt using atomic file replacement. A failed
 review never creates or partially overwrites the requested receipt.
 
+When `twinforge report` applies an alarm or cause-and-effect review, the report
+bundle automatically contains `alarm_review_validation.json` or
+`cause_effect_review_validation.json`. These use input basenames for portable,
+reproducible content, and `report_manifest.json` authenticates each receipt as
+part of the complete generated file set.
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and
