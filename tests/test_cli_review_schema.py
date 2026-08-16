@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from io import StringIO
 from pathlib import Path
 
@@ -8,6 +9,11 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from twinforge.cli import main
+
+
+CONTROLLER = (
+    Path(__file__).parent / "data" / "basic" / "BoosterCompressor_20260128.L5X"
+)
 
 
 @pytest.mark.parametrize(
@@ -106,3 +112,87 @@ def test_rejects_invalid_review_document(tmp_path: Path) -> None:
     assert result == 1
     assert output.getvalue() == ""
     assert "error: cannot load alarm review" in errors.getvalue()
+
+
+def test_reconciles_alarm_review_against_source_l5x(tmp_path: Path) -> None:
+    source = tmp_path / "alarm-review.json"
+    source.write_text(
+        json.dumps(
+            {
+                "schema_version": "twinforge.alarm-review.v1",
+                "controller_name": "booster_compressor",
+                "reviewed_by": "Control systems engineer",
+                "reviewed_at": datetime(
+                    2026, 8, 16, tzinfo=timezone.utc
+                ).isoformat(),
+                "authority_reference": "ALARM-PHILOSOPHY-001",
+                "source_reference": "C&E CE-001 revision B",
+                "items": [
+                    {
+                        "tag_key": "controller:PT102_HH_Alm",
+                        "priority": "High",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--source",
+            str(CONTROLLER),
+        ),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    assert f"reconciled against {CONTROLLER}" in output.getvalue()
+
+
+def test_rejects_review_key_missing_from_source_l5x(tmp_path: Path) -> None:
+    source = tmp_path / "alarm-review.json"
+    source.write_text(
+        json.dumps(
+            {
+                "schema_version": "twinforge.alarm-review.v1",
+                "controller_name": "booster_compressor",
+                "reviewed_by": "Control systems engineer",
+                "reviewed_at": "2026-08-16T00:00:00Z",
+                "authority_reference": "ALARM-PHILOSOPHY-001",
+                "source_reference": "C&E CE-001 revision B",
+                "items": [
+                    {
+                        "tag_key": "controller:Unknown_Alm",
+                        "priority": "High",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--source",
+            str(CONTROLLER),
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 1
+    assert "unknown candidate tag_key" in errors.getvalue()

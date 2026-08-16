@@ -141,6 +141,7 @@ own project-directory and `.ld` JSON representation.
   - [x] Apply versioned, attributable, fail-closed engineering review overlays
     without replacing source evidence
   - [x] Validate review-overlay contracts independently of report generation
+  - [x] Reconcile standalone review validation against source L5X evidence
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix

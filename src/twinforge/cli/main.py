@@ -284,6 +284,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Review input contract to validate.",
     )
     review_validate.add_argument("path", type=Path)
+    review_validate.add_argument(
+        "--source",
+        type=Path,
+        help="Optional Controller L5X used to reconcile reviewed keys.",
+    )
 
     reports = commands.add_parser(
         "reports",
@@ -582,6 +587,7 @@ def main(
                 validate_review_document(
                     arguments.kind,
                     arguments.path,
+                    l5x_source=arguments.source,
                     stdout=output,
                 )
         elif arguments.command == "reports":

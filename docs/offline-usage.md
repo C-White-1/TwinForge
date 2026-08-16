@@ -219,7 +219,17 @@ uv run twinforge review validate cause-effect cause-effect-review.json
 
 This checks the selected versioned input contract, attribution fields,
 timestamps, unique keys, and asserted values. Candidate-key reconciliation
-still occurs when the overlay is applied to its source L5X report.
+occurs when the overlay is applied to its source L5X report. It can also be
+requested independently, without creating a report bundle:
+
+```powershell
+uv run twinforge review validate alarm alarm-review.json `
+  --source project.L5X
+```
+
+With `--source`, TwinForge rebuilds the evidence-derived candidates and rejects
+controller-name mismatches, unknown alarm keys, unknown relationship keys, and
+attempts to verify unresolved cause-and-effect relationships.
 
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
