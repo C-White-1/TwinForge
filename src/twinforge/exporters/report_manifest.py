@@ -95,6 +95,7 @@ def verify_engineering_report_bundle(
         )
     for record, name in zip(reports, listed_names, strict=True):
         _verify_file(directory / name, record, expected_name=True)
+    _verify_review_receipts(directory, inputs, set(listed_names))
     return len(inputs), len(reports)
 
 
@@ -187,3 +188,84 @@ def _verify_file(
         raise ReportManifestError("manifest sha256 must be 64 lowercase hexadecimal characters")
     if len(content) != expected_size or sha256(content).hexdigest() != expected_digest:
         raise ReportManifestError(f"manifest integrity check failed for '{path}'")
+
+
+def _verify_review_receipts(
+    directory: Path,
+    inputs: list[dict[str, object]],
+    report_names: set[str],
+) -> None:
+    """Cross-check validation receipts against manifested source inputs."""
+
+    input_by_kind = {
+        _required_string(record, "kind"): record for record in inputs
+    }
+    l5x = input_by_kind.get("l5x")
+    if l5x is None:
+        raise ReportManifestError("report manifest does not contain an l5x input")
+    receipt_names = {
+        "alarm_review": "alarm_review_validation.json",
+        "cause_effect_review": "cause_effect_review_validation.json",
+    }
+    for input_kind, receipt_name in receipt_names.items():
+        review = input_by_kind.get(input_kind)
+        receipt_present = receipt_name in report_names
+        if review is None:
+            if receipt_present:
+                raise ReportManifestError(
+                    f"orphan review-validation receipt '{receipt_name}'"
+                )
+            continue
+        if not receipt_present:
+            raise ReportManifestError(
+                f"manifested {input_kind} requires '{receipt_name}'"
+            )
+        receipt = _read_receipt(directory / receipt_name)
+        expected_kind = (
+            "alarm" if input_kind == "alarm_review" else "cause-effect"
+        )
+        expected = {
+            "schema_version": "twinforge.review-validation-result.v1",
+            "status": "valid",
+            "review_kind": expected_kind,
+            "review_path": _required_string(review, "name"),
+            "review_sha256": _required_string(review, "sha256"),
+            "source_reconciled": True,
+            "source_path": _required_string(l5x, "name"),
+            "source_sha256": _required_string(l5x, "sha256"),
+        }
+        mismatches = [
+            field
+            for field, value in expected.items()
+            if receipt.get(field) != value
+        ]
+        if mismatches:
+            raise ReportManifestError(
+                f"review-validation receipt '{receipt_name}' does not match "
+                "manifested inputs: "
+                + ", ".join(mismatches)
+            )
+        controller_name = receipt.get("controller_name")
+        item_count = receipt.get("item_count")
+        if not isinstance(controller_name, str) or not controller_name:
+            raise ReportManifestError(
+                f"review-validation receipt '{receipt_name}' has no controller"
+            )
+        if not isinstance(item_count, int) or isinstance(item_count, bool) or item_count < 1:
+            raise ReportManifestError(
+                f"review-validation receipt '{receipt_name}' has invalid item_count"
+            )
+
+
+def _read_receipt(path: Path) -> dict[str, object]:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ReportManifestError(
+            f"cannot read review-validation receipt '{path}': {error}"
+        ) from error
+    if not isinstance(document, dict):
+        raise ReportManifestError(
+            f"review-validation receipt '{path}' must be a JSON object"
+        )
+    return document

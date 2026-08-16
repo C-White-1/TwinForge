@@ -262,6 +262,11 @@ bundle automatically contains `alarm_review_validation.json` or
 reproducible content, and `report_manifest.json` authenticates each receipt as
 part of the complete generated file set.
 
+Bundle verification also checks receipt semantics. Each receipt must name and
+hash the exact manifested review overlay and L5X input, identify the expected
+review kind, and record successful source reconciliation. A correctly rehashed
+but contradictory receipt is therefore rejected.
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and

@@ -154,3 +154,56 @@ def test_cli_exports_report_manifest_schema(tmp_path: Path) -> None:
         "twinforge.engineering-report-manifest.v1"
     )
     assert "Exported TwinForge report manifest v1 schema" in output.getvalue()
+
+
+def test_verification_rejects_receipt_that_disagrees_with_inputs(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "controller.L5X"
+    review = tmp_path / "alarm-review.json"
+    source.write_bytes(b"<Controller/>")
+    review.write_bytes(b'{"review":true}\n')
+    receipt = json.dumps(
+        {
+            "schema_version": "twinforge.review-validation-result.v1",
+            "status": "valid",
+            "review_kind": "alarm",
+            "review_schema_version": "twinforge.alarm-review.v1",
+            "review_path": review.name,
+            "review_sha256": "0" * 64,
+            "controller_name": "PLC",
+            "item_count": 1,
+            "source_reconciled": True,
+            "source_path": source.name,
+            "source_sha256": sha256(source.read_bytes()).hexdigest(),
+        },
+        indent=2,
+    ) + "\n"
+    reports = {"alarm_review_validation.json": receipt}
+    reports["report_manifest.json"] = engineering_report_manifest_json(
+        source,
+        reports,
+        alarm_review=review,
+    )
+    destination = tmp_path / "reports"
+    TextReportBundle(reports).write_to(destination)
+    errors = StringIO()
+
+    result = main(
+        (
+            "reports",
+            "verify",
+            str(destination),
+            "--source",
+            str(source),
+            "--alarm-review",
+            str(review),
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 1
+    assert "does not match manifested inputs: review_sha256" in (
+        errors.getvalue()
+    )

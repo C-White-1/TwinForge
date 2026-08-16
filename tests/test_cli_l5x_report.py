@@ -277,6 +277,24 @@ def test_report_applies_explicit_alarm_review_overlay(tmp_path: Path) -> None:
     assert "alarm_review_validation.json" in {
         item["name"] for item in manifest["reports"]
     }
+    verification_output = StringIO()
+    assert (
+        main(
+            (
+                "reports",
+                "verify",
+                str(destination),
+                "--source",
+                str(CONTROLLER),
+                "--alarm-review",
+                str(review),
+            ),
+            stdout=verification_output,
+            stderr=StringIO(),
+        )
+        == 0
+    )
+    assert "Verified 2 inputs and 29 reports" in verification_output.getvalue()
 
 
 def test_report_rejects_unknown_alarm_review_before_writing(tmp_path: Path) -> None:
