@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from importlib.resources import files
 from pathlib import Path
 from typing import TextIO
@@ -40,6 +42,7 @@ def validate_review_document(
     *,
     l5x_source: Path | None = None,
     output_format: str = "text",
+    destination: Path | None = None,
     stdout: TextIO,
 ) -> None:
     """Validate one review overlay and optionally reconcile its L5X keys."""
@@ -98,8 +101,11 @@ def validate_review_document(
             else {}
         ),
     }
+    serialized = json.dumps(result, indent=2, sort_keys=True) + "\n"
+    if destination is not None:
+        _write_atomic(destination, serialized)
     if output_format == "json":
-        stdout.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
+        stdout.write(serialized)
         return
 
     reconciliation = f" and reconciled against {l5x_source}" if l5x_source else ""
@@ -107,9 +113,38 @@ def validate_review_document(
         f"Validated TwinForge {label}: {source}{reconciliation} "
         f"(controller {document.controller_name!r}, {len(document.items)} items)\n"
     )
+    if destination is not None:
+        stdout.write(f"Wrote validation receipt to {destination}\n")
 
 
 def _sha256(path: Path) -> str:
     """Hash exact input bytes for a reproducible validation receipt."""
 
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_atomic(destination: Path, content: str) -> None:
+    """Replace one receipt only after its complete bytes reach disk."""
+
+    temporary: Path | None = None
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as stream:
+            stream.write(content)
+            temporary = Path(stream.name)
+        os.replace(temporary, destination)
+    except OSError as error:
+        raise ReviewValidationCommandError(
+            f"could not write review-validation receipt '{destination}': {error}"
+        ) from error
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)

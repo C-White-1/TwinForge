@@ -236,7 +236,8 @@ For CI or MCP consumption, request a versioned JSON validation receipt:
 ```powershell
 uv run twinforge review validate alarm alarm-review.json `
   --source project.L5X `
-  --format json
+  --format json `
+  --output evidence\alarm-review-validation.json
 ```
 
 The receipt includes SHA-256 hashes of the exact review and L5X bytes. Export
@@ -251,6 +252,9 @@ Invalid input returns exit code `4` (`VALIDATION_FAILED`). With `--format
 json`, stderr contains TwinForge's versioned diagnostic envelope with operation
 `review.validate`; stdout remains empty. This lets CI and MCP callers handle
 success and failure without scraping prose.
+
+`--output` writes the same JSON receipt using atomic file replacement. A failed
+review never creates or partially overwrites the requested receipt.
 
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and

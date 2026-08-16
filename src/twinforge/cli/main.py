@@ -295,6 +295,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="text",
         help="Validation result format (default: text).",
     )
+    review_validate.add_argument(
+        "--output",
+        type=Path,
+        help="Atomically write the JSON validation receipt to this path.",
+    )
 
     reports = commands.add_parser(
         "reports",
@@ -595,6 +600,7 @@ def main(
                     arguments.path,
                     l5x_source=arguments.source,
                     output_format=arguments.format,
+                    destination=arguments.output,
                     stdout=output,
                 )
         elif arguments.command == "reports":

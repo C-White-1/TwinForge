@@ -288,3 +288,53 @@ def test_emits_machine_readable_validation_failure(tmp_path: Path) -> None:
     assert diagnostic["diagnostics"][0]["code"] == (
         "review_validation_failed"
     )
+
+
+def test_writes_validation_receipt_atomically(tmp_path: Path) -> None:
+    source = Path(__file__).parents[1] / "examples" / "reporting" / (
+        "alarm-review.example.json"
+    )
+    destination = tmp_path / "receipts" / "alarm-validation.json"
+    output = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--output",
+            str(destination),
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    receipt = json.loads(destination.read_text(encoding="utf-8"))
+    assert receipt["status"] == "valid"
+    assert receipt["source_reconciled"] is False
+    assert f"Wrote validation receipt to {destination}" in output.getvalue()
+    assert list(destination.parent.glob("*.tmp")) == []
+
+
+def test_invalid_review_does_not_create_receipt(tmp_path: Path) -> None:
+    source = tmp_path / "invalid.json"
+    source.write_text("{}", encoding="utf-8")
+    destination = tmp_path / "validation.json"
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--output",
+            str(destination),
+        ),
+        stdout=StringIO(),
+        stderr=StringIO(),
+    )
+
+    assert result == 4
+    assert not destination.exists()
