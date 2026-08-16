@@ -10,11 +10,8 @@ from twinforge.assembly.eds_cip_infrastructure import (
 from twinforge.parsers.eds import EDSParser
 
 
-def test_decodes_plx51_connection_path_and_builds_exact_candidates() -> None:
-    source = (
-        Path(__file__).parents[1]
-        / "reference/Gateways/Prosoft/PLX51-PBM/0135000C146C0100.eds"
-    )
+def test_decodes_eds_connection_path_and_builds_exact_candidates() -> None:
+    source = Path(__file__).parent / "data" / "eds" / "cip-infrastructure.eds"
 
     assessment = assess_eds_cip_infrastructure(EDSParser().parse(source))
 

@@ -1,0 +1,26 @@
+; TwinForge-authored synthetic EDS fixture.
+; It exercises Assembly connection-path decoding without requiring a vendor file.
+
+[Device]
+VendCode = 1;
+ProdType = 12;
+ProdCode = 7;
+MajRev = 1;
+MinRev = 0;
+ProdName = "TwinForge CIP Infrastructure Fixture";
+
+[Assembly]
+Assem1 = "Input Assembly",,,0x0000,,,4000,Param2;
+Assem2 = "Output Assembly",,,0x0000,,,3968,Param2;
+
+[Connection Manager]
+Connection1 =
+    0x04010002,
+    0x44640405,
+    Param1,496,Assem2,
+    Param1,500,Assem1,
+    ,,
+    0,,
+    "Synthetic I/O Connection",
+    "TwinForge test fixture",
+    "20 04 24 66 2C 85 2C 84";
