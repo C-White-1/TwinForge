@@ -247,6 +247,11 @@ uv run twinforge review schema validation-result `
   --output schemas\review-validation-result.v1.schema.json
 ```
 
+Invalid input returns exit code `4` (`VALIDATION_FAILED`). With `--format
+json`, stderr contains TwinForge's versioned diagnostic envelope with operation
+`review.validate`; stdout remains empty. This lets CI and MCP callers handle
+success and failure without scraping prose.
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and

@@ -705,6 +705,32 @@ def main(
         else:
             errors.write(f"error: {error}\n")
         return int(error.exit_code)
+    except ReviewValidationCommandError as error:
+        exit_code = ExitCode.VALIDATION_FAILED
+        if arguments.format == "json":
+            write_json_diagnostic(
+                errors,
+                status="error",
+                operation="review.validate",
+                exit_code=exit_code,
+                message=str(error),
+                target=arguments.kind,
+                source=arguments.path,
+                diagnostics=(
+                    {
+                        "code": "review_validation_failed",
+                        "message": str(error),
+                        **(
+                            {"l5x_source": str(arguments.source)}
+                            if arguments.source is not None
+                            else {}
+                        ),
+                    },
+                ),
+            )
+        else:
+            errors.write(f"error: {error}\n")
+        return int(exit_code)
     except (
         DiscoveryStatePersistenceError,
         FakeSnapshotCommandError,
@@ -718,7 +744,6 @@ def main(
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
         ReviewSchemaCommandError,
-        ReviewValidationCommandError,
         ReportBundleCommandError,
     ) as error:
         errors.write(f"error: {error}\n")

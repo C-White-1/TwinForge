@@ -114,7 +114,7 @@ def test_rejects_invalid_review_document(tmp_path: Path) -> None:
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert output.getvalue() == ""
     assert "error: cannot load alarm review" in errors.getvalue()
 
@@ -199,7 +199,7 @@ def test_rejects_review_key_missing_from_source_l5x(tmp_path: Path) -> None:
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert "unknown candidate tag_key" in errors.getvalue()
 
 
@@ -255,3 +255,36 @@ def test_emits_machine_readable_reconciled_validation_result(
     assert document["source_reconciled"] is True
     assert len(document["review_sha256"]) == 64
     assert len(document["source_sha256"]) == 64
+
+
+def test_emits_machine_readable_validation_failure(tmp_path: Path) -> None:
+    source = tmp_path / "invalid.json"
+    source.write_text("{}", encoding="utf-8")
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--format",
+            "json",
+        ),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 4
+    assert output.getvalue() == ""
+    diagnostic = json.loads(errors.getvalue())
+    assert diagnostic["schema_version"] == "1.0"
+    assert diagnostic["status"] == "error"
+    assert diagnostic["operation"] == "review.validate"
+    assert diagnostic["exit_code"] == 4
+    assert diagnostic["target"] == "alarm"
+    assert diagnostic["source"] == str(source)
+    assert diagnostic["diagnostics"][0]["code"] == (
+        "review_validation_failed"
+    )

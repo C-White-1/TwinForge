@@ -143,6 +143,7 @@ own project-directory and `.ld` JSON representation.
   - [x] Validate review-overlay contracts independently of report generation
   - [x] Reconcile standalone review validation against source L5X evidence
   - [x] Emit schema-backed, hash-bound review-validation receipts for automation
+  - [x] Return stable validation exit codes and JSON failure diagnostics
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix
