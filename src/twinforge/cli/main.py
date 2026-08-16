@@ -41,6 +41,10 @@ from .model_json import (
 )
 from .plx50_report import Plx50ReportError, export_plx50_mapping_report
 from .review_schema import ReviewSchemaCommandError, export_review_schema
+from .review_validation import (
+    ReviewValidationCommandError,
+    validate_review_document,
+)
 from .report_bundle import (
     ReportBundleCommandError,
     export_report_manifest_schema,
@@ -270,6 +274,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Destination for the JSON Schema file.",
     )
+    review_validate = review_commands.add_parser(
+        "validate",
+        help="Validate an engineering-review input document.",
+    )
+    review_validate.add_argument(
+        "kind",
+        choices=("alarm", "cause-effect"),
+        help="Review input contract to validate.",
+    )
+    review_validate.add_argument("path", type=Path)
 
     reports = commands.add_parser(
         "reports",
@@ -558,11 +572,18 @@ def main(
                     stdout=output,
                 )
         elif arguments.command == "review":
-            export_review_schema(
-                arguments.kind,
-                arguments.output,
-                stdout=output,
-            )
+            if arguments.review_command == "schema":
+                export_review_schema(
+                    arguments.kind,
+                    arguments.output,
+                    stdout=output,
+                )
+            else:
+                validate_review_document(
+                    arguments.kind,
+                    arguments.path,
+                    stdout=output,
+                )
         elif arguments.command == "reports":
             if arguments.reports_command == "schema":
                 export_report_manifest_schema(arguments.output, stdout=output)
@@ -684,6 +705,7 @@ def main(
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
         ReviewSchemaCommandError,
+        ReviewValidationCommandError,
         ReportBundleCommandError,
     ) as error:
         errors.write(f"error: {error}\n")

@@ -210,6 +210,17 @@ Use `examples/reporting/cause-effect-review.example.json` as the starting
 contract. Unknown keys fail closed, and unresolved operands cannot be marked
 as verified.
 
+Validate a completed review overlay independently before report generation:
+
+```powershell
+uv run twinforge review validate alarm alarm-review.json
+uv run twinforge review validate cause-effect cause-effect-review.json
+```
+
+This checks the selected versioned input contract, attribution fields,
+timestamps, unique keys, and asserted values. Candidate-key reconciliation
+still occurs when the overlay is applied to its source L5X report.
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and

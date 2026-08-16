@@ -140,6 +140,7 @@ own project-directory and `.ld` JSON representation.
     explicitly unknown when absent
   - [x] Apply versioned, attributable, fail-closed engineering review overlays
     without replacing source evidence
+  - [x] Validate review-overlay contracts independently of report generation
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix
