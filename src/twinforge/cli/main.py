@@ -265,7 +265,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_schema.add_argument(
         "kind",
-        choices=("alarm", "cause-effect", "coverage"),
+        choices=("alarm", "cause-effect", "coverage", "validation-result"),
         help="Review contract to export.",
     )
     review_schema.add_argument(
@@ -288,6 +288,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--source",
         type=Path,
         help="Optional Controller L5X used to reconcile reviewed keys.",
+    )
+    review_validate.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Validation result format (default: text).",
     )
 
     reports = commands.add_parser(
@@ -588,6 +594,7 @@ def main(
                     arguments.kind,
                     arguments.path,
                     l5x_source=arguments.source,
+                    output_format=arguments.format,
                     stdout=output,
                 )
         elif arguments.command == "reports":

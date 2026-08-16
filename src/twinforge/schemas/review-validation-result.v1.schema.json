@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/review-validation-result.v1.schema.json",
+  "title": "TwinForge engineering-review validation result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "review_kind",
+    "review_schema_version",
+    "review_path",
+    "review_sha256",
+    "controller_name",
+    "item_count",
+    "source_reconciled"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "twinforge.review-validation-result.v1"
+    },
+    "status": {
+      "const": "valid"
+    },
+    "review_kind": {
+      "enum": ["alarm", "cause-effect"]
+    },
+    "review_schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "controller_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "item_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_reconciled": {
+      "type": "boolean"
+    },
+    "source_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source_reconciled": {"const": true}
+        },
+        "required": ["source_reconciled"]
+      },
+      "then": {
+        "required": ["source_path", "source_sha256"]
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {"required": ["source_path"]},
+            {"required": ["source_sha256"]}
+          ]
+        }
+      }
+    }
+  ]
+}

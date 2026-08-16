@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+from importlib.resources import files
 from pathlib import Path
 from typing import TextIO
 
@@ -22,11 +25,21 @@ class ReviewValidationCommandError(RuntimeError):
     """Raised when an engineering-review document is not contract-valid."""
 
 
+def review_validation_result_schema_text() -> str:
+    """Return the packaged review-validation result JSON Schema text."""
+
+    schema = files("twinforge.schemas").joinpath(
+        "review-validation-result.v1.schema.json"
+    )
+    return schema.read_text(encoding="utf-8")
+
+
 def validate_review_document(
     kind: str,
     source: Path,
     *,
     l5x_source: Path | None = None,
+    output_format: str = "text",
     stdout: TextIO,
 ) -> None:
     """Validate one review overlay and optionally reconcile its L5X keys."""
@@ -66,10 +79,37 @@ def validate_review_document(
     except (OSError, ValueError) as error:
         raise ReviewValidationCommandError(str(error)) from error
 
-    reconciliation = (
-        f" and reconciled against {l5x_source}" if l5x_source is not None else ""
-    )
+    result = {
+        "schema_version": "twinforge.review-validation-result.v1",
+        "status": "valid",
+        "review_kind": kind,
+        "review_schema_version": document.schema_version,
+        "review_path": str(source),
+        "review_sha256": _sha256(source),
+        "controller_name": document.controller_name,
+        "item_count": len(document.items),
+        "source_reconciled": l5x_source is not None,
+        **(
+            {
+                "source_path": str(l5x_source),
+                "source_sha256": _sha256(l5x_source),
+            }
+            if l5x_source is not None
+            else {}
+        ),
+    }
+    if output_format == "json":
+        stdout.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
+        return
+
+    reconciliation = f" and reconciled against {l5x_source}" if l5x_source else ""
     stdout.write(
         f"Validated TwinForge {label}: {source}{reconciliation} "
         f"(controller {document.controller_name!r}, {len(document.items)} items)\n"
     )
+
+
+def _sha256(path: Path) -> str:
+    """Hash exact input bytes for a reproducible validation receipt."""
+
+    return hashlib.sha256(path.read_bytes()).hexdigest()

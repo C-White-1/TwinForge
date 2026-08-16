@@ -11,6 +11,8 @@ from twinforge.analysis import (
     engineering_review_coverage_schema_text,
 )
 
+from .review_validation import review_validation_result_schema_text
+
 
 class ReviewSchemaCommandError(RuntimeError):
     """Raised when an installed review schema cannot be exported."""
@@ -25,6 +27,10 @@ _SCHEMAS = {
     "coverage": (
         "engineering-review coverage v1",
         engineering_review_coverage_schema_text,
+    ),
+    "validation-result": (
+        "review-validation result v1",
+        review_validation_result_schema_text,
     ),
 }
 

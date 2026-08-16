@@ -30,6 +30,11 @@ CONTROLLER = (
             "twinforge.engineering-review-coverage.v1",
             "engineering-review coverage v1",
         ),
+        (
+            "validation-result",
+            "twinforge.review-validation-result.v1",
+            "review-validation result v1",
+        ),
     ),
 )
 def test_exports_installed_review_schema(
@@ -196,3 +201,57 @@ def test_rejects_review_key_missing_from_source_l5x(tmp_path: Path) -> None:
 
     assert result == 1
     assert "unknown candidate tag_key" in errors.getvalue()
+
+
+def test_emits_machine_readable_reconciled_validation_result(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "alarm-review.json"
+    source.write_text(
+        json.dumps(
+            {
+                "schema_version": "twinforge.alarm-review.v1",
+                "controller_name": "booster_compressor",
+                "reviewed_by": "Control systems engineer",
+                "reviewed_at": "2026-08-16T00:00:00Z",
+                "authority_reference": "ALARM-PHILOSOPHY-001",
+                "source_reference": "C&E CE-001 revision B",
+                "items": [
+                    {
+                        "tag_key": "controller:PT102_HH_Alm",
+                        "priority": "High",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "alarm",
+            str(source),
+            "--source",
+            str(CONTROLLER),
+            "--format",
+            "json",
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    document = json.loads(output.getvalue())
+    assert document["schema_version"] == (
+        "twinforge.review-validation-result.v1"
+    )
+    assert document["status"] == "valid"
+    assert document["review_kind"] == "alarm"
+    assert document["controller_name"] == "booster_compressor"
+    assert document["item_count"] == 1
+    assert document["source_reconciled"] is True
+    assert len(document["review_sha256"]) == 64
+    assert len(document["source_sha256"]) == 64

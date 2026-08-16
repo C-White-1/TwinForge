@@ -231,6 +231,22 @@ With `--source`, TwinForge rebuilds the evidence-derived candidates and rejects
 controller-name mismatches, unknown alarm keys, unknown relationship keys, and
 attempts to verify unresolved cause-and-effect relationships.
 
+For CI or MCP consumption, request a versioned JSON validation receipt:
+
+```powershell
+uv run twinforge review validate alarm alarm-review.json `
+  --source project.L5X `
+  --format json
+```
+
+The receipt includes SHA-256 hashes of the exact review and L5X bytes. Export
+its installed JSON Schema with:
+
+```powershell
+uv run twinforge review schema validation-result `
+  --output schemas\review-validation-result.v1.schema.json
+```
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and
