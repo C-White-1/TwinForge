@@ -44,6 +44,7 @@ from .review_schema import ReviewSchemaCommandError, export_review_schema
 from .review_validation import (
     ReviewValidationCommandError,
     validate_review_document,
+    verify_review_receipt,
 )
 from .report_bundle import (
     ReportBundleCommandError,
@@ -299,6 +300,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         help="Atomically write the JSON validation receipt to this path.",
+    )
+    review_verify = review_commands.add_parser(
+        "verify-receipt",
+        help="Verify a saved review-validation receipt against exact inputs.",
+    )
+    review_verify.add_argument(
+        "kind",
+        choices=("alarm", "cause-effect"),
+    )
+    review_verify.add_argument("path", type=Path, help="Validation receipt.")
+    review_verify.add_argument("--review", required=True, type=Path)
+    review_verify.add_argument("--source", type=Path)
+    review_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
     )
 
     reports = commands.add_parser(
@@ -594,13 +611,22 @@ def main(
                     arguments.output,
                     stdout=output,
                 )
-            else:
+            elif arguments.review_command == "validate":
                 validate_review_document(
                     arguments.kind,
                     arguments.path,
                     l5x_source=arguments.source,
                     output_format=arguments.format,
                     destination=arguments.output,
+                    stdout=output,
+                )
+            else:
+                verify_review_receipt(
+                    arguments.kind,
+                    arguments.path,
+                    arguments.review,
+                    l5x_source=arguments.source,
+                    output_format=arguments.format,
                     stdout=output,
                 )
         elif arguments.command == "reports":
@@ -713,11 +739,12 @@ def main(
         return int(error.exit_code)
     except ReviewValidationCommandError as error:
         exit_code = ExitCode.VALIDATION_FAILED
+        operation = f"review.{arguments.review_command}"
         if arguments.format == "json":
             write_json_diagnostic(
                 errors,
                 status="error",
-                operation="review.validate",
+                operation=operation,
                 exit_code=exit_code,
                 message=str(error),
                 target=arguments.kind,

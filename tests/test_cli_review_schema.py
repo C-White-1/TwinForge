@@ -338,3 +338,84 @@ def test_invalid_review_does_not_create_receipt(tmp_path: Path) -> None:
 
     assert result == 4
     assert not destination.exists()
+
+
+def test_verifies_saved_receipt_against_exact_review(tmp_path: Path) -> None:
+    review = Path(__file__).parents[1] / "examples" / "reporting" / (
+        "alarm-review.example.json"
+    )
+    receipt = tmp_path / "validation.json"
+    assert (
+        main(
+            (
+                "review",
+                "validate",
+                "alarm",
+                str(review),
+                "--output",
+                str(receipt),
+            ),
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+        == 0
+    )
+    output = StringIO()
+
+    result = main(
+        (
+            "review",
+            "verify-receipt",
+            "alarm",
+            str(receipt),
+            "--review",
+            str(review),
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    assert "Verified review-validation receipt" in output.getvalue()
+
+
+def test_rejects_saved_receipt_after_review_changes(tmp_path: Path) -> None:
+    review = tmp_path / "alarm-review.json"
+    original = Path(__file__).parents[1] / "examples" / "reporting" / (
+        "alarm-review.example.json"
+    )
+    review.write_bytes(original.read_bytes())
+    receipt = tmp_path / "validation.json"
+    assert (
+        main(
+            (
+                "review",
+                "validate",
+                "alarm",
+                str(review),
+                "--output",
+                str(receipt),
+            ),
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+        == 0
+    )
+    review.write_text(review.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "verify-receipt",
+            "alarm",
+            str(receipt),
+            "--review",
+            str(review),
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 4
+    assert "review_sha256" in errors.getvalue()

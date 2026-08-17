@@ -256,6 +256,19 @@ success and failure without scraping prose.
 `--output` writes the same JSON receipt using atomic file replacement. A failed
 review never creates or partially overwrites the requested receipt.
 
+Verify a retained receipt later against the exact input bytes, repeating L5X
+candidate reconciliation when a source was originally supplied:
+
+```powershell
+uv run twinforge review verify-receipt alarm `
+  evidence\alarm-review-validation.json `
+  --review alarm-review.json `
+  --source project.L5X
+```
+
+Any changed review or source bytes, altered metadata, missing field, additional
+field, controller mismatch, or now-invalid candidate key fails verification.
+
 When `twinforge report` applies an alarm or cause-and-effect review, the report
 bundle automatically contains `alarm_review_validation.json` or
 `cause_effect_review_validation.json`. These use input basenames for portable,

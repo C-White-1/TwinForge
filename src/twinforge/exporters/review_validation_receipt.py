@@ -75,6 +75,48 @@ def review_validation_result_json(
     )
 
 
+def verify_review_validation_result(
+    receipt: Path,
+    kind: str,
+    review: Path,
+    *,
+    controller_name: str,
+    item_count: int,
+    source: Path | None = None,
+) -> dict[str, object]:
+    """Verify one saved receipt against exact review and source bytes."""
+
+    try:
+        observed = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ReviewValidationReceiptError(
+            f"cannot read review-validation receipt '{receipt}': {error}"
+        ) from error
+    if not isinstance(observed, dict):
+        raise ReviewValidationReceiptError(
+            f"review-validation receipt '{receipt}' must be a JSON object"
+        )
+    expected = review_validation_result_data(
+        kind,
+        review,
+        controller_name=controller_name,
+        item_count=item_count,
+        source=source,
+    )
+    if observed != expected:
+        fields = sorted(
+            key
+            for key in observed.keys() | expected.keys()
+            if observed.get(key) != expected.get(key)
+        )
+        raise ReviewValidationReceiptError(
+            f"review-validation receipt '{receipt}' does not match exact "
+            "validation evidence: "
+            + ", ".join(fields)
+        )
+    return expected
+
+
 def _digest(path: Path, label: str) -> str:
     try:
         return sha256(path.read_bytes()).hexdigest()

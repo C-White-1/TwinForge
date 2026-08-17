@@ -140,6 +140,7 @@ from .review_validation_receipt import (
     ReviewValidationReceiptError,
     review_validation_result_data,
     review_validation_result_json,
+    verify_review_validation_result,
 )
 from .report_manifest import (
     ReportManifestError,
@@ -185,6 +186,7 @@ __all__ = [
     "ReviewValidationReceiptError",
     "review_validation_result_data",
     "review_validation_result_json",
+    "verify_review_validation_result",
     "engineering_report_manifest_json",
     "engineering_report_manifest_schema_text",
     "ReportManifestError",

@@ -147,6 +147,7 @@ own project-directory and `.ld` JSON representation.
   - [x] Persist successful validation receipts with atomic file replacement
   - [x] Include review-validation receipts in manifested report bundles
   - [x] Cross-check receipt semantics against manifested source inputs
+  - [x] Verify retained receipts independently against exact review/L5X inputs
   - [ ] Review candidates and validate priorities, setpoints, and actions
     against the applicable alarm philosophy and process design
 - [ ] Cause-and-effect matrix
