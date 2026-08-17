@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/engineering-report-verification.v1.schema.json",
+  "title": "TwinForge engineering-report verification result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "directory",
+    "manifest_sha256",
+    "input_count",
+    "report_count"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "twinforge.engineering-report-verification.v1"
+    },
+    "status": {"const": "valid"},
+    "directory": {"type": "string", "minLength": 1},
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_count": {"type": "integer", "minimum": 1},
+    "report_count": {"type": "integer", "minimum": 0}
+  }
+}

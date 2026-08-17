@@ -280,6 +280,20 @@ hash the exact manifested review overlay and L5X input, identify the expected
 review kind, and record successful source reconciliation. A correctly rehashed
 but contradictory receipt is therefore rejected.
 
+For CI or MCP callers, request a schema-backed verification result:
+
+```powershell
+uv run twinforge reports verify reports\project `
+  --source project.L5X `
+  --format json
+
+uv run twinforge reports verification-schema `
+  --output schemas\engineering-report-verification.v1.schema.json
+```
+
+Successful JSON includes the SHA-256 of the exact verified manifest. Validation
+failures return exit code `4` and a structured diagnostic on stderr.
+
 Each generated bundle includes `report_manifest.json`. It records SHA-256
 digests and byte sizes for the source L5X, any applied review overlays, and
 every other generated report. The manifest intentionally omits timestamps and

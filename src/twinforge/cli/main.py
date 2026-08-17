@@ -49,6 +49,7 @@ from .review_validation import (
 from .report_bundle import (
     ReportBundleCommandError,
     export_report_manifest_schema,
+    export_report_verification_schema,
     verify_report_bundle,
 )
 from .snmp_conversion import convert_walk_command
@@ -339,11 +340,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     reports_verify.add_argument("--alarm-review", type=Path)
     reports_verify.add_argument("--cause-effect-review", type=Path)
+    reports_verify.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+    )
     reports_schema = reports_commands.add_parser(
         "schema",
         help="Export the installed engineering-report manifest JSON Schema.",
     )
     reports_schema.add_argument("--output", required=True, type=Path)
+    reports_verification_schema = reports_commands.add_parser(
+        "verification-schema",
+        help="Export the report-verification result JSON Schema.",
+    )
+    reports_verification_schema.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+    )
 
     state = commands.add_parser(
         "state",
@@ -632,12 +647,18 @@ def main(
         elif arguments.command == "reports":
             if arguments.reports_command == "schema":
                 export_report_manifest_schema(arguments.output, stdout=output)
+            elif arguments.reports_command == "verification-schema":
+                export_report_verification_schema(
+                    arguments.output,
+                    stdout=output,
+                )
             else:
                 verify_report_bundle(
                     arguments.directory,
                     source=arguments.source,
                     alarm_review=arguments.alarm_review,
                     cause_effect_review=arguments.cause_effect_review,
+                    output_format=arguments.format,
                     stdout=output,
                 )
         elif arguments.command == "discover":
@@ -764,6 +785,26 @@ def main(
         else:
             errors.write(f"error: {error}\n")
         return int(exit_code)
+    except ReportBundleCommandError as error:
+        exit_code = ExitCode.VALIDATION_FAILED
+        if arguments.reports_command == "verify" and arguments.format == "json":
+            write_json_diagnostic(
+                errors,
+                status="error",
+                operation="reports.verify",
+                exit_code=exit_code,
+                message=str(error),
+                source=arguments.directory / "report_manifest.json",
+                diagnostics=(
+                    {
+                        "code": "report_bundle_validation_failed",
+                        "message": str(error),
+                    },
+                ),
+            )
+        else:
+            errors.write(f"error: {error}\n")
+        return int(exit_code)
     except (
         DiscoveryStatePersistenceError,
         FakeSnapshotCommandError,
@@ -777,7 +818,6 @@ def main(
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
         ReviewSchemaCommandError,
-        ReportBundleCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1

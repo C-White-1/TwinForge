@@ -101,7 +101,7 @@ def test_cli_verification_fails_after_report_is_modified(tmp_path: Path) -> None
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert "integrity check failed" in errors.getvalue()
 
 
@@ -131,7 +131,7 @@ def test_cli_verification_requires_every_manifested_review(tmp_path: Path) -> No
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert "missing alarm_review" in errors.getvalue()
 
 
@@ -154,6 +154,63 @@ def test_cli_exports_report_manifest_schema(tmp_path: Path) -> None:
         "twinforge.engineering-report-manifest.v1"
     )
     assert "Exported TwinForge report manifest v1 schema" in output.getvalue()
+
+
+def test_cli_exports_report_verification_schema(tmp_path: Path) -> None:
+    destination = tmp_path / "schemas" / "verification.schema.json"
+    output = StringIO()
+
+    result = main(
+        (
+            "reports",
+            "verification-schema",
+            "--output",
+            str(destination),
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    schema = json.loads(destination.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    assert schema["properties"]["schema_version"]["const"] == (
+        "twinforge.engineering-report-verification.v1"
+    )
+
+
+def test_cli_emits_json_report_verification_result(tmp_path: Path) -> None:
+    source = tmp_path / "controller.L5X"
+    source.write_bytes(b"<Controller/>")
+    reports = {"report.md": "evidence\n"}
+    reports["report_manifest.json"] = engineering_report_manifest_json(
+        source,
+        reports,
+    )
+    destination = tmp_path / "reports"
+    TextReportBundle(reports).write_to(destination)
+    output = StringIO()
+
+    result = main(
+        (
+            "reports",
+            "verify",
+            str(destination),
+            "--source",
+            str(source),
+            "--format",
+            "json",
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    verification = json.loads(output.getvalue())
+    assert verification["status"] == "valid"
+    assert verification["input_count"] == 1
+    assert verification["report_count"] == 1
+    assert len(verification["manifest_sha256"]) == 64
 
 
 def test_verification_rejects_receipt_that_disagrees_with_inputs(
@@ -203,7 +260,38 @@ def test_verification_rejects_receipt_that_disagrees_with_inputs(
         stderr=errors,
     )
 
-    assert result == 1
+    assert result == 4
     assert "does not match manifested inputs: review_sha256" in (
         errors.getvalue()
+    )
+
+
+def test_cli_emits_json_report_verification_failure(tmp_path: Path) -> None:
+    source = tmp_path / "controller.L5X"
+    source.write_bytes(b"<Controller/>")
+    destination = tmp_path / "reports"
+    destination.mkdir()
+    errors = StringIO()
+
+    result = main(
+        (
+            "reports",
+            "verify",
+            str(destination),
+            "--source",
+            str(source),
+            "--format",
+            "json",
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 4
+    diagnostic = json.loads(errors.getvalue())
+    assert diagnostic["status"] == "error"
+    assert diagnostic["operation"] == "reports.verify"
+    assert diagnostic["exit_code"] == 4
+    assert diagnostic["diagnostics"][0]["code"] == (
+        "report_bundle_validation_failed"
     )

@@ -146,6 +146,7 @@ from .report_manifest import (
     ReportManifestError,
     engineering_report_manifest_json,
     engineering_report_manifest_schema_text,
+    engineering_report_verification_schema_text,
     verify_engineering_report_bundle,
 )
 from .text_report import TextReportBundle, TextReportExporter
@@ -189,6 +190,7 @@ __all__ = [
     "verify_review_validation_result",
     "engineering_report_manifest_json",
     "engineering_report_manifest_schema_text",
+    "engineering_report_verification_schema_text",
     "ReportManifestError",
     "verify_engineering_report_bundle",
     "FunctionalDescriptionMarkdownExporter",

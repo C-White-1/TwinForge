@@ -22,6 +22,15 @@ def engineering_report_manifest_schema_text() -> str:
     return schema.read_text(encoding="utf-8")
 
 
+def engineering_report_verification_schema_text() -> str:
+    """Return the packaged report-verification result v1 JSON Schema."""
+
+    schema = files("twinforge.schemas").joinpath(
+        "engineering-report-verification.v1.schema.json"
+    )
+    return schema.read_text(encoding="utf-8")
+
+
 def verify_engineering_report_bundle(
     directory: Path,
     *,
