@@ -81,6 +81,37 @@ That is a project-specific result, not universal Logix coverage.
   - [ ] Add dependency edges for additional routine-body languages
 - [ ] Physical channel and CIP assembly entities when supported by evidence
 
+### CCW project interchange and CODESYS conversion
+
+Keep Connected Components Workbench archive decoding in the separate
+`rockwell-file-research` repository. TwinForge will consume its versioned,
+vendor-neutral `ccw-project-v1` JSON artifact; it will not import that
+repository's Python implementation or read `.ccwarc` internals directly.
+
+- [ ] Add a TwinForge input adapter for `ccw-project-v1`
+  - [ ] Vendor the exact Draft 2020-12 schema version with its origin recorded
+  - [ ] Validate input before conversion and reject unsupported contract
+    versions with actionable diagnostics
+  - [ ] Preserve source provenance, evidence hashes, diagnostics, and fields
+    that TwinForge does not yet understand
+- [ ] Lower CCW project content into TwinForge's vendor-neutral model
+  - [ ] Import Boolean variables, aliases, physical-I/O mappings, and usage
+    evidence
+  - [ ] Import programs, rungs, series topology, and recursive parallel
+    branches
+  - [ ] Map the initial `XIC`, `XIO`, `OTE`, `OTS`, and `OTU` subset without
+    silently discarding unsupported instructions
+- [ ] Complete the first end-to-end CCW-to-CODESYS milestone
+  - [ ] Generate PLCopen XML through the existing CODESYS target adapter
+  - [ ] Include `PLC_PRG` and an explicit cyclic task configuration
+  - [ ] Publish a conversion-coverage report listing converted, preserved, and
+    unsupported constructs
+  - [ ] Import and build the generated project in CODESYS with zero errors
+- [ ] Add CI coverage using a legally shareable synthetic
+  `ccw-project-v1.json` fixture rather than a private `.ccwarc` archive
+- [ ] Evaluate moving stable interchange schemas into a small independent
+  contracts package only after the boundary has proven reusable
+
 ### PLCopen conversion
 
 - [ ] Complex and nested branches
