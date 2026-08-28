@@ -107,6 +107,9 @@ repository's Python implementation or read `.ccwarc` internals directly.
   - [x] Publish a conversion-coverage report listing converted, preserved, and
     unsupported constructs
   - [ ] Import and build the generated project in CODESYS with zero errors
+- [x] Size physical I/O for hardware selection independent of any conversion
+  target, reporting direction/signal type/assignment status in the same
+  vocabulary as the L5X evidence-bound channel I/O list below
 - [x] Add CI coverage using a legally shareable synthetic
   `ccw-project-v1.json` fixture rather than a private `.ccwarc` archive
 - [ ] Evaluate moving stable interchange schemas into a small independent
@@ -164,6 +167,9 @@ own project-directory and `.ld` JSON representation.
 
 - [x] Evidence-bound channel I/O list with assignments, spare candidates,
   configuration-unavailable channels, ranges, units, and unresolved aliases
+  - [ ] Aggregate channels by direction, signal type, and assignment status,
+    matching the CCW `io-summary` command's counts so hardware sizing reads
+    the same way for L5X- and CCW-sourced projects
 - [ ] Alarm and trip list
   - [x] Identify explicitly labelled alarm/trip tag candidates and join their
     reader, writer, alias, scope, and classification evidence

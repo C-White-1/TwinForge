@@ -83,6 +83,29 @@ uv run twinforge ccw-project lower .\project.json
 uv run twinforge ccw-project lower .\project.json --format json
 ```
 
+Size the physical I/O a project requires, before any conversion target is
+chosen. This reads only `physical_source`, `physical_destination`, `aliases`,
+and `data_type` from the neutral lowering, so it applies to any future
+TwinForge target adapter, not just CODESYS; it depends on the CCW lowerer's
+metadata convention, so it does not yet generalize to a non-CCW source.
+Direction and signal type are reported using the same `IODirection` /
+`IOSignalType` vocabulary as the L5X `io_list` report
+(`src/twinforge/analysis/io_list.py`), and each point's `assigned`/`spare`
+status matches that report's meaning: a tag exists that references the
+physical address. CCW's own buffer-program convention makes `assigned` a
+weaker signal of real use than in L5X, since CCW commonly auto-generates a
+buffer variable for every embedded point whether or not the logic uses it;
+`assigned_unaliased_point_count` distinguishes a bound-but-unnamed point from
+one an engineer actually named. Unlike L5X, CCW never declares a channel's
+nominal or configured count, so there is no `unavailable_by_configuration`
+status, and a binding with no matching `physical_io`-classified variable is
+reported separately as an unresolved binding rather than invented as a point:
+
+```powershell
+uv run twinforge ccw-project io-summary .\project.json
+uv run twinforge ccw-project io-summary .\project.json --format json
+```
+
 Export the supported subset for CODESYS and always write its conversion
 coverage alongside it:
 

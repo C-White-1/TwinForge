@@ -26,6 +26,7 @@ from .ccw_project import (
     export_ccw_project_schema,
     inspect_ccw_project_file,
     inspect_lowered_ccw_project,
+    summarize_ccw_physical_io,
     validate_ccw_project_file,
 )
 from .communication_graph import (
@@ -301,6 +302,20 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Lowering summary format (default: text).",
+    )
+    ccw_project_io_summary = ccw_project_commands.add_parser(
+        "io-summary",
+        help=(
+            "Size the physical I/O a CCW project requires, independent of "
+            "any conversion target."
+        ),
+    )
+    ccw_project_io_summary.add_argument("path", type=Path)
+    ccw_project_io_summary.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="I/O summary output format (default: text).",
     )
     ccw_project_export = ccw_project_commands.add_parser(
         "export",
@@ -767,6 +782,12 @@ def main(
                 )
             elif arguments.ccw_project_command == "lower":
                 inspect_lowered_ccw_project(
+                    arguments.path,
+                    output_format=arguments.format,
+                    stdout=output,
+                )
+            elif arguments.ccw_project_command == "io-summary":
+                summarize_ccw_physical_io(
                     arguments.path,
                     output_format=arguments.format,
                     stdout=output,

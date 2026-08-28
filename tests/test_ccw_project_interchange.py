@@ -239,6 +239,84 @@ def test_cli_reports_neutral_lowering_without_target_export(
     assert summary["unsupported_instruction_count"] == 0
 
 
+def test_cli_reports_physical_io_sizing_summary(tmp_path: Path) -> None:
+    source = tmp_path / "ccw-project.json"
+    document = deepcopy(_document())
+
+    def _physical_tag(name: str) -> dict:
+        tag = deepcopy(document["variables"][0])
+        tag["name"] = name
+        tag["classification"] = "physical_io"
+        tag["aliases"] = []
+        tag["physical_source"] = None
+        tag["physical_destination"] = None
+        tag["usages"] = []
+        return tag
+
+    # _IO_EM_DI_00 is bound (via the fixture's "Start" variable, aliased
+    # "Start PB") and its own physical_io point now exists too.
+    document["variables"].append(_physical_tag("_IO_EM_DI_00"))
+
+    output_variable = deepcopy(document["variables"][0])
+    output_variable["name"] = "OUT00"
+    output_variable["classification"] = "user"
+    output_variable["aliases"] = ["Motor Contactor"]
+    output_variable["physical_source"] = None
+    output_variable["physical_destination"] = "_IO_EM_DO_00"
+    output_variable["usages"] = []
+    document["variables"].append(output_variable)
+    document["variables"].append(_physical_tag("_IO_EM_DO_00"))
+
+    # A spare point: declared, but nothing binds to it.
+    document["variables"].append(_physical_tag("_IO_EM_DI_05"))
+
+    # An unresolved binding: references a physical address with no matching
+    # physical_io-classified variable.
+    unresolved_variable = deepcopy(document["variables"][0])
+    unresolved_variable["name"] = "OUT99"
+    unresolved_variable["classification"] = "user"
+    unresolved_variable["aliases"] = []
+    unresolved_variable["physical_source"] = None
+    unresolved_variable["physical_destination"] = "_IO_EM_DO_99"
+    unresolved_variable["usages"] = []
+    document["variables"].append(unresolved_variable)
+
+    _write_document(source, document)
+    output = StringIO()
+
+    assert (
+        main(
+            ("ccw-project", "io-summary", str(source), "--format", "json"),
+            stdout=output,
+        )
+        == 0
+    )
+
+    summary = json.loads(output.getvalue())
+    assert summary["controller_catalog_number"] == "2080-LC50-48QWB-SIM"
+    assert summary["total_point_count"] == 3
+    assert summary["counts_by_assignment_status"] == {"assigned": 2, "spare": 1}
+    assert summary["assigned_unaliased_point_count"] == 0
+    assert summary["counts_by_direction_and_signal_type"] == {
+        "Input/Digital": 2,
+        "Output/Digital": 1,
+    }
+    points = {point["physical_address"]: point for point in summary["points"]}
+    assert points["_IO_EM_DI_00"]["direction"] == "Input"
+    assert points["_IO_EM_DI_00"]["signal_type"] == "Digital"
+    assert points["_IO_EM_DI_00"]["assignment_status"] == "assigned"
+    assert points["_IO_EM_DI_00"]["aliases"] == ["Start PB"]
+    assert points["_IO_EM_DO_00"]["direction"] == "Output"
+    assert points["_IO_EM_DO_00"]["assignment_status"] == "assigned"
+    assert points["_IO_EM_DO_00"]["aliases"] == ["Motor Contactor"]
+    assert points["_IO_EM_DI_05"]["direction"] == "Input"
+    assert points["_IO_EM_DI_05"]["assignment_status"] == "spare"
+    assert points["_IO_EM_DI_05"]["aliases"] == []
+
+    unresolved = {item["physical_address"]: item for item in summary["unresolved_bindings"]}
+    assert unresolved["_IO_EM_DO_99"]["tag_name"] == "OUT99"
+
+
 def test_cli_exports_codesys_xml_and_attributable_coverage(
     tmp_path: Path,
 ) -> None:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import Counter
 import json
 from pathlib import Path
+import re
 from typing import TextIO
 
 from twinforge.converters import ConversionDiagnostic
@@ -17,6 +18,7 @@ from twinforge.interchange import (
     ccw_project_schema_text,
     read_ccw_project,
 )
+from twinforge.model import Controller, IODirection, IOSignalType, Tag
 from twinforge.targets.codesys import plan_ccw_codesys_project
 
 
@@ -103,6 +105,174 @@ def inspect_lowered_ccw_project(
         f"Unsupported instructions: {summary['unsupported_instruction_count']}\n"
         f"Diagnostics: {summary['diagnostic_count']}\n"
     )
+
+
+_CCW_IO_ADDRESS = re.compile(r"(?:^|_)(?P<code>DI|DO|AI|AO)_\d+$", re.IGNORECASE)
+_CCW_IO_KINDS = {
+    "DI": (IODirection.INPUT, IOSignalType.DIGITAL),
+    "DO": (IODirection.OUTPUT, IOSignalType.DIGITAL),
+    "AI": (IODirection.INPUT, IOSignalType.ANALOG),
+    "AO": (IODirection.OUTPUT, IOSignalType.ANALOG),
+}
+
+
+def summarize_ccw_physical_io(
+    path: Path,
+    *,
+    output_format: str,
+    stdout: TextIO,
+) -> None:
+    """Size the physical I/O a CCW project requires, independent of any target.
+
+    Reports direction/signal type using the same `IODirection`/`IOSignalType`
+    vocabulary and `assigned`/`spare` status as the L5X `io_list` report
+    (src/twinforge/analysis/io_list.py), so a human sizing hardware across a
+    mixed CCW/L5X fleet reads both the same way. Unlike L5X's module capability
+    decoding, CCW never declares a channel's nominal/configured count, so
+    there is no `unavailable_by_configuration` status here. CCW's own
+    buffer-program convention also makes `assigned` a weaker signal of actual
+    use than in L5X, because CCW commonly auto-generates a buffer variable for
+    every embedded point whether or not the logic uses it; `assigned_unaliased`
+    below distinguishes a bound-but-unnamed point from a bound-and-named one.
+    """
+
+    artifact = _read(path)
+    lowering = lower_ccw_project(artifact)
+    document = artifact.to_document()
+    points, unresolved = _physical_io_points(lowering.controller)
+    status_counts = Counter(point["assignment_status"] for point in points)
+    assigned_unaliased = sum(
+        1
+        for point in points
+        if point["assignment_status"] == "assigned" and not point["aliases"]
+    )
+    signal_counts = Counter(
+        (point["direction"] or "unknown", point["signal_type"] or "unknown")
+        for point in points
+    )
+    summary = {
+        "controller_catalog_number": document["controller"]["catalog_number"],
+        "total_point_count": len(points),
+        "counts_by_assignment_status": dict(sorted(status_counts.items())),
+        "assigned_unaliased_point_count": assigned_unaliased,
+        "counts_by_direction_and_signal_type": {
+            f"{direction}/{signal_type}": count
+            for (direction, signal_type), count in sorted(signal_counts.items())
+        },
+        "points": points,
+        "unresolved_bindings": unresolved,
+    }
+    if output_format == "json":
+        stdout.write(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+        return
+    stdout.write(
+        "CCW physical I/O sizing summary (source evidence only; no target"
+        " selected)\n"
+        f"Controller: {summary['controller_catalog_number'] or '(unknown)'}\n"
+        f"Total physical I/O points: {summary['total_point_count']}\n"
+    )
+    for status, count in summary["counts_by_assignment_status"].items():
+        stdout.write(f"  {status}: {count}\n")
+    stdout.write("By direction and signal type:\n")
+    for key, count in summary["counts_by_direction_and_signal_type"].items():
+        stdout.write(f"  {key}: {count}\n")
+    stdout.write(
+        "Assigned points with no recorded alias (likely auto-buffered "
+        f"spares): {summary['assigned_unaliased_point_count']}\n"
+    )
+    if unresolved:
+        stdout.write(
+            f"Unresolved bindings (no matching physical_io variable): "
+            f"{len(unresolved)}\n"
+        )
+        for item in unresolved:
+            stdout.write(f"  {item['tag_name']} -> {item['physical_address']}\n")
+
+
+def _physical_io_points(
+    controller: Controller,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Report every known physical point plus any binding that matches none."""
+
+    bindings: dict[str, list[tuple[Tag, str]]] = {}
+    for tag in controller.iter_tags():
+        source = tag.metadata.get("physical_source")
+        if source:
+            bindings.setdefault(source, []).append((tag, "input"))
+        destination = tag.metadata.get("physical_destination")
+        if destination:
+            bindings.setdefault(destination, []).append((tag, "output"))
+
+    physical_tags = {
+        tag.name: tag
+        for tag in controller.iter_tags()
+        if tag.metadata.get("ccw_classification") == "physical_io"
+    }
+
+    points = [
+        _physical_io_point(name, tag, bindings.get(name, []))
+        for name, tag in sorted(physical_tags.items())
+    ]
+    unresolved: list[dict[str, object]] = [
+        {
+            "tag_name": tag.name,
+            "physical_address": address,
+            "reason": "no matching physical_io-classified CCW variable",
+        }
+        for address in sorted(set(bindings) - set(physical_tags))
+        for tag, _ in bindings[address]
+    ]
+    return points, unresolved
+
+
+def _physical_io_point(
+    address: str,
+    physical_tag: Tag,
+    linked: list[tuple[Tag, str]],
+) -> dict[str, object]:
+    direction, signal_type = _classify_ccw_address(address)
+    if direction is None:
+        bound_directions = {value for _, value in linked}
+        if len(bound_directions) == 1:
+            direction = (
+                IODirection.INPUT
+                if bound_directions.pop() == "input"
+                else IODirection.OUTPUT
+            )
+    if signal_type is None:
+        data_type = physical_tag.data_type or next(
+            (tag.data_type for tag, _ in linked if tag.data_type), None
+        )
+        if data_type is not None:
+            signal_type = (
+                IOSignalType.DIGITAL
+                if data_type.upper() == "BOOL"
+                else IOSignalType.ANALOG
+            )
+    alias_sources = [tag for tag, _ in linked]
+    alias_sources.append(physical_tag)
+    aliases = sorted(
+        {alias for tag in alias_sources for alias in tag.metadata.get("aliases", [])}
+    )
+    variable_names = sorted({tag.name for tag, _ in linked})
+    return {
+        "physical_address": address,
+        "direction": direction.value if direction is not None else None,
+        "signal_type": signal_type.value if signal_type is not None else None,
+        "data_type": physical_tag.data_type,
+        "assignment_status": "assigned" if linked else "spare",
+        "variable_names": variable_names,
+        "aliases": aliases,
+    }
+
+
+def _classify_ccw_address(
+    address: str,
+) -> tuple[IODirection | None, IOSignalType | None]:
+    match = _CCW_IO_ADDRESS.search(address)
+    if match is None:
+        return None, None
+    return _CCW_IO_KINDS[match.group("code").upper()]
 
 
 def export_ccw_codesys_project(
