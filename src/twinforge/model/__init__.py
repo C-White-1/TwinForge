@@ -38,6 +38,13 @@ from .gateway import (
     GatewayTagBindingRole,
 )
 from .identity import Identity, VendorIdentity
+from .ladder import (
+    LadderInstruction,
+    LadderOperation,
+    LadderParallel,
+    LadderPosition,
+    LadderSeries,
+)
 from .module import Module
 from .modbus import (
     ModbusAccess,
@@ -138,7 +145,12 @@ __all__ = [
     "IODirection",
     "IOSignalType",
     "KeyingMode",
+    "LadderInstruction",
+    "LadderOperation",
+    "LadderParallel",
+    "LadderPosition",
     "LadderRung",
+    "LadderSeries",
     "VendorIdentity",
     "Module",
     "ModbusAccess",

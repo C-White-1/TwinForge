@@ -5,10 +5,12 @@ from io import StringIO
 import json
 from pathlib import Path
 from typing import Any
+import xml.etree.ElementTree as ET
 
 import pytest
 
 from twinforge.cli import main
+from twinforge.exporters import PLCOPEN_CODESYS_NAMESPACE
 from twinforge.interchange import (
     CCWProjectValidationError,
     UnsupportedCCWProjectVersionError,
@@ -212,3 +214,73 @@ def test_cli_reports_an_unsupported_contract_version(tmp_path: Path) -> None:
 
     assert result == 1
     assert "unsupported CCW project schema_version" in errors.getvalue()
+
+
+def test_cli_reports_neutral_lowering_without_target_export(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ccw-project.json"
+    _write_document(source)
+    output = StringIO()
+
+    assert (
+        main(
+            ("ccw-project", "lower", str(source), "--format", "json"),
+            stdout=output,
+        )
+        == 0
+    )
+
+    summary = json.loads(output.getvalue())
+    assert summary["controller_name"] == "Synthetic Conveyor"
+    assert summary["tag_count"] == 1
+    assert summary["rung_count"] == 1
+    assert summary["converted_instruction_count"] == 1
+    assert summary["unsupported_instruction_count"] == 0
+
+
+def test_cli_exports_codesys_xml_and_attributable_coverage(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "ccw-project.json"
+    destination = tmp_path / "ccw-project-codesys.xml"
+    coverage_path = tmp_path / "ccw-project-coverage.json"
+    document = _document()
+    system_variable = deepcopy(document["variables"][0])
+    system_variable["name"] = "SystemClock"
+    system_variable["classification"] = "system"
+    system_variable["aliases"] = []
+    system_variable["physical_source"] = None
+    system_variable["usages"] = []
+    document["variables"].append(system_variable)
+    _write_document(source, document)
+
+    assert (
+        main(
+            (
+                "ccw-project",
+                "export",
+                str(source),
+                "--target",
+                "codesys",
+                "--output",
+                str(destination),
+                "--coverage",
+                str(coverage_path),
+            )
+        )
+        == 0
+    )
+
+    root = ET.fromstring(destination.read_text(encoding="utf-8"))
+    namespace = {"p": PLCOPEN_CODESYS_NAMESPACE}
+    assert root.find(".//p:pou[@name='PLC_PRG']", namespace) is not None
+    assert root.find(".//p:task[@name='MainTask']", namespace) is not None
+    coverage = json.loads(coverage_path.read_text(encoding="utf-8"))
+    assert coverage["target"] == "codesys-plcopen-xml"
+    assert coverage["global_variable_count"] == 2
+    assert coverage["user_variable_count"] == 1
+    assert coverage["physical_io_variable_count"] == 0
+    assert coverage["other_classification_variable_count"] == 1
+    assert coverage["physical_io_binding_status"] == "not_applicable"
+    assert coverage["preserved_rung_count"] == 1

@@ -65,9 +65,7 @@ def _controller() -> Controller:
     controller.add_tag(Tag(name="gCount", data_type="DINT"))
 
     program = Program(name="PLC_PRG")
-    program.add_tag(
-        Tag(name="xRunning", data_type="BOOL", description="Running Coil")
-    )
+    program.add_tag(Tag(name="xRunning", data_type="BOOL", description="Running Coil"))
     routine = Routine(name="MainRoutine", language="RLL")
     routine.ladder_rungs.append(
         LadderRung(
@@ -136,11 +134,14 @@ def test_standard_profile_exports_program_variables_task_and_ld() -> None:
     )
     assert task is not None
     assert task.attrib["interval"] == "PT0.02S"
-    assert _find(
-        task,
-        "p:pouInstance[@name='PLC_PRG']",
-        ns,
-    ).attrib["typeName"] == "PLC_PRG"
+    assert (
+        _find(
+            task,
+            "p:pouInstance[@name='PLC_PRG']",
+            ns,
+        ).attrib["typeName"]
+        == "PLC_PRG"
+    )
 
     contact = root.find(".//p:contact[p:variable='gEnable']", ns)
     negated_contact = root.find(".//p:contact[p:variable='Stop']", ns)
@@ -176,19 +177,19 @@ def test_codesys_profile_wraps_application_content_in_add_data() -> None:
     assert application is not None
     task = application.find("p:resource/p:task[@name='MainTask']", ns)
     assert task is not None
-    assert task.find(
-        "p:pouInstance[@name='PLC_PRG']/p:documentation", ns
-    ) is not None
-    assert task.find(
-        "p:addData/p:data/p:TaskSettings/p:Watchdog", ns
-    ) is not None
-    assert application.find(
-        "p:resource/p:globalVars[@name='ControllerTags']/p:variable[@name='gEnable']",
-        ns,
-    ) is not None
-    assert application.find(
-        "p:resource/p:addData/p:data/p:pou[@name='PLC_PRG']", ns
-    ) is not None
+    assert task.find("p:pouInstance[@name='PLC_PRG']/p:documentation", ns) is not None
+    assert task.find("p:addData/p:data/p:TaskSettings/p:Watchdog", ns) is not None
+    assert (
+        application.find(
+            "p:resource/p:globalVars[@name='ControllerTags']/p:variable[@name='gEnable']",
+            ns,
+        )
+        is not None
+    )
+    assert (
+        application.find("p:resource/p:addData/p:data/p:pou[@name='PLC_PRG']", ns)
+        is not None
+    )
     structure = root.find(
         "p:addData/p:data[@name="
         "'http://www.3s-software.com/plcopenxml/projectstructure']/"
@@ -226,14 +227,18 @@ def test_codesys_profile_exports_routines_as_actions_and_jsr_as_action_call() ->
 
     block = pou.find("p:body/p:LD/p:block[@typeName='ReadInputs']", ns)
     assert block is not None
-    assert block.find(
-        "p:inputVariables/p:variable[@formalParameter='EN']/"
-        "p:connectionPointIn/p:connection",
-        ns,
-    ) is not None
-    assert block.find(
-        "p:outputVariables/p:variable[@formalParameter='ENO']", ns
-    ) is not None
+    assert (
+        block.find(
+            "p:inputVariables/p:variable[@formalParameter='EN']/"
+            "p:connectionPointIn/p:connection",
+            ns,
+        )
+        is not None
+    )
+    assert (
+        block.find("p:outputVariables/p:variable[@formalParameter='ENO']", ns)
+        is not None
+    )
     call_type = block.find(
         "p:addData/p:data[@name="
         "'http://www.3s-software.com/plcopenxml/fbdcalltype']/CallType",
@@ -266,9 +271,7 @@ def test_unresolved_jsr_is_preserved_and_diagnosed() -> None:
     )
 
     assert "Unresolved Rockwell RLL: JSR(MissingRoutine,0);" in result.xml
-    assert [item.code for item in result.diagnostics] == [
-        "unresolved_jsr_target"
-    ]
+    assert [item.code for item in result.diagnostics] == ["unresolved_jsr_target"]
 
 
 def test_unsupported_rung_is_preserved_as_non_executable_text() -> None:
@@ -330,9 +333,7 @@ def test_otl_and_otu_export_as_set_and_reset_coils() -> None:
     root = ET.fromstring(result.xml)
 
     set_coil = root.find(".//p:coil[@storage='set'][p:variable='Latch']", ns)
-    reset_coil = root.find(
-        ".//p:coil[@storage='reset'][p:variable='Latch']", ns
-    )
+    reset_coil = root.find(".//p:coil[@storage='reset'][p:variable='Latch']", ns)
     assert set_coil is not None
     assert reset_coil is not None
     assert "unsupported_rll_rung" not in {
@@ -359,14 +360,14 @@ def test_multiple_output_coils_share_condition_instead_of_chaining() -> None:
     assert first is not None
     assert second is not None
     expected = contact.attrib["localId"]
-    assert _find(
-        first,
-        "p:connectionPointIn/p:connection", ns
-    ).attrib["refLocalId"] == expected
-    assert _find(
-        second,
-        "p:connectionPointIn/p:connection", ns
-    ).attrib["refLocalId"] == expected
+    assert (
+        _find(first, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+        == expected
+    )
+    assert (
+        _find(second, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+        == expected
+    )
 
 
 def test_parallel_paths_merge_before_serial_tail_and_outputs() -> None:
@@ -398,30 +399,77 @@ def test_parallel_paths_merge_before_serial_tail_and_outputs() -> None:
     run = _find(root, ".//p:coil[p:variable='Run']", ns)
     latched = _find(root, ".//p:coil[p:variable='Latched']", ns)
     rail_id = rail.attrib["localId"]
-    assert _find(
-        start,
-        "p:connectionPointIn/p:connection", ns
-    ).attrib["refLocalId"] == rail_id
-    assert _find(
-        remote,
-        "p:connectionPointIn/p:connection", ns
-    ).attrib["refLocalId"] == rail_id
-    assert _find(
-        stop,
-        "p:connectionPointIn/p:connection", ns
-    ).attrib["refLocalId"] == remote.attrib["localId"]
+    assert (
+        _find(start, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+        == rail_id
+    )
+    assert (
+        _find(remote, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+        == rail_id
+    )
+    assert (
+        _find(stop, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+        == remote.attrib["localId"]
+    )
     merge_refs = {
         connection.attrib["refLocalId"]
-        for connection in permissive.findall(
-            "p:connectionPointIn/p:connection", ns
-        )
+        for connection in permissive.findall("p:connectionPointIn/p:connection", ns)
     }
     assert merge_refs == {start.attrib["localId"], stop.attrib["localId"]}
     for coil in (run, latched):
-        assert _find(
-            coil,
-            "p:connectionPointIn/p:connection", ns
-        ).attrib["refLocalId"] == permissive.attrib["localId"]
+        assert (
+            _find(coil, "p:connectionPointIn/p:connection", ns).attrib["refLocalId"]
+            == permissive.attrib["localId"]
+        )
+
+
+def test_common_prefix_and_suffix_remain_outside_parallel_paths() -> None:
+    controller = _controller()
+    program = controller.programs["PLC_PRG"]
+    for name in ("Stop", "Start", "Seal", "Fault", "Motor"):
+        program.add_tag(Tag(name=name, data_type="BOOL"))
+    _main_routine(program).ladder_rungs = [
+        LadderRung(
+            number=0,
+            text="XIC(Stop)[XIC(Start),XIC(Seal)]XIO(Fault)OTE(Motor);",
+        )
+    ]
+
+    result = PLCopenExporter().export(controller, creation_time=FIXED_TIME)
+    ns = {"p": PLCOPEN_201_NAMESPACE}
+    root = ET.fromstring(result.xml)
+    stop = _find(root, ".//p:contact[p:variable='Stop']", ns)
+    start = _find(root, ".//p:contact[p:variable='Start']", ns)
+    seal = _find(root, ".//p:contact[p:variable='Seal']", ns)
+    fault = _find(root, ".//p:contact[p:variable='Fault']", ns)
+    motor = _find(root, ".//p:coil[p:variable='Motor']", ns)
+
+    assert len(root.findall(".//p:contact[p:variable='Stop']", ns)) == 1
+    assert len(root.findall(".//p:contact[p:variable='Fault']", ns)) == 1
+    for branch in (start, seal):
+        assert (
+            _find(
+                branch,
+                "p:connectionPointIn/p:connection",
+                ns,
+            ).attrib["refLocalId"]
+            == stop.attrib["localId"]
+        )
+    assert {
+        connection.attrib["refLocalId"]
+        for connection in fault.findall(
+            "p:connectionPointIn/p:connection",
+            ns,
+        )
+    } == {start.attrib["localId"], seal.attrib["localId"]}
+    assert (
+        _find(
+            motor,
+            "p:connectionPointIn/p:connection",
+            ns,
+        ).attrib["refLocalId"]
+        == fault.attrib["localId"]
+    )
 
 
 def test_comparison_operator_drives_downstream_ladder_condition() -> None:
@@ -466,27 +514,19 @@ def test_comparison_operator_drives_downstream_ladder_condition() -> None:
         namespaces=ns,
     )
     assert result_name is not None and result_name.startswith("TF_Cmp_")
-    assert root.find(
-        f".//p:localVars/p:variable[@name='{result_name}']", ns
-    ) is not None
-    result_contact = root.find(
-        f".//p:contact[p:variable='{result_name}']", ns
+    assert (
+        root.find(f".//p:localVars/p:variable[@name='{result_name}']", ns) is not None
     )
+    result_contact = root.find(f".//p:contact[p:variable='{result_name}']", ns)
     assert result_contact is not None
-    connection = result_contact.find(
-        "p:connectionPointIn/p:connection", ns
-    )
+    connection = result_contact.find("p:connectionPointIn/p:connection", ns)
     assert connection is not None
     rail = root.find(".//p:leftPowerRail", ns)
     assert rail is not None
     assert connection.attrib == {"refLocalId": rail.attrib["localId"]}
-    enable_connection = enable_contact.find(
-        "p:connectionPointIn/p:connection", ns
-    )
+    enable_connection = enable_contact.find("p:connectionPointIn/p:connection", ns)
     assert enable_connection is not None
-    assert enable_connection.attrib == {
-        "refLocalId": result_contact.attrib["localId"]
-    }
+    assert enable_connection.attrib == {"refLocalId": result_contact.attrib["localId"]}
     assert block.find("p:addData", ns) is None
 
 
@@ -504,26 +544,37 @@ def test_codesys_profile_exports_logix_ton_instances_and_presets() -> None:
     assert len(blocks) == 21
     prelube = root.find(".//p:block[@instanceName='TMR_Prelube']", ns)
     assert prelube is not None
-    assert root.find(
-        ".//p:variable[@name='TMR_Prelube']/p:type/"
-        "p:derived[@name='Standard.TON']",
-        ns,
-    ) is not None
-    assert root.find(
-        ".//p:data[@name='http://www.3s-software.com/plcopenxml/libraries']/"
-        "p:Libraries/p:Library[@Name='#Standard']",
-        ns,
-    ) is not None
-    assert root.find(
-        ".//p:variable[@name='CFG_PT102_HH']/p:initialValue/"
-        "p:simpleValue[@value='120.0']",
-        ns,
-    ) is not None
-    assert root.find(
-        ".//p:variable[@name='CFG_TripDelay']/p:initialValue/"
-        "p:simpleValue[@value='2000']",
-        ns,
-    ) is not None
+    assert (
+        root.find(
+            ".//p:variable[@name='TMR_Prelube']/p:type/p:derived[@name='Standard.TON']",
+            ns,
+        )
+        is not None
+    )
+    assert (
+        root.find(
+            ".//p:data[@name='http://www.3s-software.com/plcopenxml/libraries']/"
+            "p:Libraries/p:Library[@Name='#Standard']",
+            ns,
+        )
+        is not None
+    )
+    assert (
+        root.find(
+            ".//p:variable[@name='CFG_PT102_HH']/p:initialValue/"
+            "p:simpleValue[@value='120.0']",
+            ns,
+        )
+        is not None
+    )
+    assert (
+        root.find(
+            ".//p:variable[@name='CFG_TripDelay']/p:initialValue/"
+            "p:simpleValue[@value='2000']",
+            ns,
+        )
+        is not None
+    )
     process_unit = root.find(
         ".//p:variable[@name='PT102_PV']/p:addData/"
         "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']/"
@@ -548,16 +599,22 @@ def test_codesys_profile_exports_logix_ton_instances_and_presets() -> None:
     assert threshold_unit.attrib["Source"] == "rll_comparison"
     assert threshold_unit.attrib["Confidence"] == "derived"
     assert threshold_unit.attrib["InheritedFrom"] == "PT102_PV"
-    assert root.find(
-        ".//p:variable[@name='PT102_HH_Alm']/p:addData/"
-        "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']",
-        ns,
-    ) is None
-    assert root.find(
-        ".//p:ProjectStructure/p:Object[@Name='Application']/"
-        "p:Object[@Name='Library Manager']",
-        ns,
-    ) is not None
+    assert (
+        root.find(
+            ".//p:variable[@name='PT102_HH_Alm']/p:addData/"
+            "p:data[@name='https://twinforge.dev/plcopenxml/engineering-unit']",
+            ns,
+        )
+        is None
+    )
+    assert (
+        root.find(
+            ".//p:ProjectStructure/p:Object[@Name='Application']/"
+            "p:Object[@Name='Library Manager']",
+            ns,
+        )
+        is not None
+    )
     assert [
         variable.attrib["formalParameter"]
         for variable in prelube.findall("p:inputVariables/p:variable", ns)
@@ -572,13 +629,16 @@ def test_codesys_profile_exports_logix_ton_instances_and_presets() -> None:
         "p:connectionPointIn/p:connection",
         ns,
     ).attrib["refLocalId"]
-    assert root.findtext(
-        f".//p:inVariable[@localId='{preset_reference}']/p:expression",
-        namespaces=ns,
-    ) == "TIME#100000ms"
-    assert prelube.findtext(
-        "p:addData/p:data/CallType", namespaces=ns
-    ) == "functionblock"
+    assert (
+        root.findtext(
+            f".//p:inVariable[@localId='{preset_reference}']/p:expression",
+            namespaces=ns,
+        )
+        == "TIME#100000ms"
+    )
+    assert (
+        prelube.findtext("p:addData/p:data/CallType", namespaces=ns) == "functionblock"
+    )
     expressions = {
         expression.text
         for expression in root.findall(".//p:inVariable/p:expression", ns)
@@ -612,10 +672,13 @@ def test_codesys_profile_exports_standalone_res_as_false_ton_call() -> None:
         "p:connectionPointIn/p:connection",
         ns,
     ).attrib["refLocalId"]
-    assert root.findtext(
-        f".//p:inVariable[@localId='{input_reference}']/p:expression",
-        namespaces=ns,
-    ) == "FALSE"
+    assert (
+        root.findtext(
+            f".//p:inVariable[@localId='{input_reference}']/p:expression",
+            namespaces=ns,
+        )
+        == "FALSE"
+    )
 
 
 def test_value_blocks_preserve_left_to_right_execution_order() -> None:
@@ -677,9 +740,7 @@ def test_value_blocks_preserve_left_to_right_execution_order() -> None:
             "formalParameter": "ENO",
         }
         preceding = current
-    coil_connection = coil.find(
-        "p:connectionPointIn/p:connection", ns
-    )
+    coil_connection = coil.find("p:connectionPointIn/p:connection", ns)
     assert coil_connection is not None
     assert coil_connection.attrib == {
         "refLocalId": divide.attrib["localId"],
@@ -715,16 +776,19 @@ def test_ons_uses_native_r_trig_and_nop_is_intentional() -> None:
         variable.attrib["formalParameter"]
         for variable in trigger.findall("p:outputVariables/p:variable", ns)
     ] == ["ENO", "Q"]
-    assert root.find(
-        ".//p:variable/p:type/p:derived[@name='Standard.R_TRIG']", ns
-    ) is not None
-    assert root.findtext(
-        ".//p:data[@name='https://twinforge.dev/plcopenxml/rockwell-ons']/"
-        "StorageOperand",
-        namespaces=ns,
-    ) == "OneShotStorage"
+    assert (
+        root.find(".//p:variable/p:type/p:derived[@name='Standard.R_TRIG']", ns)
+        is not None
+    )
+    assert (
+        root.findtext(
+            ".//p:data[@name='https://twinforge.dev/plcopenxml/rockwell-ons']/"
+            "StorageOperand",
+            namespaces=ns,
+        )
+        == "OneShotStorage"
+    )
     assert "Rockwell NOP (intentional no operation)" in result.xml
     assert not any(
-        diagnostic.code == "unsupported_rll_rung"
-        for diagnostic in result.diagnostics
+        diagnostic.code == "unsupported_rll_rung" for diagnostic in result.diagnostics
     )

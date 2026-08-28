@@ -1,5 +1,10 @@
 """CODESYS target adapters backed by explicitly recorded capabilities."""
 
+from .ccw_project import (
+    CCWRungCoverage,
+    CodesysCCWProjectPlan,
+    plan_ccw_codesys_project,
+)
 from .deployment import (
     CodesysDeploymentBundle,
     CodesysPowerFlex525BundleExporter,
@@ -29,6 +34,8 @@ from .powerflex525_native_evidence import (
 )
 
 __all__ = [
+    "CCWRungCoverage",
+    "CodesysCCWProjectPlan",
     "CodesysDeploymentBundle",
     "CodesysDeploymentBundlePackager",
     "CodesysEtherNetIPModuleAdapter",
@@ -46,4 +53,5 @@ __all__ = [
     "powerflex525_codesys_application_integration",
     "powerflex525_codesys_integration",
     "powerflex525_codesys_multi_application_integration",
+    "plan_ccw_codesys_project",
 ]

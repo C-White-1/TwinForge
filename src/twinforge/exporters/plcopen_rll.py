@@ -49,6 +49,7 @@ _JSR_INSTRUCTION = re.compile(r"\s*JSR\s*\(\s*([^,()]+)\s*,\s*0\s*\)\s*;\s*")
 class ParsedBooleanRung:
     """A normalized serial/parallel rung supported by the current emitter."""
 
+    prefix_conditions: tuple[tuple[str, str], ...]
     branches: tuple[tuple[tuple[str, str], ...], ...]
     tail_conditions: tuple[tuple[str, str], ...]
     outputs: tuple[tuple[str, str], ...]
@@ -60,7 +61,12 @@ class ParsedBooleanRung:
         branch_instructions = tuple(
             instruction for branch in self.branches for instruction in branch
         )
-        return branch_instructions + self.tail_conditions + self.outputs
+        return (
+            self.prefix_conditions
+            + branch_instructions
+            + self.tail_conditions
+            + self.outputs
+        )
 
 
 def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
@@ -72,12 +78,19 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
     if not source.endswith(";"):
         return None
     source = source[:-1].strip()
+    prefix_conditions: tuple[tuple[str, str], ...] = ()
     branches: tuple[tuple[tuple[str, str], ...], ...] = ()
-    if source.startswith("["):
-        closing = _branch_closing_index(source)
+    opening = _branch_opening_index(source)
+    if opening is not None:
+        prefix = _parse_instruction_sequence(source[:opening])
+        if prefix is None or any(opcode not in {"XIC", "XIO"} for opcode, _ in prefix):
+            return None
+        prefix_conditions = tuple(prefix)
+        branch_source = source[opening:]
+        closing = _branch_closing_index(branch_source)
         if closing is None:
             return None
-        branch_parts = _split_branch_paths(source[1:closing])
+        branch_parts = _split_branch_paths(branch_source[1:closing])
         if len(branch_parts) < 2:
             return None
         parsed_branches: list[tuple[tuple[str, str], ...]] = []
@@ -87,7 +100,7 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
                 return None
             parsed_branches.append(tuple(branch))
         branches = tuple(parsed_branches)
-        source = source[closing + 1 :].strip()
+        source = branch_source[closing + 1 :].strip()
 
     instructions = _parse_instruction_sequence(source)
     if not instructions:
@@ -118,6 +131,7 @@ def parse_supported_rung(text: str | None) -> ParsedBooleanRung | None:
     if not outputs:
         return None
     return ParsedBooleanRung(
+        prefix_conditions=prefix_conditions,
         branches=branches,
         tail_conditions=tuple(tail_conditions),
         outputs=tuple(outputs),
@@ -153,9 +167,10 @@ def _parse_instruction_sequence(text: str) -> list[tuple[str, str]] | None:
         opcode = match.group(1)
         if opcode in COMPARISON_TYPES and len(split_arguments(operand)) != 2:
             return None
-        if opcode in {"TON", "TOF", "RTO", "CTU", "CTD"} and len(
-            split_arguments(operand)
-        ) != 3:
+        if (
+            opcode in {"TON", "TOF", "RTO", "CTU", "CTD"}
+            and len(split_arguments(operand)) != 3
+        ):
             return None
         if opcode in {"RES", "ONS"} and "," in operand:
             return None
@@ -181,6 +196,18 @@ def _branch_closing_index(text: str) -> int | None:
         elif character == "[" and parenthesis_depth == 0:
             return None
         elif character == "]" and parenthesis_depth == 0:
+            return index
+    return None
+
+
+def _branch_opening_index(text: str) -> int | None:
+    parenthesis_depth = 0
+    for index, character in enumerate(text):
+        if character == "(":
+            parenthesis_depth += 1
+        elif character == ")":
+            parenthesis_depth -= 1
+        elif character == "[" and parenthesis_depth == 0:
             return index
     return None
 

@@ -116,9 +116,7 @@ class PLCopenExporter:
         ).build(
             controller,
             self._operands.generated_tags,
-            project_name=project_name
-            or controller.name
-            or "TwinForge",
+            project_name=project_name or controller.name or "TwinForge",
             creation_time=creation_time or datetime.now(timezone.utc),
         )
 
@@ -264,9 +262,7 @@ class PLCopenExporter:
         if codesys:
             self._codesys.append_object_id(
                 pou,
-                self._codesys.object_id(
-                    f"Application/program/{program.name}"
-                ),
+                self._codesys.object_id(f"Application/program/{program.name}"),
             )
 
     def _routine_body(
@@ -370,10 +366,7 @@ class PLCopenExporter:
             for opcode, operand in parsed.outputs
             if opcode in {"TON", "RES"}
         ]
-        if any(
-            operand not in self._operands.timers
-            for operand in timer_operands
-        ):
+        if any(operand not in self._operands.timers for operand in timer_operands):
             raw = rung.text or ""
             self._diagnostic(
                 "unsupported_timer_operand",
@@ -393,10 +386,22 @@ class PLCopenExporter:
             self._comment(ld, rung.comment)
         registry = self._instruction_registry()
         condition_ids = [condition_id]
+        for opcode, operand in parsed.prefix_conditions:
+            condition_ids = [
+                registry.emit_condition(
+                    ConditionInstruction(
+                        ld=ld,
+                        opcode=opcode,
+                        operand=operand,
+                        condition_ids=tuple(condition_ids),
+                    )
+                )
+            ]
         if parsed.branches:
+            branch_start_ids = tuple(condition_ids)
             condition_ids = []
             for branch in parsed.branches:
-                branch_condition = rail_id
+                branch_condition = branch_start_ids[0]
                 for opcode, operand in branch:
                     branch_condition = registry.emit_condition(
                         ConditionInstruction(
@@ -413,9 +418,7 @@ class PLCopenExporter:
             if opcode == "ONS":
                 auxiliary = self._operands.oneshots[id(rung)]
             elif opcode in _COMPARISON_TYPES:
-                temp_name = self._operands.comparison_temps[id(rung)][
-                    comparison_index
-                ]
+                temp_name = self._operands.comparison_temps[id(rung)][comparison_index]
                 comparison_index += 1
                 auxiliary = temp_name
             condition_ids = [

@@ -94,17 +94,17 @@ repository's Python implementation or read `.ccwarc` internals directly.
     versions with actionable diagnostics
   - [x] Preserve source provenance, evidence hashes, diagnostics, and fields
     that TwinForge does not yet understand
-- [ ] Lower CCW project content into TwinForge's vendor-neutral model
-  - [ ] Import Boolean variables, aliases, physical-I/O mappings, and usage
+- [x] Lower CCW project content into TwinForge's vendor-neutral model
+  - [x] Import Boolean variables, aliases, physical-I/O mappings, and usage
     evidence
-  - [ ] Import programs, rungs, series topology, and recursive parallel
+  - [x] Import programs, rungs, series topology, and recursive parallel
     branches
-  - [ ] Map the initial `XIC`, `XIO`, `OTE`, `OTS`, and `OTU` subset without
+  - [x] Map the initial `XIC`, `XIO`, `OTE`, `OTS`, `OTU`, and `OTR` subset without
     silently discarding unsupported instructions
 - [ ] Complete the first end-to-end CCW-to-CODESYS milestone
-  - [ ] Generate PLCopen XML through the existing CODESYS target adapter
-  - [ ] Include `PLC_PRG` and an explicit cyclic task configuration
-  - [ ] Publish a conversion-coverage report listing converted, preserved, and
+  - [x] Generate PLCopen XML through the existing CODESYS target adapter
+  - [x] Include `PLC_PRG` and an explicit cyclic task configuration
+  - [x] Publish a conversion-coverage report listing converted, preserved, and
     unsupported constructs
   - [ ] Import and build the generated project in CODESYS with zero errors
 - [x] Add CI coverage using a legally shareable synthetic

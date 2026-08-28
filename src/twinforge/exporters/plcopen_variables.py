@@ -21,6 +21,7 @@ TWINFORGE_ONS_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-ons"
 TWINFORGE_ENGINEERING_UNIT_EXTENSION = (
     "https://twinforge.dev/plcopenxml/engineering-unit"
 )
+TWINFORGE_CCW_IO_EXTENSION = "https://twinforge.dev/plcopenxml/ccw-io"
 
 TagExportType = Callable[[Tag], str]
 DiagnosticReporter = Callable[..., None]
@@ -110,6 +111,7 @@ class PLCopenVariableEmitter:
         self._type(variable, tag)
         self._initial_value(variable, tag)
         self._source_operand(variable, tag)
+        self._ccw_io_evidence(variable, tag)
         self._oneshot_storage(variable, tag)
         self._engineering_unit(variable, tag)
         self._documentation(variable, tag)
@@ -171,6 +173,24 @@ class PLCopenVariableEmitter:
         data = self._extension(variable, TWINFORGE_ONS_EXTENSION)
         storage = ET.SubElement(data, "StorageOperand", {"xmlns": ""})
         storage.text = str(storage_operand)
+
+    def _ccw_io_evidence(self, variable: ET.Element, tag: Tag) -> None:
+        classification = tag.metadata.get("ccw_classification")
+        physical_source = tag.metadata.get("physical_source")
+        physical_destination = tag.metadata.get("physical_destination")
+        if not classification and not physical_source and not physical_destination:
+            return
+        attributes: dict[str, str] = {}
+        for name, value in (
+            ("Scope", tag.metadata.get("ccw_scope")),
+            ("Classification", classification),
+            ("PhysicalSource", physical_source),
+            ("PhysicalDestination", physical_destination),
+        ):
+            if value:
+                attributes[name] = str(value)
+        data = self._extension(variable, TWINFORGE_CCW_IO_EXTENSION)
+        ET.SubElement(data, "CCWIO", {"xmlns": "", **attributes})
 
     def _engineering_unit(self, variable: ET.Element, tag: Tag) -> None:
         if tag.engineering_unit is None:

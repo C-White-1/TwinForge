@@ -22,8 +22,10 @@ from .codesys_deployment import (
 )
 from .ccw_project import (
     CCWProjectCommandError,
+    export_ccw_codesys_project,
     export_ccw_project_schema,
     inspect_ccw_project_file,
+    inspect_lowered_ccw_project,
     validate_ccw_project_file,
 )
 from .communication_graph import (
@@ -288,6 +290,40 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Inventory output format (default: text).",
+    )
+    ccw_project_lower = ccw_project_commands.add_parser(
+        "lower",
+        help="Inspect vendor-neutral lowering without target export.",
+    )
+    ccw_project_lower.add_argument("path", type=Path)
+    ccw_project_lower.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Lowering summary format (default: text).",
+    )
+    ccw_project_export = ccw_project_commands.add_parser(
+        "export",
+        help="Export validated CCW evidence through a target adapter.",
+    )
+    ccw_project_export.add_argument("path", type=Path)
+    ccw_project_export.add_argument(
+        "--target",
+        choices=("codesys",),
+        required=True,
+    )
+    ccw_project_export.add_argument("--output", required=True, type=Path)
+    ccw_project_export.add_argument(
+        "--coverage",
+        required=True,
+        type=Path,
+        help="Destination for the JSON conversion-coverage report.",
+    )
+    ccw_project_export.add_argument(
+        "--task-rate-ms",
+        type=int,
+        default=20,
+        help="Cyclic MainTask interval in milliseconds (default: 20).",
     )
     ccw_project_schema = ccw_project_commands.add_parser(
         "schema",
@@ -727,6 +763,20 @@ def main(
                 inspect_ccw_project_file(
                     arguments.path,
                     output_format=arguments.format,
+                    stdout=output,
+                )
+            elif arguments.ccw_project_command == "lower":
+                inspect_lowered_ccw_project(
+                    arguments.path,
+                    output_format=arguments.format,
+                    stdout=output,
+                )
+            elif arguments.ccw_project_command == "export":
+                export_ccw_codesys_project(
+                    arguments.path,
+                    destination=arguments.output,
+                    coverage_path=arguments.coverage,
+                    task_rate_ms=arguments.task_rate_ms,
                     stdout=output,
                 )
             else:

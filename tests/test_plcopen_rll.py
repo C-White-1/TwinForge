@@ -47,3 +47,13 @@ def test_parses_ctd_without_claiming_generic_support():
 
 def test_rejects_ctd_with_wrong_argument_count():
     assert parse_supported_rung("XIC(CountPulse)CTD(PartCounter,?);") is None
+
+
+def test_parses_common_prefix_parallel_paths_and_common_suffix():
+    parsed = parse_supported_rung("XIC(Stop)[XIC(Start),XIC(Run)]XIO(Fault)OTE(Run);")
+
+    assert parsed is not None
+    assert parsed.prefix_conditions == (("XIC", "Stop"),)
+    assert parsed.branches == ((("XIC", "Start"),), (("XIC", "Run"),))
+    assert parsed.tail_conditions == (("XIO", "Fault"),)
+    assert parsed.outputs == (("OTE", "Run"),)

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .source_extension import SourceExtension
+from .ladder import LadderPosition, LadderSeries
 
 
 @dataclass
@@ -14,6 +15,9 @@ class LadderRung:
     rung_type: str | None = None
     comment: str | None = None
     text: str | None = None
+    position: LadderPosition | None = None
+    network: LadderSeries | None = None
+    source_sha256: str | None = None
     source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
 
 

@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from collections import Counter
 import json
 from pathlib import Path
 from typing import TextIO
 
+from twinforge.converters import ConversionDiagnostic
+from twinforge.converters.ccw import lower_ccw_project
+from twinforge.exporters import PLCopenExporter, PLCopenProfile
 from twinforge.interchange import (
     CCWProjectArtifact,
     CCWProjectInterchangeError,
@@ -13,6 +17,7 @@ from twinforge.interchange import (
     ccw_project_schema_text,
     read_ccw_project,
 )
+from twinforge.targets.codesys import plan_ccw_codesys_project
 
 
 class CCWProjectCommandError(RuntimeError):
@@ -58,6 +63,132 @@ def inspect_ccw_project_file(
     )
 
 
+def inspect_lowered_ccw_project(
+    path: Path,
+    *,
+    output_format: str,
+    stdout: TextIO,
+) -> None:
+    """Summarise neutral lowering without generating a target artifact."""
+
+    result = lower_ccw_project(_read(path))
+    controller = result.controller
+    programs = tuple(controller.iter_programs())
+    routines = tuple(
+        routine for program in programs for routine in program.iter_routines()
+    )
+    summary = {
+        "schema_version": result.artifact.schema_version,
+        "controller_name": controller.name,
+        "tag_count": len(controller.tags),
+        "program_count": len(programs),
+        "routine_count": len(routines),
+        "rung_count": sum(len(routine.ladder_rungs) for routine in routines),
+        "converted_instruction_count": result.converted_instruction_count,
+        "unsupported_instruction_count": result.unsupported_instruction_count,
+        "diagnostic_count": len(result.diagnostics),
+    }
+    if output_format == "json":
+        stdout.write(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+        return
+    stdout.write(
+        "Neutral CCW lowering (no target export)\n"
+        f"Schema: {summary['schema_version']}\n"
+        f"Controller: {summary['controller_name']}\n"
+        f"Tags: {summary['tag_count']}\n"
+        f"Programs: {summary['program_count']}\n"
+        f"Routines: {summary['routine_count']}\n"
+        f"Rungs: {summary['rung_count']}\n"
+        f"Converted instructions: {summary['converted_instruction_count']}\n"
+        f"Unsupported instructions: {summary['unsupported_instruction_count']}\n"
+        f"Diagnostics: {summary['diagnostic_count']}\n"
+    )
+
+
+def export_ccw_codesys_project(
+    path: Path,
+    *,
+    destination: Path,
+    coverage_path: Path,
+    task_rate_ms: int,
+    stdout: TextIO,
+) -> None:
+    """Export validated CCW evidence through the neutral CODESYS boundary."""
+
+    if task_rate_ms <= 0:
+        raise CCWProjectCommandError("--task-rate-ms must be greater than zero")
+    lowering = lower_ccw_project(_read(path))
+    plan = plan_ccw_codesys_project(
+        lowering.controller,
+        task_rate_ms=task_rate_ms,
+    )
+    exported = PLCopenExporter(PLCopenProfile.CODESYS).export(
+        plan.controller,
+        project_name=plan.controller.name,
+    )
+    classification_counts = Counter(
+        tag.metadata.get("ccw_classification") for tag in plan.controller.iter_tags()
+    )
+    user_count = classification_counts["user"]
+    physical_io_count = classification_counts["physical_io"]
+    other_count = len(plan.controller.tags) - user_count - physical_io_count
+    coverage = {
+        "schema_version": lowering.artifact.schema_version,
+        "source_reference": lowering.artifact.source_reference,
+        "source_sha256": lowering.artifact.source_sha256,
+        "target": "codesys-plcopen-xml",
+        "task_rate_ms": task_rate_ms,
+        "global_variable_count": len(plan.controller.tags),
+        "user_variable_count": user_count,
+        "physical_io_variable_count": physical_io_count,
+        "other_classification_variable_count": other_count,
+        "physical_io_binding_status": (
+            "requires_codesys_device_mapping" if physical_io_count else "not_applicable"
+        ),
+        "converted_instruction_count": lowering.converted_instruction_count,
+        "unsupported_instruction_count": lowering.unsupported_instruction_count,
+        "converted_rung_count": plan.converted_rung_count,
+        "preserved_rung_count": plan.preserved_rung_count,
+        "empty_rung_count": plan.empty_rung_count,
+        "rungs": [
+            {
+                "program": item.program,
+                "rung": item.rung,
+                "status": item.status,
+                "reason": item.reason,
+            }
+            for item in plan.coverage
+        ],
+        "diagnostics": [
+            _diagnostic_record(item)
+            for item in (
+                *lowering.diagnostics,
+                *plan.diagnostics,
+                *exported.diagnostics,
+            )
+        ],
+    }
+    try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(exported.xml, encoding="utf-8")
+        coverage_path.parent.mkdir(parents=True, exist_ok=True)
+        coverage_path.write_text(
+            json.dumps(coverage, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except (OSError, UnicodeError) as error:
+        raise CCWProjectCommandError(
+            f"could not write CCW CODESYS export: {error}"
+        ) from error
+    stdout.write(
+        f"Exported CODESYS PLCopen XML to {destination}\n"
+        f"Wrote conversion coverage to {coverage_path}\n"
+        f"Converted rungs: {plan.converted_rung_count}\n"
+        f"Empty no-op rungs: {plan.empty_rung_count}\n"
+        f"Preserved rungs: {plan.preserved_rung_count}\n"
+    )
+
+
 def export_ccw_project_schema(path: Path, *, stdout: TextIO) -> None:
     """Write the vendored producer schema to a user-selected path."""
 
@@ -78,3 +209,13 @@ def _read(path: Path) -> CCWProjectArtifact:
         raise CCWProjectCommandError(
             f"invalid CCW project artifact '{path}': {error}"
         ) from error
+
+
+def _diagnostic_record(diagnostic: ConversionDiagnostic) -> dict[str, object]:
+    return {
+        "severity": diagnostic.severity.value,
+        "code": diagnostic.code,
+        "message": diagnostic.message,
+        "object_name": diagnostic.object_name,
+        "raw_value": diagnostic.raw_value,
+    }
