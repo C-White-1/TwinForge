@@ -1299,6 +1299,7 @@ name = "twinforge"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "jsonschema" },
     { name = "pycomm3" },
     { name = "pydantic" },
 ]
@@ -1329,6 +1330,7 @@ snmp-sim = [
 
 [package.metadata]
 requires-dist = [
+    { name = "jsonschema", specifier = ">=4.23" },
     { name = "lxml", marker = "extra == 'validation'", specifier = ">=6.1.1" },
     { name = "pycomm3", specifier = ">=1.2.16" },
     { name = "pydantic", specifier = ">=2.13.4" },

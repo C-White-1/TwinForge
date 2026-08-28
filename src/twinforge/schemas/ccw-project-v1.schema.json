@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rockwell-file-research:ccw-project:v1",
+  "title": "Normalized CCW project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source", "project", "controller", "programs", "variables", "unresolved_operands", "diagnostics", "evidence"],
+  "properties": {
+    "schema_version": { "const": "ccw-project-v1" },
+    "source": { "$ref": "#/$defs/source" },
+    "project": { "$ref": "#/$defs/project" },
+    "controller": { "$ref": "#/$defs/controller" },
+    "programs": { "type": "array", "items": { "$ref": "#/$defs/program" } },
+    "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" } },
+    "unresolved_operands": { "type": "array", "items": { "type": "string" } },
+    "diagnostics": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "$ref": "#/$defs/evidence" }
+  },
+  "$defs": {
+    "nullableString": { "type": ["string", "null"] },
+    "position": {
+      "type": ["object", "null"],
+      "required": ["column", "row"],
+      "properties": { "column": { "type": "integer" }, "row": { "type": "integer" } },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": ["reference", "size", "sha256", "entry_count"],
+      "properties": {
+        "reference": { "type": "string" }, "size": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "entry_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object", "required": ["name", "engineering_tool", "engineering_tool_version"],
+      "properties": { "name": { "$ref": "#/$defs/nullableString" }, "engineering_tool": { "type": "string" }, "engineering_tool_version": { "$ref": "#/$defs/nullableString" } },
+      "additionalProperties": false
+    },
+    "controller": {
+      "type": "object", "required": ["catalog_number", "simulated"],
+      "properties": { "catalog_number": { "$ref": "#/$defs/nullableString" }, "simulated": { "type": "boolean" } },
+      "additionalProperties": false
+    },
+    "program": {
+      "type": "object", "required": ["name", "language", "source_entry", "rungs", "diagnostics"],
+      "properties": {
+        "name": { "type": "string" }, "language": { "$ref": "#/$defs/nullableString" }, "source_entry": { "type": "string" },
+        "rungs": { "type": "array", "items": { "$ref": "#/$defs/rung" } },
+        "diagnostics": { "type": "array", "items": { "type": "string" } }
+      }, "additionalProperties": false
+    },
+    "rung": {
+      "type": "object", "required": ["number", "position", "network", "raw_sha256"],
+      "properties": { "number": { "type": "integer", "minimum": 1 }, "position": { "$ref": "#/$defs/position" }, "network": { "$ref": "#/$defs/series" }, "raw_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" } },
+      "additionalProperties": false
+    },
+    "series": {
+      "type": "object", "required": ["kind", "elements"],
+      "properties": {
+        "kind": { "const": "series" },
+        "elements": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/instruction" },
+              { "$ref": "#/$defs/parallel" }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "parallel": {
+      "type": "object", "required": ["kind", "branches"],
+      "properties": {
+        "kind": { "const": "parallel" },
+        "branches": {
+          "type": "array", "minItems": 2,
+          "items": { "$ref": "#/$defs/series" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "instruction": {
+      "type": "object", "required": ["kind", "mnemonic", "operand", "alias", "annotations", "position"],
+      "properties": { "kind": { "const": "instruction" }, "mnemonic": { "type": "string" }, "operand": { "$ref": "#/$defs/nullableString" }, "alias": { "$ref": "#/$defs/nullableString" }, "annotations": { "type": "array", "items": { "type": "string" } }, "position": { "$ref": "#/$defs/position" } },
+      "additionalProperties": false
+    },
+    "usage": {
+      "type": "object", "required": ["program", "rung", "branch_path", "mnemonic", "access", "position"],
+      "properties": { "program": { "type": "string" }, "rung": { "type": "integer", "minimum": 1 }, "branch_path": { "type": "array", "items": { "type": "integer", "minimum": 0 } }, "mnemonic": { "type": "string" }, "access": { "enum": ["read", "write", "unknown"] }, "position": { "$ref": "#/$defs/position" } },
+      "additionalProperties": false
+    },
+    "variable": {
+      "type": "object", "required": ["name", "scope", "classification", "data_type", "aliases", "physical_source", "physical_destination", "evidence_entries", "usages", "seal_in_rungs"],
+      "properties": {
+        "name": { "type": "string" }, "scope": { "type": "string" }, "classification": { "enum": ["user", "physical_io", "system", "register", "compiler"] }, "data_type": { "$ref": "#/$defs/nullableString" },
+        "aliases": { "type": "array", "items": { "type": "string" } }, "physical_source": { "$ref": "#/$defs/nullableString" }, "physical_destination": { "$ref": "#/$defs/nullableString" },
+        "evidence_entries": { "type": "array", "items": { "type": "string" } }, "usages": { "type": "array", "items": { "$ref": "#/$defs/usage" } },
+        "seal_in_rungs": { "type": "array", "items": { "type": "object", "required": ["program", "rung"], "properties": { "program": { "type": "string" }, "rung": { "type": "integer", "minimum": 1 } }, "additionalProperties": false } }
+      }, "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object", "required": ["sensitive_entries", "unknown_entries"],
+      "properties": {
+        "sensitive_entries": {
+          "type": "array", "items": { "type": "string" }
+        },
+        "unknown_entries": {
+          "type": "array", "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

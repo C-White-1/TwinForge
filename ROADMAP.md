@@ -88,11 +88,11 @@ Keep Connected Components Workbench archive decoding in the separate
 vendor-neutral `ccw-project-v1` JSON artifact; it will not import that
 repository's Python implementation or read `.ccwarc` internals directly.
 
-- [ ] Add a TwinForge input adapter for `ccw-project-v1`
-  - [ ] Vendor the exact Draft 2020-12 schema version with its origin recorded
-  - [ ] Validate input before conversion and reject unsupported contract
+- [x] Add a TwinForge input adapter for `ccw-project-v1`
+  - [x] Vendor the exact Draft 2020-12 schema version with its origin recorded
+  - [x] Validate input before conversion and reject unsupported contract
     versions with actionable diagnostics
-  - [ ] Preserve source provenance, evidence hashes, diagnostics, and fields
+  - [x] Preserve source provenance, evidence hashes, diagnostics, and fields
     that TwinForge does not yet understand
 - [ ] Lower CCW project content into TwinForge's vendor-neutral model
   - [ ] Import Boolean variables, aliases, physical-I/O mappings, and usage
@@ -107,7 +107,7 @@ repository's Python implementation or read `.ccwarc` internals directly.
   - [ ] Publish a conversion-coverage report listing converted, preserved, and
     unsupported constructs
   - [ ] Import and build the generated project in CODESYS with zero errors
-- [ ] Add CI coverage using a legally shareable synthetic
+- [x] Add CI coverage using a legally shareable synthetic
   `ccw-project-v1.json` fixture rather than a private `.ccwarc` archive
 - [ ] Evaluate moving stable interchange schemas into a small independent
   contracts package only after the boundary has proven reusable
@@ -357,6 +357,10 @@ The phased safety, evidence, adapter, laboratory, and reconciliation plan is in
 ## Additional inputs and outputs
 
 - [x] Lossless EDS parser with identity, assembly, connection, and CIP-path
+  - [x] Read-only local Rockwell Export EDS All catalogue adapter with schema,
+    path, and Base64 SHA-256 verification
+  - [x] Reconcile multiple catalogue EDS revisions through configured
+    electronic-key evidence without claiming Compatible Module acceptance
   evidence promotion
 - [x] Lossless GSD parser with identity, station-limit, module, and cyclic-data
   evidence promotion

@@ -42,6 +42,7 @@ maintained relationships; the SVG files are derived viewing artifacts.
 - [AOI portability and runtime contracts](aoi-portability.md)
 - [CODESYS EtherNet/IP module adapter](architecture/codesys-ethernetip-module-adapter.md)
 - [Neutral model JSON contract](architecture/model-json-contract.md)
+- [CCW project interchange boundary](architecture/ccw-project-interchange.md)
 
 ### Native OpenPLC
 

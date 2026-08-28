@@ -20,6 +20,12 @@ from .codesys_deployment import (
     CodesysDeploymentCommandError,
     export_codesys_powerflex525_bundle,
 )
+from .ccw_project import (
+    CCWProjectCommandError,
+    export_ccw_project_schema,
+    inspect_ccw_project_file,
+    validate_ccw_project_file,
+)
 from .communication_graph import (
     CommunicationGraphCommandError,
     export_communication_graph,
@@ -27,8 +33,14 @@ from .communication_graph import (
 from .discovery_state import initialise_state, inspect_state, validate_state
 from .discovery_fake import FakeSnapshotCommandError, generate_fake_snapshot
 from .diagnostics import ExitCode, write_json_diagnostic
+from .eds_catalog import EdsCatalogCommandError, query_eds_catalog
 from .l5x_export import L5XExportError, export_l5x_target
 from .l5x_inspect import L5XInspectionError, inspect_l5x
+from .l5x_eds_catalog import (
+    export_eds_catalog_reconciliation_schema,
+    L5XEdsCatalogCommandError,
+    reconcile_l5x_eds_catalog,
+)
 from .l5x_report import L5XReportError, export_l5x_reports
 from .model_json import (
     compare_model_json_files,
@@ -251,6 +263,41 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Comparison output format (default: text).",
+    )
+
+    ccw_project = commands.add_parser(
+        "ccw-project",
+        help="Validate and inspect CCW project interchange artifacts.",
+    )
+    ccw_project_commands = ccw_project.add_subparsers(
+        dest="ccw_project_command",
+        required=True,
+    )
+    ccw_project_validate = ccw_project_commands.add_parser(
+        "validate",
+        help="Validate a ccw-project-v1 JSON artifact.",
+    )
+    ccw_project_validate.add_argument("path", type=Path)
+    ccw_project_inspect = ccw_project_commands.add_parser(
+        "inspect",
+        help="Inventory a validated CCW project without lowering it.",
+    )
+    ccw_project_inspect.add_argument("path", type=Path)
+    ccw_project_inspect.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Inventory output format (default: text).",
+    )
+    ccw_project_schema = ccw_project_commands.add_parser(
+        "schema",
+        help="Export TwinForge's vendored ccw-project-v1 schema.",
+    )
+    ccw_project_schema.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Destination for the JSON Schema file.",
     )
 
     review = commands.add_parser(
@@ -513,6 +560,60 @@ def build_parser() -> argparse.ArgumentParser:
             "write the gateway communication model."
         ),
     )
+    catalog = commands.add_parser(
+        "catalog",
+        help="Query locally installed device-description catalogues.",
+    )
+    catalog_commands = catalog.add_subparsers(
+        dest="catalog_command",
+        required=True,
+    )
+    eds_catalog = catalog_commands.add_parser(
+        "eds",
+        help="Query a local Rockwell Export EDS All catalogue read-only.",
+    )
+    eds_catalog.add_argument("--root", required=True, type=Path)
+    eds_query = eds_catalog.add_mutually_exclusive_group(required=True)
+    eds_query.add_argument("--catalog-number")
+    eds_query.add_argument("--base-catalog-number")
+    eds_query.add_argument("--product-name")
+    eds_catalog.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+    )
+    eds_catalog.add_argument(
+        "--verify-hashes",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Verify Rockwell's Base64 SHA-256 before parsing (default: true).",
+    )
+    l5x_catalog = catalog_commands.add_parser(
+        "l5x",
+        help="Reconcile Controller L5X modules with a local EDS catalogue.",
+    )
+    l5x_catalog.add_argument("source", type=Path)
+    l5x_catalog.add_argument("--root", required=True, type=Path)
+    l5x_catalog.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+    )
+    l5x_catalog.add_argument(
+        "--verify-hashes",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    l5x_catalog.add_argument(
+        "--output",
+        type=Path,
+        help="Atomically write the selected output format to this file.",
+    )
+    catalog_schema = catalog_commands.add_parser(
+        "schema",
+        help="Export the EDS catalogue reconciliation JSON Schema.",
+    )
+    catalog_schema.add_argument("--output", required=True, type=Path)
     communication = commands.add_parser(
         "communication",
         help="Build evidence-backed communication models.",
@@ -619,6 +720,17 @@ def main(
                     output_format=arguments.format,
                     stdout=output,
                 )
+        elif arguments.command == "ccw-project":
+            if arguments.ccw_project_command == "validate":
+                validate_ccw_project_file(arguments.path, stdout=output)
+            elif arguments.ccw_project_command == "inspect":
+                inspect_ccw_project_file(
+                    arguments.path,
+                    output_format=arguments.format,
+                    stdout=output,
+                )
+            else:
+                export_ccw_project_schema(arguments.output, stdout=output)
         elif arguments.command == "review":
             if arguments.review_command == "schema":
                 export_review_schema(
@@ -724,6 +836,31 @@ def main(
                 stdout=output,
                 base_library_path=arguments.base_library,
             )
+        elif arguments.command == "catalog":
+            if arguments.catalog_command == "eds":
+                query_eds_catalog(
+                    arguments.root,
+                    catalog_number=arguments.catalog_number,
+                    base_catalog_number=arguments.base_catalog_number,
+                    product_name=arguments.product_name,
+                    output_format=arguments.format,
+                    verify_hashes=arguments.verify_hashes,
+                    stdout=output,
+                )
+            elif arguments.catalog_command == "l5x":
+                reconcile_l5x_eds_catalog(
+                    arguments.source,
+                    arguments.root,
+                    output_format=arguments.format,
+                    verify_hashes=arguments.verify_hashes,
+                    destination=arguments.output,
+                    stdout=output,
+                )
+            else:
+                export_eds_catalog_reconciliation_schema(
+                    arguments.output,
+                    stdout=output,
+                )
         elif arguments.command == "communication":
             export_communication_graph(
                 arguments.source,
@@ -818,6 +955,9 @@ def main(
         CodesysDeploymentCommandError,
         ModelJSONCommandError,
         ReviewSchemaCommandError,
+        EdsCatalogCommandError,
+        L5XEdsCatalogCommandError,
+        CCWProjectCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1

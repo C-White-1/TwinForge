@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/eds-catalog-reconciliation.v1.schema.json",
+  "title": "TwinForge EDS catalogue reconciliation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "catalog_root",
+    "controller",
+    "module_count",
+    "modules"
+  ],
+  "properties": {
+    "schema_version": { "const": "twinforge.eds-catalog-reconciliation.v1" },
+    "source": { "type": "string", "minLength": 1 },
+    "catalog_root": { "type": "string", "minLength": 1 },
+    "controller": { "type": "string", "minLength": 1 },
+    "module_count": { "type": "integer", "minimum": 0 },
+    "modules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/module" }
+    }
+  },
+  "$defs": {
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eds",
+        "catalog_number",
+        "revision",
+        "status",
+        "matched_fields",
+        "conflicting_fields",
+        "unavailable_fields",
+        "rationale"
+      ],
+      "properties": {
+        "eds": { "type": "string", "minLength": 1 },
+        "catalog_number": { "$ref": "#/$defs/nullableString" },
+        "revision": { "$ref": "#/$defs/nullableString" },
+        "status": {
+          "enum": [
+            "exact",
+            "typical_compatible",
+            "conflict",
+            "incomplete",
+            "unresolved"
+          ]
+        },
+        "matched_fields": { "$ref": "#/$defs/stringArray" },
+        "conflicting_fields": { "$ref": "#/$defs/stringArray" },
+        "unavailable_fields": { "$ref": "#/$defs/stringArray" },
+        "rationale": { "type": "string", "minLength": 1 }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chassis",
+        "module",
+        "catalog_number",
+        "slot",
+        "address",
+        "keying_mode",
+        "status",
+        "rationale",
+        "selected_eds",
+        "candidates"
+      ],
+      "properties": {
+        "chassis": { "$ref": "#/$defs/nullableString" },
+        "module": { "type": "string", "minLength": 1 },
+        "catalog_number": { "type": "string", "minLength": 1 },
+        "slot": { "type": ["integer", "null"] },
+        "address": { "$ref": "#/$defs/nullableString" },
+        "keying_mode": { "$ref": "#/$defs/nullableString" },
+        "status": {
+          "enum": [
+            "no_candidates",
+            "selected_exact",
+            "advisory",
+            "unresolved"
+          ]
+        },
+        "rationale": { "type": "string", "minLength": 1 },
+        "selected_eds": { "$ref": "#/$defs/nullableString" },
+        "candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/candidate" }
+        }
+      }
+    }
+  }
+}
