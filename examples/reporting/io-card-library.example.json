@@ -1,0 +1,23 @@
+{
+  "schema_version": "twinforge.io-card-library.v1",
+  "cards": [
+    {
+      "part_number": "P2-16ND3-1",
+      "vendor": "AutomationDirect",
+      "direction": "Input",
+      "signal_type": "Digital",
+      "channel_count": 16,
+      "voltage": "12-24VDC",
+      "description": "Productivity2000 16-point sinking/sourcing discrete input module"
+    },
+    {
+      "part_number": "P2-16TD1P",
+      "vendor": "AutomationDirect",
+      "direction": "Output",
+      "signal_type": "Digital",
+      "channel_count": 16,
+      "voltage": "12-24VDC",
+      "description": "Productivity2000 16-point sinking discrete output module"
+    }
+  ]
+}

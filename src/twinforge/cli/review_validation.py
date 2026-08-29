@@ -13,13 +13,20 @@ from twinforge.analysis import (
     AlarmReviewDocument,
     apply_alarm_review,
     apply_cause_effect_review,
+    apply_io_mapping_review,
     build_alarm_trip_candidate_report,
     build_cause_effect_candidate_report,
     build_tag_dependency_graph,
     load_alarm_review,
     load_cause_effect_review,
+    load_io_mapping_review,
+    physical_io_points,
     CauseEffectReviewDocument,
+    IOMappingReviewDocument,
 )
+from twinforge.converters.ccw import lower_ccw_project
+from twinforge.interchange import CCWProjectInterchangeError, read_ccw_project
+from twinforge.knowledge.io_card_catalog import load_io_card_library
 from twinforge.model import Controller
 from twinforge.parsers.l5x import L5XParser
 from twinforge.exporters import (
@@ -45,15 +52,18 @@ def validate_review_document(
     kind: str,
     source: Path,
     *,
-    l5x_source: Path | None = None,
+    review_source: Path | None = None,
+    io_card_library: Path | None = None,
     output_format: str = "text",
     destination: Path | None = None,
     stdout: TextIO,
 ) -> None:
-    """Validate one review overlay and optionally reconcile its L5X keys."""
+    """Validate one review overlay and optionally reconcile its source keys."""
 
     try:
-        label, document = _load_and_reconcile(kind, source, l5x_source)
+        label, document = _load_and_reconcile(
+            kind, source, review_source, io_card_library
+        )
     except (OSError, ValueError) as error:
         raise ReviewValidationCommandError(str(error)) from error
 
@@ -62,7 +72,7 @@ def validate_review_document(
         source,
         controller_name=document.controller_name,
         item_count=len(document.items),
-        source=l5x_source,
+        source=review_source,
     )
     if destination is not None:
         _write_atomic(destination, serialized)
@@ -70,7 +80,7 @@ def validate_review_document(
         stdout.write(serialized)
         return
 
-    reconciliation = f" and reconciled against {l5x_source}" if l5x_source else ""
+    reconciliation = f" and reconciled against {review_source}" if review_source else ""
     stdout.write(
         f"Validated TwinForge {label}: {source}{reconciliation} "
         f"(controller {document.controller_name!r}, {len(document.items)} items)\n"
@@ -84,21 +94,24 @@ def verify_review_receipt(
     receipt: Path,
     review: Path,
     *,
-    l5x_source: Path | None = None,
+    review_source: Path | None = None,
+    io_card_library: Path | None = None,
     output_format: str = "text",
     stdout: TextIO,
 ) -> None:
     """Verify one saved receipt and repeat its semantic reconciliation."""
 
     try:
-        _, document = _load_and_reconcile(kind, review, l5x_source)
+        _, document = _load_and_reconcile(
+            kind, review, review_source, io_card_library
+        )
         result = verify_review_validation_result(
             receipt,
             kind,
             review,
             controller_name=document.controller_name,
             item_count=len(document.items),
-            source=l5x_source,
+            source=review_source,
         )
     except (OSError, ValueError) as error:
         raise ReviewValidationCommandError(str(error)) from error
@@ -106,7 +119,7 @@ def verify_review_receipt(
     if output_format == "json":
         stdout.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
         return
-    source_text = f" and source {l5x_source}" if l5x_source is not None else ""
+    source_text = f" and source {review_source}" if review_source is not None else ""
     stdout.write(
         f"Verified review-validation receipt {receipt} against {review}"
         f"{source_text}\n"
@@ -116,14 +129,32 @@ def verify_review_receipt(
 def _load_and_reconcile(
     kind: str,
     review: Path,
-    l5x_source: Path | None,
-) -> tuple[str, AlarmReviewDocument | CauseEffectReviewDocument]:
+    source: Path | None,
+    io_card_library: Path | None,
+) -> tuple[str, AlarmReviewDocument | CauseEffectReviewDocument | IOMappingReviewDocument]:
     """Load a review and repeat evidence-derived key reconciliation."""
+
+    if kind == "io-mapping":
+        document = load_io_mapping_review(review)
+        if source is not None or io_card_library is not None:
+            if source is None or io_card_library is None:
+                raise ValueError(
+                    "io-mapping reconciliation requires both --source and "
+                    "--io-card-library, or neither"
+                )
+            try:
+                controller = lower_ccw_project(read_ccw_project(source)).controller
+            except CCWProjectInterchangeError as error:
+                raise ValueError(str(error)) from error
+            points, _ = physical_io_points(controller)
+            library = load_io_card_library(io_card_library)
+            apply_io_mapping_review(controller.name, points, library, document)
+        return "io-mapping review v1", document
 
     alarms = None
     dependency_graph = None
-    if l5x_source is not None:
-        parsed = L5XParser().parse_document(l5x_source, report_mode=None)
+    if source is not None:
+        parsed = L5XParser().parse_document(source, report_mode=None)
         if not isinstance(parsed.target, Controller):
             raise ValueError(
                 "review reconciliation requires a Controller L5X target; "

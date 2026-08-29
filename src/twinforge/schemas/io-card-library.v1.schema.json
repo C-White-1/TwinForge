@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/io-card-library.v1.schema.json",
+  "title": "TwinForge target-hardware I/O card library v1",
+  "description": "A user-authored, versioned catalog of target-hardware I/O module electrical specs, used to resolve a physical I/O mapping review without TwinForge guessing hardware capability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "cards"],
+  "properties": {
+    "schema_version": { "const": "twinforge.io-card-library.v1" },
+    "cards": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ioCardSpec" }
+    }
+  },
+  "$defs": {
+    "ioCardSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["part_number", "vendor", "direction", "signal_type", "channel_count"],
+      "properties": {
+        "part_number": { "type": "string", "minLength": 1 },
+        "vendor": { "type": "string", "minLength": 1 },
+        "direction": { "enum": ["Input", "Output"] },
+        "signal_type": { "enum": ["Digital", "Analog"] },
+        "channel_count": { "type": "integer", "minimum": 1 },
+        "voltage": { "type": ["string", "null"] },
+        "description": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

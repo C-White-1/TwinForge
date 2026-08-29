@@ -1,0 +1,46 @@
+{
+  "schema_version": "twinforge.io-mapping-review.v1",
+  "controller_name": "M10 Conveyor",
+  "reviewed_by": "Control systems engineer",
+  "reviewed_at": "2026-08-29T10:00:00+10:00",
+  "authority_reference": "ProductivityCODESYS hardware selection, 2026-08-29",
+  "source_reference": "reference/ccw-tests/M10_Conveyor.json",
+  "items": [
+    {
+      "physical_address": "_IO_EM_DI_00",
+      "card_part_number": "P2-16ND3-1",
+      "card_instance": "DI-1",
+      "channel": 0
+    },
+    {
+      "physical_address": "_IO_EM_DI_01",
+      "card_part_number": "P2-16ND3-1",
+      "card_instance": "DI-1",
+      "channel": 1
+    },
+    {
+      "physical_address": "_IO_EM_DI_02",
+      "card_part_number": "P2-16ND3-1",
+      "card_instance": "DI-1",
+      "channel": 2
+    },
+    {
+      "physical_address": "_IO_EM_DI_03",
+      "card_part_number": "P2-16ND3-1",
+      "card_instance": "DI-1",
+      "channel": 3
+    },
+    {
+      "physical_address": "_IO_EM_DO_00",
+      "card_part_number": "P2-16TD1P",
+      "card_instance": "DO-1",
+      "channel": 0
+    },
+    {
+      "physical_address": "_IO_EM_DO_01",
+      "card_part_number": "P2-16TD1P",
+      "card_instance": "DO-1",
+      "channel": 1
+    }
+  ]
+}

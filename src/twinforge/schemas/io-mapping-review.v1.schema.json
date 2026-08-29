@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://twinforge.dev/schemas/io-mapping-review.v1.schema.json",
+  "title": "TwinForge physical I/O mapping engineering review overlay v1",
+  "description": "Attributable engineer-authored bindings of known physical I/O points onto target hardware I/O card channels, without TwinForge inferring the binding itself.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "controller_name", "reviewed_by", "reviewed_at", "authority_reference", "source_reference", "items"],
+  "properties": {
+    "schema_version": { "const": "twinforge.io-mapping-review.v1" },
+    "controller_name": { "type": "string", "minLength": 1 },
+    "reviewed_by": { "type": "string", "minLength": 1 },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timezone-qualified review timestamp; TwinForge also rejects naive timestamps at load time."
+    },
+    "authority_reference": { "type": "string", "minLength": 1 },
+    "source_reference": { "type": "string", "minLength": 1 },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/mappingItem" }
+    }
+  },
+  "$defs": {
+    "mappingItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["physical_address", "card_part_number", "card_instance", "channel"],
+      "properties": {
+        "physical_address": { "type": "string", "minLength": 1 },
+        "card_part_number": { "type": "string", "minLength": 1 },
+        "card_instance": { "type": "string", "minLength": 1 },
+        "channel": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

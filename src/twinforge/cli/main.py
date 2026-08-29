@@ -365,7 +365,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_schema.add_argument(
         "kind",
-        choices=("alarm", "cause-effect", "coverage", "validation-result"),
+        choices=(
+            "alarm",
+            "cause-effect",
+            "io-mapping",
+            "coverage",
+            "validation-result",
+        ),
         help="Review contract to export.",
     )
     review_schema.add_argument(
@@ -380,14 +386,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_validate.add_argument(
         "kind",
-        choices=("alarm", "cause-effect"),
+        choices=("alarm", "cause-effect", "io-mapping"),
         help="Review input contract to validate.",
     )
     review_validate.add_argument("path", type=Path)
     review_validate.add_argument(
         "--source",
         type=Path,
-        help="Optional Controller L5X used to reconcile reviewed keys.",
+        help=(
+            "Optional evidence used to reconcile reviewed keys: a Controller "
+            "L5X for alarm/cause-effect, or a CCW project JSON for io-mapping."
+        ),
+    )
+    review_validate.add_argument(
+        "--io-card-library",
+        type=Path,
+        help=(
+            "I/O card library used with --source to resolve an io-mapping "
+            "review; required together with --source for that kind."
+        ),
     )
     review_validate.add_argument(
         "--format",
@@ -406,11 +423,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_verify.add_argument(
         "kind",
-        choices=("alarm", "cause-effect"),
+        choices=("alarm", "cause-effect", "io-mapping"),
     )
     review_verify.add_argument("path", type=Path, help="Validation receipt.")
     review_verify.add_argument("--review", required=True, type=Path)
     review_verify.add_argument("--source", type=Path)
+    review_verify.add_argument("--io-card-library", type=Path)
     review_verify.add_argument(
         "--format",
         choices=("text", "json"),
@@ -813,7 +831,8 @@ def main(
                 validate_review_document(
                     arguments.kind,
                     arguments.path,
-                    l5x_source=arguments.source,
+                    review_source=arguments.source,
+                    io_card_library=arguments.io_card_library,
                     output_format=arguments.format,
                     destination=arguments.output,
                     stdout=output,
@@ -823,7 +842,8 @@ def main(
                     arguments.kind,
                     arguments.path,
                     arguments.review,
-                    l5x_source=arguments.source,
+                    review_source=arguments.source,
+                    io_card_library=arguments.io_card_library,
                     output_format=arguments.format,
                     stdout=output,
                 )
@@ -983,7 +1003,7 @@ def main(
                         "code": "review_validation_failed",
                         "message": str(error),
                         **(
-                            {"l5x_source": str(arguments.source)}
+                            {"source": str(arguments.source)}
                             if arguments.source is not None
                             else {}
                         ),

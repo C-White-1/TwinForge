@@ -54,6 +54,13 @@ from .cause_effect_review import (
     cause_effect_review_schema_text,
     load_cause_effect_review,
 )
+from .ccw_physical_io import (
+    CCW_IO_ADDRESS,
+    CCW_IO_KINDS,
+    classify_ccw_address,
+    physical_io_point,
+    physical_io_points,
+)
 from .conversion_readiness import (
     ConversionDisposition,
     ConversionReadinessItem,
@@ -171,6 +178,17 @@ from .io_list import (
     io_list_report_data,
     io_list_report_json,
 )
+from .io_mapping_review import (
+    IOMappingReport,
+    IOMappingResolution,
+    IOMappingReviewDocument,
+    IOMappingReviewError,
+    IOMappingReviewItem,
+    IOMappingReviewProvenance,
+    apply_io_mapping_review,
+    io_mapping_review_schema_text,
+    load_io_mapping_review,
+)
 from .parameter_report import (
     ParameterReportEntry,
     ParameterSetpointReport,
@@ -203,6 +221,11 @@ __all__ = [
     "AlarmReviewItem",
     "AlarmReviewCoverageItem",
     "alarm_review_schema_text",
+    "CCW_IO_ADDRESS",
+    "CCW_IO_KINDS",
+    "classify_ccw_address",
+    "physical_io_point",
+    "physical_io_points",
     "BehaviourMatch",
     "BehaviourParameterMapping",
     "CyclicIOContract",
@@ -245,6 +268,15 @@ __all__ = [
     "InstructionCoverage",
     "IOChannel",
     "IOListReport",
+    "IOMappingReport",
+    "IOMappingResolution",
+    "IOMappingReviewDocument",
+    "IOMappingReviewError",
+    "IOMappingReviewItem",
+    "IOMappingReviewProvenance",
+    "apply_io_mapping_review",
+    "io_mapping_review_schema_text",
+    "load_io_mapping_review",
     "PLCopenBehaviourAssessment",
     "PLCopenBehaviourModel",
     "ParameterReportEntry",

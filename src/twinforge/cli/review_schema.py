@@ -9,6 +9,7 @@ from twinforge.analysis import (
     alarm_review_schema_text,
     cause_effect_review_schema_text,
     engineering_review_coverage_schema_text,
+    io_mapping_review_schema_text,
 )
 
 from .review_validation import review_validation_result_schema_text
@@ -23,6 +24,10 @@ _SCHEMAS = {
     "cause-effect": (
         "cause-and-effect review v1",
         cause_effect_review_schema_text,
+    ),
+    "io-mapping": (
+        "io-mapping review v1",
+        io_mapping_review_schema_text,
     ),
     "coverage": (
         "engineering-review coverage v1",

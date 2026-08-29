@@ -14,6 +14,10 @@ from twinforge.cli import main
 CONTROLLER = (
     Path(__file__).parent / "data" / "basic" / "BoosterCompressor_20260128.L5X"
 )
+REPORTING_EXAMPLES = Path(__file__).parents[1] / "examples" / "reporting"
+M10_CCW_PROJECT = Path(__file__).parents[1] / "reference" / "ccw-tests" / "M10_Conveyor.json"
+IO_CARD_LIBRARY = REPORTING_EXAMPLES / "io-card-library.example.json"
+IO_MAPPING_REVIEW = REPORTING_EXAMPLES / "io-mapping-review.example.json"
 
 
 @pytest.mark.parametrize(
@@ -24,6 +28,11 @@ CONTROLLER = (
             "cause-effect",
             "twinforge.cause-effect-review.v1",
             "cause-and-effect review v1",
+        ),
+        (
+            "io-mapping",
+            "twinforge.io-mapping-review.v1",
+            "io-mapping review v1",
         ),
         (
             "coverage",
@@ -419,3 +428,187 @@ def test_rejects_saved_receipt_after_review_changes(tmp_path: Path) -> None:
 
     assert result == 4
     assert "review_sha256" in errors.getvalue()
+
+
+def test_validates_io_mapping_review_without_ccw_source() -> None:
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        ("review", "validate", "io-mapping", str(IO_MAPPING_REVIEW)),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    assert "Validated TwinForge io-mapping review v1" in output.getvalue()
+    assert "6 items" in output.getvalue()
+
+
+def test_reconciles_io_mapping_review_against_ccw_source_and_card_library() -> None:
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "io-mapping",
+            str(IO_MAPPING_REVIEW),
+            "--source",
+            str(M10_CCW_PROJECT),
+            "--io-card-library",
+            str(IO_CARD_LIBRARY),
+        ),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    assert f"reconciled against {M10_CCW_PROJECT}" in output.getvalue()
+
+
+def test_io_mapping_review_requires_source_and_card_library_together() -> None:
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "io-mapping",
+            str(IO_MAPPING_REVIEW),
+            "--source",
+            str(M10_CCW_PROJECT),
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 4
+    assert "requires both --source and --io-card-library" in errors.getvalue()
+
+
+def test_rejects_io_mapping_review_referencing_unknown_physical_address(
+    tmp_path: Path,
+) -> None:
+    review = tmp_path / "io-mapping-review.json"
+    review.write_text(
+        json.dumps(
+            {
+                "schema_version": "twinforge.io-mapping-review.v1",
+                "controller_name": "M10 Conveyor",
+                "reviewed_by": "Control systems engineer",
+                "reviewed_at": "2026-08-29T00:00:00Z",
+                "authority_reference": "Design review",
+                "source_reference": str(M10_CCW_PROJECT),
+                "items": [
+                    {
+                        "physical_address": "_IO_EM_DI_99",
+                        "card_part_number": "P2-16ND3-1",
+                        "card_instance": "DI-1",
+                        "channel": 0,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "io-mapping",
+            str(review),
+            "--source",
+            str(M10_CCW_PROJECT),
+            "--io-card-library",
+            str(IO_CARD_LIBRARY),
+        ),
+        stdout=StringIO(),
+        stderr=errors,
+    )
+
+    assert result == 4
+    assert "unknown physical_address" in errors.getvalue()
+
+
+def test_rejects_malformed_ccw_source_cleanly_instead_of_crashing(
+    tmp_path: Path,
+) -> None:
+    """Regression test: a RuntimeError subclass must not escape as a crash."""
+
+    malformed = tmp_path / "not-a-ccw-project.json"
+    malformed.write_text('{"not": "a valid ccw project"}', encoding="utf-8")
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        (
+            "review",
+            "validate",
+            "io-mapping",
+            str(IO_MAPPING_REVIEW),
+            "--source",
+            str(malformed),
+            "--io-card-library",
+            str(IO_CARD_LIBRARY),
+            "--format",
+            "json",
+        ),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 4
+    diagnostic = json.loads(errors.getvalue())
+    assert diagnostic["status"] == "error"
+    assert diagnostic["exit_code"] == 4
+    assert diagnostic["diagnostics"][0]["source"] == str(malformed)
+
+
+def test_verifies_io_mapping_receipt_against_real_ccw_project(tmp_path: Path) -> None:
+    receipt = tmp_path / "io-mapping-validation.json"
+    assert (
+        main(
+            (
+                "review",
+                "validate",
+                "io-mapping",
+                str(IO_MAPPING_REVIEW),
+                "--source",
+                str(M10_CCW_PROJECT),
+                "--io-card-library",
+                str(IO_CARD_LIBRARY),
+                "--output",
+                str(receipt),
+            ),
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+        == 0
+    )
+    output = StringIO()
+
+    result = main(
+        (
+            "review",
+            "verify-receipt",
+            "io-mapping",
+            str(receipt),
+            "--review",
+            str(IO_MAPPING_REVIEW),
+            "--source",
+            str(M10_CCW_PROJECT),
+            "--io-card-library",
+            str(IO_CARD_LIBRARY),
+        ),
+        stdout=output,
+        stderr=StringIO(),
+    )
+
+    assert result == 0
+    assert "Verified review-validation receipt" in output.getvalue()

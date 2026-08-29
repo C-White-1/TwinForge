@@ -136,6 +136,55 @@ counts every other CCW classification (`system`, `register`, `compiler`) in
 `global_variable_count`, and reports `requires_codesys_device_mapping` until a
 device-specific binding has been supplied and validated.
 
+### I/O card library and mapping-review fixture
+
+Resolving `requires_codesys_device_mapping` requires knowing two things
+TwinForge cannot derive from the CCW project alone: what target hardware I/O
+cards exist, and which physical point an engineer intends for each channel.
+TwinForge never guesses either. Instead it reuses the same attributable,
+hash-receipted engineering-review pattern already used for alarm and
+cause-and-effect review, as a third `io-mapping` kind of the `review` command.
+
+An **I/O card library** is a user-authored, versioned catalog of target
+hardware module specs (part number, vendor, direction, signal type, channel
+count) — `src/twinforge/knowledge/io_card_catalog.py`, validated against
+`io-card-library.v1.schema.json`. TwinForge ships no built-in cards; see
+`examples/reporting/io-card-library.example.json` for a starting example.
+
+An **I/O mapping review** binds known CCW physical points (from
+`ccw-project io-summary`'s evidence) onto specific card instance/channel
+combinations — `src/twinforge/analysis/io_mapping_review.py`, validated
+against `io-mapping-review.v1.schema.json`. Applying one rejects: an unknown
+physical address, an unknown card part number, a channel outside the card's
+`channel_count`, a direction/signal-type mismatch between the CCW point and
+the resolved card, and two points assigned the same card channel. A CCW
+point whose own direction/signal type is unresolved may still be mapped, but
+its resolution is marked `compatibility_confirmed: false` — no evidence
+contradicted the binding, but none confirmed it either. Every known point
+not covered by the review is reported as `unmapped`, never silently dropped.
+
+```powershell
+uv run twinforge review schema io-mapping --output .\io-mapping-review.schema.json
+uv run twinforge review validate io-mapping .\io-mapping-review.json `
+  --source .\project.json `
+  --io-card-library .\io-card-library.json `
+  --output .\io-mapping.receipt.json
+uv run twinforge review verify-receipt io-mapping .\io-mapping.receipt.json `
+  --review .\io-mapping-review.json `
+  --source .\project.json `
+  --io-card-library .\io-card-library.json
+```
+
+`--source` and `--io-card-library` are optional together (schema-only
+validation) but required as a pair — supplying one without the other is
+rejected rather than silently skipping reconciliation.
+
+**Scope boundary:** this produces a validated, hash-bound `IOMappingReport`
+only. It is not yet wired into `ccw-project export`'s generated PLCopen XML
+(no physical `AT` address emission) and does not yet change the coverage
+report's `physical_io_binding_status` placeholder — that is a follow-up once
+this mechanism is in routine use.
+
 ## Reviewed empty-rung evidence
 
 Manual inspection in Connected Components Workbench on 28 August 2026

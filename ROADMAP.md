@@ -110,6 +110,14 @@ repository's Python implementation or read `.ccwarc` internals directly.
 - [x] Size physical I/O for hardware selection independent of any conversion
   target, reporting direction/signal type/assignment status in the same
   vocabulary as the L5X evidence-bound channel I/O list below
+- [x] Define a versioned, user-authored target-hardware I/O card library and
+  an attributable, hash-receipted mapping-review fixture that binds known
+  CCW physical points onto card channels without TwinForge guessing the
+  binding, reusing the alarm/cause-effect review pattern as `review
+  validate|verify-receipt|schema io-mapping`
+  - [ ] Wire a validated mapping into `ccw-project export`'s generated
+    PLCopen XML (physical `AT` address emission) and resolve
+    `physical_io_binding_status` from it instead of the current placeholder
 - [x] Add CI coverage using a legally shareable synthetic
   `ccw-project-v1.json` fixture rather than a private `.ccwarc` archive
 - [ ] Evaluate moving stable interchange schemas into a small independent
