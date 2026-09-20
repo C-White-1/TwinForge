@@ -134,12 +134,20 @@ Delivery status and acceptance criteria are maintained in the
 - [x] Inspect projects through `twinforge control-expert inspect` (text/JSON)
 - [x] Extract graphical objects, pin bindings and shared-variable references
 - [x] Validate graphical calls against captured library interfaces
-- [ ] Resolve graphical connectivity and multi-block execution order (next)
-- [ ] Expand types, initial values, DDT/DFB and modern Control Expert coverage
+- [x] Resolve SFC connectivity from grid adjacency and explicit links, including
+  `altBranch`/`altJoint` divergence and convergence
+- [x] Export an SFC test-coverage/traceability skeleton through
+  `twinforge control-expert coverage`
+- [x] Resolve pure-series Ladder rungs and explicit FBD link connectivity by name
+- [x] Capture DDT definitions, array bounds and hardware power-supply modeling
+- [ ] Resolve multi-block FBD execution order and Ladder branch/vertical-wire
+  routing (next; blocked on further evidence for the branch case)
+- [ ] Capture device DDT and custom DFB (`FBSource`/`FBProgram`) definitions
 - [ ] Validate against Schneider schemas, then native import/build and runtime evidence
 
-Current support is read-only and provisional. The samples cover older Quantum
-and Premium exports; successful inspection does not establish executable
+Current support is read-only and provisional. The corpus now includes a real
+Control Expert V14.0 M580 safety project alongside the original Quantum and
+Premium exports; successful inspection does not establish executable
 conversion or native Control Expert compatibility.
 
 ### PLCopen conversion

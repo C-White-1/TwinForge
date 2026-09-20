@@ -1,8 +1,12 @@
 # TwinForge
 
 TwinForge is a specification-driven, vendor-neutral industrial automation
-toolkit. It currently imports Rockwell L5X projects into a lossless domain
-model and exports tested PLCopen XML and AutomationML representations.
+toolkit. It imports Rockwell L5X projects into a lossless domain model and
+exports tested PLCopen XML and AutomationML representations. It also offers
+read-only, offline inspection of Schneider Control Expert / Unity Pro
+XEF/ZEF exchange files -- see
+[Control Expert / Unity Pro interchange](ROADMAP.md#control-expert--unity-pro-interchange)
+for delivery status.
 
 ## Current validated baseline
 
@@ -117,6 +121,9 @@ twinforge export project.L5X --target automationml --output plant.aml `
 twinforge export project.L5X --target plcopen --output project.xml --dry-run
 twinforge export project.L5X --target plcopen --output project.xml `
   --dry-run --diagnostics-format json
+twinforge control-expert inspect project.xef
+twinforge control-expert inspect project.xef --format json
+twinforge control-expert coverage project.xef --output reports\coverage
 ```
 
 `state init` refuses to overwrite an existing path. Validation and inspection
@@ -179,6 +186,15 @@ provided through a versioned JSON binding document:
 
 Running the command again with `--bindings` creates only those explicitly
 bound directed edges and retains all remaining messages as unbound evidence.
+
+`control-expert inspect` reads a Schneider Control Expert / Unity Pro XEF,
+ZEF, or distribution ZIP file offline, with no Control Expert installation
+required, and reports captured tasks, sections, variables, hardware, SFC/LD/FBD
+structure and diagnostics. `control-expert coverage` writes a Markdown/CSV/JSON
+test-coverage/traceability skeleton -- one row per SFC step, transition, and
+SFC-relevant diagnostic -- as a starting point for an engineering review, not a
+record of tests performed. This support is read-only and provisional; see
+[Control Expert / Unity Pro interchange](ROADMAP.md#control-expert--unity-pro-interchange).
 
 `export --target plcopen` writes target-neutral PLCopen XML 2.01 without
 CODESYS extensions. Supplying `--xsd` validates the complete document before
