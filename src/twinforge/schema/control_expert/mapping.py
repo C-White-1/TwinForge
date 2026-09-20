@@ -41,6 +41,9 @@ class MappingSpec:
     task_sections: PathSpec = ("sectionDesc",)
     comments: PathSpec = ("comment",)
     initializers: PathSpec = ("variableInit",)
+    datatypes: PathSpec = ("DDTSource",)
+    datatype_name_attribute: str = "DDTName"
+    datatype_members: PathSpec = ("structure", "variables")
     plc: PathSpec = ("IOConf", "PLC")
     part: PathSpec = ("partItem",)
     equipment: PathSpec = ("equipInfo",)
@@ -57,6 +60,10 @@ class MappingSpec:
     )
     scalar_types: frozenset[str] = frozenset({
         "BOOL", "INT", "DINT", "WORD", "TIME", "STRING",
+        # Evidenced in the M580 safety corpus's DDT member declarations.
+        # EBOOL is Schneider's own extended-BOOL elementary type (adds
+        # rising/falling-edge and forcing), still scalar, not composite.
+        "BYTE", "REAL", "EBOOL", "DWORD", "UDINT", "UINT",
     })
     array_pattern: str = r"ARRAY\[(-?\d+)\.\.(-?\d+)\] OF ([A-Za-z_][A-Za-z_0-9]*)"
 

@@ -147,6 +147,14 @@ visible. Initial values are lexical evidence, not promoted typed values.
   (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
 - [ ] Produce executable neutral graph/IR only for a verified semantic subset
+- [ ] Backlog: `FBSource`/`FBProgram` (user-defined Function Block bodies).
+      83 real definitions in the M580 safety fixture, each a full nested
+      program-like structure: an interface (`inputParameters`/
+      `outputParameters`/`inOutParameters`/`publicLocalVariables`/
+      `privateLocalVariables`) plus a body (`FBProgram`, on 76 of 83) that
+      itself contains an ordinary `FBDSource` -- reusable with the existing
+      graphical parser, but needs its own model/wiring as a new structural
+      layer, not a small extension. Left for its own pass.
 
 Completion criterion: connections and ordering are supported by a documented
 grammar plus discriminating fixtures. Task scans, section order, block order and
@@ -174,16 +182,28 @@ synthetic mismatches are diagnosed; no block execution or datatype compatibility
 is claimed from a matching name alone. Existing capture and reference behavior
 must remain unchanged.
 
-## Milestone 5: broader type and source coverage — pending
+## Milestone 5: broader type and source coverage — partial
 
 - [ ] Promote a documented subset of scalar initial values with lexical provenance
-- [ ] Model array lower bounds and composite initialization without zero-base loss
-- [ ] Capture DDT, device DDT and custom DFB definitions and references
+- [x] Model array lower bounds without zero-base loss, for DDT members
+      (`DatatypeMember.dimension` retains the lexical `lower..upper` text
+      unchanged, e.g. `"257..384"`, deliberately not renumbered from zero);
+      composite (struct/array) *initialization* is a separate, still-pending
+      concern -- see the DDT capture checkpoint below for scope
+- [x] Capture DDT definitions and cross-references (`DDTSource`, including
+      forward references between DDTs); device DDT and custom DFB
+      (`FBSource`/`FBProgram`) definitions are a distinct, still-pending
+      mechanism -- see the Milestone 4 `FBSource` note below, not this item
 - [ ] Distinguish library types, block-instance types and user-defined data types
 - [ ] Extend ST analysis with source dialect/system-address evidence
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
-- [ ] Add populated DTM and modern M580/Control Expert examples
+- [ ] Add populated DTM and modern M580/Control Expert examples (a real,
+      populated Control Expert V14.0 M580 **safety** project is now in the
+      corpus -- see the explicit FBD link and power supply checkpoints above
+      -- but its `DTMConfiguration` content specifically has not been surveyed)
 - [ ] Characterize encrypted/protected exports and retain unsupported content
+      (`FBSource/crypted` in the M580 safety fixture is confirmed genuinely
+      opaque hex-encoded evidence, 7 occurrences; not yet wired into capture)
 
 No inferred DTDVersion-to-release table: preserve the marker alongside exporter
 identity and actual feature coverage.
@@ -209,7 +229,7 @@ Portable fixtures are independently authored; local-reference tests skip
 explicitly when the ignored source files are unavailable.
 
 ```powershell
-uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py
+uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py tests/test_control_expert_datatypes.py
 ```
 
 Run Ruff and Pyright on changed modules, plus relevant model/CLI/ST regressions
@@ -463,3 +483,38 @@ it. Both the M580 safety project (`BMXCPS4002S`) and the original
 resolve their power supply the same way. 2 targeted hardware tests
 added/updated (9 total in `test_control_expert_project.py`); full suite
 (1224 tests) passed; Ruff and Pyright passed.
+
+DDT capture checkpoint (2026-09-21): `DDTSource` (a project-root sibling of
+`program`, not nested under one) now maps to the existing, previously
+entirely-unpopulated `Datatype`/`DatatypeMember` model -- greenfield, like
+`LadderRung` before the Ladder series work. Datatypes are collected in a
+first pass (so every name is known), then members in a second, so a member's
+`typeName` can forward-reference a DDT declared later in source order;
+resolving that reference sets `DatatypeMember.data_type` to the real
+`Datatype` object, distinguishing a composite (nested-DDT) member from a
+scalar one without conflating them. Array bounds reuse the array-bounds
+regex already relied on for top-level tags, but land in the dedicated
+`dimension` field as the raw `"lower..upper"` text (e.g. `"257..384"`),
+deliberately not renumbered from zero -- exactly the loss the milestone item
+warns against. Top-level tags (`_variables`) now also recognize a known DDT
+name as a resolved type, not just the scalar set, since leaving a
+now-captured DDT-typed tag permanently `unresolved_type` once its DDT is
+known would be a straightforward, avoidable gap, not a new claim.
+
+Real evidence surfaced a second, smaller gap: of the M580 safety fixture's
+DDT members, 43 initially reported `unresolved_type` for `BYTE`/`UINT`/
+`REAL`/`UDINT` -- genuine, unambiguous elementary IEC types absent from
+`scalar_types`, not composite or vendor-specific types. `BYTE`, `REAL`,
+`EBOOL` (Schneider's extended-BOOL, still elementary), `DWORD`, `UDINT` and
+`UINT` were added; generic placeholder types (`ANY`, `ANY_NUM`, `ANY_BIT`,
+...) and FB/EFB instance type names (`TON`, `SFC_TRAN`, `S_SR`, dozens of
+others, all in the same corpus but structurally unrelated to DDT member
+typing) were deliberately left alone -- neither is a scalar value type.
+
+The `SAFE` task found during the earlier survey needed no new code at all:
+its `taskDesc` carries `taskType="periodic"`, a value the existing generic
+(name-agnostic) task-scheduling logic already handles identically to the
+multi-Grafcet corpus's periodic MAST task; only its *name* ("SAFE") is new.
+All 13 real DDTs resolve; `T_BMENOC0321` (5 array members, 1 nested-DDT
+reference to `T_NOCDIO_HEALTH`) is checked directly. 8 targeted datatype
+tests passed; full suite (1232 tests) passed; Ruff and Pyright passed.

@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import re
 
 from twinforge.model import (
-    Chassis, Controller, Identity, Module, Program, Routine,
+    Chassis, Controller, Datatype, DatatypeMember, Identity, Module, Program, Routine,
     SourceExtension, StructuredTextLine, Tag, Task,
 )
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
@@ -75,7 +75,10 @@ def _unique_name(
     return name
 
 
-def _variables(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
+def _variables(
+    result: ParsedProject, root: CapturedSection, spec: MappingSpec,
+    known_datatypes: dict[str, Datatype],
+) -> None:
     used: set[str] = set()
     for node in _select(root, spec.variables):
         attrs = node.raw_attributes
@@ -107,9 +110,59 @@ def _variables(result: ParsedProject, root: CapturedSection, spec: MappingSpec) 
             # The model has no typed lower-bound field. Do not normalize this
             # into a zero-based dimensions string and imply portability.
             result.report("unresolved_array_type", f"{name}: array expression and bounds retained; type not resolved", node)
-        if not base_type or base_type.upper() not in spec.scalar_types:
+        known = bool(base_type) and base_type.casefold() in known_datatypes
+        if not known and (not base_type or base_type.upper() not in spec.scalar_types):
             result.report("unresolved_type", f"{name}: no supported type definition for {base_type!r}", node)
         result.controller.add_tag(tag)
+
+
+def _datatypes(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> dict[str, Datatype]:
+    """Map derived type definitions; members may forward-reference any DDT by name."""
+    used: set[str] = set()
+    by_key: dict[str, Datatype] = {}
+    pending: list[CapturedSection] = []
+    for node in _select(root, spec.datatypes):
+        name = _unique_name(result, node, node.raw_attributes.get(spec.datatype_name_attribute), used, "datatype")
+        if name is None:
+            continue
+        comment = _first(node, spec.comments)
+        datatype = Datatype(name=name, description=comment.text if comment else None,
+                            source_extensions=[_extension(node)])
+        result.controller.add_datatype(datatype)
+        by_key[name.casefold()] = datatype
+        pending.append(node)
+    for node in pending:
+        datatype = by_key[node.raw_attributes[spec.datatype_name_attribute].casefold()]
+        member_used: set[str] = set()
+        for member_node in _select(node, spec.datatype_members):
+            attrs = member_node.raw_attributes
+            member_name = _unique_name(result, member_node, attrs.get("name"), member_used, "datatype member")
+            if member_name is None:
+                continue
+            type_name = attrs.get("typeName")
+            comment = _first(member_node, spec.comments)
+            match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
+            base_type, dimension = type_name, None
+            label = f"{datatype.name}.{member_name}"
+            if match:
+                lower, upper = int(match[1]), int(match[2])
+                base_type = match[3]
+                if upper < lower:
+                    result.report("invalid_array_bounds", f"{label}: upper bound precedes lower bound", member_node)
+                else:
+                    # Retain the lexical bounds as written; do not zero-base or
+                    # otherwise normalize a lower bound that may not be zero.
+                    dimension = f"{lower}..{upper}"
+                result.report("unresolved_array_type", f"{label}: array expression and bounds retained; type not resolved", member_node)
+            member = DatatypeMember(name=member_name, data_type_name=base_type, dimension=dimension,
+                                    description=comment.text if comment else None,
+                                    source_extensions=[_extension(member_node)])
+            if base_type:
+                member.data_type = by_key.get(base_type.casefold())
+            if member.data_type is None and (not base_type or base_type.upper() not in spec.scalar_types):
+                result.report("unresolved_type", f"{label}: no supported type definition for {base_type!r}", member_node)
+            datatype.members.append(member)
+    return by_key
 
 
 def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
@@ -279,7 +332,8 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
                  for path, direction in spec.library_parameters for parameter in _select(node, path)],
                 [_extension(node)],
             ))
-    _variables(result, root, spec)
+    known_datatypes = _datatypes(result, root, spec)
+    _variables(result, root, spec, known_datatypes)
     _programs_and_tasks(result, root, spec)
     _hardware(result, root, spec)
     variable_counts: dict[str, int] = {}

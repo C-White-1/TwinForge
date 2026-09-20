@@ -871,3 +871,84 @@ families: some mount power supplies in-chassis, some do not, and nothing
 here asserts a rule beyond the one vendor tag shape actually evidenced. A
 power supply with no resolvable identity still reports `unplaced_hardware`,
 unchanged from before.
+
+## DDT (derived type) grammar and capture
+
+`DDTSource` is a root-level sibling of `program`/`dataBlock` (not nested
+under either), one per derived type: `<DDTSource DDTName="..." version="..."
+dateTime="...">`, with a `<comment>`, zero or more `<attribute name="..."
+value="...">` (vendor metadata -- `TypeSignatureCheckSumString`,
+`IsTypeLocked`, `IsTypeHiddenButExported`, ... -- retained in source
+evidence, not interpreted or mapped to any model field) and one `<structure>`
+containing its members, each a `<variables name="..." typeName="...">` --
+the identical element already used for top-level `dataBlock` variables and
+library parameters, reused here for DDT members, each with its own
+`<comment>` and `<attribute>` children (per-member ones observed:
+`RequestAccessRight`, `InstancesProgramAccessRight` -- access-right codes
+with no confirmed semantics, likewise retained unmapped).
+
+13 real DDTs, from the M580 safety fixture (see above), map cleanly to the
+pre-existing, previously entirely-unpopulated `Datatype`/`DatatypeMember`
+model. Two are Schneider's own standard module-health types
+(`T_BMENOC0321`, `T_BMEP58_ECPU_EXT`), not user-authored, so they are
+representative, safe reference material rather than one customer's private
+design. 18 real members use the inline array form already evidenced for
+top-level tags, `ARRAY[lower..upper] OF <type>` (e.g. `ARRAY[257..384] OF
+BOOL`) -- the same regex already relied on for tag arrays matches every one
+unchanged. One member (`T_BMENOC0321.DID_HEALTH`) has a `typeName` that is
+itself another DDT's name (`T_NOCDIO_HEALTH`) -- the corpus's only observed
+composite/nested-type reference, and it is declared *before* the DDT it
+references, proving the resolver must not assume declaration order.
+
+Two-pass resolution: every `Datatype` is created first (so every name is
+known), then every `DatatypeMember` in a second pass, so a member's
+`typeName` can forward- or backward-reference any DDT regardless of source
+order. A member resolves when its `typeName` is either a known scalar
+(`spec.scalar_types`) or a known DDT name (case-insensitively, matching the
+declared-symbol lookup convention used everywhere else in this parser);
+`DatatypeMember.data_type` is set only in the DDT case, so a consumer can
+tell "the base type is a captured composite type" from "the base type is a
+scalar" without inspecting the raw string. Neither case is set for an array
+member's own element type slot beyond what the array-bounds regex already
+extracts -- array-of-DDT has no corpus evidence and is not attempted.
+
+Array bounds land in `DatatypeMember.dimension` as the unmodified lexical
+`"lower..upper"` text (e.g. `"257..384"`, not `"0..127"` or a bare count) --
+the milestone's "without zero-base loss" is met by simply not normalizing at
+all, the same discipline `_variables`'s existing tag-array handling already
+uses for its own `source_array_bounds` metadata, extended here to a field
+built for exactly this purpose. `unresolved_array_type` still fires whenever
+an array pattern matches (the array *type itself* -- as opposed to its
+element type identity -- remains uninterpreted, unchanged from the tag case);
+`invalid_array_bounds` fires when the upper bound precedes the lower.
+
+A second, smaller finding from the same corpus: of its members, `BYTE`,
+`UINT`, `REAL` and `UDINT` accounted for the bulk of `unresolved_type`
+diagnostics before this pass -- genuine, unambiguous IEC elementary types
+simply absent from `spec.scalar_types` (which previously covered only
+`BOOL`, `INT`, `DINT`, `WORD`, `TIME`, `STRING`). Added those four plus
+`DWORD` and `EBOOL` (Schneider's own extended-BOOL elementary type, adding
+rising/falling-edge and forcing semantics, still a scalar value type).
+Deliberately not added: IEC generic placeholder types observed in the same
+corpus (`ANY`, `ANY_NUM`, `ANY_BIT`, `ANY_ELEMENTARY`, ...) and the dozens of
+FB/EFB instance type names also present as `typeName` values elsewhere in
+the same project (`TON`, `SFC_TRAN`, `S_SR`, `R_TRIG`, ...) -- neither
+represents a concrete scalar value type, and conflating either with DDT
+member typing would be a real, not merely cosmetic, category error.
+
+Top-level tags benefit from the same registry: `_variables` now treats a
+`typeName` matching a known DDT name as resolved, not only the scalar set,
+so a tag legitimately typed with a captured DDT is not left permanently
+`unresolved_type` once that DDT exists. The M580 safety fixture's
+`dataBlock` happens to be empty (no top-level tags at all in that project),
+so this specific extension has no real-corpus example yet; it is a direct,
+low-risk consequence of the DDT registry now existing; not a speculative
+addition.
+
+Out of scope, not attempted: device DDTs and custom DFB (`FBSource`/
+`FBProgram`) definitions are a structurally distinct mechanism (see the
+Milestone 4 backlog note) and are not captured by this work despite sharing
+the "DDT" name in the milestone wording; composite/array *initialization*
+values (as opposed to the bounds captured here) remain unresolved lexical
+evidence, matching how scalar initial values are already handled for plain
+tags.

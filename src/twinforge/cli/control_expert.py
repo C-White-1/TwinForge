@@ -129,6 +129,14 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             "resolved_sections": [p.name for p in task.scheduled_programs],
         } for task in controller.tasks.values()],
         "programs": programs,
+        "datatypes": [{
+            "name": dt.name, "description": dt.description,
+            "members": [{
+                "name": m.name, "type": m.data_type_name, "dimension": m.dimension,
+                "resolved_datatype": m.data_type.name if m.data_type else None,
+                "description": m.description,
+            } for m in dt.members],
+        } for dt in controller.datatypes.values()],
         "variables": [{
             "name": tag.name, "type": tag.data_type,
             "address": tag.metadata.get("source_memory_address"),
@@ -184,7 +192,8 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
             stdout.write(f"\nProject {index + 1}: {project['name'] or '(unnamed)'}\n"
                          f"  Source: {location}\n"
                          f"  Controller: {project['controller_product'] or '(unknown)'}\n"
-                         f"  Variables: {len(project['variables'])}; sections: {len(project['programs'])}; "
+                         f"  Variables: {len(project['variables'])}; datatypes: {len(project['datatypes'])}; "
+                         f"sections: {len(project['programs'])}; "
                          f"racks: {len(project['chassis'])}; unplaced modules: {len(project['unplaced_modules'])}\n")
             for task in project["tasks"]:
                 stdout.write(f"  Task {task['name']} ({task['type']}): "
