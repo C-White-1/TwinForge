@@ -25,7 +25,8 @@ def _extensible_templates(interface: LibraryInterface) -> dict[tuple[str, str], 
 
 
 def match_library_calls(
-    controller: Controller, interfaces: list[LibraryInterface],
+    controller: Controller, interfaces: list[LibraryInterface], *,
+    direction_aliases: tuple[tuple[str, str], ...] = (),
 ) -> list[tuple[str, GraphicalObject | GraphicalPin]]:
     issues: list[tuple[str, GraphicalObject | GraphicalPin]] = []
     for program in controller.programs.values():
@@ -53,14 +54,16 @@ def match_library_calls(
                         matches = [index for index, parameter in enumerate(interface.parameters)
                                    if parameter.name and pin.name
                                    and parameter.name.casefold() == pin.name.casefold()
-                                   and parameter.direction == pin.direction]
+                                   and (parameter.direction == pin.direction
+                                        or (parameter.direction, pin.direction) in direction_aliases)]
                         extensible_match = _TRAILING_DIGITS.match(pin.name) if pin.name else None
                         extensible_candidates = (
                             templates.get((extensible_match.group(1).casefold(), pin.direction), [])
                             if extensible_match else []
                         )
                         if len(matches) == 1:
-                            pin.interface_status = "matched"
+                            pin.interface_status = ("matched" if interface.parameters[matches[0]].direction == pin.direction
+                                                    else "matched_direction_alias")
                             pin.parameter_index = matches[0]
                         elif len(matches) > 1:
                             pin.interface_status = "ambiguous"

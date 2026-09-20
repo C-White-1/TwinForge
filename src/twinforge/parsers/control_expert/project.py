@@ -306,9 +306,8 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             issue.code, f"{issue.program_name}/{issue.routine_name}: {issue.expression!r}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
-    # Order resolution reuses only cleanly-bound shared-variable dataflow; a
-    # network with any other unexplained diagnostic is excluded rather than
-    # risking an order that ignores a connection we failed to interpret.
+    # Shared symbols can expose ambiguity, but cannot establish vendor order.
+    # Preserve separately evidenced ordering and diagnose unresolved networks.
     flagged_locations = {d.source for d in result.diagnostics if d.code != "unresolved_graphical_connections"}
     excluded_diagrams = frozenset(
         (program.name, routine.name, diagram_index)
@@ -322,7 +321,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             issue.diagram_index]
         metadata = diagram.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
-            issue.code, f"{issue.program_name}/{issue.routine_name}: shared variable written by more than one block",
+            issue.code, f"{issue.program_name}/{issue.routine_name}: shared variable appears on output pins of multiple blocks",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     for program in controller.programs.values():
@@ -346,7 +345,9 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             code, f"SFC variable expression {element.text!r}: {element.binding_kind}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
-    for code, item in match_library_calls(controller, result.library_interfaces):
+    for code, item in match_library_calls(
+        controller, result.library_interfaces, direction_aliases=spec.library_direction_aliases,
+    ):
         metadata = item.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
             code, f"Library signature match: {item.interface_status}; source call retained",

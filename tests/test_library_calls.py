@@ -76,3 +76,31 @@ def test_extensible_ambiguous_templates_reported():
     ])
     match_library_calls(controller, [signature])
     assert obj.pins[0].interface_status == "ambiguous"
+
+
+def test_split_inout_requires_profile_and_preserves_both_pins():
+    controller = Controller(name="C", identity=Identity())
+    program = Program(name="P")
+    routine = Routine(name="R")
+    obj = GraphicalObject(kind="block", type_name="Transfer", pins=[
+        GraphicalPin(name="state", direction="input", expression="before"),
+        GraphicalPin(name="STATE", direction="output", expression="after"),
+    ])
+    routine.graphical_diagrams.append(GraphicalDiagram(language="FBD", objects=[obj]))
+    program.add_routine(routine)
+    controller.add_program(program)
+    signature = LibraryInterface("Transfer", "function", [LibraryParameter("State", "ANY_ARRAY_INT", "inout")])
+    assert len(match_library_calls(controller, [signature])) == 2
+    aliases = (("inout", "input"), ("inout", "output"))
+    assert not match_library_calls(controller, [signature], direction_aliases=aliases)
+    assert [p.parameter_index for p in obj.pins] == [0, 0]
+    assert [p.interface_status for p in obj.pins] == ["matched_direction_alias"] * 2
+    assert [p.expression for p in obj.pins] == ["before", "after"]
+    signature.parameters.append(LibraryParameter("State", "INT", "input"))
+    match_library_calls(controller, [signature], direction_aliases=aliases)
+    assert obj.pins[0].interface_status == "ambiguous"
+    assert obj.pins[0].parameter_index is None
+    assert obj.pins[1].parameter_index == 0
+    match_library_calls(controller, [signature])
+    assert obj.pins[1].interface_status == "unresolved_convention"
+    assert obj.pins[1].parameter_index is None

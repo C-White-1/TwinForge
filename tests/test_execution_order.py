@@ -25,7 +25,7 @@ def _controller_with(diagram):
     return controller
 
 
-def test_two_block_chain_orders_from_shared_variable_dataflow():
+def test_shared_variable_chain_does_not_establish_vendor_order():
     writer = GraphicalObject(kind="block", type_name="ADDR", pins=[_pin("OUT", "output")])
     reader = GraphicalObject(kind="block", type_name="READ_VAR", pins=[_pin("ADR", "input")])
     diagram = _diagram(objects=[reader, writer], shared_variables=[
@@ -34,9 +34,9 @@ def test_two_block_chain_orders_from_shared_variable_dataflow():
     controller = _controller_with(diagram)
     issues = resolve_fbd_execution_order(controller)
     assert issues == []
-    assert diagram.execution_order_resolved
-    assert diagram.execution_order == [1, 0]
-    assert diagram.execution_order_basis == "shared_variable_dataflow"
+    assert not diagram.execution_order_resolved
+    assert diagram.execution_order == []
+    assert diagram.execution_order_basis is None
 
 
 def test_self_referencing_pin_does_not_block_a_real_cross_block_edge():
@@ -52,8 +52,8 @@ def test_self_referencing_pin_does_not_block_a_real_cross_block_edge():
     ])
     controller = _controller_with(diagram)
     resolve_fbd_execution_order(controller)
-    assert diagram.execution_order_resolved
-    assert diagram.execution_order == [0, 1]
+    assert not diagram.execution_order_resolved
+    assert diagram.execution_order == []
 
 
 def test_multiple_writers_reported_ambiguous_and_left_unresolved():
@@ -126,3 +126,59 @@ def test_ladder_diagrams_are_not_touched():
     resolve_fbd_execution_order(controller)
     assert not diagram.execution_order_resolved
     assert diagram.execution_order_basis is None
+
+
+def test_disconnected_and_partially_constrained_blocks_have_no_order():
+    for groups in [[], [GraphicalVariableReferences("x", input_pins=[(1, 0)], output_pins=[(0, 0)])]]:
+        diagram = _diagram(objects=[GraphicalObject(kind="block", type_name=name)
+                                    for name in ("A", "B", "C")], shared_variables=groups)
+        resolve_fbd_execution_order(_controller_with(diagram))
+        assert diagram.execution_order == []
+        assert not diagram.execution_order_resolved
+        assert diagram.execution_order_basis is None
+
+
+def test_rerun_clears_legacy_inferred_order_even_when_excluded():
+    diagram = _diagram(objects=[GraphicalObject(kind="block"), GraphicalObject(kind="block")])
+    diagram.execution_order = [1, 0]
+    diagram.execution_order_resolved = True
+    diagram.execution_order_basis = "shared_variable_dataflow"
+    resolve_fbd_execution_order(_controller_with(diagram), excluded=frozenset({("P", "R", 0)}))
+    assert diagram.execution_order == []
+    assert not diagram.execution_order_resolved
+    assert diagram.execution_order_basis is None
+
+
+def test_evidenced_single_block_order_is_preserved():
+    diagram = _diagram(objects=[GraphicalObject(kind="block")])
+    diagram.execution_order = [0]
+    diagram.execution_order_resolved = True
+    diagram.execution_order_basis = "single_block"
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order == [0]
+    assert diagram.execution_order_resolved
+
+
+def test_project_inspection_keeps_shared_chain_order_unresolved(tmp_path):
+    from io import StringIO
+    import json
+    from twinforge.cli.control_expert import inspect_control_expert
+
+    path = tmp_path / "chain.xef"
+    path.write_text('<FEFExchangeFile><contentHeader name="Example"/>'
+                    '<dataBlock><variables name="shared" typeName="INT"/></dataBlock>'
+                    '<program><identProgram name="P"/><FBDSource><networkFBD>'
+                    '<FFBBlock typeName="Writer"><descriptionFFB>'
+                    '<outputVariable formalParameter="OUT" effectiveParameter="shared"/>'
+                    '</descriptionFFB></FFBBlock><FFBBlock typeName="Reader"><descriptionFFB>'
+                    '<inputVariable formalParameter="IN" effectiveParameter="shared"/>'
+                    '</descriptionFFB></FFBBlock></networkFBD></FBDSource></program></FEFExchangeFile>')
+    output = StringIO()
+    inspect_control_expert(path, output_format="json", stdout=output)
+    project = json.loads(output.getvalue())["projects"][0]
+    diagram = project["programs"][0]["routines"][0]["diagrams"][0]
+    assert diagram["shared_variables"][0]["symbol_name"] == "shared"
+    assert diagram["execution_order"] == []
+    assert diagram["execution_order_resolved"] is False
+    assert diagram["execution_order_basis"] is None
+    assert sum(d["code"] == "unresolved_block_order" for d in project["diagnostics"]) == 1

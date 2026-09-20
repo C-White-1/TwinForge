@@ -578,37 +578,26 @@ vendor's own extensibility marker, never a name-pattern guess applied to
 parameters without that evidence; a base shared by more than one marked
 template is reported `ambiguous` rather than guessed.
 
-## Multi-block FBD execution order from shared-variable dataflow
+## Multi-block FBD execution order remains unresolved
 
-None of the local reference exports contain an explicit FBD link/connector
-element, and the one `execAfter` override attribute present in the corpus is
-always empty. The one real multi-block FBD network observed (`readvar.zip`'s
-`ADDR`/`READ_VAR` pair) wires blocks together exclusively through shared
-`effectiveParameter` variable names, already captured as `shared_variables`
-groups by pin-expression binding. Interpreting an unevidenced link/connector
-grammar was deliberately deferred; this dataflow, already resolved, was not.
+Corrected 2026-09-21: shared `effectiveParameter` names establish symbol
+references, not graphical wires, memory effects or a same-scan ordering rule.
+The earlier `shared_variable_dataflow` inference has been withdrawn, including
+for the ADDR/READ_VAR pair in `readvar.zip`. Even a unique topological ordering
+of inferred dependencies would not verify the vendor's execution order.
 
-`twinforge.analysis.execution_order.resolve_fbd_execution_order` orders a
-multi-block FBD network from those groups alone: each group with exactly one
-output pin orders its writer before every other reader object (a
-self-referencing pin, such as a block's own EN sharing a name with its ENO,
-contributes no edge); a topological sort over the resulting graph produces
-`execution_order` with basis `shared_variable_dataflow`. A network is left
-unresolved, never guessed, when: it carries any diagnostic beyond the
-universal `unresolved_graphical_connections` for that source location
-(unclassified content, invalid numbers, ambiguous positions, and so on); any
-relevant pin's binding is `unresolved_expression`, `missing_symbol`,
-`ambiguous_symbol` or `invalid_output_literal`; any block declares a nonempty
-`execution_after` (the override grammar remains unaddressed); a shared
-variable has more than one writer (reported `ambiguous_block_order`); or the
-dependency graph has a cycle. `readvar.zip` now resolves `[ADDR, READ_VAR]`;
-every other local export is unchanged (single-block FBD or Ladder, both out
-of this scope). The generic `unresolved_block_order` diagnostic is now
-reported once, centrally, after this analysis runs, rather than eagerly at
-parse time, so it no longer goes stale when a later pass resolves a network
-`parse_diagrams` alone could not. Independent tests cover the ordering,
-self-reference, multiple-writer, cycle, override, unresolved-binding, caller
-exclusion and Ladder-exclusion cases.
+Multi-block diagrams retain their shared-variable groups with empty
+`execution_order`, false `execution_order_resolved` and no order basis until
+independent link/layout/override evidence supports a rule. The analysis clears
+legacy `shared_variable_dataflow` results on reruns, including excluded diagrams.
+It retains the existing ambiguity diagnostic for a symbol occurring on output
+pins of multiple blocks without asserting those pins' memory effects.
+The independently supported single-block FBD case is preserved. A centralized
+parser pass emits `unresolved_block_order` once per unresolved diagram.
+
+Regression tests cover disconnected and partially constrained blocks, a shared
+chain, stale result clearing, preservation of single-block evidence and JSON
+inspection retaining shared symbols while reporting unresolved order.
 
 ## Ladder contact operand binding, including cross-section step state
 
@@ -637,3 +626,22 @@ representation, or evaluation order — only that the reference names a unique
 declared step. Independent unit tests cover both binding shapes, ambiguity
 and rerun/reset; an integration test proves the cross-section (LD contact →
 SFC chart in a different program) lookup end to end.
+
+
+## Split graphical representation of in-out parameters
+
+Observed in readvar.zip: READ_VAR declares GEST under
+`ExternalToolsOnly/inOutParameters`, while its graphical call contains both
+`inputVariable` and `outputVariable` named GEST, each bound to manage. The Control
+Expert mapping profile explicitly allows an inout parameter to match either
+source pin direction. The neutral matcher has no such alias by default.
+Successful alias matches are reported as `matched_direction_alias` with the same
+parameter index; the two pins, their directions and expressions remain separate.
+Direct and aliased candidates are considered together, so conflicting declarations
+remain ambiguous rather than preferring one. No storage alias, read/write effect,
+missing-pin rule or generic datatype compatibility is inferred.
+
+All four GEST pin occurrences across readvar.zip's two exports now match. No
+`unresolved_convention` pins remain in the current local corpus. This is corpus
+coverage, not general library validation. Tests cover profile opt-in, independent
+expressions, conflicting declarations and resetting stale matches.

@@ -16,6 +16,8 @@ class HardwareLayout:
 
 @dataclass(frozen=True)
 class MappingSpec:
+    # READ_VAR GEST is emitted as separate input/output pins for one inout parameter.
+    library_direction_aliases: tuple[tuple[str, str], ...] = (("inout", "input"), ("inout", "output"))
     library_definitions: tuple[tuple[str, str, str], ...] = (
         ("EFBSource", "nameOfEFBType", "function_block"),
         ("EFSource", "nameOfEFType", "function"),

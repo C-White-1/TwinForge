@@ -103,7 +103,7 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Distinguish source pin direction, expression binding and EN/ENO roles
 - [x] Retain execution override hints without assuming their reference grammar
 - [x] Resolve relative order for the supported single-block FBD network case
-- [x] Order multi-block FBD networks from resolved shared-variable dataflow alone
+- [ ] Resolve multi-block FBD order from verified vendor rules; shared variables alone are insufficient
 - [x] Resolve simple declared-variable pin expressions case-insensitively
 - [x] Classify supported lexical literals, unbound pins and unresolved expressions
 - [x] Group shared-variable references without inventing graphical wires
@@ -241,19 +241,13 @@ a name-pattern guess applied without that evidence. Both `IN2` pins in each of
 `ambiguous`. Generic types, in-out representations and datatype compatibility
 remain unverified. 76 targeted tests passed; Ruff and Pyright passed.
 
-Multi-block FBD order checkpoint: no local export contains an explicit
-FBD link/connector element or a nonempty `execAfter` override, so that
-grammar remains unimplemented pending evidence. The one real multi-block FBD
-network (`readvar.zip`'s `ADDR`/`READ_VAR` pair) wires blocks purely through
-already-resolved shared-variable dataflow; execution order now resolves from
-that alone (`shared_variable_dataflow` basis), with self-reference handled,
-multiple-writer groups reported `ambiguous_block_order`, and cycles, overrides,
-unresolved pin bindings or any other unrelated diagnostic left unresolved.
-The generic `unresolved_block_order` diagnostic moved from eager per-network
-emission to a single centralized pass after order analysis runs, so it no
-longer goes stale once a network resolves. 84 targeted tests passed; Ruff and
-Pyright passed. Explicit FBD links/connectors, LD grid connectivity and
-override-rule interpretation remain open.
+Multi-block FBD order correction (2026-09-21): the earlier shared-variable
+ordering inference is withdrawn. A disconnected graph could be marked resolved
+with an arbitrary reversed order; even a unique shared-variable chain does not
+prove vendor execution order. Multi-block order now remains unresolved while
+shared symbol groups are retained. Legacy inferred order is cleared on reruns;
+single-block evidence is preserved. Explicit link/layout/override rules still
+require independent evidence. The specification describes the regression cases.
 
 LD contact binding checkpoint: contact operands previously carried no binding
 classification at all. Real evidence shows two shapes: plain declared-symbol
@@ -268,3 +262,11 @@ no corpus duplicate contradicts it; a genuine duplicate is still reported
 ambiguous). 88 targeted tests passed; Ruff and Pyright passed. Indexed
 expressions have no corpus evidence yet and remain open, as do LD grid
 connectivity and explicit FBD links.
+
+
+In-out parameter checkpoint (2026-09-21): the explicit Control Expert profile
+matches READ_VAR's input/output GEST pins to its single declared inout parameter.
+Both pins remain independently represented. Four occurrences across the two
+READ_VAR exports match, leaving no unresolved pin conventions in the local corpus.
+Generic types, access semantics and required-pin validation remain pending.
+56 targeted tests passed; Ruff and Pyright passed. Local reports refreshed.
