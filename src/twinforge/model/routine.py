@@ -7,6 +7,8 @@ from typing import Any
 
 from .source_extension import SourceExtension
 from .ladder import LadderPosition, LadderSeries
+from .graphical import GraphicalDiagram
+from .sequential import SequentialChart
 
 
 @dataclass
@@ -47,6 +49,9 @@ class Routine:
     metadata: dict = field(default_factory=dict)
     parent: Any | None = field(default=None, repr=False)
     source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
+    graphical_diagrams: list[GraphicalDiagram] = field(default_factory=list)
+
+    sequential_charts: list[SequentialChart] = field(default_factory=list)
 
     @property
     def structured_text(self) -> str:

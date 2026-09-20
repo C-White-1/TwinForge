@@ -1,0 +1,612 @@
+# Control Expert exchange capture: provisional specification
+
+Status: provisional specification with read-only capture, basic neutral mapping
+and graphical object evidence, 2026-09-20. Graphical execution mapping and editor validation remain
+unimplemented.
+Rules below are proposed TwinForge requirements,
+not a claim to reproduce Schneider's complete exchange grammar.
+
+## Evidence and limits
+
+Delivery status, remaining milestones and the next implementation step are
+tracked in the [Control Expert roadmap](../roadmaps/control-expert-roadmap.md).
+This document owns technical observations and mapping decisions.
+
+Five user-supplied ZIP archives are held in ignored
+`reference/control-expert/`. The adjacent `inventory.json` records SHA-256
+hashes, sizes, archive-member order, CRCs, source-page associations, and metadata
+for every standalone and embedded XEF. Reproduce it with:
+
+```powershell
+python reference/control-expert/inventory_samples.py
+```
+
+The script is a local research aid, not a production capture implementation.
+It reads the archives without extracting or rewriting them. Inspection checked
+ZIP integrity and XML well-formedness, not XSD validity, editor acceptance,
+compilation, or execution. Source URLs are the recommended pages associated
+with the outer filenames; the user's actual download origins were not verified.
+Redistribution permission has not been established; external files remain local
+under the [artifact policy](../artifact-policy.md).
+
+| Outer archive | Embedded ZEF | Exporter | Platform | Sections | Variable declarations |
+| --- | --- | --- | --- | --- | --- |
+| `cread_reg.zip` | `cwrite_reg.zef` | Unity Pro XL 8.1 | Quantum | 1 ST, 1 FBD | 11 |
+| `cwrite_reg.zip` | `cread_reg.zef` | Unity Pro XL 8.0 | Quantum | 1 ST, 1 FBD | 13 |
+| `function15.zip` | `mbp_mstr15.zef` | Unity Pro XL 8.1 | Quantum | 2 ST, 2 LD | 22 |
+| `function2.zip` | `mbp_mstrf2.zef` | Unity Pro XL 8.1 | Quantum | 1 ST, 2 LD | 21 |
+| `readvar.zip` | `readvar.zef` | Unity Pro XL 10.0 | Premium | 1 ST, 1 FBD | 7 |
+
+Counts refer to embedded `unitpro.xef`, with variables counted only under
+`dataBlock`. Library parameter declarations are not global variables.
+
+Important discrepancies:
+
+- `cread_reg.zip` contains a CWRITE_REG project in both its XEF and ZEF.
+- `cwrite_reg.zip` contains a CREAD_REG ZEF but a CWRITE_REG standalone XEF;
+  these are different projects/export versions, not interchangeable copies.
+- The READ_VAR source page describes LD; the inspected project contains FBD.
+- In function15, reset initialization repeatedly assigns `noecontrol16[0]`,
+  overwriting its initial operation code. A Ladder comment also disagrees with
+  the ST destination address. Preserve these observations; do not repair input.
+
+### Exact outer-archive identities
+
+| Archive | SHA-256 |
+| --- | --- |
+| `cread_reg.zip` | `d0f70e5c09b0220dfa33ddf12893217f68e67d4145d234c891a036d5076e5f4f` |
+| `cwrite_reg.zip` | `04ccc0962a1b48fca8a82980132b1bf078655d99318545b921c7255d17fa2a15` |
+| `function15.zip` | `86ad8cc456bd19c14707e6777e79c3fe321b2a5413f6ae44e0d22620b258d9a6` |
+| `function2.zip` | `f61f6b43b177575ed382e0fa8734da44858e325ef2d060f20583f26e2b383e64` |
+| `readvar.zip` | `8a014ff02f5755eaf11a393d67322537a2c40227826e513417b33e2937068b6a` |
+
+## Observed container and XML structure
+
+All five ZEFs are readable ZIP containers containing:
+
+```text
+DTM/
+DTM/BinaryFile/
+DTM/FDTDTMTopology.xml
+Project_Definition.xpdf
+unitpro.xef
+```
+
+The embedded XEFs use `ZEFExchangeFile`; standalone XEFs use `FEFExchangeFile`.
+Both use UTF-8 XML. All report
+`fileHeader/@DTDVersion="41"`; this value spans three exporter versions and
+must not be interpreted as a unique software release or compatibility promise.
+The DTM files inspected contain UTF-16LE XML with an empty device topology.
+The XPDF begins with XML referencing `unity.xsd` and a `crypted` element;
+its payload has not been decoded. None of these observations establishes a
+mandatory filename, encoding, or member set for all ZEF versions.
+
+| Observed selector, relative to either exchange root | Captured information | Initial interpretation boundary |
+| --- | --- | --- |
+| `fileHeader`, `contentHeader` | Producer, version strings, dates, DTD marker | Preserve original strings; no release mapping inferred |
+| `IOConf` | Nested CPU, bus, rack, supply and module configuration | Retain hierarchy and addresses; repeated CPU entries need not be separate devices |
+| `commParameters`, `comm` | Engineering connection and configured network data | Distinguish editor/simulator addresses from application communication |
+| `logicConf/resource/taskDesc/sectionDesc` | Resource, task attributes and ordered section references | Observed tasks are cyclic MAST only; retain raw timing values without invented units |
+| `dataBlock/variables` | Name, type expression, optional address, comments, initialization | Separate symbols, type references and memory bindings |
+| `EFSource`, `EFBSource` | Library identity, versions, attributes and parameter descriptions | Signatures are not executable implementations |
+| `program/identProgram` | Section name, type and task reference | Resolve against task configuration with diagnostics for conflicts |
+| `program/STSource` | Source text and comments | Preserve exact member bytes as well as decoded text |
+| `program/LDSource` | Contacts, blocks, pins, grid rows, links and annotations | Preserve topology and layout; execution semantics remain unresolved |
+| `program/FBDSource` | Blocks, parameter bindings and graphical structure | Preserve entire subtree pending a dedicated language specification |
+| `animationTable` | Watch expressions, nested entries and display attributes | Engineering metadata, not runtime values |
+| `DTMConfiguration`, `Motion`, `IOScreen`, `Documentation`, `settings` | Other project data, including empty sections | Retain even when no neutral interpretation exists |
+
+Observed variable types include BOOL, INT, DINT, WORD, TIME, STRING, array
+expressions, library types such as WordArr5 and ADDR_TYPE, and block-instance
+types. Array lower bounds include both zero and one. Resolve named types only
+with supporting definitions; preserve unresolved references explicitly.
+
+## Proposed capture contract
+
+Follow the repository pipeline:
+
+```text
+Specification -> Capture -> CapturedSection -> Parser -> Model
+```
+
+1. Retain the original input bytes and hash. Record each archive member by
+   ordinal and original name, with bytes and hash, including unknown members
+   and directory entries. Do not key solely by filename: duplicate names must
+   remain distinguishable. A distribution ZIP is provenance packaging; each
+   contained XEF/ZEF remains an independent candidate project.
+2. Inspect containers within explicit size, expansion and nesting limits.
+   Do not extract untrusted member paths or resolve XML external entities.
+   Report encrypted, corrupt or unsupported content explicitly and retain its
+   original bytes; never turn capture failure into an apparently empty project.
+3. Use declarative element/attribute specifications to classify XML. Preserve
+   qualified names, raw attributes, text, tails and child order, including
+   unknown subtrees. Raw member bytes are authoritative for comments, encoding,
+   whitespace and other lexical details a parsed tree may not retain.
+4. Carry archive hash, member ordinal/path and XML location into captured
+   sections and parser diagnostics. Label rules as observed, documented or
+   proposed, with their evidence references and tested exporter versions.
+5. Missing or novel structures produce explicit coverage diagnostics. An
+   observed field is not universally required merely because five files have it.
+   Never discard data because a DTD marker, type or attribute is unfamiliar.
+6. Parse captured sections into neutral concepts: controller, hardware, task,
+   program section, variable, type reference and source-language content.
+   Keep Schneider-specific configuration in associated source evidence or
+   extensions instead of making the neutral model vendor-specific.
+
+The existing L5X `ElementSpec` and `CapturedSection` illustrate this architecture,
+but live under L5X-specific modules. Decide shared contracts and migration impact
+before reusing or generalizing them; this document does not authorize a broad
+L5X refactor or relax its preservation guarantees.
+
+## Implementation gates and acceptance evidence
+
+### Installed inspection command
+
+```powershell
+uv run twinforge control-expert inspect reference\control-expert\function15.zip
+uv run twinforge control-expert inspect reference\control-expert\function15.zip --format json
+```
+
+The command inventories each project separately with source member ordinals and
+hashes, task schedule, section languages, hardware, variable declarations and
+diagnostics. JSON includes graphical objects and pins. Reports are deterministic
+and omit runtime UUIDs and raw source bytes. They are inspection summaries, not
+the existing L5X model-JSON contract or lossless source replacements.
+
+Report version `1.0` uses `report_type="control_expert_inspection"`. Status is
+`inspected`, `incomplete_capture`, or `no_supported_projects`; native validation
+is always `not_performed`. Capture failures or absent supported projects return
+exit code 1 while still emitting available inspection evidence. Mapping coverage
+diagnostics alone do not cause failure. See [offline usage](../offline-usage.md).
+
+### Initial capture API
+
+```python
+from twinforge.parsers.control_expert import capture_file
+
+captured = capture_file("reference/control-expert/function15.zip")
+for project in captured.members:
+    print(project.name, project.sha256, project.diagnostics)
+```
+
+This capture API accepts standalone XEF, ZEF and distribution ZIP files.
+The provisional schema lives
+under `twinforge.schema.control_expert`; no L5X modules were changed.
+`CapturedArtifact` retains original bytes and ordered nested members;
+`CapturedSection` retains ordered XML content, raw attributes and the matching
+specification, or `None` for unclassified nodes. XML locations use zero-based
+child ordinals, not XPath expressions. Comments and processing instructions
+inside the root are captured; original bytes also preserve document-level data.
+
+Diagnostics must be checked recursively on members. `unclassified_content` and
+`unclassified_xml` indicate retained material outside the provisional grammar,
+not malformed XML. Read/parse/limit diagnostics indicate incomplete inspection.
+A member that could not be read has `raw_bytes=None`, not empty bytes; its parent
+archive retains the stored representation. Member-count limits leave remaining
+entries in the parent bytes without individual records. Unknown DTD marker
+values remain strings and are not grounds for rejection.
+
+`CaptureLimits` bounds input, individual and aggregate expanded bytes, archive
+members, archive depth, and XML element depth/count. `capture_file` raises on
+an oversized input before loading the entire file. `capture_bytes` retains an
+already-loaded oversized input and reports it without inspection. DTD declarations
+are rejected without entity resolution. No archive paths are extracted.
+
+Tests in `tests/test_control_expert_capture.py` use independent synthetic files
+plus an explicitly optional local-reference check. The local inventory script
+is separate from this production API.
+
+### Basic neutral mapping API
+
+```python
+from twinforge.parsers.control_expert import capture_file, parse_projects
+
+captured = capture_file("reference/control-expert/function15.zip")
+projects = parse_projects(captured)
+for project in projects:
+    print(project.artifact.source.members)
+    print(project.controller)
+    for diagnostic in project.diagnostics:
+        print(diagnostic.code, diagnostic.message)
+```
+
+`parse_project` requires one captured exchange XML artifact. `parse_projects`
+walks archive members and returns each exchange document independently, in
+archive order. Standalone and embedded exports are never automatically merged
+or treated as equivalent. An empty result does not establish successful parsing;
+callers must also inspect recursive capture diagnostics for unreadable inputs.
+
+The mapping profile in `schema/control_expert/mapping.py` supplies declarative
+paths, hardware layouts, source-language names and the limited observed type
+vocabulary. The mapper consumes `CapturedSection`, not XML trees. The graphical
+stage adds optional neutral diagram evidence to routines; L5X parsing is unchanged.
+
+Current mapping decisions:
+
+- Controller name comes from the content header. Producer, timestamps, versions,
+  configuration and all unknown nodes remain in its complete source extension.
+  The parsed result also retains the captured XML artifact and original bytes.
+- Each source section becomes one neutral `Program` with one main `Routine`
+  when exactly one supported body exists. This is a representation choice to
+  express section execution order through `Task.scheduled_programs`, not a claim
+  that Control Expert sections have Logix program semantics.
+- Task references resolve case-insensitively against section names, using
+  `sectionDesc` order rather than XML program order. Missing, duplicate or
+  conflicting task/section identities produce diagnostics and unresolved links.
+  Raw names and task attributes remain available. Timing units are not inferred.
+- ST text populates numbered `StructuredTextLine` objects without trimming;
+  decoded line breaks and a final newline are retained. No ST execution or
+  compilation is performed. LD/FBD routines retain source and language, and
+  expose graphical objects as described below. They have no executable networks;
+  diagnostics identify this limitation.
+- Variable names, type expressions and comments become `Tag` fields. Source
+  addresses live in `metadata["source_memory_address"]`, never `alias_for`.
+  Initializers remain lexical evidence, with diagnostics rather than fabricated
+  runtime values. Named library/custom types remain unresolved.
+- One-dimensional array bounds live in `metadata["source_array_bounds"]` and
+  their element type in `metadata["source_array_element_type"]`. Full source
+  type expressions remain in `data_type`; `dimensions` stays unset because the
+  existing neutral field does not encode lower bounds. Array types are explicitly
+  unresolved for conversion. More complex expressions remain source evidence.
+- Observed Quantum/Premium racks become `Chassis` objects. Rack-module records
+  supply module catalog identities and nonnegative slots. The top-level PLC
+  description supplies controller identity rather than creating an extra module.
+  Special positions (such as Premium supply position `-1`), conflicting slots
+  and incomplete module identities produce unplaced modules with diagnostics.
+  Raw vendor names and revision strings remain evidence; numeric vendor IDs and
+  firmware interpretation are not invented. Unsupported hardware layouts remain
+  in the controller extension with an explicit unresolved-hardware diagnostic.
+
+Source extensions include input hash, archive member ordinals/names and XML
+location. They preserve duplicate declarations even when only the first can be
+represented in a name-keyed neutral collection. Downstream exporters must not
+treat these partial models as validated executable conversions.
+
+`tests/test_control_expert_project.py` verifies scheduling, source preservation,
+case/identity conflicts, arrays and addresses, hardware placement and optional
+sample reconciliation. All five embedded projects reconcile to the inventory's
+variable/section counts; the read/write ZIP's differing projects remain distinct.
+
+### Graphical object evidence
+
+`Routine.graphical_diagrams` holds vendor-neutral `GraphicalDiagram` records.
+The observed selectors are declared in `schema/control_expert/graphical.py`.
+Within each network, extraction retains object order, including repeated names:
+
+- Blocks expose instance/type names, dimensions, explicit positions and ordered
+  pins with interface direction, formal name, inversion and bound expression.
+- Contacts expose their source contact type and operand. Their implicit grid
+  positions and portable execution semantics are not inferred.
+- Text boxes expose annotation text, dimensions and explicit positions.
+
+Bindings remain expressions. An input and output named GEST in READ_VAR are two
+separate pins; repeated expressions are not converted into direct block-to-block
+edges. Missing expressions remain absent, not false, disconnected or an inferred
+connection. Interface direction alone does not establish memory access effects.
+
+Every diagram currently has `connectivity_resolved=False`. A supported FBD
+network with exactly one block and no unknown objects, parsing diagnostics or
+nonempty execution override has `execution_order_resolved=True`, with that
+block's object index in `execution_order` and basis `single_block_network`.
+This resolves only relative block order within that network, not execution
+conditions, wiring or ordering across networks. Other cases remain unresolved.
+Ladder HLink/VLink/grid data and unknown nodes/attributes remain in complete
+source extensions. Block `execAfter` is also exposed as the uninterpreted
+`execution_after` hint. Coordinates are source coordinates, not pixels; object
+order is not execution order.
+Unsupported objects and malformed fields produce location-bearing diagnostics.
+Neither graphical language populates executable `ladder_rungs` at this stage.
+
+The next graphical gate needs richer connection examples and a verified grammar
+before inferring wiring or execution. Tests cover pin identity/direction,
+unbound pins, duplicate object names, explicit versus implicit positions,
+unknown wiring, and the real READ_VAR/MBP_MSTR object lists. Existing model JSON
+and Structured Text regression tests also cover the optional routine field.
+
+### Pin expression resolution
+
+The neutral analysis in `analysis/graphical_bindings.py` uses the reader's
+limited lexical profile from `schema/control_expert/expressions.py`. Simple
+identifiers resolve case-insensitively to controller tags; ambiguous source
+declarations cannot bind to the first retained tag. Pin `target_tag` references
+the existing object rather than a copy. Exact expression text remains intact.
+
+`binding_kind` distinguishes `declared_symbol`, `literal`, `unbound`,
+`missing_symbol`, `ambiguous_symbol`, `unresolved_expression` and
+`invalid_output_literal`. Recognized input literals include basic Boolean,
+decimal integer/real, radix integer and simple quoted strings. Recognition is
+lexical, not type or range validation. Complex expressions, array/member accesses,
+typed literals outside the profile and direct addresses remain unresolved.
+Absent and empty expressions are distinct. Output literals produce diagnostics.
+
+`shared_variables` groups repeated declared-symbol references using object/pin
+indices and source input/output directions. These groups neither establish
+graphical wiring nor prove memory read/write effects or same-scan freshness.
+The READ_VAR sample produces groups for `sendmsg`, `ipaddress`, and `manage`;
+the latter retains distinct input/output GEST pins on one block. This analysis
+never changes connectivity or execution-order resolution. Re-running it clears
+stale derived bindings and groups. CLI JSON includes these groups and pin binding
+details; text reports provide binding counts and shared symbol names.
+
+### Task scans, pin direction and block ordering
+
+These are separate facts. A successfully bound section records its task name,
+mode and zero-based section index in each routine's `metadata["task_schedule"]`.
+For cyclic tasks, eligibility is `each_active_task_cycle`; the task records
+`cycle_policy="successive_cycles_while_active"`. This does not assert that a
+section or block executes unconditionally: section conditions, control flow,
+task activation and block enables are not evaluated by this importer.
+
+Input/output pin directions are explicit in the XML. EN inputs carry the neutral
+role `execution_enable`; ENO outputs carry `execution_status`. Other pins retain
+the `data` role, including block-specific ENABLE pins. Unbound EN is not mapped
+to a guessed constant or a guessed graphical link.
+
+Schneider's [FBD execution-order FAQ, FA340273](https://www.se.com/us/en/faqs/FA340273/)
+documents positional ordering and the effect of block input dependencies.
+The Schneider [Program Languages and Structure manual, 35006144, 10/2019](https://device.report/m/10ca6353ab98599713059743a248545dc962e991370a3771a7bd1386822ce4a4)
+adds the necessary qualifications: graphical links take precedence over user
+ordering, followed by network and output sequencing (pp. 303–310). Cyclic task
+cycles repeat while active (pp. 107–109). EN controls block execution, rather
+than determining whether the containing task is cyclic.
+
+Do not sort blocks solely by XML order or connect them because they share a
+variable name. The current examples and available XML grammar do not establish
+the complete link/override encoding. This limits multi-block order resolution,
+not recognition of task scheduling or pin direction.
+
+| Gate | Deliverable | Required evidence |
+| --- | --- | --- |
+| 0: inventory and specification | This document and local inventory | Five archives identified; all nested member hashes recorded; discrepancies retained |
+| 1: lossless capture | Container reader and specification-driven XML capture | Original/member bytes recoverable with matching hashes; order and unknown content retained; failures diagnosed |
+| 2: basic neutral mapping | Metadata, hardware, tasks, variables, section order and ST source | Counts and identities reconcile with inventory; unresolved types/addresses reported; no invented semantics |
+| 3: graphical interpretation | Separate LD and FBD specifications and parsers | Connection, ordering and pin-binding tests against richer evidence; no unsupported execution-equivalence claim |
+| 4: vendor validation | Schemas and access to an editor validation environment | Versioned XSD validation and successful import/build evidence; runtime equivalence requires separate tests |
+
+Use independently authored minimal fixtures for portable automated tests;
+reference-dependent checks should explicitly skip when local samples are absent.
+Fixture expectations must exercise preservation, ordering, unknown data and
+conflicting project identities, rather than merely repeat parser logic.
+Do not add the downloaded archives to tracked test fixtures by default.
+
+Remaining gaps: M580 exports, other DTD markers, custom
+DDT and DFB definitions, populated DTMs, SFC mapping and broader SFC evidence,
+IL/LL984, multiple task kinds,
+protected/encrypted projects, authoritative grammar and native editor validation.
+An XSD can constrain syntax; it does not establish runtime semantics.
+
+## Additional SFC specimen: escalator project
+
+Inspected user-supplied files on 2026-09-20 from the public
+[PLC Escalator Control System repository](https://github.com/PsyGlo/PLC-Escalator-Control-System/tree/main/Logic_Source).
+Original files and detailed inventories remain under ignored `reference/control-expert/`.
+
+| File | SHA-256 |
+| --- | --- |
+| `Escalier_Mecanique.XEF` | `3e29eaf2702f2b35323bbe6b44528ec7cda4c2b9c9d20b1ca40f19394c77bae4` |
+| `escalier_mecanique.zef` | `85e4385c51d4b0159c637e1ebc602bc9589064708a79a39832c7498cd22a28f4` |
+
+Both exports identify Control Expert V15.0 - 201016B and DTDVersion 41.
+The standalone root is `FEFExchangeFile`; the embedded root is `ZEFExchangeFile`.
+The ZEF passes ZIP CRC checks and adds `props.xml` to the member names seen in
+the earlier corpus. Export timestamps and full XML bytes differ; serializing
+the two `SFCProgram` subtrees with ElementTree gives identical results in both
+files. This comparison does not establish whole-project equivalence.
+
+Observed SFC grammar, now described by the declarative SFC profile:
+
+- `SFCProgram` is a root child separate from `program`. Its `identProgram`
+  identifies `G_MEMO` and `G_MOTEUR`, MAST section orders 1 and 2.
+- `chartSource/networkSFC` contains five steps (two initial), six transitions,
+  ten actions with qualifiers `R`, `S` and `N`, one `altBranch`, and three
+  explicit `linkSFC` elements across the two charts.
+- Step actions identify variables through `actionName/variableName`; empty
+  timing literals and step timing attributes must remain distinct from absence.
+- Transition conditions contain either `variableName` or `sectionName` with
+  an `invertLogic` attribute. Four named `transitionSource` children hold ST
+  expressions. These are chart-local source definitions, not ordinary MAST sections.
+- Explicit links identify endpoint object types and integer `objPosition`
+  coordinates; their `gridObjPosition` routing coordinates include fractions.
+  Preserve those lexical values. Three explicit links do not describe every
+  apparent adjacent step/transition connection; grid adjacency remains unproven.
+
+Current CLI inspection maps all six sections and resolves both SFC task
+references. `Routine.sequential_charts` contains neutral ordered element trees,
+lexical properties and chart-local transition definitions. Unknown nodes and
+attributes retain source extensions. Duplicate transition definitions remain
+separate; chart-local transition references bind only to a unique definition
+using case-insensitive identity. Each reference carries `reference_status` and
+`target_definition_index` into its chart's ordered `transition_definitions` list.
+Missing/duplicate targets produce source-located diagnostics and no index.
+Unnamed definitions are diagnosed and retained. Binding identifies a definition,
+not the validity or execution of its body. Variable/member expressions remain
+unbound by this resolver. JSON inspection exposes the chart
+trees and text inspection reports step/transition counts. Connectivity and
+execution remain explicitly unresolved. A chart's retained section extension
+also preserves metadata outside the chart body. Successful mapping of this
+observed subset does not establish general SFC support.
+No native import, build, runtime or XSD validation has been performed.
+
+## Additional SFC specimen: multi-Grafcet coordination
+
+Inspected on 2026-09-20 from the user-supplied pair associated with
+[Deterministic Multi-Grafcet Implementation](https://github.com/PsyGlo/Deterministic-Multi-Grafcet-Implementation).
+
+| File | SHA-256 |
+| --- | --- |
+| `MultiGrafcet_Coordination_V1_2026.XEF` | `fcdf78239b9c3aa64903d19808c8e5f1fdb79b5a4ff2eb518cf5c0efbd950c4c` |
+| `tsaii_multigrafcet_final_v1.zef` | `8083e6782ababf88d3ed716d3e0ab949dfada227227b6e51317206518209770b` |
+
+Both identify Control Expert V15.0 - 201016B, DTDVersion 41. ZEF CRC checks
+pass and its member names match the escalator ZEF. The serialized SFC subtrees
+match between exports; whole-project equivalence is not established.
+
+The current importer maps all eight sections and resolves their MAST references.
+Three charts (`GMaitre`, `G1`, `G2`) contain ten steps, ten transitions, eleven
+action entries and three explicit links. The remaining sections are one LD and
+four ST bodies. New evidence includes:
+
+- MAST is `periodic`, not cyclic. Its timing remains source evidence and produces
+  the existing unresolved-task-semantics diagnostic.
+- Transition variable expressions include `Tempo1.Q` through `Tempo6.Q`.
+  The `variableName` XML label therefore does not guarantee a simple identifier.
+- One action qualifier is `NONE`; retain it literally without equating it to `N`
+  or dropping its associated variable. Other qualifiers are `N`, `R` and `S`.
+- LD contains `INITCHART`, `SETSTEP` and six `TON` instances. ST calls
+  `FREEZECHART(G2, NOT Run_G2)` and reads step-state expressions such as `G1_0.X`.
+  Coordination depends on supporting sections as well as the chart structure.
+- `G1_Voyants` explicitly assigns variables also named by chart actions. Preserve
+  both writers; do not infer final values without verified execution semantics.
+
+The repository README describes an M580 target, but both supplied exports identify
+`TSXP572634M` (Premium). Record the discrepancy; these files do not establish M580
+coverage. The author's simulator demonstrations are not TwinForge native/runtime
+validation. Generated inspection reports and originals remain in ignored reference/.
+
+## Sources and next reference request
+
+Source pages recommended for these samples:
+
+- [CREAD_REG, FA250932](https://www.se.com/us/en/faqs/FA250932/)
+- [CWRITE_REG, FA250277](https://www.se.com/nl/en/faqs/FA250277/)
+- [MBP_MSTR function 15, FA246092](https://www.se.com/ie/en/faqs/FA246092/)
+- [MBP_MSTR function 2, FA245323](https://www.se.com/in/en/faqs/FA245323/)
+- [READ_VAR, FA271865](https://www.se.com/ae/en/faqs/FA271865/)
+
+[Code generation for programmable logic controllers, Appendix B](https://www.diva-portal.org/smash/get/diva2%3A1449858/FULLTEXT01.pdf)
+documents generating classes from installation-supplied `SrcXmlSchema` XSDs.
+No authoritative DTD-version mapping or official standalone schema download was
+located during the 2026-09-20 research. That is a search limitation, not proof
+that neither exists.
+
+Request from Schneider support: the XML exchange schema set, including
+`FEFExchangeFile.xsd` and all dependencies, the associated software release,
+and documentation of `fileHeader/@DTDVersion` and compatibility. Keep any
+received schemas in `reference/control-expert/schemas/<software-version>/`
+with provenance and hashes. No support request has been sent.
+
+
+## Explicit SFC endpoint binding
+
+The observed endpoint type profile admits `step` and `transition`. Each explicit
+link must have exactly one source and destination. A unique object with the same
+kind and exact lexical x/y position in the same network binds through
+`target_element_path = [chart_element_index, network_child_index]`. Source and
+destination `reference_status` values expose resolved, missing, ambiguous,
+invalid-position or unsupported-type results; malformed role counts are diagnosed.
+Paths index the preserved element lists, including unknown objects. Position
+strings are not numerically normalized; equivalent-looking alternative spellings
+remain unresolved until a coordinate grammar is established. Routing points are
+preserved independently and are never used to identify endpoint objects.
+
+All six explicit endpoints resolve in each local escalator and multi-Grafcet
+export. This proves only recorded endpoint identity: adjacent grid objects,
+branches and runtime flow are not inferred. `connectivity_resolved` and
+`execution_resolved` remain false. Synthetic fixtures distinguish duplicate
+positions, overlapping object types, missing targets, cross-network targets,
+unsupported types, missing coordinates and malformed endpoint multiplicity.
+
+
+## SFC simple variable binding
+
+The vendor-neutral sequential binding analysis classifies variable references
+under action targets and transition conditions using the declared lexical
+identifier profile. Unique controller tags bind case-insensitively; duplicate
+source declarations remain ambiguous even when the name-keyed model retains
+only one tag. `binding_kind` distinguishes declared, missing and ambiguous
+symbols from unresolved expressions. `target_symbol_name` records the canonical
+name only on success. Original whitespace and expressions remain unchanged.
+Source-located diagnostics describe unresolved bindings. Re-running analysis
+clears stale bindings first.
+
+Each escalator export binds twelve occurrences. Each multi-Grafcet export binds
+fifteen and retains six timer-member expressions as unresolved. Qualifier `NONE`
+is preserved while its named variable can still be identified; identification
+does not imply that the action writes it. The analysis does not establish types,
+read/write effects, action semantics or runtime behavior. ST bodies are not parsed
+by this pass. Chart-local transition definition and explicit endpoint bindings
+remain separate from variable binding.
+
+
+## Library interface evidence and one-level member binding
+
+The mapping profile now declares EF/EFB identity selectors and external parameter
+paths. `ParsedProject.library_interfaces` retains ordered parameter names, types
+and directions, with complete definition source extensions. Definitions remain a
+list so duplicate identities cannot silently overwrite one another. CLI JSON
+exposes these signatures; they are evidence, not executable implementations.
+
+SFC binding accepts a single member selector when the base tag is unique, its
+EFB interface is unique, and exactly one parameter matches the member name.
+Names compare case-insensitively. `declared_member` records canonical base/member
+names and the lexical member datatype. Ambiguous or absent interfaces/members
+remain `unresolved_member`; arrays, deeper paths and step-state structures remain
+outside this subset. No type compatibility, access-direction or execution claim
+follows from member identity. Analysis resets derived member fields on reruns.
+
+The multi-Grafcet exports declare six Tempo instances of TON; their embedded
+interface declares Q as BOOL. All six `.Q` references now bind in each export.
+This supersedes their earlier unresolved status in the inspection checkpoints.
+Tests cover a unique signature and duplicate interface rejection alongside the
+existing ambiguous tag, missing member evidence and lexical preservation cases.
+
+
+## Graphical call signature matching
+
+Graphical blocks now carry an interface status and an index into the parsed
+project's ordered library interface list. A unique case-insensitive type identity
+is required. Pin matching additionally requires name and source direction; matching
+pins carry parameter indices. Duplicate definitions or parameters never choose
+the first candidate. Derived fields reset on repeat analysis. CLI JSON exposes
+these results alongside symbol bindings.
+
+Unmatched data pins report `unresolved_convention`, not invalid calls: generic
+and in-out representations require further evidence. Profile-classified EN/ENO
+pins absent from the signature are marked `implicit_execution_pin`.
+No missing-required-pin, datatype compatibility or executable validity claim is
+made. Non-block graphical objects are excluded. Source-located diagnostics retain
+unmatched calls and pins. Independent tests cover wrong direction, duplicates,
+implicit pins, unsupported pins and stale result clearing.
+
+Schneider's exported EF sources mark a repeatable parameter template with a
+literal `(Extensible)` comment suffix, observed on `ADD`'s `IN1` alongside a
+hidden `nin` count parameter (`function15`/`function2`). Numbered pins whose
+name reduces to that template's base after stripping trailing digits (`IN2`,
+`IN3`, ...) resolve to `matched_extensible` against the template's parameter
+index, so their declared generic type still applies. This reuses only the
+vendor's own extensibility marker, never a name-pattern guess applied to
+parameters without that evidence; a base shared by more than one marked
+template is reported `ambiguous` rather than guessed.
+
+
+## Multi-block FBD execution order from shared-variable dataflow
+
+None of the local reference exports contain an explicit FBD link/connector
+element, and the one `execAfter` override attribute present in the corpus is
+always empty. The one real multi-block FBD network observed (`readvar.zip`'s
+`ADDR`/`READ_VAR` pair) wires blocks together exclusively through shared
+`effectiveParameter` variable names, already captured as `shared_variables`
+groups by pin-expression binding. Interpreting an unevidenced link/connector
+grammar was deliberately deferred; this dataflow, already resolved, was not.
+
+`twinforge.analysis.execution_order.resolve_fbd_execution_order` orders a
+multi-block FBD network from those groups alone: each group with exactly one
+output pin orders its writer before every other reader object (a
+self-referencing pin, such as a block's own EN sharing a name with its ENO,
+contributes no edge); a topological sort over the resulting graph produces
+`execution_order` with basis `shared_variable_dataflow`. A network is left
+unresolved, never guessed, when: it carries any diagnostic beyond the
+universal `unresolved_graphical_connections` for that source location
+(unclassified content, invalid numbers, ambiguous positions, and so on); any
+relevant pin's binding is `unresolved_expression`, `missing_symbol`,
+`ambiguous_symbol` or `invalid_output_literal`; any block declares a nonempty
+`execution_after` (the override grammar remains unaddressed); a shared
+variable has more than one writer (reported `ambiguous_block_order`); or the
+dependency graph has a cycle. `readvar.zip` now resolves `[ADDR, READ_VAR]`;
+every other local export is unchanged (single-block FBD or Ladder, both out
+of this scope). The generic `unresolved_block_order` diagnostic is now
+reported once, centrally, after this analysis runs, rather than eagerly at
+parse time, so it no longer goes stale when a later pass resolves a network
+`parse_diagrams` alone could not. Independent tests cover the ordering,
+self-reference, multiple-writer, cycle, override, unresolved-binding, caller
+exclusion and Ladder-exclusion cases.

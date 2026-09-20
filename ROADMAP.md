@@ -123,6 +123,25 @@ repository's Python implementation or read `.ccwarc` internals directly.
 - [ ] Evaluate moving stable interchange schemas into a small independent
   contracts package only after the boundary has proven reusable
 
+### Control Expert / Unity Pro interchange
+
+Delivery status and acceptance criteria are maintained in the
+[Control Expert roadmap](docs/roadmaps/control-expert-roadmap.md).
+
+- [x] Inventory the initial five ZEF/XEF reference archives with provenance and hashes
+- [x] Add bounded, preserving archive/XML capture with explicit failure diagnostics
+- [x] Map observed hardware, tasks, variables, section order and ST source
+- [x] Inspect projects through `twinforge control-expert inspect` (text/JSON)
+- [x] Extract graphical objects, pin bindings and shared-variable references
+- [x] Validate graphical calls against captured library interfaces
+- [ ] Resolve graphical connectivity and multi-block execution order (next)
+- [ ] Expand types, initial values, DDT/DFB and modern Control Expert coverage
+- [ ] Validate against Schneider schemas, then native import/build and runtime evidence
+
+Current support is read-only and provisional. The samples cover older Quantum
+and Premium exports; successful inspection does not establish executable
+conversion or native Control Expert compatibility.
+
 ### PLCopen conversion
 
 - [ ] Complex and nested branches

@@ -43,6 +43,7 @@ maintained relationships; the SVG files are derived viewing artifacts.
 - [CODESYS EtherNet/IP module adapter](architecture/codesys-ethernetip-module-adapter.md)
 - [Neutral model JSON contract](architecture/model-json-contract.md)
 - [CCW project interchange boundary](architecture/ccw-project-interchange.md)
+- [Control Expert exchange capture: provisional specification](architecture/control-expert-exchange-capture.md)
 
 ### Native OpenPLC
 
@@ -109,6 +110,7 @@ automatically general product guarantees.
 
 ## Device and feature roadmaps
 
+- [Control Expert / Unity Pro import](roadmaps/control-expert-roadmap.md)
 - [RTC_PulseGen AOI](roadmaps/RTC_PulseGen-AOI-roadmap.md)
 - [Sys_Module AOI](roadmaps/Sys_Module-AOI-roadmap.md)
 - [Online discovery](roadmaps/online-discovery-roadmap.md)

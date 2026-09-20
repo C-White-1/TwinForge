@@ -43,6 +43,33 @@ invoke `twinforge` directly:
 twinforge --help
 ```
 
+## Inspect Control Expert projects
+
+No Control Expert installation is needed for read-only XEF/ZEF inspection:
+
+```powershell
+uv run twinforge control-expert inspect reference\control-expert\function15.zip
+uv run twinforge control-expert inspect reference\control-expert\function15.zip --format json
+```
+
+The command accepts a standalone XEF, ZEF, or distribution ZIP. Each exchange
+document is reported separately; standalone and embedded exports are not merged.
+Text output summarizes tasks, sections, variables, hardware and diagnostics.
+JSON also exposes graphical objects, resolved pin symbols, shared-variable
+references and task scheduling context. Shared-variable references are not
+graphical wires or execution-order edges.
+The report is an inspection summary, not a lossless model export or a Control
+Expert import/build result. Original files are unchanged.
+
+Exit code 0 means supported projects were inspected without capture failures;
+unresolved mapping diagnostics may still be present. Exit code 1 indicates
+unreadable/incomplete capture, no supported projects, or an input I/O error.
+Partial-read reports are written to stdout before the error on stderr. Native
+editor validation is always reported as not performed.
+
+See the [provisional capture and mapping specification](architecture/control-expert-exchange-capture.md)
+for coverage and evidence limits.
+
 ## Install XML validation
 
 An XSD is a data file that describes valid XML structure. It is not installed

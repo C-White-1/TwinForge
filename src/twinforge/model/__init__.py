@@ -1,3 +1,4 @@
+from .sequential import SequentialChart, SequentialElement
 from .add_on_instruction import (
     AddOnInstruction,
     AddOnInstructionDependency,
@@ -38,6 +39,7 @@ from .gateway import (
     GatewayTagBindingRole,
 )
 from .identity import Identity, VendorIdentity
+from .graphical import GraphicalDiagram, GraphicalObject, GraphicalPin, GraphicalVariableReferences
 from .ladder import (
     LadderInstruction,
     LadderOperation,
@@ -109,6 +111,10 @@ from .visualization import (
 )
 
 __all__ = [
+    "GraphicalDiagram",
+    "GraphicalObject",
+    "GraphicalPin",
+    "GraphicalVariableReferences",
     "AddOnInstruction",
     "AddOnInstructionDependency",
     "AddOnInstructionParameter",
@@ -173,6 +179,8 @@ __all__ = [
     "Revision",
     "Route",
     "Routine",
+    "SequentialChart",
+    "SequentialElement",
     "StructuredTextLine",
     "SourceExtension",
     "SourceNode",

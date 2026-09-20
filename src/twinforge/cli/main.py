@@ -68,6 +68,7 @@ from .report_bundle import (
     verify_report_bundle,
 )
 from .snmp_conversion import convert_walk_command
+from .control_expert import ControlExpertCommandError, inspect_control_expert
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -77,6 +78,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Vendor-neutral industrial automation engineering toolkit.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+    control_expert = commands.add_parser(
+        "control-expert", help="Inspect Control Expert XEF/ZEF and distribution ZIP files offline.",
+    )
+    control_expert_commands = control_expert.add_subparsers(dest="control_expert_command", required=True)
+    control_expert_inspect = control_expert_commands.add_parser("inspect", help="Inspect each exchange project independently.")
+    control_expert_inspect.add_argument("path", type=Path)
+    control_expert_inspect.add_argument("--format", choices=("text", "json"), default="text")
     inspect_l5x_command = commands.add_parser(
         "inspect",
         help="Inspect a Rockwell L5X document without changing it.",
@@ -722,7 +730,9 @@ def main(
     errors = stderr or sys.stderr
     arguments = build_parser().parse_args(argv)
     try:
-        if arguments.command == "inspect":
+        if arguments.command == "control-expert":
+            inspect_control_expert(arguments.path, output_format=arguments.format, stdout=output)
+        elif arguments.command == "inspect":
             inspect_l5x(
                 arguments.path,
                 output_format=arguments.format,
@@ -1049,6 +1059,7 @@ def main(
         EdsCatalogCommandError,
         L5XEdsCatalogCommandError,
         CCWProjectCommandError,
+        ControlExpertCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
