@@ -295,7 +295,10 @@ source extensions. Block `execAfter` is also exposed as the uninterpreted
 `execution_after` hint. Coordinates are source coordinates, not pixels; object
 order is not execution order.
 Unsupported objects and malformed fields produce location-bearing diagnostics.
-Neither graphical language populates executable `ladder_rungs` at this stage.
+FBD never populates executable `ladder_rungs`. LD now populates it for the
+pure-series case only (contacts in series to one trailing coil, per grid row);
+branch/link/block-gated rows remain unresolved. See "Ladder grid grammar and
+pure-series rung resolution" below for the grammar and its limits.
 
 The next graphical gate needs richer connection examples and a verified grammar
 before inferring wiring or execution. Tests cover pin identity/direction,
@@ -703,3 +706,72 @@ All four GEST pin occurrences across readvar.zip's two exports now match. No
 `unresolved_convention` pins remain in the current local corpus. This is corpus
 coverage, not general library validation. Tests cover profile opt-in, independent
 expressions, conflicting declarations and resetting stale matches.
+
+## Ladder grid grammar and pure-series rung resolution
+
+Observed across `Escalier_Mecanique.XEF`/`.zef`, `function15.zip` and both
+multi-Grafcet exports (all `LDSource nbColumns="11"`, one or more `networkLD`
+children): a `networkLD` is a flat ordered sequence of `typeLine` elements
+(one grid row each) and occasional top-level `textBox` annotations. Each
+`typeLine`'s children are grid cells left to right:
+
+- `emptyCell nbCells="N"` / `HLink nbCells="N"` -- blank span / wire span,
+  consuming N columns, producing no object.
+- `contact typeContact="openContact|closedContact|PContact" contactVariableName="..."`
+  and `coil typeCoil="coil|resetCoil" coilVariableName="..."` -- exactly one
+  column wide each; neither carries an `objPosition`, unlike `FFBBlock`/`textBox`.
+- `shortCircuit` (wrapping a `VLink` plus a sibling `HLink` or `contact`) and
+  bare `VLink` -- vertical wiring to the same column position in an adjacent
+  row.
+- `emptyLine nbRows="N"` -- only ever observed as a `typeLine`'s sole child;
+  skips N rows without occupying one itself.
+
+Row derivation: a `typeLine` whose sole child is `emptyLine` advances the row
+counter by its `nbRows` and is not itself a row; every other `typeLine`
+occupies exactly the current row, which then increments by one. This holds
+regardless of a block's own `height` attribute -- `FFBBlock` height is a
+rendering span, not a row-consumption count in this sequence. Verified against
+every `FFBBlock`'s own `objPosition posY` in the corpus (e.g. `Escalier_
+Mecanique.XEF`'s two `INITCHART` calls at rows 1 and 6, matching five
+intervening `typeLine`s and an `emptyLine nbRows="2"`). Column derivation is
+the cumulative cell width consumed left to right within one row, contacts and
+coils counting as exactly one column each.
+
+A row resolves as a pure series-AND rung -- built into `LadderRung`/
+`LadderSeries`/`LadderInstruction` (`model/routine.py`, `model/ladder.py`;
+already used by the L5X/CCW/PLCopen converters, never populated from Control
+Expert until now) -- only when every child is `emptyCell`/`HLink`/`contact`/
+`coil` and exactly one coil is present, as the last cell-bearing element.
+`typeContact`/`typeCoil` values map to `LadderOperation` only for the
+lexically-witnessed subset (`openContact`, `closedContact`, `coil`,
+`resetCoil`); any other value (e.g. `PContact`, a positive-edge contact seen
+gating `INITCHART`/`SETSTEP`) still resolves the instruction's position and
+operand but carries `LadderOperation.UNSUPPORTED` plus a source-located
+diagnostic, preserving evidence without asserting unwitnessed boolean
+semantics. A row with contacts but no coil, or with a coil anywhere but the
+final position (including more than one), is diagnosed and produces no rung.
+
+Any row touching `shortCircuit`, `VLink`, `FFBBlock` or `textBox` is
+diagnosed (`unresolved_ladder_row`) and never guessed at. Real evidence
+contradicts the simplest hypothesis (a `shortCircuit`/`VLink` pair merging
+two adjacent rows): `function15.zip` shows a single contact's `shortCircuit`
+followed by four consecutive rows of a lone `VLink`, before reaching an
+`FFBBlock` several rows below -- a vertical wire routed to a distant
+destination, not a same-row branch merge. Attempting to resolve block EN/IN
+pin wiring or general branch/join topology within Ladder from two examples
+was deliberately not attempted; see the roadmap's Milestone 4 backlog item.
+
+`coil` is now a mapped `GraphicalObject` kind (`schema/control_expert/
+graphical.py`), alongside `contact`/`block`/`annotation`; every real coil in
+the corpus previously fell through as `unclassified_graphical_object`. Coil
+operand binding (declared/missing/ambiguous symbol classification, as already
+exists for contact operands) is not yet extended to coils -- deferred, not
+attempted, since a coil operand lexically matching the SFC step-state pattern
+would need its own evidence before reusing that contact-specific rule.
+
+Validated against the local corpus: `Rising_Edge_Detection` (escalator)
+resolves all four of its rows as pure series; `Init_Logic` resolves two
+(an unconditional reset coil wired straight from the rail, and a plain
+contact-to-coil rung) and diagnoses the rest (`INITCHART`-gating rows);
+`TIMERS` resolves none. The multi-Grafcet LD section -- entirely
+`INITCHART`/`SETSTEP`/`TON`-gated -- resolves zero rungs, as expected.

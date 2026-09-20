@@ -121,7 +121,15 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
 - [ ] Interpret explicit FBD links/connectors with endpoint diagnostics
-- [ ] Decode Ladder grid connectivity, branches and power-rail connections
+- [x] Decode Ladder grid connectivity for the pure-series case (contacts in
+      series to one trailing coil, per row); see the Ladder series checkpoint
+      below for scope
+- [ ] Backlog: Ladder `shortCircuit`/`VLink` branch and vertical-wire routing,
+      and `FFBBlock` pin wiring within a Ladder network (EN/IN/etc.). Real
+      corpus evidence (`function15.zip`) shows a single vertical wire can span
+      many rows to reach a distant block, not just an adjacent-row OR-merge --
+      the exact rule is not yet evidenced well enough to resolve, so every row
+      touching these stays diagnosed (`unresolved_ladder_row`), never guessed.
 - [ ] Resolve multi-block/network order under documented link and override rules
   (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
@@ -188,7 +196,7 @@ Portable fixtures are independently authored; local-reference tests skip
 explicitly when the ignored source files are unavailable.
 
 ```powershell
-uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py
+uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py
 ```
 
 Run Ruff and Pyright on changed modules, plus relevant model/CLI/ST regressions
@@ -333,3 +341,41 @@ clean-error path); validated against both real escalator charts (5 steps, 6
 transitions, 0 unresolved, 2 diagnostics -- both the unavoidable
 per-routine execution-unresolved notice). Full suite (1199 tests) passed;
 Ruff and Pyright passed.
+
+Ladder series checkpoint (2026-09-21): `Routine.ladder_rungs` is now populated
+for the pure-series case. Each `typeLine` under a `networkLD` is one grid row
+(`emptyLine[nbRows]` advances the row counter without occupying one, verified
+against real `FFBBlock`/`objPosition` row values); column is the cumulative
+cell width consumed left to right (`emptyCell`/`HLink` by `nbCells`, a contact
+or coil by exactly one cell -- neither carries its own coordinate). A row
+resolves only when it holds nothing but contacts, wiring, and exactly one
+coil as its last cell-bearing element -- an unambiguous series-AND rung, built
+directly into the existing `LadderRung`/`LadderSeries`/`LadderInstruction`
+model already used by the L5X/CCW/PLCopen converters, just never populated
+from Control Expert until now. `coil` is newly mapped as a `GraphicalObject`
+kind (previously fell through as `unclassified_graphical_object` for every
+real coil in the corpus).
+
+Any row touching `shortCircuit`, `VLink`, `FFBBlock` or `textBox` is
+diagnosed (`unresolved_ladder_row`) and left unresolved, per the Milestone 4
+backlog item above -- real evidence (`function15.zip`) showed a vertical wire
+can span many rows to reach a distant block, a materially different and
+harder problem than the adjacent-row branch merge first hypothesized from a
+smaller example, so it was deliberately not attempted from two examples.
+A row with contacts but no coil, or a coil that isn't the sole final element,
+is diagnosed (`ladder_series_missing_coil` / `ladder_series_unexpected_coil_
+position`) rather than guessed at; an unevidenced contact/coil type variant
+(only `openContact`/`closedContact` and `coil`/`resetCoil` are witnessed)
+still resolves structurally with `LadderOperation.UNSUPPORTED` and its own
+diagnostic (`unresolved_ladder_instruction`), preserving the instruction as
+evidence without claiming its boolean semantics.
+
+Validated against the real escalator corpus: `Rising_Edge_Detection` (4/4
+rows, pure series) fully resolves; `Init_Logic` resolves 2 of its rows (an
+unconditional reset coil, and a plain contact-to-coil rung) and diagnoses the
+rest (`INITCHART`-gating rows); `TIMERS` resolves none (a `TON` block row and
+a contact row with no coil). The multi-Grafcet LD section (`INITCHART`/
+`SETSTEP`/six `TON` instances, all branch/block-gated) resolves zero rungs,
+exactly as expected -- nothing is wrongly resolved there. 14 targeted tests
+passed (synthetic series/branch/edge cases plus both real corpus pairs). Full
+suite (1213 tests) passed; Ruff and Pyright passed.

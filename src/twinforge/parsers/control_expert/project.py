@@ -21,6 +21,7 @@ from twinforge.model.sequential import SequentialElement
 
 from .capture import CapturedArtifact, CapturedSection, Diagnostic, SourceLocation
 from .graphical import parse_diagrams
+from .ladder import parse_ladder_rungs
 from .sfc import parse_charts
 from .evidence import source_extension as _extension
 
@@ -149,6 +150,9 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
                 routine.graphical_diagrams, diagnostics = parse_diagrams(source)
                 result.diagnostics.extend(diagnostics)
                 result.report("uninterpreted_graphical_logic", f"{name}: {language} retained without execution mapping", source)
+                if language == "LD":
+                    routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
+                    result.diagnostics.extend(ladder_diagnostics)
             program.add_routine(routine)
         else:
             result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", node)

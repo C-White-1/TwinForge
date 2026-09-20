@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, TextIO
 
+from twinforge.model.ladder import LadderInstruction, LadderPosition, LadderSeries
+from twinforge.model.routine import LadderRung
 from twinforge.model.sequential import SequentialElement
 from twinforge.parsers.control_expert import capture_file, parse_projects
 from twinforge.parsers.control_expert.capture import CapturedArtifact
@@ -34,6 +36,29 @@ def _sequential_element(element: SequentialElement) -> dict[str, Any]:
             "target_member_name": element.target_member_name,
             "member_data_type": element.member_data_type,
             "children": [_sequential_element(child) for child in element.children]}
+
+
+def _ladder_position(position: LadderPosition | None) -> dict[str, Any] | None:
+    return {"column": position.column, "row": position.row} if position else None
+
+
+def _ladder_instruction(instruction: LadderInstruction) -> dict[str, Any]:
+    return {"operation": instruction.operation.value, "source_mnemonic": instruction.source_mnemonic,
+            "operand": instruction.operand, "alias": instruction.alias,
+            "annotations": list(instruction.annotations),
+            "position": _ladder_position(instruction.position)}
+
+
+def _ladder_series(series: LadderSeries) -> dict[str, Any]:
+    return {"elements": [_ladder_instruction(element) if isinstance(element, LadderInstruction)
+                          else {"branches": [_ladder_series(branch) for branch in element.branches]}
+                          for element in series.elements]}
+
+
+def _ladder_rung(rung: LadderRung) -> dict[str, Any]:
+    return {"number": rung.number, "rung_type": rung.rung_type, "comment": rung.comment,
+            "position": _ladder_position(rung.position),
+            "network": _ladder_series(rung.network) if rung.network else None}
 
 
 def _project_summary(project: ParsedProject) -> dict[str, Any]:
@@ -73,6 +98,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                 "structured_text_line_count": len(routine.structured_text_lines),
                 "task_schedule": routine.metadata.get("task_schedule", []),
                 "diagrams": diagrams,
+                "ladder_rungs": [_ladder_rung(rung) for rung in routine.ladder_rungs],
                 "sequential_charts": [{
                     "name": chart.name,
                     "connectivity_resolved": chart.connectivity_resolved,
@@ -165,6 +191,9 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                     object_count = sum(len(d["objects"]) for d in routine["diagrams"])
                     stdout.write(f"  Section {program['name']}: {routine['language']}; "
                                  f"ST lines: {routine['structured_text_line_count']}; graphical objects: {object_count}\n")
+                    if routine["language"] == "LD":
+                        stdout.write(f"    Ladder rungs resolved: {len(routine['ladder_rungs'])} "
+                                     "(series only; branches remain unresolved)\n")
                     for chart in routine["sequential_charts"]:
                         counts = Counter(e["kind"] for network in chart["elements"] for e in network["children"])
                         connectivity = "resolved" if chart["connectivity_resolved"] else "unresolved"

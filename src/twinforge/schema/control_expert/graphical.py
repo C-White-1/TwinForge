@@ -7,7 +7,7 @@ class GraphicalSpec:
     networks: tuple[tuple[str, str], ...] = (("networkLD", "LD"), ("networkFBD", "FBD"))
     containers: frozenset[str] = frozenset({"typeLine", "shortCircuit"})
     objects: tuple[tuple[str, str], ...] = (
-        ("FFBBlock", "block"), ("contact", "contact"), ("textBox", "annotation"),
+        ("FFBBlock", "block"), ("contact", "contact"), ("coil", "coil"), ("textBox", "annotation"),
     )
     # These encode grid layout/connectivity. Retain them rather than interpreting
     # them as discarded whitespace or assuming they are executable graph edges.

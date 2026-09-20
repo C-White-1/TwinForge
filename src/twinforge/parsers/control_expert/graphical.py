@@ -27,8 +27,10 @@ def parse_diagrams(
         attrs = node.raw_attributes
         obj = GraphicalObject(
             kind=kind, instance_name=attrs.get("instanceName"),
-            type_name=attrs.get("typeName") if kind == "block" else attrs.get("typeContact"),
-            operand=attrs.get("contactVariableName"), text=node.text if kind == "annotation" else None,
+            type_name=(attrs.get("typeName") if kind == "block" else
+                       attrs.get("typeCoil") if kind == "coil" else attrs.get("typeContact")),
+            operand=attrs.get("coilVariableName") if kind == "coil" else attrs.get("contactVariableName"),
+            text=node.text if kind == "annotation" else None,
             width=number(node, "width"), height=number(node, "height"),
             source_extensions=[_extension(node)],
         )
