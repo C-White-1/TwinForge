@@ -75,6 +75,63 @@ def test_resolution_rebuilds_derived_state():
     assert all(p.target_tag is None for o in diagram.objects for p in o.pins)
 
 
+def test_contact_operand_binding_covers_symbols_and_step_state():
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="Start", data_type="BOOL"))
+    program = Program(name="logic")
+    routine = Routine(name="logic", language="LD")
+    diagram = GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="contact", operand="start"),
+        GraphicalObject(kind="contact", operand="G1_0.X"),
+        GraphicalObject(kind="contact", operand="g1_0.x"),
+        GraphicalObject(kind="contact", operand="G1_1.X"),
+        GraphicalObject(kind="contact", operand="Missing"),
+        GraphicalObject(kind="contact", operand="%S1"),
+        GraphicalObject(kind="contact", operand=None),
+        GraphicalObject(kind="block", pins=[GraphicalPin(direction="input", expression="Start")]),
+    ])
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    issues = resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        step_names={"g1_0": "G1_0"}, ambiguous_step_names=frozenset({"g1_1"}),
+    )
+    contacts = diagram.objects[:7]
+    assert [c.operand_binding_kind for c in contacts] == [
+        "declared_symbol", "declared_step_state", "declared_step_state",
+        "ambiguous_step_state", "missing_symbol", "unresolved_expression", "unbound",
+    ]
+    assert contacts[0].target_tag is controller.tags["Start"]
+    assert contacts[1].target_step_name == "G1_0" and contacts[2].target_step_name == "G1_0"
+    assert contacts[3].target_step_name is None
+    contact_codes = {issue.code for issue in issues if issue.pin_index is None}
+    assert contact_codes == {
+        "ambiguous_contact_step_state", "unresolved_contact_symbol", "unresolved_contact_expression",
+    }
+    # The block's pin, unaffected by contact handling, resolves cleanly with no issue.
+    assert diagram.objects[7].pins[0].target_tag is controller.tags["Start"]
+    assert not any(issue.pin_index is not None for issue in issues)
+
+
+def test_contact_binding_rebuilds_on_rerun():
+    controller = Controller(name="example", identity=Identity())
+    program = Program(name="logic")
+    routine = Routine(name="logic", language="LD")
+    diagram = GraphicalDiagram(language="LD", objects=[GraphicalObject(kind="contact", operand="Sensor")])
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+                               literal_patterns=EXPRESSION_SPEC.literals)
+    assert diagram.objects[0].operand_binding_kind == "missing_symbol"
+    controller.add_tag(Tag(name="Sensor", data_type="BOOL"))
+    resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+                               literal_patterns=EXPRESSION_SPEC.literals)
+    assert diagram.objects[0].operand_binding_kind == "declared_symbol"
+    assert diagram.objects[0].target_tag is controller.tags["Sensor"]
+
+
 def test_ambiguous_source_declarations_never_bind_to_first_retained_tag():
     xml = b'''<ZEFExchangeFile><contentHeader name="example"/>
       <dataBlock><variables name="x" typeName="INT"/><variables name="X" typeName="INT"/></dataBlock>

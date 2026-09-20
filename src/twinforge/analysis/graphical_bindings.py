@@ -13,7 +13,8 @@ class GraphicalBindingIssue:
     routine_name: str
     diagram_index: int
     object_index: int
-    pin_index: int
+    # None for a contact-operand issue, which has no pin to index.
+    pin_index: int | None
     code: str
     expression: str
 
@@ -21,12 +22,17 @@ class GraphicalBindingIssue:
 def resolve_graphical_bindings(
     controller: Controller, *, identifier_pattern: str,
     literal_patterns: tuple[str, ...], ambiguous_names: frozenset[str] = frozenset(),
+    step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
 ) -> list[GraphicalBindingIssue]:
-    """Classify pins in place; retained source expressions remain unchanged.
+    """Classify pins and contact operands in place; retained source text is unchanged.
 
     Ambiguous declarations must be supplied by a reader when its name-keyed
     model cannot represent all source declarations. Repeated calls rebuild all
     derived bindings and groups rather than accumulating stale results.
+
+    A contact operand shaped ``<name>.X``/``<name>.x`` is Control Expert's
+    IEC 61131 step-active-state convention, not a general member grammar; it
+    is only recognized when ``<name>`` is a uniquely declared SFC step.
     """
     ambiguous = {name.casefold() for name in ambiguous_names}
     symbols = {}
@@ -35,6 +41,9 @@ def resolve_graphical_bindings(
         if key in symbols:
             ambiguous.add(key)
         symbols[key] = tag
+    steps = dict(step_names or {})
+    step_ambiguous = {name.casefold() for name in ambiguous_step_names}
+    step_state_pattern = re.compile(rf"({identifier_pattern})\.[Xx]")
     issues = []
     for program in controller.programs.values():
         for routine in program.routines.values():
@@ -42,6 +51,45 @@ def resolve_graphical_bindings(
                 groups: dict[str, GraphicalVariableReferences] = {}
                 diagram.shared_variables.clear()
                 for object_index, obj in enumerate(diagram.objects):
+                    if obj.kind == "contact":
+                        obj.operand_binding_kind = None
+                        obj.target_tag = None
+                        obj.target_step_name = None
+                        expression = obj.operand.strip() if obj.operand is not None else ""
+                        problem = None
+                        step_match = step_state_pattern.fullmatch(expression)
+                        if obj.operand is None:
+                            obj.operand_binding_kind = "unbound"
+                        elif step_match:
+                            key = step_match.group(1).casefold()
+                            if key in step_ambiguous:
+                                obj.operand_binding_kind = "ambiguous_step_state"
+                                problem = "ambiguous_contact_step_state"
+                            elif key in steps:
+                                obj.operand_binding_kind = "declared_step_state"
+                                obj.target_step_name = steps[key]
+                            else:
+                                obj.operand_binding_kind = "missing_step_state"
+                                problem = "unresolved_contact_step_state"
+                        elif re.fullmatch(identifier_pattern, expression):
+                            key = expression.casefold()
+                            if key in ambiguous:
+                                obj.operand_binding_kind = "ambiguous_symbol"
+                                problem = "ambiguous_contact_symbol"
+                            elif key in symbols:
+                                obj.operand_binding_kind = "declared_symbol"
+                                obj.target_tag = symbols[key]
+                            else:
+                                obj.operand_binding_kind = "missing_symbol"
+                                problem = "unresolved_contact_symbol"
+                        else:
+                            obj.operand_binding_kind = "unresolved_expression"
+                            problem = "unresolved_contact_expression"
+                        if problem:
+                            issues.append(GraphicalBindingIssue(
+                                program.name, routine.name, diagram_index, object_index,
+                                None, problem, obj.operand or "",
+                            ))
                     for pin_index, pin in enumerate(obj.pins):
                         pin.target_tag = None
                         expression = pin.expression.strip() if pin.expression is not None else ""

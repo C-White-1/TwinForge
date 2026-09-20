@@ -578,7 +578,6 @@ vendor's own extensibility marker, never a name-pattern guess applied to
 parameters without that evidence; a base shared by more than one marked
 template is reported `ambiguous` rather than guessed.
 
-
 ## Multi-block FBD execution order from shared-variable dataflow
 
 None of the local reference exports contain an explicit FBD link/connector
@@ -610,3 +609,31 @@ parse time, so it no longer goes stale when a later pass resolves a network
 `parse_diagrams` alone could not. Independent tests cover the ordering,
 self-reference, multiple-writer, cycle, override, unresolved-binding, caller
 exclusion and Ladder-exclusion cases.
+
+## Ladder contact operand binding, including cross-section step state
+
+LD contact operands (`GraphicalObject.operand`) previously carried no binding
+classification at all, unlike FBD pins. Real corpus contacts prove two
+distinct, evidenced shapes: plain declared-symbol references (`BPA`,
+`Start_Timer`, ...; `Escalier_Mecanique`) and Control Expert's IEC 61131
+step-active-state convention, `<step>.X`/`<step>.x` (`MultiGrafcet`'s `Init`
+LD section reads `G1_0.X` .. `G2_2.X` and `E1.x`, each declared in a
+*different* SFC chart section — `G1`, `G2`, `GMaitre` — not the LD section
+itself). A raw system-bit reference such as `%S1` is not a declared project
+symbol and is correctly left `unresolved_expression`, never guessed.
+
+`resolve_graphical_bindings` now also classifies each contact's operand:
+`declared_symbol`/`missing_symbol`/`ambiguous_symbol` reuse the same declared-
+tag namespace as pins; `declared_step_state`/`missing_step_state`/
+`ambiguous_step_state` match the `<name>.X` pattern against a project-wide
+step-name registry built from every `SequentialElement` of kind `step` across
+every chart in every routine — global, not chart-local, because the evidence
+shows cross-section references and the local corpus has no duplicate step
+name to contradict that scoping (a genuine duplicate is still reported
+ambiguous, never resolved to either). `GraphicalObject` gained
+`operand_binding_kind`, `target_tag` and `target_step_name`, exposed in CLI
+JSON. No claim is made about the step's actual active/inactive value, memory
+representation, or evaluation order — only that the reference names a unique
+declared step. Independent unit tests cover both binding shapes, ambiguity
+and rerun/reset; an integration test proves the cross-section (LD contact →
+SFC chart in a different program) lookup end to end.

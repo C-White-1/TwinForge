@@ -50,6 +50,11 @@ class GraphicalObject:
     execution_after: str | None = None
     interface_status: str | None = None
     interface_index: int | None = None
+    # Contact operand binding; distinct from pin binding_kind above.
+    operand_binding_kind: str | None = None
+    target_tag: "Tag | None" = field(default=None, repr=False)
+    # Canonical declared SFC step name for a "<step>.X"/".x" contact operand.
+    target_step_name: str | None = None
 
 
 @dataclass

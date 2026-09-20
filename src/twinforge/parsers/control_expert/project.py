@@ -16,6 +16,7 @@ from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
 
 from twinforge.model.library_interface import LibraryInterface, LibraryParameter
+from twinforge.model.sequential import SequentialElement
 
 from .capture import CapturedArtifact, CapturedSection, Diagnostic, SourceLocation
 from .graphical import parse_diagrams
@@ -268,17 +269,39 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     for node in _select(root, spec.variables):
         key = node.raw_attributes.get("name", "").casefold()
         variable_counts[key] = variable_counts.get(key, 0) + 1
+    # SFC step names are a project-wide namespace: a "<step>.X" contact in any
+    # section can reference a step declared in a different chart's section.
+    step_counts: dict[str, int] = {}
+    step_names: dict[str, str] = {}
+
+    def _collect_steps(elements: list[SequentialElement]) -> None:
+        for element in elements:
+            if element.kind == "step":
+                name = element.properties.get("name")
+                if name:
+                    key = name.casefold()
+                    step_counts[key] = step_counts.get(key, 0) + 1
+                    step_names.setdefault(key, name)
+            _collect_steps(element.children)
+
+    for program in controller.programs.values():
+        for routine in program.routines.values():
+            for chart in routine.sequential_charts:
+                _collect_steps(chart.elements)
     issues = resolve_graphical_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier,
         literal_patterns=EXPRESSION_SPEC.literals,
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
+        step_names=step_names,
+        ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
     )
     for issue in issues:
-        pin = controller.programs[issue.program_name].routines[issue.routine_name].graphical_diagrams[
-            issue.diagram_index].objects[issue.object_index].pins[issue.pin_index]
+        obj = controller.programs[issue.program_name].routines[issue.routine_name].graphical_diagrams[
+            issue.diagram_index].objects[issue.object_index]
+        target = obj.pins[issue.pin_index] if issue.pin_index is not None else obj
         # Snapshot provenance is shared with the source capture, including
         # ordinal member identity. Do not invent a source location from names.
-        metadata = pin.source_extensions[0].metadata
+        metadata = target.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
             issue.code, f"{issue.program_name}/{issue.routine_name}: {issue.expression!r}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),

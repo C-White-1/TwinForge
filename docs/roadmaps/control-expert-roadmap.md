@@ -109,7 +109,8 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Group shared-variable references without inventing graphical wires
 - [x] Preserve ambiguous declarations instead of binding to the first occurrence
 - [x] Capture and validate library block interfaces against actual calls
-- [ ] Resolve indexed/member expressions using proven type definitions and bounds
+- [x] Resolve LD contact step-state member expressions against declared SFC steps
+- [ ] Resolve indexed and other member expressions using proven type definitions and bounds
 - [ ] Interpret explicit FBD links/connectors with endpoint diagnostics
 - [ ] Decode Ladder grid connectivity, branches and power-rail connections
 - [ ] Resolve multi-block/network order under documented link and override rules
@@ -253,3 +254,17 @@ emission to a single centralized pass after order analysis runs, so it no
 longer goes stale once a network resolves. 84 targeted tests passed; Ruff and
 Pyright passed. Explicit FBD links/connectors, LD grid connectivity and
 override-rule interpretation remain open.
+
+LD contact binding checkpoint: contact operands previously carried no binding
+classification at all. Real evidence shows two shapes: plain declared-symbol
+contacts (`Escalier_Mecanique`'s `BPA`, `Start_Timer`, ...) and Control
+Expert's `<step>.X`/`.x` step-active-state convention, observed making
+genuine cross-section references (`MultiGrafcet`'s `Init` LD section reads
+seven step states declared in its separate `G1`/`G2`/`GMaitre` SFC charts). A
+raw system-bit reference such as `%S1` correctly stays `unresolved_expression`
+rather than being guessed. Step names are matched through a project-wide
+registry (global, not chart-local — the evidence shows cross-section use and
+no corpus duplicate contradicts it; a genuine duplicate is still reported
+ambiguous). 88 targeted tests passed; Ruff and Pyright passed. Indexed
+expressions have no corpus evidence yet and remain open, as do LD grid
+connectivity and explicit FBD links.

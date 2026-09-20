@@ -110,6 +110,51 @@ def test_hardware_layout_keeps_special_positions_and_cpu_evidence():
     assert controller.identity.source_extensions[0].root.attributes["version"] == "03.00"
 
 
+def test_ld_contact_binds_step_state_declared_in_a_different_sfc_section():
+    result = project('''
+      <logicConf><resource><taskDesc task="MAST" taskType="cyclic">
+        <sectionDesc name="Init"/><sectionDesc name="G1"/>
+      </taskDesc></resource></logicConf>
+      <program><identProgram name="Init" task="MAST"/><LDSource><networkLD>
+        <typeLine><contact typeContact="openContact" contactVariableName="G1_0.X"/></typeLine>
+        <typeLine><contact typeContact="openContact" contactVariableName="G1_0.X"/></typeLine>
+      </networkLD></LDSource></program>
+      <SFCProgram><identProgram name="G1" task="MAST"/><chartSource><networkSFC>
+        <step stepName="G1_0" stepType="initialStep"/>
+        <step stepName="G1_0" stepType="step"/>
+      </networkSFC></chartSource></SFCProgram>
+    ''')
+    ld = result.controller.programs["Init"].main_routine
+    assert ld is not None
+    first, second = ld.graphical_diagrams[0].objects
+    # Both G1_0 declarations make the step name ambiguous project-wide.
+    assert first.operand_binding_kind == "ambiguous_step_state"
+    assert second.operand_binding_kind == "ambiguous_step_state"
+    assert first.target_step_name is None
+    assert any(d.code == "ambiguous_contact_step_state" for d in result.diagnostics)
+
+
+def test_ld_contact_binds_unique_step_state_across_sections():
+    result = project('''
+      <logicConf><resource><taskDesc task="MAST" taskType="cyclic">
+        <sectionDesc name="Init"/><sectionDesc name="G1"/>
+      </taskDesc></resource></logicConf>
+      <program><identProgram name="Init" task="MAST"/><LDSource><networkLD>
+        <typeLine><contact typeContact="openContact" contactVariableName="G1_0.X"/></typeLine>
+      </networkLD></LDSource></program>
+      <SFCProgram><identProgram name="G1" task="MAST"/><chartSource><networkSFC>
+        <step stepName="G1_0" stepType="initialStep"/>
+      </networkSFC></chartSource></SFCProgram>
+    ''')
+    ld = result.controller.programs["Init"].main_routine
+    assert ld is not None
+    contact = ld.graphical_diagrams[0].objects[0]
+    assert contact.operand_binding_kind == "declared_step_state"
+    assert contact.target_step_name == "G1_0"
+    assert not any(d.code.startswith("unresolved_contact") or d.code.startswith("ambiguous_contact")
+                   for d in result.diagnostics)
+
+
 def test_invalid_input_rejected_and_unrecognized_xml_not_promoted():
     artifact = capture_bytes(b"<Other/>", name="other.xml")
     with pytest.raises(ValueError, match="exchange XML"):
