@@ -763,11 +763,21 @@ was deliberately not attempted; see the roadmap's Milestone 4 backlog item.
 
 `coil` is now a mapped `GraphicalObject` kind (`schema/control_expert/
 graphical.py`), alongside `contact`/`block`/`annotation`; every real coil in
-the corpus previously fell through as `unclassified_graphical_object`. Coil
-operand binding (declared/missing/ambiguous symbol classification, as already
-exists for contact operands) is not yet extended to coils -- deferred, not
-attempted, since a coil operand lexically matching the SFC step-state pattern
-would need its own evidence before reusing that contact-specific rule.
+the corpus previously fell through as `unclassified_graphical_object`.
+
+## Coil operand binding, without the step-state convention
+
+`resolve_graphical_bindings` now classifies coil operands the same way as
+contact operands (`declared_symbol`/`missing_symbol`/`ambiguous_symbol`/
+`unresolved_expression`, with their own `*_coil_*` diagnostic codes rather
+than reusing the `*_contact_*` ones), with one deliberate exception: a coil
+operand is never tested against the `<step>.X`/`.x` step-active-state
+pattern, even when it lexically matches. A coil cannot legitimately write a
+step's active-state bit -- that convention is read-only and owned by the SFC
+engine -- so a coincidental lexical match falls through to plain symbol
+resolution (or `unresolved_expression` if no declared tag matches) rather
+than being misclassified as a step reference. All six real coils in the
+escalator corpus resolve `declared_symbol` cleanly.
 
 Validated against the local corpus: `Rising_Edge_Detection` (escalator)
 resolves all four of its rows as pure series; `Init_Logic` resolves two
@@ -775,3 +785,59 @@ resolves all four of its rows as pure series; `Init_Logic` resolves two
 contact-to-coil rung) and diagnoses the rest (`INITCHART`-gating rows);
 `TIMERS` resolves none. The multi-Grafcet LD section -- entirely
 `INITCHART`/`SETSTEP`/`TON`-gated -- resolves zero rungs, as expected.
+
+## Explicit FBD link evidence and resolution
+
+New corpus: `estradege_m580-safety.xef` and `estradege_m340.xef` (MIT-licensed
+test fixtures from [estradege/controlexpert](https://github.com/estradege/controlexpert),
+a third-party C#/.NET Control Expert interop library; kept in
+`reference/control-expert/`, SHA-256 `e807c0d1...399d62` and
+`79502e04...38bc4f92`). The safety fixture is a real Control Expert V14.0
+project (`fileHeader product="Control Expert V14.0 - 190112"`) with 32
+`FBDSource` networks and 430 `linkFB` elements -- the first local evidence of
+an explicit FBD wire at all; none of the previously-available fixtures
+(`function15.zip`, `function2.zip`, `readvar.zip`, `cread_reg.zip`,
+`cwrite_reg.zip`) contain one. That absence was checked deliberately before
+attempting this work, since the natural alternative -- deriving order from a
+shared parameter name between blocks -- was already withdrawn once as
+unproven (see "Multi-block FBD execution order remains unresolved" above).
+
+Observed grammar: a `linkFB` (a direct child of `networkFBD`, alongside
+`FFBBlock`/`textBox`) has one `linkSource` and one `linkDestination`, each
+carrying `parentObjectName` and `pinName` attributes plus its own `objPosition`
+(a rendering waypoint only, confirmed by example: a link's endpoint position
+routinely does not equal either connected block's own position) and an
+optional `gridObjPosition` route point. Unlike SFC's `linkSFC`, resolution
+here is **by name, not position**: `parentObjectName` matches a unique
+`FFBBlock.instanceName` in the same network, and `pinName` matches that
+block's unique pin with the endpoint's implied direction (`output` for a
+`linkSource`, `input` for a `linkDestination`) -- a pin sharing the name but
+the wrong direction is correctly left unmatched, not guessed. This removes
+the coordinate-adjacency ambiguity that made SFC and Ladder resolution
+harder; it is a direct identity lookup, the same shape as existing
+library-call pin matching elsewhere in this parser.
+
+`GraphicalDiagram.links: list[GraphicalLink]` now holds one `GraphicalLink`
+per `linkFB`, each with an independently-resolved `source`/`destination`
+`GraphicalLinkEndpoint` (`resolved`/`missing_object`/`ambiguous_object`/
+`missing_pin`/`ambiguous_pin`, plus a `missing_pin` in cases of a real name
+match on the wrong direction). Malformed endpoint counts (`!= 1` `linkSource`
+or `linkDestination`) are diagnosed (`invalid_graphical_link_endpoint_count`)
+and left at their default unresolved state, the same discipline as SFC's
+explicit-link endpoint binding. All 371 `linkFB` occurrences in the safety
+fixture resolve cleanly on both ends; `unclassified_graphical_object`, which
+every one of them produced before this change (371 of the fixture's total),
+no longer appears at all for that project.
+
+**This is connectivity, not an execution-order claim.** Resolving a link
+proves the vendor declared a wire between two specific pins; it does not by
+itself establish that the source block executes before the destination in
+the same scan, or that any value is fresh when read. `execution_order`,
+`execution_order_resolved` and `execution_order_basis` are untouched by this
+work and remain exactly as before (only the single-block case is resolved).
+Deriving execution order from `linkFB` -- which does look like considerably
+stronger evidence than the withdrawn shared-parameter-name inference -- is a
+deliberately separate next step, not attempted here; it needs its own
+sign-off on what "the vendor declared a wire from A to B" is allowed to imply
+about scan timing, matching how SFC connectivity and SFC execution were also
+kept as two separate, independently-gated claims.

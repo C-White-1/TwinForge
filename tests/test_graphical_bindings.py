@@ -114,6 +114,37 @@ def test_contact_operand_binding_covers_symbols_and_step_state():
     assert not any(issue.pin_index is not None for issue in issues)
 
 
+def test_coil_operand_binding_covers_symbols_but_never_step_state():
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="Output", data_type="BOOL"))
+    program = Program(name="logic")
+    routine = Routine(name="logic", language="LD")
+    diagram = GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="coil", operand="output"),
+        # Lexically matches the step-state pattern, but a coil cannot target
+        # a step's active-state bit -- must resolve as a plain symbol lookup.
+        GraphicalObject(kind="coil", operand="G1_0.X"),
+        GraphicalObject(kind="coil", operand="Missing"),
+        GraphicalObject(kind="coil", operand="%S1"),
+        GraphicalObject(kind="coil", operand=None),
+    ])
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    issues = resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        step_names={"g1_0": "G1_0"},
+    )
+    coils = diagram.objects
+    assert [c.operand_binding_kind for c in coils] == [
+        "declared_symbol", "unresolved_expression", "missing_symbol", "unresolved_expression", "unbound",
+    ]
+    assert coils[0].target_tag is controller.tags["Output"]
+    assert coils[1].target_step_name is None  # Never classified as a step state.
+    coil_codes = {issue.code for issue in issues if issue.pin_index is None}
+    assert coil_codes == {"unresolved_coil_expression", "unresolved_coil_symbol"}
+
+
 def test_contact_binding_rebuilds_on_rerun():
     controller = Controller(name="example", identity=Identity())
     program = Program(name="logic")

@@ -112,7 +112,12 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Distinguish source pin direction, expression binding and EN/ENO roles
 - [x] Retain execution override hints without assuming their reference grammar
 - [x] Resolve relative order for the supported single-block FBD network case
-- [ ] Resolve multi-block FBD order from verified vendor rules; shared variables alone are insufficient
+- [ ] Resolve multi-block FBD order from verified vendor rules; shared variables
+      alone are insufficient. `linkFB` connectivity is now resolved (above) and
+      is materially stronger evidence than the withdrawn shared-parameter-name
+      inference, but deriving *order* (does source-before-destination imply
+      same-scan execution before?) from it is a deliberately separate,
+      not-yet-attempted step -- see the explicit FBD link checkpoint below
 - [x] Resolve simple declared-variable pin expressions case-insensitively
 - [x] Classify supported lexical literals, unbound pins and unresolved expressions
 - [x] Group shared-variable references without inventing graphical wires
@@ -120,7 +125,10 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
-- [ ] Interpret explicit FBD links/connectors with endpoint diagnostics
+- [x] Interpret explicit FBD links/connectors with endpoint diagnostics
+      (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
+      position; see the explicit FBD link checkpoint below -- this is
+      connectivity only, not an execution-order claim)
 - [x] Decode Ladder grid connectivity for the pure-series case (contacts in
       series to one trailing coil, per row); see the Ladder series checkpoint
       below for scope
@@ -379,3 +387,43 @@ a contact row with no coil). The multi-Grafcet LD section (`INITCHART`/
 exactly as expected -- nothing is wrongly resolved there. 14 targeted tests
 passed (synthetic series/branch/edge cases plus both real corpus pairs). Full
 suite (1213 tests) passed; Ruff and Pyright passed.
+
+Coil operand binding checkpoint (2026-09-21): coil operands now resolve
+through `resolve_graphical_bindings` alongside contacts (declared/missing/
+ambiguous symbol, with their own `*_coil_*` diagnostic codes), but a coil
+operand is never tested against the `<step>.X` step-state pattern even on a
+lexical match -- a coil cannot legitimately write a step's active-state bit,
+so that stays contact-only. All six real escalator coils resolve
+`declared_symbol`. 7 targeted tests passed; full suite (1214 tests) passed;
+Ruff and Pyright passed.
+
+Explicit FBD link evidence check (2026-09-21): before attempting multi-block
+FBD order (the natural next Milestone 4 item), the local corpus was checked
+for any explicit graphical link element analogous to SFC's `linkSFC` or
+Ladder's `HLink`/`VLink`. None exists: `readvar.zip`'s two-block `ADDR`/
+`READ_VAR` diagram has no link element at all, only two `FFBBlock`s connected
+solely by the shared `ipaddress` parameter name -- exactly the inference
+already withdrawn as unproven. The `linkFB` element referenced in the
+`apexsotjo-blip/control-expert-mcp` third-party notes has no corpus backing
+either, the same standing as `parBranch`/`parJoint`/`jumpSFC` above. Multi-
+block FBD order remains blocked on evidence, not on implementation effort;
+do not attempt it from that description alone.
+
+Explicit FBD link checkpoint (2026-09-21): the evidence gap above was closed
+by a real, MIT-licensed fixture found from a different search
+(`estradege/controlexpert`, a C#/.NET Control Expert interop library) --
+`estradege_m580-safety.xef`, a genuine Control Expert V14.0 M580 **safety**
+project with 32 FBD networks and 430 `linkFB` elements, now kept in
+`reference/control-expert/` alongside a smaller `estradege_m340.xef`.
+`GraphicalDiagram.links` resolves each `linkFB`'s source/destination by
+(`instanceName`, `pinName`, implied direction) -- name identity, not grid
+position, which sidesteps the coordinate-adjacency ambiguity that made SFC
+and Ladder resolution harder. All 371 real `linkFB` occurrences resolve
+cleanly on both ends; the `unclassified_graphical_object` diagnostic every
+one of them produced before this change is gone for that project. This
+explicitly does not claim execution order -- `linkFB` is materially stronger
+evidence than the withdrawn shared-parameter-name inference, but "source
+executes before destination" is a separate claim needing its own evidence
+before being attempted, kept unresolved here on purpose (see Milestone 4).
+17 targeted graphical tests passed (six new failure-mode cases plus both real
+fixtures); full suite (1223 tests) passed; Ruff and Pyright passed.

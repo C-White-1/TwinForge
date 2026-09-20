@@ -35,6 +35,26 @@ class GraphicalVariableReferences:
 
 
 @dataclass
+class GraphicalLinkEndpoint:
+    """One `linkFB` endpoint, identified by name, not position or proximity."""
+
+    object_name: str | None = None
+    pin_name: str | None = None
+    status: str = "unresolved"  # resolved | missing_object | ambiguous_object | missing_pin | ambiguous_pin
+    object_index: int | None = None
+    pin_index: int | None = None
+
+
+@dataclass
+class GraphicalLink:
+    """An explicit `linkFB` wire; resolving it is not an execution-order claim."""
+
+    source: GraphicalLinkEndpoint = field(default_factory=GraphicalLinkEndpoint)
+    destination: GraphicalLinkEndpoint = field(default_factory=GraphicalLinkEndpoint)
+    source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)
+
+
+@dataclass
 class GraphicalObject:
     kind: str
     instance_name: str | None = None
@@ -67,6 +87,7 @@ class GraphicalDiagram:
 
     language: str
     objects: list[GraphicalObject] = field(default_factory=list)
+    links: list[GraphicalLink] = field(default_factory=list)
     connectivity_resolved: bool = False
     execution_order_resolved: bool = False
     source_extensions: list[SourceExtension] = field(default_factory=list, repr=False)

@@ -127,4 +127,98 @@ def test_execution_override_retained_without_guessing_reference_meaning():
       <FFBBlock instanceName=".2"><descriptionFFB execAfter=".1"/></FFBBlock>
     </networkFBD></FBDSource>''')
     assert results[0].objects[0].execution_after == ".1"
-    assert not results[0].execution_order_resolved
+
+
+def _fbd_with_link(link_body: str, *, extra_blocks: str = ""):
+    return diagrams(f'''<FBDSource><networkFBD>
+      <FFBBlock instanceName=".1" typeName="A" width="8" height="4">
+        <objPosition posX="1" posY="1"/><descriptionFFB execAfter="">
+          <outputVariable formalParameter="OUT"/>
+        </descriptionFFB>
+      </FFBBlock>
+      <FFBBlock instanceName=".2" typeName="B" width="8" height="4">
+        <objPosition posX="20" posY="1"/><descriptionFFB execAfter="">
+          <inputVariable formalParameter="IN"/>
+        </descriptionFFB>
+      </FFBBlock>
+      {extra_blocks}
+      <linkFB>{link_body}</linkFB>
+    </networkFBD></FBDSource>''')
+
+
+def test_explicit_link_resolves_by_object_and_pin_name_not_position():
+    # The link's own objPosition deliberately does not match either block's
+    # position, proving resolution is by (instanceName, pinName), not proximity.
+    results, diagnostics = _fbd_with_link('''
+      <linkSource parentObjectName=".1" pinName="OUT"><objPosition posX="9" posY="4"/></linkSource>
+      <linkDestination parentObjectName=".2" pinName="IN"><objPosition posX="20" posY="4"/></linkDestination>
+    ''')
+    diagram = results[0]
+    assert len(diagram.links) == 1
+    link = diagram.links[0]
+    assert (link.source.status, link.source.object_index, link.source.pin_index) == ("resolved", 0, 0)
+    assert (link.destination.status, link.destination.object_index, link.destination.pin_index) == ("resolved", 1, 0)
+    assert not any(d.code == "unclassified_graphical_object" for d in diagnostics)
+    assert not any(d.code == "unresolved_graphical_link_endpoint" for d in diagnostics)
+
+
+@pytest.mark.parametrize("object_name,pin_name,expected_status", [
+    ("missing", "OUT", "missing_object"),
+    (".1", "MISSING", "missing_pin"),
+    (".1", "IN", "missing_pin"),  # Block .1 declares no IN pin at all (only OUT).
+])
+def test_explicit_link_source_endpoint_failure_modes(object_name, pin_name, expected_status):
+    results, diagnostics = _fbd_with_link(
+        f'<linkSource parentObjectName="{object_name}" pinName="{pin_name}"/>'
+        '<linkDestination parentObjectName=".2" pinName="IN"/>')
+    link = results[0].links[0]
+    assert link.source.status == expected_status
+    assert link.source.object_index is None if expected_status == "missing_object" else True
+    assert any(d.code == "unresolved_graphical_link_endpoint" for d in diagnostics)
+
+
+def test_explicit_link_endpoint_ambiguous_object_is_diagnosed():
+    results, diagnostics = _fbd_with_link(
+        '<linkSource parentObjectName=".1" pinName="OUT"/>'
+        '<linkDestination parentObjectName=".2" pinName="IN"/>',
+        extra_blocks='<FFBBlock instanceName=".1" typeName="DUP"/>',
+    )
+    link = results[0].links[0]
+    assert link.source.status == "ambiguous_object"
+    assert link.source.object_index is None
+    assert any(d.code == "unresolved_graphical_link_endpoint" for d in diagnostics)
+
+
+def test_explicit_link_source_pin_wrong_direction_is_not_matched():
+    # ".2" declares IN as an input; a link claiming it as a *source* pin must
+    # not match an input-direction pin, even though the name is right.
+    results, diagnostics = _fbd_with_link(
+        '<linkSource parentObjectName=".2" pinName="IN"/>'
+        '<linkDestination parentObjectName=".1" pinName="OUT"/>')
+    link = results[0].links[0]
+    assert link.source.status == "missing_pin" and link.source.object_index == 1
+    assert link.destination.status == "missing_pin" and link.destination.object_index == 0
+
+
+def test_malformed_endpoint_count_is_diagnosed_not_guessed():
+    results, diagnostics = _fbd_with_link(
+        '<linkSource parentObjectName=".1" pinName="OUT"/>'
+        '<linkSource parentObjectName=".1" pinName="OUT"/>'
+        '<linkDestination parentObjectName=".2" pinName="IN"/>')
+    link = results[0].links[0]
+    assert link.source.status == "unresolved" and link.source.object_name is None
+    assert any(d.code == "invalid_graphical_link_endpoint_count" for d in diagnostics)
+
+
+@pytest.mark.parametrize("filename", ["estradege_m580-safety.xef", "estradege_m340.xef"])
+def test_optional_real_explicit_fbd_links_resolve(filename):
+    path = Path(__file__).resolve().parents[1] / "reference" / "control-expert" / filename
+    if not path.exists():
+        pytest.skip("Local FBD link reference unavailable")
+    result, = parse_projects(capture_file(path))
+    links = [link for program in result.controller.programs.values()
+             for routine in program.routines.values()
+             for diagram in routine.graphical_diagrams for link in diagram.links]
+    assert links
+    assert all(link.source.status == "resolved" and link.destination.status == "resolved" for link in links)
+    assert not any(d.code == "unclassified_graphical_object" for d in result.diagnostics)

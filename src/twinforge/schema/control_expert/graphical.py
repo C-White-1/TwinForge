@@ -12,6 +12,12 @@ class GraphicalSpec:
     # These encode grid layout/connectivity. Retain them rather than interpreting
     # them as discarded whitespace or assuming they are executable graph edges.
     layout_nodes: frozenset[str] = frozenset({"emptyLine", "emptyCell", "HLink", "VLink"})
+    # An explicit FBD wire, resolved by object/pin name -- not position.
+    link: str = "linkFB"
+    link_source: str = "linkSource"
+    link_destination: str = "linkDestination"
+    link_object_attribute: str = "parentObjectName"
+    link_pin_attribute: str = "pinName"
     position: str = "objPosition"
     description: str = "descriptionFFB"
     pins: tuple[tuple[str, str], ...] = (("inputVariable", "input"), ("outputVariable", "output"))

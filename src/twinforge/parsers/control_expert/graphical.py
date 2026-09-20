@@ -1,5 +1,5 @@
 """Promote observed graphical objects while retaining unresolved connections."""
-from twinforge.model import GraphicalDiagram, GraphicalObject, GraphicalPin, LadderPosition
+from twinforge.model import GraphicalDiagram, GraphicalLink, GraphicalLinkEndpoint, GraphicalObject, GraphicalPin, LadderPosition
 from twinforge.schema.control_expert.graphical import GRAPHICAL_SPEC, GraphicalSpec
 
 from .capture import CapturedSection, Diagnostic
@@ -71,14 +71,47 @@ def parse_diagrams(
 
     kinds = dict(spec.objects)
 
-    def objects(node: CapturedSection, diagram: GraphicalDiagram) -> None:
+    def objects(node: CapturedSection, diagram: GraphicalDiagram, links: list[CapturedSection]) -> None:
         for child in node.ordered_children:
             if child.tag in kinds:
                 diagram.objects.append(object_from(child, kinds[child.tag]))
             elif child.tag in spec.containers:
-                objects(child, diagram)
+                objects(child, diagram, links)
+            elif child.tag == spec.link:
+                links.append(child)
             elif child.tag not in spec.layout_nodes and not child.tag.startswith("#"):
                 report("unclassified_graphical_object", "Unknown graphical content retained without interpretation", child)
+
+    def resolve_endpoint(link: CapturedSection, diagram: GraphicalDiagram, role: str, tag: str) -> GraphicalLinkEndpoint:
+        expected_direction = "output" if role == "source" else "input"
+        matches = [c for c in link.ordered_children if c.tag == tag]
+        if len(matches) != 1:
+            report("invalid_graphical_link_endpoint_count",
+                   f"Explicit link requires one {role}; found {len(matches)}", link)
+            return GraphicalLinkEndpoint()
+        node = matches[0]
+        object_name = node.raw_attributes.get(spec.link_object_attribute)
+        pin_name = node.raw_attributes.get(spec.link_pin_attribute)
+        object_matches = [i for i, obj in enumerate(diagram.objects) if obj.instance_name == object_name]
+        status: str
+        object_index = pin_index = None
+        if not object_name or not object_matches:
+            status = "missing_object"
+        elif len(object_matches) > 1:
+            status = "ambiguous_object"
+        else:
+            object_index = object_matches[0]
+            pin_matches = [i for i, pin in enumerate(diagram.objects[object_index].pins)
+                           if pin.name == pin_name and pin.direction == expected_direction]
+            if not pin_name or not pin_matches:
+                status = "missing_pin"
+            elif len(pin_matches) > 1:
+                status = "ambiguous_pin"
+            else:
+                status, pin_index = "resolved", pin_matches[0]
+        if status != "resolved":
+            report("unresolved_graphical_link_endpoint", f"{role}: {status}", link)
+        return GraphicalLinkEndpoint(object_name, pin_name, status, object_index, pin_index)
 
     diagrams: list[GraphicalDiagram] = []
     languages = dict(spec.networks)
@@ -89,7 +122,14 @@ def parse_diagrams(
             continue
         diagram = GraphicalDiagram(language=languages[network.tag], source_extensions=[_extension(network)])
         diagnostic_start = len(diagnostics)
-        objects(network, diagram)
+        pending_links: list[CapturedSection] = []
+        objects(network, diagram, pending_links)
+        for link in pending_links:
+            diagram.links.append(GraphicalLink(
+                source=resolve_endpoint(link, diagram, "source", spec.link_source),
+                destination=resolve_endpoint(link, diagram, "destination", spec.link_destination),
+                source_extensions=[_extension(link)],
+            ))
         diagrams.append(diagram)
         blocks = [i for i, obj in enumerate(diagram.objects) if obj.kind == "block"]
         # A single FBD block has no relative intra-network block ordering to

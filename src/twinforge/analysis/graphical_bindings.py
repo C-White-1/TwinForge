@@ -51,13 +51,16 @@ def resolve_graphical_bindings(
                 groups: dict[str, GraphicalVariableReferences] = {}
                 diagram.shared_variables.clear()
                 for object_index, obj in enumerate(diagram.objects):
-                    if obj.kind == "contact":
+                    if obj.kind in {"contact", "coil"}:
                         obj.operand_binding_kind = None
                         obj.target_tag = None
                         obj.target_step_name = None
                         expression = obj.operand.strip() if obj.operand is not None else ""
                         problem = None
-                        step_match = step_state_pattern.fullmatch(expression)
+                        # A coil cannot legitimately target a step's active-state
+                        # bit -- that convention is read-only, SFC-engine-owned.
+                        # Only a contact operand is tested against it.
+                        step_match = step_state_pattern.fullmatch(expression) if obj.kind == "contact" else None
                         if obj.operand is None:
                             obj.operand_binding_kind = "unbound"
                         elif step_match:
@@ -75,16 +78,16 @@ def resolve_graphical_bindings(
                             key = expression.casefold()
                             if key in ambiguous:
                                 obj.operand_binding_kind = "ambiguous_symbol"
-                                problem = "ambiguous_contact_symbol"
+                                problem = f"ambiguous_{obj.kind}_symbol"
                             elif key in symbols:
                                 obj.operand_binding_kind = "declared_symbol"
                                 obj.target_tag = symbols[key]
                             else:
                                 obj.operand_binding_kind = "missing_symbol"
-                                problem = "unresolved_contact_symbol"
+                                problem = f"unresolved_{obj.kind}_symbol"
                         else:
                             obj.operand_binding_kind = "unresolved_expression"
-                            problem = "unresolved_contact_expression"
+                            problem = f"unresolved_{obj.kind}_expression"
                         if problem:
                             issues.append(GraphicalBindingIssue(
                                 program.name, routine.name, diagram_index, object_index,

@@ -76,6 +76,9 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                     "execution_order": diagram.execution_order,
                     "execution_order_basis": diagram.execution_order_basis,
                     "shared_variables": [asdict(group) for group in diagram.shared_variables],
+                    "links": [{
+                        "source": asdict(link.source), "destination": asdict(link.destination),
+                    } for link in diagram.links],
                     "objects": [{
                         "kind": obj.kind, "instance_name": obj.instance_name,
                         "type_name": obj.type_name, "operand": obj.operand,
@@ -208,6 +211,12 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                         if diagram["shared_variables"]:
                             stdout.write("      Shared variable references (not wires): "
                                          + ", ".join(group["symbol_name"] for group in diagram["shared_variables"]) + "\n")
+                        if diagram["links"]:
+                            resolved = sum(1 for link in diagram["links"]
+                                          if link["source"]["status"] == "resolved"
+                                          and link["destination"]["status"] == "resolved")
+                            stdout.write(f"      Explicit links: {resolved}/{len(diagram['links'])} resolved "
+                                         "(pin-to-pin wiring, not an execution-order claim)\n")
             codes = Counter(d["code"] for d in project["diagnostics"])
             stdout.write("  Diagnostics: " + (", ".join(f"{k}={v}" for k, v in sorted(codes.items())) or "none") + "\n")
         if diagnostics:

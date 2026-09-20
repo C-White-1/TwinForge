@@ -39,7 +39,14 @@ from .gateway import (
     GatewayTagBindingRole,
 )
 from .identity import Identity, VendorIdentity
-from .graphical import GraphicalDiagram, GraphicalObject, GraphicalPin, GraphicalVariableReferences
+from .graphical import (
+    GraphicalDiagram,
+    GraphicalLink,
+    GraphicalLinkEndpoint,
+    GraphicalObject,
+    GraphicalPin,
+    GraphicalVariableReferences,
+)
 from .ladder import (
     LadderInstruction,
     LadderOperation,
@@ -112,6 +119,8 @@ from .visualization import (
 
 __all__ = [
     "GraphicalDiagram",
+    "GraphicalLink",
+    "GraphicalLinkEndpoint",
     "GraphicalObject",
     "GraphicalPin",
     "GraphicalVariableReferences",
