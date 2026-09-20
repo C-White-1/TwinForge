@@ -14,6 +14,7 @@ from twinforge.analysis.execution_order import resolve_fbd_execution_order
 from twinforge.analysis.graphical_bindings import resolve_graphical_bindings
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
+from twinforge.analysis.sfc_connectivity import resolve_sfc_connectivity
 
 from twinforge.model.library_interface import LibraryInterface, LibraryParameter
 from twinforge.model.sequential import SequentialElement
@@ -343,6 +344,16 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         metadata = element.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
             code, f"SFC variable expression {element.text!r}: {element.binding_kind}",
+            SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
+        ))
+    for issue in resolve_sfc_connectivity(controller):
+        chart = controller.programs[issue.program_name].routines[issue.routine_name].sequential_charts[
+            issue.chart_index]
+        network_index, child_index = issue.element_path
+        element = chart.elements[network_index].children[child_index]
+        metadata = element.source_extensions[0].metadata
+        result.diagnostics.append(Diagnostic(
+            issue.code, f"{issue.program_name}/{issue.routine_name}: {issue.detail}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     for code, item in match_library_calls(

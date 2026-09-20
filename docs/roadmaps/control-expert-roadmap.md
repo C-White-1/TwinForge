@@ -18,6 +18,7 @@ tree, not a published release.
 ```powershell
 uv run twinforge control-expert inspect reference\control-expert\function15.zip
 uv run twinforge control-expert inspect reference\control-expert\function15.zip --format json
+uv run twinforge control-expert coverage reference\control-expert\Escalier_Mecanique.XEF --output out\
 ```
 
 TwinForge can inspect standalone XEF, ZEF and distribution ZIP files without a
@@ -45,7 +46,15 @@ marker or of current Control Expert versions.
 - [x] Add independent SFC fixtures before implementing graph connectivity or execution
 - [x] Resolve chart-local transition references with missing/duplicate-target diagnostics
 - [x] Bind observed explicit SFC link endpoints by type and exact lexical position within each network
-- [ ] Establish SFC adjacency/branch grammar before resolving complete connectivity
+- [x] Establish SFC adjacency/branch grammar before resolving complete connectivity
+      (linear grid adjacency plus `altBranch`/`altJoint` selective divergence and
+      convergence; see the connectivity checkpoint below for scope and limits)
+- [ ] Backlog: `parBranch`/`parJoint` (simultaneous/AND branching) and `jumpSFC` (named
+      jump to a step) grammar. Currently documented only by a third party's own
+      reverse-engineering (`apexsotjo-blip/control-expert-mcp`'s `lang_reference.py`
+      and `tools/lang_refs/`), not by any captured export in the corpus. Do not
+      implement from that description alone; wait for a real fixture, the same
+      standard applied to every other element here.
 
 The new pair has matching SFC subtrees: five steps, six transitions and ten
 actions. Inspection now maps all six sections and resolves both SFC task references.
@@ -179,7 +188,7 @@ Portable fixtures are independently authored; local-reference tests skip
 explicitly when the ignored source files are unavailable.
 
 ```powershell
-uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py
+uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py
 ```
 
 Run Ruff and Pyright on changed modules, plus relevant model/CLI/ST regressions
@@ -263,10 +272,64 @@ ambiguous). 88 targeted tests passed; Ruff and Pyright passed. Indexed
 expressions have no corpus evidence yet and remain open, as do LD grid
 connectivity and explicit FBD links.
 
-
 In-out parameter checkpoint (2026-09-21): the explicit Control Expert profile
 matches READ_VAR's input/output GEST pins to its single declared inout parameter.
 Both pins remain independently represented. Four occurrences across the two
 READ_VAR exports match, leaving no unresolved pin conventions in the local corpus.
 Generic types, access semantics and required-pin validation remain pending.
 56 targeted tests passed; Ruff and Pyright passed. Local reports refreshed.
+
+SFC connectivity checkpoint (2026-09-21): a step or transition's successor now
+resolves when exactly one candidate exists -- the unique flow object at the next
+grid row in the same column, or a resolved explicit link sourced from it.
+Divergence uses an `altBranch` element colocated with the first column's
+transition; convergence uses a linked `altJoint`, resolved onward to whatever
+follows its own anchor position. Both require `relativePos="0"`, the only value
+evidenced anywhere in the corpus; any other shape, any incomplete branch row, and
+any conflicting pair of candidates stays diagnosed (`unresolved_sfc_successor`,
+`ambiguous_sfc_successor`, `unsupported_sfc_branch_position`) and unresolved
+rather than guessed. `SequentialChart` gained `connectivity_edges`, exposed in
+CLI JSON alongside `connectivity_resolved`; execution semantics remain untouched.
+
+The linear-adjacency rule is now corroborated by three independently-authored
+sources with no counterexample: the two PsyGlo repositories and a third,
+unrelated origin (`IUT-GEII-Annecy/automatisme-pour-robotique`, French
+university robotics coursework), whose `02_MAIN.sfc.xml` also supplied the
+first concrete `altJoint` evidence and the first complete divergence/convergence
+pair in one chart (kept in `reference/control-expert/`, see the capture
+specification). Explicit link endpoint resolution was extended to match
+`altBranch`/`altJoint` by width span from their own recorded position, not only
+exact lexical equality, since a real link's destination coordinate need not
+equal the branch/join's own position. Both real SFC exports already in the
+corpus (escalator, multi-Grafcet: five charts total) now fully resolve with
+zero connectivity diagnostics -- a regression check as much as a validation.
+`parBranch`/`parJoint` and `jumpSFC` remain backlogged pending a real fixture
+(see the Milestone 1 backlog item); nested/repeated branching, AND-convergence
+and any topology beyond one branch/join pair are unevidenced and untested.
+88 targeted tests passed (including both local reference pairs); Ruff and
+Pyright passed; full suite (1192 tests) passed.
+
+SFC test-coverage skeleton (2026-09-21): `twinforge control-expert coverage
+<path> --output <dir>` writes one Markdown/CSV/JSON traceability skeleton per
+parsed project -- one row per step, per transition (with its condition text
+when it resolves to a simple reference) and per SFC-relevant diagnostic, each
+correlated back to its owning program/routine/chart by exact source-location
+match. Requirement ID, Test ID and Status columns are always present but
+blank; this is a starting point for a reviewer's test matrix, not a record of
+tests performed, and it does not certify the underlying PLC logic. Diagnostics
+outside a defined SFC-relevant set (FBD, hardware, variable-type codes, ...)
+are intentionally excluded -- see `SFC_DIAGNOSTIC_CODES` in
+`analysis/sfc_coverage.py`.
+
+Known limitation, not yet addressed: regenerating the skeleton overwrites it
+rather than merging a reviewer's prior Requirement ID/Test ID/Status
+annotations back in. The engineering-review overlay mechanism already used
+for L5X alarm/cause-effect review (`review validate`, applied-key
+reconciliation) would be the natural way to close this gap, but is
+substantially more machinery (a versioned schema, validation, receipts) than
+this pass adds; revisit only if the manual-CSV workflow proves insufficient
+in practice. 7 targeted tests passed (unit, exporters, CLI round-trip and a
+clean-error path); validated against both real escalator charts (5 steps, 6
+transitions, 0 unresolved, 2 diagnostics -- both the unavoidable
+per-routine execution-unresolved notice). Full suite (1199 tests) passed;
+Ruff and Pyright passed.

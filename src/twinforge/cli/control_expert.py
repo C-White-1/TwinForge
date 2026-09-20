@@ -76,6 +76,9 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                 "sequential_charts": [{
                     "name": chart.name,
                     "connectivity_resolved": chart.connectivity_resolved,
+                    "connectivity_edges": [{"source_path": edge.source_path,
+                                            "destination_path": edge.destination_path,
+                                            "basis": edge.basis} for edge in chart.connectivity_edges],
                     "execution_resolved": chart.execution_resolved,
                     "elements": [_sequential_element(e) for e in chart.elements],
                     "transition_definitions": [_sequential_element(e) for e in chart.transition_definitions],
@@ -164,8 +167,10 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                                  f"ST lines: {routine['structured_text_line_count']}; graphical objects: {object_count}\n")
                     for chart in routine["sequential_charts"]:
                         counts = Counter(e["kind"] for network in chart["elements"] for e in network["children"])
+                        connectivity = "resolved" if chart["connectivity_resolved"] else "unresolved"
                         stdout.write(f"    SFC chart {chart['name']}: steps: {counts['step']}; "
-                                     f"transitions: {counts['transition']}; connectivity/execution unresolved\n")
+                                     f"transitions: {counts['transition']}; connectivity: {connectivity}; "
+                                     "execution unresolved\n")
                     for diagram_index, diagram in enumerate(routine["diagrams"]):
                         bindings = Counter(pin["binding_kind"] for obj in diagram["objects"] for pin in obj["pins"])
                         stdout.write(f"    Diagram {diagram_index}: pin bindings: "

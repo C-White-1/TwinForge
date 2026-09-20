@@ -6,7 +6,10 @@ from dataclasses import dataclass
 class SequentialSpec:
     charts: str = "chartSource"
     definitions: str = "transitionSource"
-    endpoint_types: tuple[tuple[str, str], ...] = (("step", "step"), ("transition", "transition"))
+    endpoint_types: tuple[tuple[str, str], ...] = (
+        ("step", "step"), ("transition", "transition"),
+        ("altBranch", "alternative_branch"), ("altJoint", "alternative_join"),
+    )
     # Ordered children and unknown nodes are preserved by the consumer.
     elements: tuple[tuple[str, str, tuple[tuple[str, str], ...]], ...] = (
         ("networkSFC", "network", ()),
@@ -18,6 +21,7 @@ class SequentialSpec:
         ("transition", "transition", ()),
         ("transitionCondition", "condition", (("invertLogic", "inversion"),)),
         ("altBranch", "alternative_branch", (("width", "width"), ("relativePos", "relative_position"))),
+        ("altJoint", "alternative_join", (("width", "width"), ("relativePos", "relative_position"))),
         ("linkSFC", "explicit_link", ()),
         ("directedLinkSource", "link_source", (("objectType", "source_object_type"),)),
         ("directedLinkDestination", "link_destination", (("objectType", "source_object_type"),)),

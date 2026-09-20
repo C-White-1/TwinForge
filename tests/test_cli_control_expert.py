@@ -20,7 +20,7 @@ def test_sfc_inspection_exposes_structure_and_unresolved_execution(tmp_path: Pat
     assert chart["execution_resolved"] is False
     output = StringIO()
     assert main(("control-expert", "inspect", str(path)), stdout=output) == 0
-    assert "SFC chart C: steps: 1; transitions: 1; connectivity/execution unresolved" in output.getvalue()
+    assert "SFC chart C: steps: 1; transitions: 1; connectivity: unresolved; execution unresolved" in output.getvalue()
 
 
 def exchange(name: str) -> bytes:

@@ -463,6 +463,69 @@ The repository README describes an M580 target, but both supplied exports identi
 coverage. The author's simulator demonstrations are not TwinForge native/runtime
 validation. Generated inspection reports and originals remain in ignored reference/.
 
+## Additional SFC specimen: IUT-GEII-Annecy student coursework
+
+Inspected on 2026-09-21 from the public
+[automatisme-pour-robotique](https://github.com/IUT-GEII-Annecy/automatisme-pour-robotique)
+repository, `fichiers_etudiants/allier/sfc/*.sfc.xml`. This is a third, independent
+origin: a different author and context (French university robotics coursework)
+from the two PsyGlo repositories above.
+
+| File | SHA-256 |
+| --- | --- |
+| `IUT-GEII-Annecy_02_MAIN.sfc.xml` | `d4fe8a694bc93c9fbd4c2f5a8e7d7736ceb8ac103a4c1b87cb40defa5342f8b6` |
+| `IUT-GEII-Annecy_01_A6_SFC.sfc.xml` | `38e15e6683ab7b512e4991c3e35bb9d2ec6470bb867dfcf15924eabdfd6292d9` |
+| `IUT-GEII-Annecy_03_A1_POST.sfc.xml` | `9b3af36be4d2eb4ac08a96b0de23ba327bc99241b8f71a2b6a7e94cdbeaad43c` |
+
+These are single-chart exports: the root is `SFCExchangeFile`, containing
+`chartSource/networkSFC` directly, with no `fileHeader`, `identProgram`, `program`
+or project-level content at all. That root is not one of `parse_project`'s
+recognized roots, so these files cannot go through `capture_file`/`parse_projects`
+as-is; they are kept as manual evidence, not as `pytest` "optional real reference"
+fixtures. `01_A6_SFC.sfc.xml` and `03_A1_POST.sfc.xml` also contain non-XML binary
+content after their initial well-formed prefix (observed, not explained — possibly
+embedded compiled ST/DBGTable bytes in this export shape) and do not parse as
+complete documents; treat only their clean leading fragment as evidence. `02_MAIN.sfc.xml`
+is fully well-formed and is the specimen used below.
+
+New evidence from `02_MAIN.sfc.xml`:
+
+- The same linear grammar as the escalator and multi-Grafcet specimens: steps and
+  transitions alternate by exactly one grid row (`posY`), same `posX`, within one
+  network, with no gaps. Document order is not grid order — elements must be
+  sorted by position before adjacency is read from them. This is now corroborated
+  by three independently-authored sources with no counterexample.
+- A previously unobserved element, `altJoint` (`width`, `relativePos`, same shape
+  as `altBranch`): a convergence marker, symmetric to `altBranch`'s divergence.
+  Not present in either PsyGlo specimen. `SFC_SPEC` does not yet map it; it falls
+  through as `unknown`.
+- An explicit `linkSFC` whose destination is `objectType="altJoint"` at grid
+  position `(5, 8)`, while the `altJoint` element's own recorded `objPosition` is
+  `(4, 8)` with `width="2"`. The branch/join spans multiple columns from its
+  recorded position; a link may target any column in that span, not only the
+  literal recorded position. The current endpoint resolver
+  (`parsers/control_expert/sfc.py`, exact `position(obj) == coordinates` equality)
+  cannot resolve this shape yet; `altBranch`/`altJoint` are also not in
+  `endpoint_types` at all, so today this would be diagnosed `unsupported_type`,
+  not `unresolved_sfc_link_endpoint` for a resolvable-but-unmatched position.
+- One selective (OR) divergence/convergence structure is fully worked: from a
+  single step, an `altBranch` (width 2) offers two transitions in parallel
+  columns; each branch continues independently (one directly, one through a
+  further step) and both paths reach the matching `altJoint` before rejoining a
+  common step. This is the first concrete evidence of a complete divergence
+  *and* convergence pair in one chart.
+
+Non-primary, non-fixture lead: `apexsotjo-blip/control-expert-mcp`'s own
+reference notes (`src/control_expert_mcp/lang_reference.py`,
+`tools/lang_refs/SFC_0_Packaging_Robot.xml`) independently describe the same
+alternation rule, and additionally describe `parBranch`/`parJoint` (simultaneous/AND
+branching) and `jumpSFC` (a named jump to a step by `stepName`, bypassing grid
+position entirely). That project's citations of specific Control Expert import
+error codes (`E1228`, `E1189`) suggest hands-on verification against the real
+GUI, but it remains one third party's own reverse-engineering, not vendor
+documentation or a captured export, and no fixture in this corpus exercises
+either construct. Recorded as a lead only; see the roadmap backlog item.
+
 ## Sources and next reference request
 
 Source pages recommended for these samples:
@@ -485,7 +548,6 @@ and documentation of `fileHeader/@DTDVersion` and compatibility. Keep any
 received schemas in `reference/control-expert/schemas/<software-version>/`
 with provenance and hashes. No support request has been sent.
 
-
 ## Explicit SFC endpoint binding
 
 The observed endpoint type profile admits `step` and `transition`. Each explicit
@@ -506,7 +568,6 @@ branches and runtime flow are not inferred. `connectivity_resolved` and
 positions, overlapping object types, missing targets, cross-network targets,
 unsupported types, missing coordinates and malformed endpoint multiplicity.
 
-
 ## SFC simple variable binding
 
 The vendor-neutral sequential binding analysis classifies variable references
@@ -526,7 +587,6 @@ does not imply that the action writes it. The analysis does not establish types,
 read/write effects, action semantics or runtime behavior. ST bodies are not parsed
 by this pass. Chart-local transition definition and explicit endpoint bindings
 remain separate from variable binding.
-
 
 ## Library interface evidence and one-level member binding
 
@@ -549,7 +609,6 @@ interface declares Q as BOOL. All six `.Q` references now bind in each export.
 This supersedes their earlier unresolved status in the inspection checkpoints.
 Tests cover a unique signature and duplicate interface rejection alongside the
 existing ambiguous tag, missing member evidence and lexical preservation cases.
-
 
 ## Graphical call signature matching
 
@@ -626,7 +685,6 @@ representation, or evaluation order — only that the reference names a unique
 declared step. Independent unit tests cover both binding shapes, ambiguity
 and rerun/reset; an integration test proves the cross-section (LD contact →
 SFC chart in a different program) lookup end to end.
-
 
 ## Split graphical representation of in-out parameters
 

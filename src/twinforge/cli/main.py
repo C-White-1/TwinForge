@@ -69,6 +69,7 @@ from .report_bundle import (
 )
 from .snmp_conversion import convert_walk_command
 from .control_expert import ControlExpertCommandError, inspect_control_expert
+from .control_expert_coverage import export_control_expert_coverage
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,6 +86,15 @@ def build_parser() -> argparse.ArgumentParser:
     control_expert_inspect = control_expert_commands.add_parser("inspect", help="Inspect each exchange project independently.")
     control_expert_inspect.add_argument("path", type=Path)
     control_expert_inspect.add_argument("--format", choices=("text", "json"), default="text")
+    control_expert_coverage = control_expert_commands.add_parser(
+        "coverage",
+        help="Write an SFC test-coverage/traceability skeleton (Markdown/CSV/JSON) for review.",
+    )
+    control_expert_coverage.add_argument("path", type=Path)
+    control_expert_coverage.add_argument(
+        "--output", required=True, type=Path,
+        help="Directory in which to write the coverage skeleton.",
+    )
     inspect_l5x_command = commands.add_parser(
         "inspect",
         help="Inspect a Rockwell L5X document without changing it.",
@@ -731,7 +741,10 @@ def main(
     arguments = build_parser().parse_args(argv)
     try:
         if arguments.command == "control-expert":
-            inspect_control_expert(arguments.path, output_format=arguments.format, stdout=output)
+            if arguments.control_expert_command == "coverage":
+                export_control_expert_coverage(arguments.path, destination=arguments.output, stdout=output)
+            else:
+                inspect_control_expert(arguments.path, output_format=arguments.format, stdout=output)
         elif arguments.command == "inspect":
             inspect_l5x(
                 arguments.path,

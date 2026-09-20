@@ -71,6 +71,25 @@ def parse_charts(
         x, y = properties.get("x"), properties.get("y")
         return (x, y) if x and y else None
 
+    def covers(obj: SequentialElement, coordinates: tuple[str, str]) -> bool:
+        # A branch/join spans `width` columns from its own recorded position;
+        # an endpoint may target any column in that span, not only the exact
+        # lexical position recorded on the branch/join element itself. Only
+        # relativePos="0" (anchor = own position) is evidenced; any other
+        # value is left unmatched rather than guessed.
+        own = position(obj)
+        if own == coordinates:
+            return True
+        if own is None or obj.kind not in {"alternative_branch", "alternative_join"}:
+            return False
+        if own[1] != coordinates[1] or obj.properties.get("relative_position") != "0":
+            return False
+        try:
+            own_x, target_x, width = int(own[0]), int(coordinates[0]), int(obj.properties.get("width", ""))
+        except ValueError:
+            return False
+        return width > 0 and own_x <= target_x < own_x + width
+
     for chart in charts:
         for network_index, network in enumerate(chart.elements):
             if network.kind != "network":
@@ -94,7 +113,7 @@ def parse_charts(
                     coordinates = position(endpoint)
                     matches = [index for index, obj in enumerate(network.children)
                                if target_kind is not None and coordinates is not None
-                               and obj.kind == target_kind and position(obj) == coordinates]
+                               and obj.kind == target_kind and covers(obj, coordinates)]
                     status = ("unsupported_type" if target_kind is None else
                               "invalid_position" if coordinates is None else
                               "resolved" if len(matches) == 1 else
