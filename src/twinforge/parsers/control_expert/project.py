@@ -244,6 +244,18 @@ def _hardware(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -
                 result.controller.add_unplaced_module(module)
             else:
                 chassis.add_module(module)
+        power_supplies = [child for child in rack.ordered_children if child.tag in layout.power_supply_modules]
+        for supply_node in power_supplies:
+            part = _first(supply_node, spec.part)
+            catalog = _attrs(part).get("partNumber", "")
+            supply = Module(name=catalog, catalog=catalog,
+                            identity=Identity(product_name=catalog or None),
+                            source_extensions=[_extension(supply_node)])
+            if not catalog:
+                result.report("unplaced_hardware", f"{catalog!r}: missing identity", supply_node)
+                result.controller.add_unplaced_module(supply)
+            else:
+                chassis.add_power_supply(supply)
 
 
 def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPING) -> ParsedProject:

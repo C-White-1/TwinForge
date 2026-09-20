@@ -12,6 +12,9 @@ PathSpec = tuple[str, ...]
 class HardwareLayout:
     racks: PathSpec
     modules: tuple[str, ...]
+    # A power supply mounts separately from the numbered slot scheme; its own
+    # tag(s), if any are evidenced for this layout, keep it out of `modules`.
+    power_supply_modules: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -49,7 +52,8 @@ class MappingSpec:
             ("configQuantum", "IOMapBlock", "busQuantum", "dropQuantum", "rackQuantum"),
             ("moduleQuantum",),
         ),
-        HardwareLayout(("configATS", "busATS", "rackATS"), ("moduleATS", "powerSupply")),
+        HardwareLayout(("configATS", "busATS", "rackATS"), ("moduleATS",),
+                       power_supply_modules=("powerSupply",)),
     )
     scalar_types: frozenset[str] = frozenset({
         "BOOL", "INT", "DINT", "WORD", "TIME", "STRING",

@@ -12,7 +12,11 @@ class Chassis(Asset):
     name: str = ""
 
     modules: dict[int, Module] = field(default_factory=dict)
-    
+
+    # A power supply mounts in its own dedicated position, physically
+    # separate from the numbered I/O/CPU slot scheme -- not a slotted module.
+    power_supplies: list[Module] = field(default_factory=list)
+
     # -------------------------
     # Construction / Mutation
     # -------------------------
@@ -23,7 +27,11 @@ class Chassis(Asset):
             raise ValueError(f"Slot {module.slot} already contains a module")
         module.parent = self
         self.modules[module.slot] = module
-    
+
+    def add_power_supply(self, module: Module) -> None:
+        module.parent = self
+        self.power_supplies.append(module)
+
     # -------------------------
     # Lookup
     # -------------------------

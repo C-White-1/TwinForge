@@ -93,6 +93,11 @@ as complete inspection. Capture does not yet validate against Schneider XSDs.
 
 - [x] Map project identity, controller identity and observed rack/module layouts
 - [x] Preserve special/conflicting module positions as unplaced hardware
+      (with one refinement: a power supply is now its own resolved concept,
+      not folded into "unplaced" -- see the power supply checkpoint below.
+      This is evidenced only for the Schneider ATS rack layout's own distinct
+      `powerSupply` tag; other manufacturers mount power supplies differently
+      -- some in-chassis, some not -- and nothing here generalizes across them)
 - [x] Map variable names, type expressions, comments and source address evidence
 - [x] Preserve array bounds and initializers without inventing type/value semantics
 - [x] Map task configuration, section ordering, programs and ST source
@@ -427,3 +432,34 @@ executes before destination" is a separate claim needing its own evidence
 before being attempted, kept unresolved here on purpose (see Milestone 4).
 17 targeted graphical tests passed (six new failure-mode cases plus both real
 fixtures); full suite (1223 tests) passed; Ruff and Pyright passed.
+
+Power supply checkpoint (2026-09-21): the M580 safety fixture's rack has a
+`powerSupply` element (`BMXCPS4002S`) with `equipInfo position="-1"`, a
+distinct vendor tag already separate from `moduleATS` in the source XML. The
+first attempt at this treated `-1` as just another (negative) slot number --
+mechanically defensible, since the parser's `position.isdecimal()` check
+rejects the sign character and was silently dropping this real, consistent
+value -- but an existing synthetic test showed that was already a *deliberate*
+prior decision (leave a special position unplaced), not an oversight, and
+the same case appears in the original `readvar.zip` fixture too. Widening the
+parse to accept "-1" would have contradicted that decision for every existing
+fixture, not just the new one.
+
+The actual issue was model shape, not parsing: a power supply is not slot
+addressed at all -- it mounts in its own position, physically separate from
+the numbered rack scheme, not merely at an unusual slot number. `Chassis`
+gained `power_supplies: list[Module]` and `add_power_supply()`, and
+`HardwareLayout` gained `power_supply_modules: tuple[str, ...] = ()`, set to
+`("powerSupply",)` only for the Schneider ATS layout, where the vendor's own
+XML already draws that distinction; the Quantum layout (no such tag observed)
+is untouched. A power supply with a resolvable identity now lands in
+`chassis.power_supplies`, fully resolved and reported neither as a numbered
+module nor as unplaced hardware; one with no identity still reports
+`unplaced_hardware`, unchanged. This does not generalize across
+manufacturers -- some mount power supplies in-chassis, some do not -- so the
+distinction stays scoped to the one vendor tag shape that actually evidences
+it. Both the M580 safety project (`BMXCPS4002S`) and the original
+`readvar.zip` (previously silently dropped into `unplaced_modules`) now
+resolve their power supply the same way. 2 targeted hardware tests
+added/updated (9 total in `test_control_expert_project.py`); full suite
+(1224 tests) passed; Ruff and Pyright passed.

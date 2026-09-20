@@ -138,6 +138,8 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
         "chassis": [{"name": rack.name, "modules": [
             {"catalog": module.catalog, "slot": module.slot}
             for module in rack.modules.values()
+        ], "power_supplies": [
+            {"catalog": module.catalog} for module in rack.power_supplies
         ]} for rack in controller.chassis.values()],
         "unplaced_modules": [{"catalog": module.catalog, "slot": module.slot}
                              for module in controller.unplaced_modules],

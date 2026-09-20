@@ -841,3 +841,33 @@ deliberately separate next step, not attempted here; it needs its own
 sign-off on what "the vendor declared a wire from A to B" is allowed to imply
 about scan timing, matching how SFC connectivity and SFC execution were also
 kept as two separate, independently-gated claims.
+
+## Power supplies are not slot-addressed hardware
+
+The M580 safety fixture's rack (see above) carries a `powerSupply` element
+(`BMXCPS4002S`) alongside its `moduleATS` children -- a vendor tag the mapping
+profile already distinguished lexically (`HardwareLayout.modules` previously
+listed both `"moduleATS"` and `"powerSupply"` together) but processed
+identically to a numbered-slot module. Its `equipInfo` carries
+`position="-1"` and a `topoAddress` ending `.(P) (P)`; `str.isdecimal()`
+rejects the leading `-`, so it fell to `unplaced_hardware`. The same shape
+was already present, unnoticed, in the original `readvar.zip` fixture.
+
+Domain input (not derivable from the XML alone): a power supply mounts in
+its own dedicated position, physically separate from a rack's numbered
+slot scheme -- it is not "a module at an unusual slot," it is a different
+kind of thing. Widening the position parser to accept negative integers
+would have mechanically "fixed" this by giving it slot `-1`, but that
+misrepresents the hardware and would have silently changed two existing
+fixtures' resolved slot layout. `Chassis.power_supplies: list[Module]`
+(populated via `add_power_supply()`, no slot involved) now holds it instead,
+fully resolved and reported as neither a numbered module nor unplaced
+hardware; `HardwareLayout.power_supply_modules` carries the tag(s), evidenced
+per layout -- `("powerSupply",)` for the Schneider ATS layout only. The
+Quantum layout has no observed power-supply tag and keeps its default `()`.
+
+This does not generalize across manufacturers or even across Schneider rack
+families: some mount power supplies in-chassis, some do not, and nothing
+here asserts a rule beyond the one vendor tag shape actually evidenced. A
+power supply with no resolvable identity still reports `unplaced_hardware`,
+unchanged from before.

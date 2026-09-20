@@ -87,7 +87,7 @@ def test_conflicting_or_duplicate_names_do_not_silently_bind():
     assert sum(n.name == "program" for n in evidence.children) == 3
 
 
-def test_hardware_layout_keeps_special_positions_and_cpu_evidence():
+def test_hardware_layout_separates_power_supply_from_the_numbered_slot_scheme():
     result = project(r'''
       <IOConf><PLC><partItem partNumber="CPU" vendorName="Vendor" version="03.00"/>
         <configATS><busATS><rackATS><partItem partNumber="RACK"/>
@@ -102,12 +102,34 @@ def test_hardware_layout_keeps_special_positions_and_cpu_evidence():
     assert controller.identity.product_name == "CPU"
     assert controller.identity.vendor is None  # No invented numeric vendor ID.
     chassis = next(iter(controller.chassis.values()))
+    # A power supply mounts separately from the numbered slot scheme -- it is
+    # neither a slotted module nor "unplaced" (that status is for hardware
+    # TwinForge could not resolve at all; this is fully resolved evidence).
     assert [m.catalog for m in chassis.modules.values()] == ["CPU", "ETH"]
-    assert controller.unplaced_modules[0].catalog == "PSU"
-    assert controller.unplaced_modules[0].slot is None
+    assert [m.catalog for m in chassis.power_supplies] == ["PSU"]
+    assert chassis.power_supplies[0].slot is None
+    assert chassis.power_supplies[0].parent is chassis
+    assert controller.unplaced_modules == []
     assert chassis.modules[1].parent is chassis
     assert chassis.parent is controller
     assert controller.identity.source_extensions[0].root.attributes["version"] == "03.00"
+
+
+def test_power_supply_missing_identity_is_still_diagnosed():
+    result = project(r'''
+      <IOConf><PLC><partItem partNumber="CPU"/>
+        <configATS><busATS><rackATS><partItem partNumber="RACK"/>
+          <equipInfo topoAddress="\0.0\0"/>
+          <moduleATS><partItem partNumber="CPU"/><equipInfo position="1"/></moduleATS>
+          <powerSupply><equipInfo position="-1"/></powerSupply>
+        </rackATS></busATS></configATS>
+      </PLC></IOConf>
+    ''')
+    controller = result.controller
+    chassis = next(iter(controller.chassis.values()))
+    assert chassis.power_supplies == []
+    assert controller.unplaced_modules[0].catalog == ""
+    assert any(d.code == "unplaced_hardware" for d in result.diagnostics)
 
 
 def test_ld_contact_binds_step_state_declared_in_a_different_sfc_section():
