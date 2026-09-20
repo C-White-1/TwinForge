@@ -447,6 +447,8 @@ def test_validates_io_mapping_review_without_ccw_source() -> None:
 
 
 def test_reconciles_io_mapping_review_against_ccw_source_and_card_library() -> None:
+    if not M10_CCW_PROJECT.exists():
+        pytest.skip("Local M10 Conveyor CCW reference is not installed")
     output = StringIO()
     errors = StringIO()
 
@@ -493,6 +495,8 @@ def test_io_mapping_review_requires_source_and_card_library_together() -> None:
 def test_rejects_io_mapping_review_referencing_unknown_physical_address(
     tmp_path: Path,
 ) -> None:
+    if not M10_CCW_PROJECT.exists():
+        pytest.skip("Local M10 Conveyor CCW reference is not installed")
     review = tmp_path / "io-mapping-review.json"
     review.write_text(
         json.dumps(
@@ -571,6 +575,8 @@ def test_rejects_malformed_ccw_source_cleanly_instead_of_crashing(
 
 
 def test_verifies_io_mapping_receipt_against_real_ccw_project(tmp_path: Path) -> None:
+    if not M10_CCW_PROJECT.exists():
+        pytest.skip("Local M10 Conveyor CCW reference is not installed")
     receipt = tmp_path / "io-mapping-validation.json"
     assert (
         main(
