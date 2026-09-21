@@ -479,12 +479,16 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         for diagram_index, diagram in enumerate(routine.graphical_diagrams)
         if diagram.source_extensions and _location(diagram.source_extensions[0]) in flagged_locations
     )
+    _EXECUTION_ORDER_MESSAGES = {
+        "ambiguous_block_order": "shared variable appears on output pins of multiple blocks",
+        "cyclic_block_dependency": "explicit links form a cycle; no valid execution order exists",
+    }
     for issue in resolve_fbd_execution_order(controller, excluded=excluded_diagrams):
         diagram = controller.programs[issue.program_name].routines[issue.routine_name].graphical_diagrams[
             issue.diagram_index]
         metadata = diagram.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
-            issue.code, f"{issue.program_name}/{issue.routine_name}: shared variable appears on output pins of multiple blocks",
+            issue.code, f"{issue.program_name}/{issue.routine_name}: {_EXECUTION_ORDER_MESSAGES[issue.code]}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     for program in controller.programs.values():

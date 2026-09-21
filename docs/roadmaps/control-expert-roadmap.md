@@ -117,12 +117,12 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Distinguish source pin direction, expression binding and EN/ENO roles
 - [x] Retain execution override hints without assuming their reference grammar
 - [x] Resolve relative order for the supported single-block FBD network case
-- [ ] Resolve multi-block FBD order from verified vendor rules; shared variables
-      alone are insufficient. `linkFB` connectivity is now resolved (above) and
-      is materially stronger evidence than the withdrawn shared-parameter-name
-      inference, but deriving *order* (does source-before-destination imply
-      same-scan execution before?) from it is a deliberately separate,
-      not-yet-attempted step -- see the explicit FBD link checkpoint below
+- [x] Resolve multi-block FBD order from verified vendor rules: a documented
+      Schneider FAQ (FA340273), generalized from its worked 2-level example to
+      a full topological sort for deeper chains (real chains up to 7 levels
+      exist in the corpus) -- see the documented dependency order checkpoint
+      below for the exact scope and what's still an extrapolation, not
+      separately vendor-confirmed
 - [x] Resolve simple declared-variable pin expressions case-insensitively
 - [x] Classify supported lexical literals, unbound pins and unresolved expressions
 - [x] Group shared-variable references without inventing graphical wires
@@ -229,7 +229,7 @@ Portable fixtures are independently authored; local-reference tests skip
 explicitly when the ignored source files are unavailable.
 
 ```powershell
-uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py tests/test_control_expert_datatypes.py tests/test_control_expert_function_blocks.py
+uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py tests/test_control_expert_datatypes.py tests/test_control_expert_function_blocks.py tests/test_execution_order.py
 ```
 
 Run Ruff and Pyright on changed modules, plus relevant model/CLI/ST regressions
@@ -602,3 +602,54 @@ object/pin detail, including `target_parameter`, matching what
 parameter/local-tag collision case, plus 4 end-to-end); full suite (1249
 tests) passed; Ruff and Pyright passed, including a full repo-wide Pyright
 re-check since this touched the shared `GraphicalPin` model.
+
+Documented dependency order checkpoint (2026-09-21): multi-block FBD order
+now resolves from a real Schneider FAQ (FA340273), already cited in the
+schema's `execution_rule_source` but never previously used to resolve
+anything. The FAQ's own words: FFBs with no other FFB as input execute
+first, top to bottom; FFBs that do have one execute after, also top to
+bottom -- dependency overrides position when they conflict (its own example:
+"FFB 13 will be executed before the 11 that is above"). That is a two-level
+example. Real corpus dependency chains run up to 7 levels deep (28 diagrams
+with dependencies, all acyclic) -- deep enough that the literal two-bucket
+reading breaks down, since every block past the first level lands in the
+same "has input" bucket, ordered only by position. A full topological sort
+(Kahn's algorithm, releasing each wave of position-sorted, now-satisfied
+blocks) is the mathematically necessary generalization, and collapses to
+exactly the documented rule for the 2-level case -- but going from one
+documented level to N is still an extrapolation this pass is explicit about,
+not a separately vendor-confirmed rule; recorded as
+`execution_order_basis = "documented_dependency_order"`, a distinct label
+from `"single_block_network"`.
+
+The dependency graph is built only from resolved `linkFB` connections --
+never from `shared_variables`, which this project already proved once are
+not reliably wires (the withdrawn `shared_variable_dataflow` basis). Any
+shared-variable output/input pair *not* also backed by a resolved link
+disqualifies the whole diagram from resolution; this is not theoretical --
+3 real diagrams in the corpus (`IO_READVAR`, `PC_T_GEN`, `P_MUX3`, all DFB
+bodies, out of this pass's scope anyway) have exactly this shape. An
+unresolved link, a cycle, or any block missing a grid position also
+disqualifies resolution outright (a new `cyclic_block_dependency` diagnostic
+covers the cycle case; none occurred in the real corpus).
+
+A real finding changed scope mid-implementation: the pre-existing
+unresolved-pin gate (skip the whole diagram if any pin anywhere has an
+unresolved symbol) made the new sort resolve zero real diagrams, since every
+one of the 22 real FBD networks has at least one such pin somewhere. That
+gate predates real resolution and has no bearing on link trustworthiness --
+an unrelated pin failing to resolve to a *symbol* says nothing about whether
+an explicit block-to-block wire is real. Loosened it for order resolution
+specifically, keeping it in front of the separate `ambiguous_block_order`
+shared-variable check where it remains relevant. This pass is scoped to
+`controller.programs` only, matching the function's existing structure;
+DFB-body FBD diagrams (10 real ones) are not yet included -- a natural,
+low-risk follow-up, not attempted here to keep this pass's diff reviewable.
+
+All 22 real FBD diagrams (up to 80 blocks each) now resolve; every resolved
+order was checked to respect every real link dependency exactly. 22 targeted
+tests passed (11 new: two-level and deep-chain resolution, position tie-break,
+dependency-overrides-position, cycle detection, unresolved-link and
+unlinked-shared-variable disqualification, the loosened-gate regression case,
+plus the full real fixture); full suite (1259 tests) passed; Ruff and
+Pyright passed, including a full repo-wide Pyright re-check.

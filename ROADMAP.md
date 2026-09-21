@@ -144,8 +144,11 @@ Delivery status and acceptance criteria are maintained in the
   Add-On Instruction model, including call validation at instantiation sites
 - [x] Bind pins/symbols inside a DFB body against its own isolated
   parameter/local namespace, never the project's global tags (encapsulation)
-- [ ] Resolve multi-block FBD execution order and Ladder branch/vertical-wire
-  routing (next; blocked on further evidence for the branch case)
+- [x] Resolve multi-block FBD execution order via a documented vendor rule
+  (Schneider FAQ FA340273), generalized to a full topological sort for
+  dependency chains deeper than its own worked example (verified up to 7
+  levels against the real corpus)
+- [ ] Resolve Ladder branch/vertical-wire routing (blocked on further evidence)
 - [ ] Capture device DDT definitions (a distinct mechanism from `DDTSource`)
 - [ ] Validate against Schneider schemas, then native import/build and runtime evidence
 

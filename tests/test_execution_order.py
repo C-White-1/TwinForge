@@ -1,18 +1,37 @@
+from pathlib import Path
+
+import pytest
+
 from twinforge.analysis.execution_order import resolve_fbd_execution_order
 from twinforge.model import (
-    Controller, GraphicalDiagram, GraphicalObject, GraphicalPin,
-    GraphicalVariableReferences, Identity, Program, Routine,
+    Controller, GraphicalDiagram, GraphicalLink, GraphicalLinkEndpoint, GraphicalObject, GraphicalPin,
+    GraphicalVariableReferences, Identity, LadderPosition, Program, Routine,
 )
+from twinforge.parsers.control_expert import capture_file, parse_projects
 
 
-def _diagram(language="FBD", *, objects, shared_variables=()):
+def _diagram(language="FBD", *, objects, shared_variables=(), links=()):
     diagram = GraphicalDiagram(language=language, objects=list(objects))
     diagram.shared_variables.extend(shared_variables)
+    diagram.links.extend(links)
     return diagram
 
 
 def _pin(name, direction, *, binding_kind="declared_symbol"):
     return GraphicalPin(name=name, direction=direction, binding_kind=binding_kind)
+
+
+def _link(source_index, destination_index, *, resolved=True):
+    return GraphicalLink(
+        source=GraphicalLinkEndpoint(status="resolved" if resolved else "missing_pin", object_index=source_index),
+        destination=GraphicalLinkEndpoint(status="resolved", object_index=destination_index),
+    )
+
+
+def _block(row, column, **kwargs):
+    obj = GraphicalObject(kind="block", **kwargs)
+    obj.position = LadderPosition(column=column, row=row)
+    return obj
 
 
 def _controller_with(diagram):
@@ -182,3 +201,130 @@ def test_project_inspection_keeps_shared_chain_order_unresolved(tmp_path):
     assert diagram["execution_order_resolved"] is False
     assert diagram["execution_order_basis"] is None
     assert sum(d["code"] == "unresolved_block_order" for d in project["diagnostics"]) == 1
+
+
+def test_explicit_link_resolves_a_two_level_chain_matching_the_documented_rule():
+    # No-input block first, then the block that depends on it -- the FAQ's
+    # own worked example shape.
+    a = _block(0, 0, type_name="A", pins=[_pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[_pin("IN", "input")])
+    diagram = _diagram(objects=[a, b], links=[_link(0, 1)])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order_resolved
+    assert diagram.execution_order == [0, 1]
+    assert diagram.execution_order_basis == "documented_dependency_order"
+
+
+def test_dependency_overrides_position_even_when_positioned_above():
+    # Mirrors the FAQ's own example: "FFB 13 will be executed before the 11
+    # that is above" -- a block positioned higher still executes after
+    # something it depends on.
+    below = _block(10, 0, type_name="SOURCE", pins=[_pin("OUT", "output")])
+    above = _block(0, 0, type_name="DEPENDENT", pins=[_pin("IN", "input")])
+    diagram = _diagram(objects=[above, below], links=[_link(1, 0)])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order == [1, 0]  # "below" (source) first, despite its row.
+
+
+def test_independent_blocks_execute_in_position_order():
+    first = _block(0, 0, type_name="A")
+    second = _block(5, 0, type_name="B")
+    third = _block(2, 0, type_name="C")
+    diagram = _diagram(objects=[first, second, third])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order_resolved
+    assert diagram.execution_order == [0, 2, 1]  # Row order: first(0), third(2), second(5).
+
+
+def test_deep_chain_resolves_via_full_topological_sort():
+    # A -> B -> C -> D -> E, five levels: proves this is a genuine multilevel
+    # topological sort, not just the FAQ's literal two-bucket wording.
+    blocks = [_block(i, 0, type_name=name, pins=[_pin("IN", "input"), _pin("OUT", "output")])
+              for i, name in enumerate("ABCDE")]
+    links = [_link(i, i + 1) for i in range(4)]
+    diagram = _diagram(objects=blocks, links=links)
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order_resolved
+    assert diagram.execution_order == [0, 1, 2, 3, 4]
+    assert diagram.execution_order_basis == "documented_dependency_order"
+
+
+def test_link_cycle_is_diagnosed_not_guessed():
+    a = _block(0, 0, type_name="A", pins=[_pin("IN", "input"), _pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[_pin("IN", "input"), _pin("OUT", "output")])
+    diagram = _diagram(objects=[a, b], links=[_link(0, 1), _link(1, 0)])
+    issues = resolve_fbd_execution_order(_controller_with(diagram))
+    assert [i.code for i in issues] == ["cyclic_block_dependency"]
+    assert not diagram.execution_order_resolved
+    assert diagram.execution_order == []
+
+
+def test_unresolved_link_disqualifies_the_whole_diagram():
+    a = _block(0, 0, type_name="A", pins=[_pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[_pin("IN", "input")])
+    diagram = _diagram(objects=[a, b], links=[_link(0, 1, resolved=False)])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert not diagram.execution_order_resolved
+
+
+def test_unrelated_unresolved_pin_no_longer_blocks_link_based_order():
+    # An unresolved *symbol* on an unrelated pin says nothing about whether
+    # an explicit block-to-block wire is trustworthy.
+    a = _block(0, 0, type_name="A", pins=[_pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[
+        _pin("IN", "input"), _pin("X", "input", binding_kind="missing_symbol"),
+    ])
+    diagram = _diagram(objects=[a, b], links=[_link(0, 1)])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert diagram.execution_order_resolved
+    assert diagram.execution_order == [0, 1]
+
+
+def test_shared_variable_without_a_matching_link_still_blocks_resolution():
+    # Even with the unresolved-pin gate loosened, unlinked shared-variable
+    # dataflow (the withdrawn shared_variable_dataflow pattern) must still
+    # disqualify resolution -- proven real in the M580 safety corpus.
+    a = _block(0, 0, type_name="A", pins=[_pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[_pin("IN", "input")])
+    diagram = _diagram(objects=[a, b], shared_variables=[
+        GraphicalVariableReferences("x", input_pins=[(1, 0)], output_pins=[(0, 0)]),
+    ])
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert not diagram.execution_order_resolved
+
+
+def test_ambiguous_block_order_still_checked_when_pins_are_otherwise_clean():
+    a = _block(0, 0, type_name="A", pins=[_pin("OUT", "output")])
+    b = _block(1, 0, type_name="B", pins=[_pin("OUT", "output")])
+    c = _block(2, 0, type_name="C", pins=[_pin("IN", "input")])
+    diagram = _diagram(objects=[a, b, c], shared_variables=[
+        GraphicalVariableReferences("shared", input_pins=[(2, 0)], output_pins=[(0, 0), (1, 0)]),
+    ])
+    issues = resolve_fbd_execution_order(_controller_with(diagram))
+    assert [i.code for i in issues] == ["ambiguous_block_order"]
+    assert not diagram.execution_order_resolved
+
+
+@pytest.mark.parametrize("filename", ["estradege_m580-safety.xef"])
+def test_optional_real_m580_safety_execution_order(filename):
+    path = Path(__file__).resolve().parents[1] / "reference" / "control-expert" / filename
+    if not path.exists():
+        pytest.skip("Local M580 safety reference unavailable")
+    result, = parse_projects(capture_file(path))
+    controller = result.controller
+    fbd_diagrams = [d for program in controller.programs.values() for routine in program.routines.values()
+                     for d in routine.graphical_diagrams if d.language == "FBD"]
+    assert len(fbd_diagrams) == 22
+    assert all(d.execution_order_resolved for d in fbd_diagrams)
+    assert all(d.execution_order_basis == "documented_dependency_order" for d in fbd_diagrams)
+    for d in fbd_diagrams:
+        blocks = {i for i, obj in enumerate(d.objects) if obj.kind == "block"}
+        assert set(d.execution_order) == blocks  # Every block placed exactly once.
+        rank = {block: position for position, block in enumerate(d.execution_order)}
+        for link in d.links:
+            if link.source.status == "resolved" and link.destination.status == "resolved":
+                source, destination = link.source.object_index, link.destination.object_index
+                if source in blocks and destination in blocks:
+                    assert rank[source] < rank[destination]
+    assert not any(d.code in {"ambiguous_block_order", "cyclic_block_dependency", "unresolved_block_order"}
+                   for d in result.diagnostics)

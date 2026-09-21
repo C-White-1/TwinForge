@@ -1075,3 +1075,57 @@ per-diagram object/pin serialization (previously inline, only reachable from
 function, so `function_blocks[].body[].diagrams` now carries the same full
 detail -- including `target_parameter` -- instead of the summary-only shape
 it briefly had.
+
+## Multi-block FBD execution order: a documented vendor rule, generalized
+
+`schema/control_expert/graphical.py`'s `execution_rule_source` has cited
+[Schneider FAQ FA340273](https://www.se.com/us/en/faqs/FA340273/) since the
+single-block case was implemented, but nothing consumed it until now. Its
+own words: FFBs with no other FFB as input execute first, top to bottom by
+grid position; FFBs that do have one execute after, also top to bottom --
+dependency overrides position when the two conflict, demonstrated by the
+FAQ's own example, "FFB 13 will be executed before the 11 that is above."
+That example is exactly two levels deep.
+
+Real corpus evidence: 28 real diagrams (across both top-level programs and
+DFB bodies) have at least one `linkFB`-evidenced dependency; the deepest
+chain runs 7 levels (`Sim_W505`, 80 blocks), and none are cyclic. At that
+depth the FAQ's literal two-bucket wording is insufficient -- every block
+past the first level shares the same "has input" bucket, ordered only by
+position, which would misorder a block that depends on another block also
+in that bucket if position happened to place them the wrong way round. A
+full topological sort -- Kahn's algorithm, releasing each wave of
+position-sorted blocks whose dependencies are now satisfied -- is the
+mathematically necessary generalization, and it collapses to exactly the
+documented rule for a 2-level graph. Implemented as
+`execution_order_basis = "documented_dependency_order"`, distinct from
+`"single_block_network"`, and explicit in its own module docstring that the
+N-level case is a generalization, not a separately vendor-confirmed rule --
+the same honesty this project already applied once to the FBD block-order
+question, when the shared-variable-name inference was withdrawn for
+resting on less than it claimed.
+
+The dependency graph is built only from resolved `linkFB` connections.
+Deliberately excluded from evidence: `shared_variables` groups, which this
+project already proved are not reliably wires. A group's output pin and
+input pin on two different blocks, *not* also covered by a resolved link,
+disqualifies the whole diagram -- checked directly against the corpus, not
+theoretically: `IO_READVAR`, `PC_T_GEN` and `P_MUX3` (all DFB bodies) have
+exactly this shape. An unresolved link, a dependency cycle (new diagnostic
+`cyclic_block_dependency`; none observed), or any block lacking a grid
+position also disqualifies resolution, never guessed past.
+
+One further finding changed the implementation mid-pass: the pre-existing
+gate that skipped a whole diagram whenever any pin anywhere had an
+unresolved symbol binding made the new sort resolve zero of the 22 real FBD
+diagrams -- every one has at least one such pin somewhere in a large enough
+network. That gate predates real order resolution and has no bearing on
+whether an explicit `linkFB` wire is trustworthy; loosened for order
+resolution specifically (kept in front of the separate `ambiguous_block_order`
+shared-variable-write check, where a clean-pins diagram is still the
+relevant precondition). All 22 real FBD diagrams now resolve; every
+resolved order was checked programmatically to respect every real link
+dependency. This pass covers `controller.programs` only, matching the
+function's pre-existing structure -- DFB-body FBD diagrams (10 real ones,
+independent of the 3 disqualified-by-shared-variables above) are not yet
+included, a natural follow-up rather than a gap discovered late.
