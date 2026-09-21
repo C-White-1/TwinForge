@@ -246,6 +246,9 @@ def _function_blocks(
             if len(sources) == 1:
                 source, language = sources[0]
                 routine = Routine(name=name, language=language, source_extensions=[_extension(source)])
+                conditions = _section_conditions(result, program, spec, None, name)
+                if conditions:
+                    routine.metadata["section_conditions"] = conditions
                 if language == "ST":
                     routine.structured_text_lines = [
                         StructuredTextLine(number=index + 1, text=line)
@@ -273,6 +276,45 @@ def _function_blocks(
         else:
             result.report("unresolved_function_block_body", f"{name}: no supported implementation body found", node)
         result.controller.add_add_on_instruction(aoi)
+
+
+def _section_conditions(
+    result: ParsedProject, ref: CapturedSection, spec: MappingSpec,
+    global_names: dict[str, int] | None, label: str,
+) -> dict[str, dict[str, str]]:
+    """Lexical section activation/logic condition evidence; never evaluated.
+
+    Kept apart from task scheduling and block enable behaviour. The activation
+    text is classified only by shape and global-name identity: neither its
+    truth value nor the meaning of a logic-condition keyword is interpreted.
+    ``global_names`` is None for a Function Block body, whose identifiers belong
+    to that block's own namespace and are not resolved against project tags.
+    """
+    attrs = ref.raw_attributes
+    conditions: dict[str, dict[str, str]] = {}
+    activation = attrs.get(spec.section_activation_attribute)
+    if activation is not None:
+        text = activation.strip()
+        count = 0 if global_names is None else global_names.get(text.casefold(), 0)
+        if re.fullmatch(EXPRESSION_SPEC.direct_address, text):
+            binding = "direct_address"
+        elif not re.fullmatch(EXPRESSION_SPEC.identifier, text):
+            binding = "unresolved_expression"
+        elif global_names is None:
+            binding = "function_block_scope_unresolved"
+        elif count == 1:
+            binding = "declared_symbol"
+        else:
+            binding = "ambiguous_symbol" if count > 1 else "missing_symbol"
+        conditions["activation"] = {"text": activation, "binding_kind": binding}
+        if binding not in {"declared_symbol", "direct_address"}:
+            result.report(
+                "unresolved_section_activation_condition",
+                f"{label}: activation condition {activation!r}: {binding}", ref)
+    logic = attrs.get(spec.section_logic_attribute)
+    if logic is not None:
+        conditions["logic"] = {"text": logic}
+    return conditions
 
 
 def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
@@ -333,6 +375,10 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
     used = set()
     programs = {name.casefold(): program for name, program in result.controller.programs.items()}
     scheduled: set[str] = set()
+    global_names: dict[str, int] = {}
+    for variable in _select(root, spec.variables):
+        key = variable.raw_attributes.get("name", "").casefold()
+        global_names[key] = global_names.get(key, 0) + 1
     for node in task_nodes:
         attrs = node.raw_attributes
         name = _unique_name(result, node, attrs.get("task"), used, "task")
@@ -356,14 +402,19 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
                 result.report("unresolved_section_reference", f"{name}: missing, ambiguous or conflicting section {target!r}", ref)
                 continue
             task.scheduled_programs.append(programs[key])
+            conditions = _section_conditions(
+                result, ref, spec, global_names, f"{name}/{target}")
             for routine in programs[key].routines.values():
-                routine.metadata.setdefault("task_schedule", []).append({
+                entry = {
                     "task_name": name,
                     "task_type": task.task_type,
                     "section_index": section_index,
                     "eligibility": "each_active_task_cycle" if task.task_type == "cyclic" else "task_dependent",
                     "execution_conditions": "not_evaluated",
-                })
+                }
+                if conditions:
+                    entry["section_conditions"] = conditions
+                routine.metadata.setdefault("task_schedule", []).append(entry)
             scheduled.add(key)
         result.controller.add_task(task)
     for key, (_, node) in identities.items():

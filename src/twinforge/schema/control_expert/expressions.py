@@ -9,6 +9,8 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class ExpressionSpec:
     identifier: str = r"[A-Za-z_][A-Za-z_0-9]*"
+    # Lexical shape of a direct/system address such as "%S13" or "%MW200".
+    direct_address: str = r"%[A-Za-z]+[0-9]+(?:\.[0-9]+)?"
     literals: tuple[str, ...] = (
         r"TRUE|FALSE",
         r"[+-]?[0-9]+",

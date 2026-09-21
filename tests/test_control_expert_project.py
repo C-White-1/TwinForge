@@ -212,3 +212,78 @@ def test_local_sample_mappings_when_available():
     # The two independently exported projects in this ZIP must stay separate.
     differing = parse_projects(capture_file(folder / "cwrite_reg.zip"))
     assert sorted(len(p.controller.tags) for p in differing) == [11, 13]
+
+
+def _section_conditions(body: str, variables: str = ""):
+    result = project(f'''{variables}
+      <logicConf><resource><taskDesc task="MAST" taskType="cyclic" maxExecTime="250">
+        {body}
+      </taskDesc></resource></logicConf>
+      <program><identProgram name="s" task="MAST"/><STSource>x := 1;</STSource></program>''')
+    routine = result.controller.programs["s"].main_routine
+    assert routine is not None
+    return routine.metadata["task_schedule"][0], result
+
+
+def test_section_conditions_are_lexical_evidence_not_evaluated():
+    entry, result = _section_conditions(
+        '<sectionDesc name="s" activationCondition="sim" logicCondition="standard"/>',
+        '<dataBlock><variables name="SIM" typeName="BOOL"/></dataBlock>')
+    assert entry["section_conditions"] == {
+        "activation": {"text": "sim", "binding_kind": "declared_symbol"},
+        "logic": {"text": "standard"},
+    }
+    assert entry["execution_conditions"] == "not_evaluated"
+    assert not any(d.code == "unresolved_section_activation_condition" for d in result.diagnostics)
+
+
+def test_section_activation_direct_address_is_shape_only():
+    entry, result = _section_conditions('<sectionDesc name="s" activationCondition="%S13"/>')
+    assert entry["section_conditions"]["activation"]["binding_kind"] == "direct_address"
+    assert not any(d.code == "unresolved_section_activation_condition" for d in result.diagnostics)
+
+
+@pytest.mark.parametrize(("text", "variables", "kind"), [
+    ("ghost", "", "missing_symbol"),
+    ("dup", '<dataBlock><variables name="dup" typeName="BOOL"/><variables name="DUP" typeName="BOOL"/></dataBlock>',
+     "ambiguous_symbol"),
+    ("a AND b", "", "unresolved_expression"),
+])
+def test_unresolvable_section_activation_is_diagnosed(text, variables, kind):
+    entry, result = _section_conditions(f'<sectionDesc name="s" activationCondition="{text}"/>', variables)
+    assert entry["section_conditions"]["activation"] == {"text": text, "binding_kind": kind}
+    assert any(d.code == "unresolved_section_activation_condition" and kind in d.message
+               for d in result.diagnostics)
+
+
+def test_real_safety_project_section_conditions_when_available():
+    path = Path("reference/control-expert/estradege_m580-safety.xef")
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    result = parse_project(capture_file(path))
+    found = {}
+    for program in result.controller.programs.values():
+        for routine in program.routines.values():
+            for entry in routine.metadata.get("task_schedule", []):
+                if "section_conditions" in entry:
+                    found[program.name] = entry["section_conditions"]
+    activation = {k: v["activation"] for k, v in found.items()}
+    # "SIM" exists in this export only as Function Block input parameters, never
+    # as a global variable, so it must not bind: the section condition is
+    # evidence, and an unresolvable one is diagnosed rather than guessed.
+    assert activation["Sim_FBD"] == activation["Sim_ST"] == {"text": "SIM", "binding_kind": "missing_symbol"}
+    unresolved = [d for d in result.diagnostics if d.code == "unresolved_section_activation_condition"]
+    assert len(unresolved) == 2
+
+
+def test_function_block_body_condition_never_binds_to_project_tags():
+    result = project('''<dataBlock><variables name="run" typeName="BOOL"/></dataBlock>
+      <FBSource nameOfFBType="FB1"><FBProgram name="INIT" activationCondition="%S13" logicCondition="standard">
+        <STSource>x := 1;</STSource></FBProgram></FBSource>
+      <FBSource nameOfFBType="FB2"><FBProgram name="MAIN" activationCondition="run">
+        <STSource>x := 1;</STSource></FBProgram></FBSource>''')
+    fb1, fb2 = (result.controller.add_on_instructions[n].routines for n in ("FB1", "FB2"))
+    assert fb1["FB1"].metadata["section_conditions"] == {
+        "activation": {"text": "%S13", "binding_kind": "direct_address"}, "logic": {"text": "standard"}}
+    # A same-named global is a different namespace from the block's own.
+    assert fb2["FB2"].metadata["section_conditions"]["activation"]["binding_kind"] ==         "function_block_scope_unresolved"

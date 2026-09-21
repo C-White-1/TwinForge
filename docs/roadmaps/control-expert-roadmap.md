@@ -154,6 +154,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [ ] Resolve multi-block/network order under documented link and override rules
   (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
+      (partial: section `activationCondition`/`logicCondition` captured as
+      lexical evidence -- see the section condition checkpoint below; nothing
+      is evaluated, and enable behavior and jumps remain open)
 - [ ] Produce executable neutral graph/IR only for a verified semantic subset
 - [x] `FBSource`/`FBProgram` (user-defined Function Block definitions): interface,
       locals and body captured into the existing `AddOnInstruction` model, and
@@ -735,3 +738,27 @@ new targeted tests passed (4 synthetic shapes, 1 malformed-shape
 diagnostic, 1 real-fixture assertion covering both zip archives); full
 suite (1266 tests) passed; Ruff and Pyright passed, including a full
 repo-wide Pyright re-check.
+
+Section condition checkpoint (2026-09-22): the corpus contains real
+`activationCondition`/`logicCondition` attributes -- previously unmodelled --
+on `sectionDesc` (`Sim_FBD`, `Sim_ST`: `activationCondition="SIM"`,
+`logicCondition="standard"`) and on an `FBProgram` (`IO_AI_EX/INIT`:
+`activationCondition="%S13"`), all in `estradege_m580-safety.xef`. They are now
+recorded in the routine's `task_schedule` entry (`section_conditions`, present
+only when declared) and in a Function Block body routine's
+`metadata["section_conditions"]`, kept separate from task scheduling; the
+existing `execution_conditions: "not_evaluated"` marker is unchanged. The
+activation text is classified by shape only: `direct_address` (`%S13`; the
+address is not interpreted), `declared_symbol` (exactly one global variable),
+`missing_symbol`, `ambiguous_symbol`, `unresolved_expression`, or -- inside a
+Function Block body, which has its own namespace -- `function_block_scope_unresolved`.
+Anything not `declared_symbol`/`direct_address` raises
+`unresolved_section_activation_condition`. The `logicCondition` keyword is
+retained verbatim with no meaning assigned. Real finding: `SIM` is declared in
+that export only as Function Block input parameters, never as a global
+variable, so both section conditions correctly stay `missing_symbol` rather than
+binding to a same-named parameter. Also observed and left alone: `IO_AI_EX` has
+two `FBProgram` sections (`INIT`, `MAIN`), which existing capture diagnoses as
+`ambiguous_function_block_body`, so its `%S13` condition is not reachable yet.
+5 new targeted tests passed (synthetic cases plus the real fixture); full suite
+(1273 tests) passed; Ruff and Pyright passed.

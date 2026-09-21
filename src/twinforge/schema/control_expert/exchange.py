@@ -53,7 +53,7 @@ _EXCHANGE_SPEC = element(
     element("logicConf", "", element(
         "resource", "resName resIdent",
         element("taskDesc", "task taskType valueType maxExecTime",
-                element("sectionDesc", "name")),
+                element("sectionDesc", "name activationCondition logicCondition")),
         element("FMDesc", "name FMId"),
     )),
     element("program", "", element("identProgram", "name type task"),

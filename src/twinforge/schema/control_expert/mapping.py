@@ -52,6 +52,8 @@ class MappingSpec:
     additional_sections: tuple[PathSpec, ...] = (("SFCProgram",),)
     section_identity: PathSpec = ("identProgram",)
     task_sections: PathSpec = ("sectionDesc",)
+    section_activation_attribute: str = "activationCondition"
+    section_logic_attribute: str = "logicCondition"
     comments: PathSpec = ("comment",)
     initializers: PathSpec = ("variableInit",)
     datatypes: PathSpec = ("DDTSource",)
