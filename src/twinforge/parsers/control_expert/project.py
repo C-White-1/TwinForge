@@ -11,7 +11,9 @@ from twinforge.model import (
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 from twinforge.analysis.execution_order import resolve_fbd_execution_order
-from twinforge.analysis.graphical_bindings import resolve_function_block_bindings, resolve_graphical_bindings
+from twinforge.analysis.graphical_bindings import (
+    member_path_context, resolve_function_block_bindings, resolve_graphical_bindings,
+)
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
 from twinforge.analysis.sfc_connectivity import resolve_sfc_connectivity
@@ -541,8 +543,9 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         for routine in program.routines.values():
             for chart in routine.sequential_charts:
                 _collect_steps(chart.elements)
+    member_paths = member_path_context(controller, result.library_interfaces, spec.array_pattern)
     issues = resolve_graphical_bindings(
-        controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, member_paths=member_paths,
         literal_patterns=EXPRESSION_SPEC.literals,
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
         step_names=step_names,
@@ -550,6 +553,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     )
     issues.extend(resolve_function_block_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        member_paths=member_paths,
     ))
     for issue in issues:
         routines = (controller.add_on_instructions[issue.program_name].routines

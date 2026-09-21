@@ -10,6 +10,18 @@ if TYPE_CHECKING:
     from .tag import Tag
 
 
+@dataclass(frozen=True)
+class MemberPath:
+    """An index/member/bit-select expression whose every step was proven by a type definition."""
+
+    base: str
+    # Lexical steps in source order, e.g. (".STAT", "[2]", ".5"); indexes are literal and in bounds.
+    steps: tuple[str, ...]
+    # Proven type of the final element (the element type if still an array).
+    type_name: str | None
+    is_array: bool = False
+
+
 @dataclass
 class GraphicalPin:
     name: str | None = None
@@ -31,6 +43,9 @@ class GraphicalPin:
     # from expression/target_tag above (which come from an explicit source
     # attribute, never grid geometry). None means not resolved this way.
     ladder_condition: "LadderSeries | None" = field(default=None, repr=False)
+    # Set for binding_kind "declared_member_path"; target_tag/target_parameter
+    # then name the *base* symbol only, never the member.
+    member_path: "MemberPath | None" = None
 
 
 @dataclass
@@ -84,6 +99,7 @@ class GraphicalObject:
     target_tag: "Tag | None" = field(default=None, repr=False)
     # Canonical declared SFC step name for a "<step>.X"/".x" contact operand.
     target_step_name: str | None = None
+    operand_member_path: "MemberPath | None" = None
 
 
 @dataclass

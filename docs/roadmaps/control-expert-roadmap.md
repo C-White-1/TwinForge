@@ -130,6 +130,8 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
+      (partial: proven paths resolve -- see the member path checkpoint below;
+      the M580 safety project's resource-level variables are still not captured)
 - [x] Interpret explicit FBD links/connectors with endpoint diagnostics
       (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
       position; see the explicit FBD link checkpoint below -- this is
@@ -800,3 +802,31 @@ unchanged. The real-fixture expectations moved accordingly (66 ST bodies, 7
 encrypted, 0 ambiguous, previously 65/8/1). 3 new synthetic tests plus the
 updated real-fixture assertions; full suite (1282 tests) passed; Ruff and
 Pyright passed.
+
+Member path checkpoint (2026-09-22): pin and contact/coil expressions shaped as
+index, member or bit-select paths (`T1.STAT.6`, `GEST[1].0`, `OBJ2.OUT1`) were
+all `unresolved_expression`. `analysis/member_paths.py` now resolves a path
+only when every step is proven: the base is a unique declared symbol; each
+`.name` is a unique member of its DDT, of a user Function Block's declared
+parameters, or of a library interface's parameters (Function Block local
+variables are never reached, since their public/private split is not
+captured); each `[n]` is an integer literal within the declared bounds (a
+non-zero lower bound is honoured, never zero-based); each `.n` is a bit of a
+fixed-width integer type (BYTE/WORD/DWORD/INT/UINT/DINT/UDINT, bit < width --
+the form is corpus-evidenced, e.g. `_fault.0`, not vendor-quoted). Resolved
+pins get `binding_kind = "declared_member_path"` and a `MemberPath` (declared
+spelling of each step, proven final type); `target_tag`/`target_parameter`
+name the base symbol only. Such pins deliberately do not join
+`shared_variables` groups, so they neither create nor hide dependencies. A
+literal index or bit outside the declared range is
+`member_path_out_of_bounds` with a `*_member_path_out_of_bounds` diagnostic;
+a non-literal index, multi-dimensional array, unknown member or unproven base
+stays `unresolved_expression`, unchanged. Real corpus: 30 expressions resolve
+(29 in the M580 safety project, 1 in the M340 project), none out of bounds.
+That is only about a tenth of the ~420 index/member expressions: the rest
+share one cause -- the M580 safety project keeps its 731 variables at the
+`resource` level (15 inputs, 15 outputs, 701 private locals), which capture
+does not read (its `dataBlock` is empty), so their bases have no declaration.
+Whether resource-level variables form the project's variable namespace is a
+scope decision, left open. Full suite (1304 tests) passed; Ruff and Pyright
+passed.

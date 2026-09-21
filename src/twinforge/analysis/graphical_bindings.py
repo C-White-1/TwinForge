@@ -4,7 +4,51 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
+from twinforge.analysis.member_paths import MemberPathResult, resolve_member_path
 from twinforge.model import AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalVariableReferences, Tag
+from twinforge.model.datatype import Datatype
+from twinforge.model.library_interface import LibraryInterface
+
+
+@dataclass(frozen=True)
+class MemberPathContext:
+    """Type definitions an index/member/bit-select expression may be proven against."""
+
+    array_pattern: str
+    datatypes: dict[str, Datatype]
+    function_blocks: dict[str, dict[str, AddOnInstructionParameter]]
+    library_interfaces: dict[str, LibraryInterface]
+
+
+def member_path_context(
+    controller: Controller, library_interfaces: list[LibraryInterface], array_pattern: str,
+) -> MemberPathContext:
+    return MemberPathContext(
+        array_pattern,
+        {datatype.name.casefold(): datatype for datatype in controller.datatypes.values()},
+        # Only externally visible parameters: local variables' public/private
+        # split is not captured, so no local is proven reachable from outside.
+        {aoi.name.casefold(): {p.name.casefold(): p for p in aoi.parameters.values()}
+         for aoi in controller.add_on_instructions.values()},
+        {i.name.casefold(): i for i in library_interfaces if i.name},
+    )
+
+
+def _member_path(
+    expression: str, symbols: dict[str, Tag | AddOnInstructionParameter], ambiguous: set[str],
+    identifier_pattern: str, context: MemberPathContext | None,
+) -> tuple[MemberPathResult, Tag | AddOnInstructionParameter | None] | None:
+    if context is None:
+        return None
+    base = re.match(identifier_pattern, expression)
+    key = base.group(0).casefold() if base else ""
+    symbol = None if key in ambiguous else symbols.get(key)
+    result = resolve_member_path(
+        expression, symbol, identifier=identifier_pattern, array_pattern=context.array_pattern,
+        datatypes=context.datatypes, function_blocks=context.function_blocks,
+        library_interfaces=context.library_interfaces,
+    )
+    return result, symbol
 
 
 @dataclass(frozen=True)
@@ -26,6 +70,7 @@ def _resolve_diagrams(
     symbols: dict[str, Tag | AddOnInstructionParameter], ambiguous: set[str],
     steps: dict[str, str], step_ambiguous: set[str],
     identifier_pattern: str, step_state_pattern: re.Pattern[str], literal_patterns: tuple[str, ...],
+    member_paths: MemberPathContext | None = None,
 ) -> list[GraphicalBindingIssue]:
     issues: list[GraphicalBindingIssue] = []
     for diagram_index, diagram in enumerate(diagrams):
@@ -36,6 +81,7 @@ def _resolve_diagrams(
                 obj.operand_binding_kind = None
                 obj.target_tag = None
                 obj.target_step_name = None
+                obj.operand_member_path = None
                 expression = obj.operand.strip() if obj.operand is not None else ""
                 problem = None
                 # A coil cannot legitimately target a step's active-state
@@ -69,6 +115,16 @@ def _resolve_diagrams(
                 else:
                     obj.operand_binding_kind = "unresolved_expression"
                     problem = f"unresolved_{obj.kind}_expression"
+                    proven = _member_path(expression, symbols, ambiguous, identifier_pattern, member_paths)
+                    if proven is not None and proven[0].status == "resolved":
+                        obj.operand_binding_kind = "declared_member_path"
+                        obj.operand_member_path = proven[0].path
+                        if isinstance(proven[1], Tag):
+                            obj.target_tag = proven[1]
+                        problem = None
+                    elif proven is not None and proven[0].status == "index_out_of_bounds":
+                        obj.operand_binding_kind = "member_path_out_of_bounds"
+                        problem = f"{obj.kind}_member_path_out_of_bounds"
                 if problem:
                     issues.append(GraphicalBindingIssue(
                         container_name, routine_name, diagram_index, object_index,
@@ -77,6 +133,7 @@ def _resolve_diagrams(
             for pin_index, pin in enumerate(obj.pins):
                 pin.target_tag = None
                 pin.target_parameter = None
+                pin.member_path = None
                 expression = pin.expression.strip() if pin.expression is not None else ""
                 problem = None
                 if pin.expression is None:
@@ -110,6 +167,20 @@ def _resolve_diagrams(
                 else:
                     pin.binding_kind = "unresolved_expression"
                     problem = "unresolved_pin_expression"
+                    proven = _member_path(expression, symbols, ambiguous, identifier_pattern, member_paths)
+                    if proven is not None and proven[0].status == "resolved":
+                        # target_tag/target_parameter name the base symbol only. The
+                        # pin is deliberately not added to shared-variable groups.
+                        pin.binding_kind = "declared_member_path"
+                        pin.member_path = proven[0].path
+                        if isinstance(proven[1], Tag):
+                            pin.target_tag = proven[1]
+                        else:
+                            pin.target_parameter = proven[1]
+                        problem = None
+                    elif proven is not None and proven[0].status == "index_out_of_bounds":
+                        pin.binding_kind = "member_path_out_of_bounds"
+                        problem = "pin_member_path_out_of_bounds"
                 if problem:
                     issues.append(GraphicalBindingIssue(
                         container_name, routine_name, diagram_index, object_index,
@@ -126,6 +197,7 @@ def resolve_graphical_bindings(
     controller: Controller, *, identifier_pattern: str,
     literal_patterns: tuple[str, ...], ambiguous_names: frozenset[str] = frozenset(),
     step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
+    member_paths: MemberPathContext | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Classify pins and contact operands in place; retained source text is unchanged.
 
@@ -154,13 +226,14 @@ def resolve_graphical_bindings(
                 routine.graphical_diagrams, program.name, routine.name, "program",
                 symbols=symbols, ambiguous=ambiguous, steps=steps, step_ambiguous=step_ambiguous,
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
-                literal_patterns=literal_patterns,
+                literal_patterns=literal_patterns, member_paths=member_paths,
             ))
     return issues
 
 
 def resolve_function_block_bindings(
     controller: Controller, *, identifier_pattern: str, literal_patterns: tuple[str, ...],
+    member_paths: MemberPathContext | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Resolve pins inside a Function Block body against that FB's own namespace.
 
@@ -185,6 +258,6 @@ def resolve_function_block_bindings(
                 routine.graphical_diagrams, aoi.name, routine.name, "function_block",
                 symbols=symbols, ambiguous=ambiguous, steps={}, step_ambiguous=set(),
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
-                literal_patterns=literal_patterns,
+                literal_patterns=literal_patterns, member_paths=member_paths,
             ))
     return issues

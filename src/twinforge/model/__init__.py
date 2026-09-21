@@ -46,6 +46,7 @@ from .graphical import (
     GraphicalObject,
     GraphicalPin,
     GraphicalVariableReferences,
+    MemberPath,
 )
 from .ladder import (
     LadderInstruction,
@@ -125,6 +126,7 @@ __all__ = [
     "GraphicalObject",
     "GraphicalPin",
     "GraphicalVariableReferences",
+    "MemberPath",
     "AddOnInstruction",
     "AddOnInstructionDependency",
     "AddOnInstructionParameter",

@@ -81,12 +81,14 @@ def _diagram_summary(diagram: Any) -> dict[str, Any]:
             "operand_binding_kind": obj.operand_binding_kind,
             "target_tag": obj.target_tag.name if obj.target_tag else None,
             "target_step_name": obj.target_step_name,
+            "operand_member_path": asdict(obj.operand_member_path) if obj.operand_member_path else None,
             "pins": [{"name": pin.name, "direction": pin.direction,
                       "role": pin.role, "expression": pin.expression,
                       "interface_status": pin.interface_status, "parameter_index": pin.parameter_index,
                       "inverted": pin.inverted, "binding_kind": pin.binding_kind,
                       "target_tag": pin.target_tag.name if pin.target_tag else None,
-                      "target_parameter": pin.target_parameter.name if pin.target_parameter else None}
+                      "target_parameter": pin.target_parameter.name if pin.target_parameter else None,
+                      "member_path": asdict(pin.member_path) if pin.member_path else None}
                      for pin in obj.pins],
         } for obj in diagram.objects],
     }
