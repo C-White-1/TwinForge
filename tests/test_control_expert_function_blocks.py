@@ -219,10 +219,18 @@ def test_optional_real_m580_safety_function_blocks(filename):
             body_languages[language] = body_languages.get(language, 0) + 1
         else:
             crypted_count += 1
-    assert body_languages == {"ST": 65, "FBD": 10}
-    assert crypted_count == 8  # 7 genuinely encrypted plus the one ambiguous-body case.
+    assert body_languages == {"ST": 66, "FBD": 10}
+    assert crypted_count == 7  # every remaining bodyless block is genuinely encrypted.
     assert sum(d.code == "encrypted_function_block_body" for d in result.diagnostics) == 7
-    assert sum(d.code == "ambiguous_function_block_body" for d in result.diagnostics) == 1
+    assert sum(d.code == "ambiguous_function_block_body" for d in result.diagnostics) == 0
+
+    # IO_AI_EX has separately named INIT and MAIN sections; both are kept, and
+    # INIT's activation condition (previously unreachable) is now captured.
+    two_sections = controller.add_on_instructions["IO_AI_EX"]
+    assert list(two_sections.routines) == ["INIT", "MAIN"]
+    assert two_sections.routines["INIT"].metadata["section_conditions"]["activation"] == {
+        "text": "%S13", "binding_kind": "direct_address"}
+    assert two_sections.routines["MAIN"].metadata["function_block_section"] == {"index": 1, "count": 2}
 
     sample = controller.add_on_instructions["M_DWORD_TO_BIT"]
     assert sample.parameters["IN"].data_type == "DWORD"
@@ -252,3 +260,36 @@ def test_optional_real_m580_safety_function_blocks(filename):
                             assert pin.target_tag is None
     assert fb_body_bindings.get("declared_symbol", 0) > 0
     assert parameter_bound > 0
+
+
+def test_distinctly_named_sections_are_all_captured_without_an_order_claim():
+    result = project('''
+      <FBSource nameOfFBType="M_TWO">
+        <FBProgram name="code1"><STSource>A := 1;</STSource></FBProgram>
+        <FBProgram name="Code2"><FBDSource><networkFBD/></FBDSource></FBProgram>
+      </FBSource>
+    ''')
+    aoi = result.controller.add_on_instructions["M_TWO"]
+    assert list(aoi.routines) == ["code1", "Code2"]
+    assert [r.language for r in aoi.routines.values()] == ["ST", "FBD"]
+    assert aoi.routines["code1"].metadata["function_block_section"] == {"index": 0, "count": 2}
+    assert not any(d.code == "ambiguous_function_block_body" for d in result.diagnostics)
+
+
+def test_same_named_sections_stay_ambiguous_case_insensitively():
+    result = project('''
+      <FBSource nameOfFBType="M_SAME">
+        <FBProgram name="Main"><STSource>A := 1;</STSource></FBProgram>
+        <FBProgram name="MAIN"><STSource>A := 2;</STSource></FBProgram>
+      </FBSource>
+    ''')
+    assert result.controller.add_on_instructions["M_SAME"].routines == {}
+    assert any(d.code == "ambiguous_function_block_body" for d in result.diagnostics)
+
+
+def test_a_single_section_keeps_the_block_name_and_no_section_metadata():
+    result = project('''
+      <FBSource nameOfFBType="M_ONE"><FBProgram name="code"><STSource>A := 1;</STSource></FBProgram></FBSource>
+    ''')
+    routine = result.controller.add_on_instructions["M_ONE"].routines["M_ONE"]
+    assert "function_block_section" not in routine.metadata

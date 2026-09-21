@@ -781,3 +781,22 @@ feeds four inputs with no covering `linkFB`, which is treated as an incomplete
 graph. So the real corpus gains no new resolved network; this is covered by 4
 new synthetic tests only. Full suite (1279 tests) passed; Ruff and Pyright
 passed.
+
+Multi-section Function Block checkpoint (2026-09-22): a `FBSource` with several
+`FBProgram` sections was previously rejected wholesale as
+`ambiguous_function_block_body`. Two real blocks have them -- `IO_AI_EX`
+(`INIT`, `MAIN`) in `estradege_m580-safety.xef` and `DFBTYPE1` (`code1`, `code2`)
+in `estradege_m340.xef` -- so every section is now captured as its own routine,
+keyed by section name, with `metadata["function_block_section"]` recording its
+document index and the section count. A lone section keeps the block's own name
+and no such metadata, unchanged. Sections without distinct names (missing, or
+equal ignoring case) still raise `ambiguous_function_block_body` rather than
+being guessed at. Section index is provenance only: no execution order or
+call-time behaviour between sections (for example when `INIT` runs) is claimed,
+since none is evidenced. This also makes `IO_AI_EX/INIT`'s
+`activationCondition="%S13"` reachable (`direct_address`). Existing per-routine
+analyses (binding, ordering, isolated FB namespace) apply to each section
+unchanged. The real-fixture expectations moved accordingly (66 ST bodies, 7
+encrypted, 0 ambiguous, previously 65/8/1). 3 new synthetic tests plus the
+updated real-fixture assertions; full suite (1282 tests) passed; Ruff and
+Pyright passed.

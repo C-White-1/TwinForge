@@ -237,45 +237,62 @@ def _function_blocks(
         if crypted is not None:
             result.report("encrypted_function_block_body",
                           f"{name}: implementation body is encrypted; interface retained", node)
-        elif len(programs) > 1:
-            result.report("ambiguous_function_block_body",
-                          f"{name}: expected one implementation body, found {len(programs)}", node)
         elif programs:
-            program = programs[0]
-            sources = [(source, language) for tag, language in spec.languages for source in _select(program, (tag,))]
-            if len(sources) == 1:
-                source, language = sources[0]
-                routine = Routine(name=name, language=language, source_extensions=[_extension(source)])
-                conditions = _section_conditions(result, program, spec, None, name)
-                if conditions:
-                    routine.metadata["section_conditions"] = conditions
-                if language == "ST":
-                    routine.structured_text_lines = [
-                        StructuredTextLine(number=index + 1, text=line)
-                        for index, line in enumerate((source.text or "").split("\n"))
-                    ]
-                    if source.ordered_children:
-                        result.report("unsupported_st_structure", f"{name}: nested ST content retained as evidence", source)
-                elif language == "SFC":
-                    routine.sequential_charts, diagnostics = parse_charts(program)
-                    result.diagnostics.extend(diagnostics)
-                    result.report("uninterpreted_sfc_execution", f"{name}: chart structure retained; connectivity and execution unresolved", source)
-                else:
-                    routine.graphical_diagrams, diagnostics = parse_diagrams(source)
-                    result.diagnostics.extend(diagnostics)
-                    result.report("uninterpreted_graphical_logic", f"{name}: {language} retained without execution mapping", source)
-                    if language == "LD":
-                        routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
-                        result.diagnostics.extend(ladder_diagnostics)
-                        pin_bindings, pin_diagnostics = resolve_ladder_pin_conditions(source)
-                        result.diagnostics.extend(pin_diagnostics)
-                        _apply_ladder_pin_conditions(result, routine, pin_bindings, source)
-                aoi.add_routine(routine)
+            names = [program.raw_attributes.get("name", "").casefold() for program in programs]
+            if len(programs) > 1 and (not all(names) or len(set(names)) != len(names)):
+                # Sections that cannot be told apart by name are not guessed at.
+                result.report("ambiguous_function_block_body",
+                              f"{name}: {len(programs)} implementation sections without distinct names", node)
             else:
-                result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", program)
+                for index, program in enumerate(programs):
+                    # A lone body keeps the block's own name; several are keyed by section name.
+                    routine_name = name if len(programs) == 1 else program.raw_attributes["name"]
+                    routine = _function_block_routine(result, spec, name, routine_name, program)
+                    if routine is None:
+                        continue
+                    if len(programs) > 1:
+                        # Section order is recorded, never treated as an execution claim.
+                        routine.metadata["function_block_section"] = {"index": index, "count": len(programs)}
+                    aoi.add_routine(routine)
         else:
             result.report("unresolved_function_block_body", f"{name}: no supported implementation body found", node)
         result.controller.add_add_on_instruction(aoi)
+
+
+def _function_block_routine(
+    result: ParsedProject, spec: MappingSpec, name: str, routine_name: str, program: CapturedSection,
+) -> Routine | None:
+    sources = [(source, language) for tag, language in spec.languages for source in _select(program, (tag,))]
+    if len(sources) != 1:
+        result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", program)
+        return None
+    source, language = sources[0]
+    routine = Routine(name=routine_name, language=language, source_extensions=[_extension(source)])
+    conditions = _section_conditions(result, program, spec, None, name)
+    if conditions:
+        routine.metadata["section_conditions"] = conditions
+    if language == "ST":
+        routine.structured_text_lines = [
+            StructuredTextLine(number=index + 1, text=line)
+            for index, line in enumerate((source.text or "").split("\n"))
+        ]
+        if source.ordered_children:
+            result.report("unsupported_st_structure", f"{name}: nested ST content retained as evidence", source)
+    elif language == "SFC":
+        routine.sequential_charts, diagnostics = parse_charts(program)
+        result.diagnostics.extend(diagnostics)
+        result.report("uninterpreted_sfc_execution", f"{name}: chart structure retained; connectivity and execution unresolved", source)
+    else:
+        routine.graphical_diagrams, diagnostics = parse_diagrams(source)
+        result.diagnostics.extend(diagnostics)
+        result.report("uninterpreted_graphical_logic", f"{name}: {language} retained without execution mapping", source)
+        if language == "LD":
+            routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
+            result.diagnostics.extend(ladder_diagnostics)
+            pin_bindings, pin_diagnostics = resolve_ladder_pin_conditions(source)
+            result.diagnostics.extend(pin_diagnostics)
+            _apply_ladder_pin_conditions(result, routine, pin_bindings, source)
+    return routine
 
 
 def _section_conditions(
