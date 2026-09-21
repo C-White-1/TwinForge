@@ -151,8 +151,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
       multi-row block's own border rendered with the same element. Not
       decidable from the grid alone; needs either more fixtures or vendor
       documentation of the row-to-pin mapping for multi-row blocks.
-- [ ] Resolve multi-block/network order under documented link and override rules
-  (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
+- [x] Resolve multi-block/network order under link and override rules: explicit
+      links are covered above; `execAfter` is now an extra dependency edge, an
+      inference not vendor-documented -- see the `execAfter` checkpoint below
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
       (partial: section `activationCondition`/`logicCondition` captured as
       lexical evidence -- see the section condition checkpoint below; nothing
@@ -762,3 +763,21 @@ two `FBProgram` sections (`INIT`, `MAIN`), which existing capture diagnoses as
 `ambiguous_function_block_body`, so its `%S13` condition is not reachable yet.
 5 new targeted tests passed (synthetic cases plus the real fixture); full suite
 (1273 tests) passed; Ruff and Pyright passed.
+
+`execAfter` checkpoint (2026-09-22): a block whose `execAfter` names another
+block in the same network (matched case-insensitively by instance name) now
+gains a dependency edge onto it, ahead of the position tie-break; the result is
+labelled `execution_order_basis = "dependency_order_with_exec_after"` so it is
+distinguishable from the FAQ-documented order. Evidence is deliberately
+limited: Schneider's FAQ FA332812 confirms a block property can force
+execution order but documents neither the mechanism nor the value grammar, so
+reading the attribute as "runs after the named block" rests on its name plus a
+single real occurrence (`IO_AI_EX`-family `IO_READVAR`, `SR_1` -> `CTU_UINT_1`).
+A value naming zero, several or the block itself raises
+`unresolved_execution_after` and leaves the order unresolved; an override that
+closes a cycle with links raises `cyclic_block_dependency`. That one real
+network still does not resolve, for an unrelated pre-existing reason: `BUSY`
+feeds four inputs with no covering `linkFB`, which is treated as an incomplete
+graph. So the real corpus gains no new resolved network; this is covered by 4
+new synthetic tests only. Full suite (1279 tests) passed; Ruff and Pyright
+passed.

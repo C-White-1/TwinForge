@@ -10,6 +10,12 @@ not a separately vendor-confirmed rule -- real chains up to 7 levels deep
 exist in the corpus, so this is not a theoretical concern. Shared symbol
 occurrences alone still do not establish wires, memory effects or order --
 only an explicit, fully-resolved `linkFB` graph does.
+
+A block's `execAfter` override is read as one extra dependency edge onto the
+block it names. Schneider's FAQ FA332812 confirms a block property can force
+execution order but does not document the mechanism or value grammar, so this
+is an inference from the attribute's name plus its one real corpus occurrence
+(an instance name in the same network), and is labelled as such in the basis.
 """
 from dataclasses import dataclass
 
@@ -58,6 +64,25 @@ def _dependency_graph(diagram: GraphicalDiagram, block_indices: set[int]) -> dic
     return deps
 
 
+def _execution_overrides(diagram: GraphicalDiagram, blocks: list[int]) -> list[tuple[int, int]] | None:
+    """(block, block it must follow) per `execAfter`, or None if any cannot be resolved."""
+    by_name: dict[str, list[int]] = {}
+    for i in blocks:
+        name = diagram.objects[i].instance_name
+        if name:
+            by_name.setdefault(name.casefold(), []).append(i)
+    overrides: list[tuple[int, int]] = []
+    for i in blocks:
+        target = (diagram.objects[i].execution_after or "").strip()
+        if not target:
+            continue
+        matches = by_name.get(target.casefold(), [])
+        if len(matches) != 1 or matches[0] == i:
+            return None
+        overrides.append((i, matches[0]))
+    return overrides
+
+
 def _topological_order(deps: dict[int, set[int]], position_key) -> list[int] | None:
     """Kahn's algorithm, releasing each wave in position order. None on a cycle."""
     remaining = {i: set(d) for i, d in deps.items()}
@@ -94,9 +119,12 @@ def _resolve_routine_diagrams(
             continue
         if any(obj.kind not in {"block", "annotation"} for obj in diagram.objects):
             continue
-        if any(diagram.objects[i].execution_after for i in blocks):
-            continue
         block_indices = set(blocks)
+        overrides = _execution_overrides(diagram, blocks)
+        if overrides is None:
+            issues.append(ExecutionOrderIssue(
+                container_name, routine_name, diagram_index, "unresolved_execution_after", scope))
+            continue
         # A pin failing to resolve to a *symbol* (a complex expression, or a
         # name outside this pass's scope) says nothing about whether an
         # explicit block-to-block wire is trustworthy, so it does not gate
@@ -125,6 +153,8 @@ def _resolve_routine_diagrams(
             assert position is not None
             return (position.row, position.column)
 
+        for destination, source in overrides:
+            deps[destination].add(source)
         order = _topological_order(deps, position_key)
         if order is None:
             issues.append(ExecutionOrderIssue(
@@ -132,7 +162,8 @@ def _resolve_routine_diagrams(
             continue
         diagram.execution_order = order
         diagram.execution_order_resolved = True
-        diagram.execution_order_basis = "documented_dependency_order"
+        diagram.execution_order_basis = (
+            "dependency_order_with_exec_after" if overrides else "documented_dependency_order")
     return issues
 
 

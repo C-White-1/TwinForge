@@ -375,3 +375,48 @@ def test_ladder_diagrams_never_get_a_meaningless_unresolved_block_order(tmp_path
     inspect_control_expert(path, output_format="json", stdout=output)
     project = json.loads(output.getvalue())["projects"][0]
     assert not any(d["code"] == "unresolved_block_order" for d in project["diagnostics"])
+
+
+def _named(row, column, name, **kwargs):
+    return _block(row, column, instance_name=name, **kwargs)
+
+
+def test_exec_after_adds_a_dependency_that_overrides_position():
+    # Position alone would run "first" (row 1) before "second" (row 2).
+    first = _named(1, 1, "first", execution_after="second")
+    second = _named(2, 1, "second")
+    diagram = _diagram(objects=[first, second])
+    issues = resolve_fbd_execution_order(_controller_with(diagram))
+    assert issues == []
+    assert diagram.execution_order == [1, 0]
+    assert diagram.execution_order_resolved
+    assert diagram.execution_order_basis == "dependency_order_with_exec_after"
+
+
+def test_exec_after_target_match_is_case_insensitive_and_combines_with_links():
+    a = _named(1, 1, "A")
+    b = _named(2, 1, "B", execution_after="a")
+    c = _named(3, 1, "C")
+    diagram = _diagram(objects=[c, b, a], links=[_link(0, 2)])  # C -> A wire, so A follows C
+    resolve_fbd_execution_order(_controller_with(diagram))
+    assert [diagram.objects[i].instance_name for i in diagram.execution_order] == ["C", "A", "B"]
+
+
+@pytest.mark.parametrize("target", ["ghost", "self", "dup"])
+def test_unresolvable_exec_after_is_diagnosed_and_leaves_order_unresolved(target):
+    a = _named(1, 1, "self", execution_after=target)
+    b = _named(2, 1, "dup")
+    c = _named(3, 1, "dup")
+    diagram = _diagram(objects=[a, b, c])
+    issues = resolve_fbd_execution_order(_controller_with(diagram))
+    assert [i.code for i in issues] == ["unresolved_execution_after"]
+    assert not diagram.execution_order_resolved
+
+
+def test_exec_after_cycle_with_a_link_is_reported():
+    a = _named(1, 1, "A", execution_after="B")
+    b = _named(2, 1, "B")
+    diagram = _diagram(objects=[a, b], links=[_link(0, 1)])  # A -> B wire, plus A after B
+    issues = resolve_fbd_execution_order(_controller_with(diagram))
+    assert [i.code for i in issues] == ["cyclic_block_dependency"]
+    assert not diagram.execution_order_resolved

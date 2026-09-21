@@ -566,7 +566,8 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     )
     _EXECUTION_ORDER_MESSAGES = {
         "ambiguous_block_order": "shared variable appears on output pins of multiple blocks",
-        "cyclic_block_dependency": "explicit links form a cycle; no valid execution order exists",
+        "cyclic_block_dependency": "explicit links and overrides form a cycle; no valid execution order exists",
+        "unresolved_execution_after": "execAfter does not name exactly one other block in the same network",
     }
     for issue in resolve_fbd_execution_order(
         controller, excluded=excluded_diagrams, function_block_excluded=function_block_excluded_diagrams,
