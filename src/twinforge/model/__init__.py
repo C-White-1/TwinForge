@@ -13,6 +13,7 @@ from .communication_interface import (
     CommunicationService,
 )
 from .controller import Controller
+from .resource import Resource
 from .datatype import Datatype, DatatypeMember
 from .device import Device, DeviceType
 from .device_parameter import (
@@ -137,6 +138,7 @@ __all__ = [
     "CommunicationRole",
     "CommunicationService",
     "Controller",
+    "Resource",
     "Datatype",
     "DatatypeMember",
     "Device",

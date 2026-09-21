@@ -6,7 +6,7 @@ import re
 
 from twinforge.model import (
     AddOnInstruction, AddOnInstructionParameter, Chassis, Controller, Datatype, DatatypeMember,
-    Identity, Module, Program, Routine, SourceExtension, StructuredTextLine, Tag, Task,
+    Identity, Module, Program, Resource, Routine, SourceExtension, StructuredTextLine, Tag, Task,
 )
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
@@ -102,8 +102,44 @@ def _variables(
     result: ParsedProject, root: CapturedSection, spec: MappingSpec,
     known_datatypes: dict[str, Datatype],
 ) -> None:
-    used: set[str] = set()
-    for node in _select(root, spec.variables):
+    _declare_variables(
+        result, _select(root, spec.variables), spec, known_datatypes, set(), result.controller.add_tag)
+
+
+def _resources(
+    result: ParsedProject, root: CapturedSection, spec: MappingSpec,
+    known_datatypes: dict[str, Datatype],
+) -> None:
+    """Capture each resource's own variables; they are not merged into controller tags."""
+    used_names: set[str] = set()
+    for node in _select(root, spec.resources):
+        name = _unique_name(result, node, node.raw_attributes.get(spec.resource_name_attribute), used_names, "resource")
+        if name is None:
+            continue
+        resource = Resource(
+            name=name, identifier=node.raw_attributes.get(spec.resource_identifier_attribute),
+            source_extensions=[_extension(node)])
+        declarations = [variable for path in spec.resource_variables for variable in _select(node, path)]
+        counts: dict[str, int] = {}
+        for variable in declarations:
+            key = variable.raw_attributes.get("name", "").casefold()
+            counts[key] = counts.get(key, 0) + 1
+        resource.ambiguous_names = {key for key, count in counts.items() if key and count > 1}
+
+        def register(tag: Tag, resource: Resource = resource) -> None:
+            tag.metadata["declaration_scope"] = "resource"
+            tag.metadata["resource"] = resource.name
+            resource.add_tag(tag)
+
+        _declare_variables(result, declarations, spec, known_datatypes, set(), register)
+        result.controller.add_resource(resource)
+
+
+def _declare_variables(
+    result: ParsedProject, nodes: list[CapturedSection], spec: MappingSpec,
+    known_datatypes: dict[str, Datatype], used: set[str], register,
+) -> None:
+    for node in nodes:
         attrs = node.raw_attributes
         name = _unique_name(result, node, attrs.get("name"), used, "variable")
         if name is None:
@@ -137,7 +173,7 @@ def _variables(
             tag.data_type_definition = known_datatypes.get(base_type.casefold())
         if tag.data_type_definition is None and (not base_type or base_type.upper() not in spec.scalar_types):
             result.report("unresolved_type", f"{name}: no supported type definition for {base_type!r}", node)
-        result.controller.add_tag(tag)
+        register(tag)
 
 
 def _datatypes(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> dict[str, Datatype]:
@@ -387,6 +423,12 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
         identities[name.casefold()] = (attrs.get("task"), node)
 
     task_nodes = _select(root, spec.tasks)
+    task_resource: dict[int, Resource] = {}
+    for resource_node in _select(root, spec.resources):
+        resource = result.controller.resources.get(resource_node.raw_attributes.get(spec.resource_name_attribute, ""))
+        if resource is not None:
+            for task_node in _select(resource_node, spec.resource_tasks):
+                task_resource[id(task_node)] = resource
     task_counts: dict[str, int] = {}
     for node in task_nodes:
         key = node.raw_attributes.get("task", "").casefold()
@@ -406,6 +448,10 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
         task = Task(name=name, task_type=attrs.get("taskType"), source_extensions=[_extension(node)])
         # Do not assign rate/watchdog units from undocumented raw values.
         task.metadata["source_task_attributes"] = dict(attrs)
+        owner = task_resource.get(id(node))
+        if owner is not None:
+            task.metadata["resource"] = owner.name
+            owner.task_names.append(name)
         if task.task_type == "cyclic":
             task.metadata["cycle_policy"] = "successive_cycles_while_active"
         if task.task_type != "cyclic":
@@ -517,6 +563,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             ))
     known_datatypes = _datatypes(result, root, spec)
     _variables(result, root, spec, known_datatypes)
+    _resources(result, root, spec, known_datatypes)
     _function_blocks(result, root, spec, known_datatypes)
     _programs_and_tasks(result, root, spec)
     _hardware(result, root, spec)

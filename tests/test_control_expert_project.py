@@ -287,3 +287,74 @@ def test_function_block_body_condition_never_binds_to_project_tags():
         "activation": {"text": "%S13", "binding_kind": "direct_address"}, "logic": {"text": "standard"}}
     # A same-named global is a different namespace from the block's own.
     assert fb2["FB2"].metadata["section_conditions"]["activation"]["binding_kind"] ==         "function_block_scope_unresolved"
+
+
+_TWO_RESOURCES = '''
+  <dataBlock><variables name="Shared" typeName="BOOL"/><variables name="Both" typeName="INT"/></dataBlock>
+  <logicConf>
+    <resource resName="process" resIdent="P1">
+      <taskDesc task="MAST" taskType="cyclic"><sectionDesc name="a"/></taskDesc>
+      <inputParameters><variables name="In1" typeName="BOOL"/></inputParameters>
+      <privateLocalVariables><variables name="Both" typeName="INT"/><variables name="Twice" typeName="INT"/>
+        <variables name="TWICE" typeName="INT"/></privateLocalVariables>
+    </resource>
+    <resource resName="safe" resIdent="S1">
+      <taskDesc task="SAFE" taskType="periodic"><sectionDesc name="b"/></taskDesc>
+      <privateLocalVariables><variables name="In1" typeName="WORD"/></privateLocalVariables>
+    </resource>
+  </logicConf>
+  <program><identProgram name="a" task="MAST"/><FBDSource><networkFBD>
+    <FFBBlock instanceName="B" typeName="X"><descriptionFFB>
+      <inputVariable formalParameter="P0" effectiveParameter="In1"/>
+      <inputVariable formalParameter="P1" effectiveParameter="Shared"/>
+      <inputVariable formalParameter="P2" effectiveParameter="Both"/>
+      <inputVariable formalParameter="P3" effectiveParameter="Twice"/>
+    </descriptionFFB></FFBBlock></networkFBD></FBDSource></program>
+  <program><identProgram name="b" task="SAFE"/><FBDSource><networkFBD>
+    <FFBBlock instanceName="B" typeName="X"><descriptionFFB>
+      <inputVariable formalParameter="P0" effectiveParameter="In1"/>
+      <inputVariable formalParameter="P1" effectiveParameter="Both"/>
+    </descriptionFFB></FFBBlock></networkFBD></FBDSource></program>
+'''
+
+
+def test_resource_variables_form_separate_namespaces_and_never_join_controller_tags():
+    result = project(_TWO_RESOURCES)
+    controller = result.controller
+    assert set(controller.tags) == {"Shared", "Both"}  # resource variables are not merged in
+    process, safe = controller.resources["process"], controller.resources["safe"]
+    assert process.identifier == "P1" and process.task_names == ["MAST"]
+    assert set(process.tags) == {"In1", "Both", "Twice"} and safe.task_names == ["SAFE"]
+    assert process.tags["In1"].data_type == "BOOL" and safe.tags["In1"].data_type == "WORD"
+    assert process.tags["In1"].metadata["declaration_scope"] == "resource"
+    assert controller.tasks["MAST"].metadata["resource"] == "process"
+    assert process.ambiguous_names == {"twice"}  # declared twice in one resource: never bound to either
+
+
+def _pin_bindings(result, program):
+    diagram = result.controller.programs[program].main_routine.graphical_diagrams[0]
+    return {pin.name: (pin.binding_kind, pin.target_tag) for pin in diagram.objects[0].pins}
+
+
+def test_programs_bind_to_their_own_resource_and_ambiguous_scopes_are_never_guessed():
+    result = project(_TWO_RESOURCES)
+    a = _pin_bindings(result, "a")
+    b = _pin_bindings(result, "b")
+    process, safe = result.controller.resources["process"], result.controller.resources["safe"]
+    assert a["P0"] == ("declared_symbol", process.tags["In1"])  # not safe's same-named WORD
+    assert b["P0"] == ("declared_symbol", safe.tags["In1"])
+    assert a["P1"] == ("declared_symbol", result.controller.tags["Shared"])  # controller scope still visible
+    assert a["P2"][0] == "ambiguous_symbol"  # declared in the controller scope and in this resource
+    assert a["P3"][0] == "ambiguous_symbol"  # declared twice within the resource
+    assert b["P1"] == ("declared_symbol", result.controller.tags["Both"])  # safe never sees process's "Both"
+
+
+def test_real_safety_project_resources_when_available():
+    path = Path("reference/control-expert/estradege_m580-safety.xef")
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    controller = parse_project(capture_file(path)).controller
+    assert {name: len(r.tags) for name, r in controller.resources.items()} == {"process": 731, "safe": 150}
+    assert all(not r.ambiguous_names for r in controller.resources.values())
+    assert {t.name: t.metadata["resource"] for t in controller.tasks.values()} == {"MAST": "process", "SAFE": "safe"}
+    assert controller.tags == {}  # this export has no controller-level variables

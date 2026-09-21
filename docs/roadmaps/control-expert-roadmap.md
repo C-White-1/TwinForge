@@ -130,8 +130,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
-      (partial: proven paths resolve -- see the member path checkpoint below;
-      the M580 safety project's resource-level variables are still not captured)
+      (partial: proven paths resolve -- see the member path and resource
+      variable checkpoints below; members of library device types this export
+      does not define stay unresolved)
 - [x] Interpret explicit FBD links/connectors with endpoint diagnostics
       (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
       position; see the explicit FBD link checkpoint below -- this is
@@ -823,10 +824,37 @@ literal index or bit outside the declared range is
 a non-literal index, multi-dimensional array, unknown member or unproven base
 stays `unresolved_expression`, unchanged. Real corpus: 30 expressions resolve
 (29 in the M580 safety project, 1 in the M340 project), none out of bounds.
-That is only about a tenth of the ~420 index/member expressions: the rest
-share one cause -- the M580 safety project keeps its 731 variables at the
-`resource` level (15 inputs, 15 outputs, 701 private locals), which capture
-does not read (its `dataBlock` is empty), so their bases have no declaration.
-Whether resource-level variables form the project's variable namespace is a
-scope decision, left open. Full suite (1304 tests) passed; Ruff and Pyright
-passed.
+That was only 30 of ~420 index/member expressions at the time; see the
+resource variable checkpoint below for why and what changed. Full suite
+(1304 tests) passed; Ruff and Pyright passed.
+
+Resource variable checkpoint (2026-09-22): the M580 safety project keeps its
+variables inside each `resource` (`inputParameters`, `outputParameters`,
+`privateLocalVariables`; `process` 731, `safe` 150), never in the top-level
+`dataBlock`, which is empty there -- so that project previously had no
+captured variables at all. They are now captured into a new `Resource` model
+(`Controller.resources`), deliberately not merged into `controller.tags`: the
+two resources declare 27 of the same names independently, and analyses that
+read `controller.tags` assume one flat scope. Each task records its owning
+`resource`. A program binds against the controller's variables plus its own
+resource's (resolved through the task that schedules it, and only when every
+scheduling task agrees on one resource); a name declared in both scopes, or
+twice inside one resource, is `ambiguous_symbol`, never picked. Real result:
+881 resource variables captured, none ambiguous; program-scope pins that were
+unbound now bind, and resolved member paths rose from 30 to 98. Two honest
+consequences: (1) 8 of 22 program FBD networks (`Sim_FBD`, `Sim_W505`,
+`MAV10EA100`, `MAK10EA100`, `MAX10EA100`, `MAL10EA100`, `MKA10EA100`,
+`TRIP_TG`) no longer report a resolved execution order. Their pins used to be
+unbound, which blinded the unlinked-shared-variable guard; now that the
+variables bind, blocks are seen exchanging values through a shared variable
+with no covering `linkFB`, which that guard treats as an incomplete graph. The
+earlier 22/22 was therefore over-claimed. (2) ~320 expressions such as
+`AIS_00MAA10CP004.CH_HEALTH` still cannot resolve: their bases are typed by
+library device types (`T_U_DIS_STD_CH_IN`, `T_U_ANA_STD_CH_IN`, ...) that the
+export does not define, so no member is provable. That needs the library
+DDT definitions as evidence; it is not a parser gap. Not extended: SFC
+expression binding and other analyses still see only controller-level
+variables. Also outstanding: ~480 expressions that are not member paths at
+all (direct addresses like `%S6`, time literals, digit-leading names such as
+`00BBA01GS001.CLOSED`). 3 new synthetic tests plus 1 real-fixture test; full
+suite (1307 tests) passed; Ruff and Pyright passed.

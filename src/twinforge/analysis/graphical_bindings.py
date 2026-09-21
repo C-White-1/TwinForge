@@ -7,6 +7,7 @@ import re
 from twinforge.analysis.member_paths import MemberPathResult, resolve_member_path
 from twinforge.model import AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalVariableReferences, Tag
 from twinforge.model.datatype import Datatype
+from twinforge.model.resource import Resource
 from twinforge.model.library_interface import LibraryInterface
 
 
@@ -193,6 +194,20 @@ def _resolve_diagrams(
     return issues
 
 
+def _program_resources(controller: Controller) -> dict[str, "Resource"]:
+    """Program name -> its resource, only when every task scheduling it agrees on one."""
+    owners: dict[str, set[str]] = {}
+    for task in controller.tasks.values():
+        name = task.metadata.get("resource") or ""
+        for program in task.scheduled_programs:
+            owners.setdefault(program.name, set()).add(name)
+    return {
+        program: controller.resources[next(iter(names))]
+        for program, names in owners.items()
+        if len(names) == 1 and next(iter(names)) in controller.resources
+    }
+
+
 def resolve_graphical_bindings(
     controller: Controller, *, identifier_pattern: str,
     literal_patterns: tuple[str, ...], ambiguous_names: frozenset[str] = frozenset(),
@@ -220,11 +235,24 @@ def resolve_graphical_bindings(
     step_ambiguous = {name.casefold() for name in ambiguous_step_names}
     step_state_pattern = re.compile(rf"({identifier_pattern})\.[Xx]")
     issues = []
+    resources = _program_resources(controller)
     for program in controller.programs.values():
+        program_symbols, program_ambiguous = symbols, ambiguous
+        resource = resources.get(program.name)
+        if resource is not None:
+            # A program sees the controller's variables plus its own resource's;
+            # a name declared in both scopes is ambiguous, never picked.
+            program_symbols, program_ambiguous = dict(symbols), set(ambiguous) | resource.ambiguous_names
+            for tag in resource.tags.values():
+                key = tag.name.casefold()
+                if key in program_symbols:
+                    program_ambiguous.add(key)
+                program_symbols[key] = tag
         for routine in program.routines.values():
             issues.extend(_resolve_diagrams(
                 routine.graphical_diagrams, program.name, routine.name, "program",
-                symbols=symbols, ambiguous=ambiguous, steps=steps, step_ambiguous=step_ambiguous,
+                symbols=program_symbols, ambiguous=program_ambiguous, steps=steps,
+                step_ambiguous=step_ambiguous,
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
                 literal_patterns=literal_patterns, member_paths=member_paths,
             ))

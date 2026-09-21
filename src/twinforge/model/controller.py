@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from .add_on_instruction import AddOnInstruction
     from .module import Module
     from .program import Program
+    from .resource import Resource
     from .tag import Tag
     from .task import Task
 
@@ -32,6 +33,8 @@ class Controller(Asset):
     tags: dict[str, Tag] = field(default_factory=dict)
 
     datatypes: dict[str, Datatype] = field(default_factory=dict)
+
+    resources: dict[str, Resource] = field(default_factory=dict)
 
     add_on_instructions: dict[str, AddOnInstruction] = field(
         default_factory=dict
@@ -71,6 +74,12 @@ class Controller(Asset):
 
         tag.parent = self
         self.tags[tag.name] = tag
+
+    def add_resource(self, resource: Resource) -> None:
+        if resource.name in self.resources:
+            raise ValueError(f"Resource '{resource.name}' already exists")
+        resource.parent = self
+        self.resources[resource.name] = resource
 
     def add_datatype(self, datatype: Datatype) -> None:
         if datatype.name in self.datatypes:

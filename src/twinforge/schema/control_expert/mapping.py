@@ -51,6 +51,16 @@ class MappingSpec:
     sections: PathSpec = ("program",)
     additional_sections: tuple[PathSpec, ...] = (("SFCProgram",),)
     section_identity: PathSpec = ("identProgram",)
+    resources: PathSpec = ("logicConf", "resource")
+    resource_name_attribute: str = "resName"
+    resource_identifier_attribute: str = "resIdent"
+    resource_tasks: PathSpec = ("taskDesc",)
+    # Variables declared inside a resource, visible to that resource's programs only.
+    resource_variables: tuple[PathSpec, ...] = (
+        ("inputParameters", "variables"), ("outputParameters", "variables"),
+        ("inOutParameters", "variables"), ("publicLocalVariables", "variables"),
+        ("privateLocalVariables", "variables"),
+    )
     task_sections: PathSpec = ("sectionDesc",)
     section_activation_attribute: str = "activationCondition"
     section_logic_attribute: str = "logicCondition"

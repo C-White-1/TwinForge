@@ -133,6 +133,11 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             "scheduled_sections": task.scheduled_program_names,
             "resolved_sections": [p.name for p in task.scheduled_programs],
         } for task in controller.tasks.values()],
+        "resources": [{
+            "name": resource.name, "identifier": resource.identifier,
+            "variable_count": len(resource.tags), "tasks": resource.task_names,
+            "ambiguous_names": sorted(resource.ambiguous_names),
+        } for resource in controller.resources.values()],
         "programs": programs,
         "datatypes": [{
             "name": dt.name, "description": dt.description,
@@ -218,6 +223,10 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                          f"function blocks: {len(project['function_blocks'])}; "
                          f"sections: {len(project['programs'])}; "
                          f"racks: {len(project['chassis'])}; unplaced modules: {len(project['unplaced_modules'])}\n")
+            for resource in project["resources"]:
+                if resource["variable_count"]:
+                    stdout.write(f"  Resource {resource['name']}: {resource['variable_count']} own variables "
+                                 f"(tasks: {', '.join(resource['tasks']) or 'none'})\n")
             for task in project["tasks"]:
                 stdout.write(f"  Task {task['name']} ({task['type']}): "
                              + " -> ".join(task["scheduled_sections"]) + "\n")
