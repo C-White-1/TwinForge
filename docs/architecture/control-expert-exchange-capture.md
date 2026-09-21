@@ -1125,7 +1125,27 @@ resolution specifically (kept in front of the separate `ambiguous_block_order`
 shared-variable-write check, where a clean-pins diagram is still the
 relevant precondition). All 22 real FBD diagrams now resolve; every
 resolved order was checked programmatically to respect every real link
-dependency. This pass covers `controller.programs` only, matching the
-function's pre-existing structure -- DFB-body FBD diagrams (10 real ones,
-independent of the 3 disqualified-by-shared-variables above) are not yet
-included, a natural follow-up rather than a gap discovered late.
+dependency.
+
+## Execution order for DFB bodies, and a diagnostic-noise fix
+
+The follow-up flagged above is done: `resolve_fbd_execution_order` now
+covers `controller.add_on_instructions` too, via the same
+`_resolve_routine_diagrams` helper used for `controller.programs` -- order
+resolution is purely diagram-local (blocks, links, grid positions), so
+extending coverage was a scope change only, never a semantics one, unlike
+FB-local pin binding.
+
+This gave the unlinked-shared-variable disqualification guard its first
+real exercise (previously only synthetically tested): of 10 real
+FBD-bodied DFBs, exactly the 3 already identified as having unlinked
+shared-variable dataflow (`IO_READVAR`, `PC_T_GEN`, `P_MUX3`) stay
+unresolved; the other 7, including one single-block DFB, resolve.
+
+Extending the final catch-all diagnostic loop to cover DFB routines
+required checking `diagram.language` there for the first time, which
+surfaced that it had been reporting `unresolved_block_order` for every LD
+diagram unconditionally -- `execution_order_resolved` never becomes `True`
+for LD by any mechanism, so this was noise, not evidence, present since the
+diagnostic was first introduced. Filtered out for LD; no existing test
+relied on the old count, and a new one locks in the fix.

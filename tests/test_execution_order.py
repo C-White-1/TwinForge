@@ -305,6 +305,17 @@ def test_ambiguous_block_order_still_checked_when_pins_are_otherwise_clean():
     assert not diagram.execution_order_resolved
 
 
+def _assert_order_respects_every_link(diagram):
+    blocks = {i for i, obj in enumerate(diagram.objects) if obj.kind == "block"}
+    assert set(diagram.execution_order) == blocks  # Every block placed exactly once.
+    rank = {block: position for position, block in enumerate(diagram.execution_order)}
+    for link in diagram.links:
+        if link.source.status == "resolved" and link.destination.status == "resolved":
+            source, destination = link.source.object_index, link.destination.object_index
+            if source in blocks and destination in blocks:
+                assert rank[source] < rank[destination]
+
+
 @pytest.mark.parametrize("filename", ["estradege_m580-safety.xef"])
 def test_optional_real_m580_safety_execution_order(filename):
     path = Path(__file__).resolve().parents[1] / "reference" / "control-expert" / filename
@@ -312,19 +323,55 @@ def test_optional_real_m580_safety_execution_order(filename):
         pytest.skip("Local M580 safety reference unavailable")
     result, = parse_projects(capture_file(path))
     controller = result.controller
-    fbd_diagrams = [d for program in controller.programs.values() for routine in program.routines.values()
-                     for d in routine.graphical_diagrams if d.language == "FBD"]
-    assert len(fbd_diagrams) == 22
-    assert all(d.execution_order_resolved for d in fbd_diagrams)
-    assert all(d.execution_order_basis == "documented_dependency_order" for d in fbd_diagrams)
-    for d in fbd_diagrams:
-        blocks = {i for i, obj in enumerate(d.objects) if obj.kind == "block"}
-        assert set(d.execution_order) == blocks  # Every block placed exactly once.
-        rank = {block: position for position, block in enumerate(d.execution_order)}
-        for link in d.links:
-            if link.source.status == "resolved" and link.destination.status == "resolved":
-                source, destination = link.source.object_index, link.destination.object_index
-                if source in blocks and destination in blocks:
-                    assert rank[source] < rank[destination]
-    assert not any(d.code in {"ambiguous_block_order", "cyclic_block_dependency", "unresolved_block_order"}
-                   for d in result.diagnostics)
+
+    # Every program-scoped FBD diagram resolves, as before.
+    program_diagrams = [d for program in controller.programs.values() for routine in program.routines.values()
+                         for d in routine.graphical_diagrams if d.language == "FBD"]
+    assert len(program_diagrams) == 22
+    assert all(d.execution_order_resolved for d in program_diagrams)
+    for d in program_diagrams:
+        assert d.execution_order_basis == "documented_dependency_order"
+        _assert_order_respects_every_link(d)
+
+    # DFB-body FBD diagrams are now included too: 10 real ones, and not all
+    # resolve -- exactly the 3 with unlinked shared-variable dataflow
+    # (IO_READVAR, PC_T_GEN, P_MUX3) correctly stay unresolved, the first
+    # real-data exercise of that guard since it was only synthetically
+    # tested before DFB bodies were in scope.
+    dfb_diagrams = {aoi.name: d for aoi in controller.add_on_instructions.values()
+                     for routine in aoi.routines.values()
+                     for d in routine.graphical_diagrams if d.language == "FBD"}
+    assert len(dfb_diagrams) == 10
+    unresolved = {name for name, d in dfb_diagrams.items() if not d.execution_order_resolved}
+    assert unresolved == {"IO_READVAR", "PC_T_GEN", "P_MUX3"}
+    for name, d in dfb_diagrams.items():
+        if name not in unresolved:
+            _assert_order_respects_every_link(d)
+
+    codes = {}
+    for d in result.diagnostics:
+        if d.code in {"ambiguous_block_order", "cyclic_block_dependency", "unresolved_block_order"}:
+            codes[d.code] = codes.get(d.code, 0) + 1
+    assert codes == {"ambiguous_block_order": 1, "unresolved_block_order": 3}
+
+
+def test_ladder_diagrams_never_get_a_meaningless_unresolved_block_order(tmp_path):
+    # execution_order_resolved never becomes True for LD by any mechanism
+    # (only FBD networks are topologically sorted), so reporting
+    # unresolved_block_order for every LD diagram forever is pure noise, not
+    # information distinct from diagram.language == "LD" itself.
+    from io import StringIO
+    import json
+    from twinforge.cli.control_expert import inspect_control_expert
+
+    path = tmp_path / "ld.xef"
+    path.write_text('''
+      <FEFExchangeFile><contentHeader name="Example"/>
+      <program><identProgram name="P"/><LDSource><networkLD>
+        <typeLine><contact typeContact="openContact" contactVariableName="A"/>
+        <HLink nbCells="9"/></typeLine>
+      </networkLD></LDSource></program></FEFExchangeFile>''')
+    output = StringIO()
+    inspect_control_expert(path, output_format="json", stdout=output)
+    project = json.loads(output.getvalue())["projects"][0]
+    assert not any(d["code"] == "unresolved_block_order" for d in project["diagnostics"])

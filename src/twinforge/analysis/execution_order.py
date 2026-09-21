@@ -23,10 +23,12 @@ _UNRESOLVED_BINDING_KINDS = frozenset({
 
 @dataclass(frozen=True)
 class ExecutionOrderIssue:
+    # The enclosing Program or, when scope == "function_block", AddOnInstruction.
     program_name: str
     routine_name: str
     diagram_index: int
     code: str
+    scope: str = "program"
 
 
 def _dependency_graph(diagram: GraphicalDiagram, block_indices: set[int]) -> dict[int, set[int]] | None:
@@ -72,64 +74,81 @@ def _topological_order(deps: dict[int, set[int]], position_key) -> list[int] | N
     return order
 
 
-def resolve_fbd_execution_order(
-    controller: Controller, *, excluded: frozenset[tuple[str, str, int]] = frozenset(),
+def _resolve_routine_diagrams(
+    diagrams: list[GraphicalDiagram], container_name: str, routine_name: str, scope: str,
+    excluded: frozenset[tuple[str, str, str, int]],
 ) -> list[ExecutionOrderIssue]:
     issues: list[ExecutionOrderIssue] = []
+    for diagram_index, diagram in enumerate(diagrams):
+        # Clear obsolete results even when this run excludes the network.
+        if diagram.execution_order_basis == "shared_variable_dataflow":
+            diagram.execution_order.clear()
+            diagram.execution_order_resolved = False
+            diagram.execution_order_basis = None
+        if diagram.execution_order_resolved or diagram.language != "FBD":
+            continue
+        if (scope, container_name, routine_name, diagram_index) in excluded:
+            continue
+        blocks = [i for i, obj in enumerate(diagram.objects) if obj.kind == "block"]
+        if len(blocks) < 2:
+            continue
+        if any(obj.kind not in {"block", "annotation"} for obj in diagram.objects):
+            continue
+        if any(diagram.objects[i].execution_after for i in blocks):
+            continue
+        block_indices = set(blocks)
+        # A pin failing to resolve to a *symbol* (a complex expression, or a
+        # name outside this pass's scope) says nothing about whether an
+        # explicit block-to-block wire is trustworthy, so it does not gate
+        # order resolution below. It still gates the shared-variable
+        # ambiguity check: a write conflict is only meaningful evidence when
+        # the diagram's pins are otherwise clean.
+        bad_pins = any(pin.binding_kind in _UNRESOLVED_BINDING_KINDS
+                        for i in blocks for pin in diagram.objects[i].pins)
+        if not bad_pins:
+            ambiguous = False
+            for group in diagram.shared_variables:
+                outputs = {index for index, _ in group.output_pins if index in block_indices}
+                if len(outputs) > 1:
+                    issues.append(ExecutionOrderIssue(
+                        container_name, routine_name, diagram_index, "ambiguous_block_order", scope))
+                    ambiguous = True
+                    break
+            if ambiguous:
+                continue
+        deps = _dependency_graph(diagram, block_indices)
+        if deps is None or any(diagram.objects[i].position is None for i in blocks):
+            continue
+
+        def position_key(index: int, diagram: GraphicalDiagram = diagram) -> tuple[int, int]:
+            position = diagram.objects[index].position
+            assert position is not None
+            return (position.row, position.column)
+
+        order = _topological_order(deps, position_key)
+        if order is None:
+            issues.append(ExecutionOrderIssue(
+                container_name, routine_name, diagram_index, "cyclic_block_dependency", scope))
+            continue
+        diagram.execution_order = order
+        diagram.execution_order_resolved = True
+        diagram.execution_order_basis = "documented_dependency_order"
+    return issues
+
+
+def resolve_fbd_execution_order(
+    controller: Controller, *, excluded: frozenset[tuple[str, str, int]] = frozenset(),
+    function_block_excluded: frozenset[tuple[str, str, int]] = frozenset(),
+) -> list[ExecutionOrderIssue]:
+    issues: list[ExecutionOrderIssue] = []
+    excluded_keyed = frozenset({("program", *key) for key in excluded} | {
+        ("function_block", *key) for key in function_block_excluded})
     for program in controller.programs.values():
         for routine in program.routines.values():
-            for diagram_index, diagram in enumerate(routine.graphical_diagrams):
-                # Clear obsolete results even when this run excludes the network.
-                if diagram.execution_order_basis == "shared_variable_dataflow":
-                    diagram.execution_order.clear()
-                    diagram.execution_order_resolved = False
-                    diagram.execution_order_basis = None
-                if diagram.execution_order_resolved or diagram.language != "FBD":
-                    continue
-                if (program.name, routine.name, diagram_index) in excluded:
-                    continue
-                blocks = [i for i, obj in enumerate(diagram.objects) if obj.kind == "block"]
-                if len(blocks) < 2:
-                    continue
-                if any(obj.kind not in {"block", "annotation"} for obj in diagram.objects):
-                    continue
-                if any(diagram.objects[i].execution_after for i in blocks):
-                    continue
-                block_indices = set(blocks)
-                # A pin failing to resolve to a *symbol* (a complex expression,
-                # or a name outside this pass's scope) says nothing about
-                # whether an explicit block-to-block wire is trustworthy, so
-                # it does not gate order resolution below. It still gates the
-                # shared-variable ambiguity check: a write conflict is only
-                # meaningful evidence when the diagram's pins are otherwise clean.
-                bad_pins = any(pin.binding_kind in _UNRESOLVED_BINDING_KINDS
-                                for i in blocks for pin in diagram.objects[i].pins)
-                if not bad_pins:
-                    ambiguous = False
-                    for group in diagram.shared_variables:
-                        outputs = {index for index, _ in group.output_pins if index in block_indices}
-                        if len(outputs) > 1:
-                            issues.append(ExecutionOrderIssue(
-                                program.name, routine.name, diagram_index, "ambiguous_block_order"))
-                            ambiguous = True
-                            break
-                    if ambiguous:
-                        continue
-                deps = _dependency_graph(diagram, block_indices)
-                if deps is None or any(diagram.objects[i].position is None for i in blocks):
-                    continue
-
-                def position_key(index: int, diagram: GraphicalDiagram = diagram) -> tuple[int, int]:
-                    position = diagram.objects[index].position
-                    assert position is not None
-                    return (position.row, position.column)
-
-                order = _topological_order(deps, position_key)
-                if order is None:
-                    issues.append(ExecutionOrderIssue(
-                        program.name, routine.name, diagram_index, "cyclic_block_dependency"))
-                    continue
-                diagram.execution_order = order
-                diagram.execution_order_resolved = True
-                diagram.execution_order_basis = "documented_dependency_order"
+            issues.extend(_resolve_routine_diagrams(
+                routine.graphical_diagrams, program.name, routine.name, "program", excluded_keyed))
+    for aoi in controller.add_on_instructions.values():
+        for routine in aoi.routines.values():
+            issues.extend(_resolve_routine_diagrams(
+                routine.graphical_diagrams, aoi.name, routine.name, "function_block", excluded_keyed))
     return issues

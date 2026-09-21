@@ -653,3 +653,40 @@ dependency-overrides-position, cycle detection, unresolved-link and
 unlinked-shared-variable disqualification, the loosened-gate regression case,
 plus the full real fixture); full suite (1259 tests) passed; Ruff and
 Pyright passed, including a full repo-wide Pyright re-check.
+
+DFB-body execution order checkpoint (2026-09-21): the low-risk follow-up
+flagged above is done. The per-diagram resolution logic was extracted into a
+private `_resolve_routine_diagrams` helper (mirroring the FB-local binding
+refactor's shape), called once for `controller.programs` and once for
+`controller.add_on_instructions`; `ExecutionOrderIssue` gained `scope: str =
+"program"` and the `excluded`/`function_block_excluded` parameters keep the
+two scopes' exclusion sets from colliding even if a Program and a DFB
+somehow shared a name. All algorithm logic is unchanged -- resolving order
+is purely diagram-local (blocks, links, positions), so unlike pin binding
+there was never a scoping *semantics* question here, only a scope
+*coverage* one.
+
+This gave the unlinked-shared-variable guard (added in the previous
+checkpoint, until now only exercised synthetically) its first real test: of
+10 real FBD-bodied DFBs, exactly the 3 already identified as having that
+shape (`IO_READVAR`, `PC_T_GEN`, `P_MUX3`) correctly stay unresolved; the
+other 7 resolve. A real Control Expert engineer's judgment about whether
+those 3 diagrams' unlinked shared variables really are wires remains
+exactly as necessary as it was -- this pass does not and should not guess.
+
+A second, unplanned finding surfaced while extending the final catch-all
+diagnostic loop to also cover DFB routines: doing so required iterating
+`diagram.language` for the first time in that loop, which exposed that the
+existing code reported `unresolved_block_order` for *every* LD diagram,
+unconditionally, forever -- `execution_order_resolved` never becomes `True`
+for LD by any mechanism (only FBD is topologically sorted), so this was
+pure noise, not information distinct from `diagram.language == "LD"`
+itself. Filtered it out for LD; confirmed no existing test relied on the
+old noisy count, and added one locking in the corrected behavior. A real,
+user-visible diagnostic-count change, called out explicitly rather than
+folded silently into the DFB-scope extension.
+
+10 targeted tests passed (real-fixture assertions split by scope, plus the
+LD-noise regression case) on top of the previous checkpoint's 22; full
+suite (1260 tests) passed; Ruff and Pyright passed, including a full
+repo-wide Pyright re-check.

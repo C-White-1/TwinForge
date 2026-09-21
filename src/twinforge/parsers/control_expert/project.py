@@ -479,30 +479,48 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         for diagram_index, diagram in enumerate(routine.graphical_diagrams)
         if diagram.source_extensions and _location(diagram.source_extensions[0]) in flagged_locations
     )
+    function_block_excluded_diagrams = frozenset(
+        (aoi.name, routine.name, diagram_index)
+        for aoi in controller.add_on_instructions.values()
+        for routine in aoi.routines.values()
+        for diagram_index, diagram in enumerate(routine.graphical_diagrams)
+        if diagram.source_extensions and _location(diagram.source_extensions[0]) in flagged_locations
+    )
     _EXECUTION_ORDER_MESSAGES = {
         "ambiguous_block_order": "shared variable appears on output pins of multiple blocks",
         "cyclic_block_dependency": "explicit links form a cycle; no valid execution order exists",
     }
-    for issue in resolve_fbd_execution_order(controller, excluded=excluded_diagrams):
-        diagram = controller.programs[issue.program_name].routines[issue.routine_name].graphical_diagrams[
-            issue.diagram_index]
+    for issue in resolve_fbd_execution_order(
+        controller, excluded=excluded_diagrams, function_block_excluded=function_block_excluded_diagrams,
+    ):
+        routines = (controller.add_on_instructions[issue.program_name].routines
+                    if issue.scope == "function_block" else controller.programs[issue.program_name].routines)
+        diagram = routines[issue.routine_name].graphical_diagrams[issue.diagram_index]
         metadata = diagram.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
             issue.code, f"{issue.program_name}/{issue.routine_name}: {_EXECUTION_ORDER_MESSAGES[issue.code]}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
-    for program in controller.programs.values():
-        for routine in program.routines.values():
-            for diagram in routine.graphical_diagrams:
-                if diagram.execution_order_resolved:
-                    continue
-                metadata = diagram.source_extensions[0].metadata
-                result.diagnostics.append(Diagnostic(
-                    "unresolved_block_order",
-                    f"{program.name}/{routine.name}: block order needs link/override interpretation; "
-                    "task scheduling is a separate known property",
-                    SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
-                ))
+    for container_name, routine_name, diagram in [
+        (program.name, routine.name, diagram)
+        for program in controller.programs.values()
+        for routine in program.routines.values()
+        for diagram in routine.graphical_diagrams
+    ] + [
+        (aoi.name, routine.name, diagram)
+        for aoi in controller.add_on_instructions.values()
+        for routine in aoi.routines.values()
+        for diagram in routine.graphical_diagrams
+    ]:
+        if diagram.language != "FBD" or diagram.execution_order_resolved:
+            continue
+        metadata = diagram.source_extensions[0].metadata
+        result.diagnostics.append(Diagnostic(
+            "unresolved_block_order",
+            f"{container_name}/{routine_name}: block order needs link/override interpretation; "
+            "task scheduling is a separate known property",
+            SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
+        ))
     for code, element in resolve_sequential_bindings(
         controller, interfaces=result.library_interfaces, identifier_pattern=EXPRESSION_SPEC.identifier,
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
