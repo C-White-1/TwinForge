@@ -137,12 +137,20 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Decode Ladder grid connectivity for the pure-series case (contacts in
       series to one trailing coil, per row); see the Ladder series checkpoint
       below for scope
-- [ ] Backlog: Ladder `shortCircuit`/`VLink` branch and vertical-wire routing,
-      and `FFBBlock` pin wiring within a Ladder network (EN/IN/etc.). Real
-      corpus evidence (`function15.zip`) shows a single vertical wire can span
-      many rows to reach a distant block, not just an adjacent-row OR-merge --
-      the exact rule is not yet evidenced well enough to resolve, so every row
-      touching these stays diagnosed (`unresolved_ladder_row`), never guessed.
+- [x] Resolve `shortCircuit`/`VLink` vertical wires that land cleanly on a
+      target `FFBBlock`'s `EN` pin (the only pin ever evidenced as a
+      target); see the `shortCircuit`/SCE checkpoint below. This is
+      deliberately narrower than Schneider's documented Short Circuit
+      Evaluation bypass semantics, which no fixture in the corpus proves
+      applies here -- structural connectivity only, not synthesized
+      bypass-and-passthrough execution.
+- [ ] Backlog: the remaining ambiguous `shortCircuit`/`VLink` shape -- a wire
+      that keeps a `VLink` alive one row past a candidate landing (real
+      example: `MBP_MSTR_7` in `function15.zip`/`function2.zip`), which may
+      mean a second input row is fed the same way, or may just be a
+      multi-row block's own border rendered with the same element. Not
+      decidable from the grid alone; needs either more fixtures or vendor
+      documentation of the row-to-pin mapping for multi-row blocks.
 - [ ] Resolve multi-block/network order under documented link and override rules
   (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
@@ -689,4 +697,41 @@ folded silently into the DFB-scope extension.
 10 targeted tests passed (real-fixture assertions split by scope, plus the
 LD-noise regression case) on top of the previous checkpoint's 22; full
 suite (1260 tests) passed; Ruff and Pyright passed, including a full
+repo-wide Pyright re-check.
+
+`shortCircuit`/SCE checkpoint (2026-09-22): official Schneider Machine
+Expert documentation ("Parallel Branch", product-help.se.com,
+EIO0000002854.00) names the Ladder double-vertical-line construct "Short
+Circuit Evaluation" -- a conditional bypass for a block with a boolean
+input/output. Re-examining the real evidence in detail (hand-computed grid
+columns/rows, cross-checked against every real `objPosition`) found that no
+fixture in the corpus actually shows that shape; every real `shortCircuit`
+instead feeds one target pin directly. Two consecutive AskUserQuestion
+course-corrections happened during this work: first, scope was narrowed
+from "implement the vendor's bypass semantics" to "resolve only the
+structural connectivity the evidence actually supports" once the mismatch
+surfaced; second, after finding a genuine multi-row-block pin-mapping
+ambiguity (see below), the user chose to keep investigating with the
+existing corpus rather than pause for more fixtures, which is what
+produced the final, narrower rule. See the architecture doc's new
+`shortCircuit`/SCE section for the full column-arithmetic evidence and the
+two real shapes (`resetnoe`'s RESET-vs-SET and `MBP_MSTR_7`) that forced
+the lookahead-confirmation refinement.
+
+`resolve_ladder_pin_conditions` (`ladder.py`) resolves vertical wires that
+land cleanly on a target `FFBBlock`'s `EN` pin -- the only pin ever
+evidenced as a target -- and leaves every other shape (dangling, or a
+`VLink` still alive one row past a candidate landing) diagnosed by the
+existing row-level mechanism, not guessed. Resolved conditions attach to
+the matching `GraphicalPin.ladder_condition` (a new field, distinct from
+`expression`/`target_tag`, since this comes from grid geometry, not a
+source attribute) via a new `LadderPinCondition` model type.
+
+4 real EN conditions resolve identically in `function15.zip` and
+`function2.zip` (`.2`/SET, `.4`/ADD, `.5`/ADD, `.4`/SET unconditional);
+zero elsewhere in the corpus, including both of the escalator's
+`shortCircuit` occurrences (which dangle, reaching no block at all). 6
+new targeted tests passed (4 synthetic shapes, 1 malformed-shape
+diagnostic, 1 real-fixture assertion covering both zip archives); full
+suite (1266 tests) passed; Ruff and Pyright passed, including a full
 repo-wide Pyright re-check.

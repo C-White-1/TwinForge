@@ -51,6 +51,7 @@ from .ladder import (
     LadderInstruction,
     LadderOperation,
     LadderParallel,
+    LadderPinCondition,
     LadderPosition,
     LadderSeries,
 )
@@ -163,6 +164,7 @@ __all__ = [
     "LadderInstruction",
     "LadderOperation",
     "LadderParallel",
+    "LadderPinCondition",
     "LadderPosition",
     "LadderRung",
     "LadderSeries",

@@ -21,9 +21,30 @@ from twinforge.model.sequential import SequentialElement
 
 from .capture import CapturedArtifact, CapturedSection, Diagnostic, SourceLocation
 from .graphical import parse_diagrams
-from .ladder import parse_ladder_rungs
+from .ladder import parse_ladder_rungs, resolve_ladder_pin_conditions
 from .sfc import parse_charts
 from .evidence import source_extension as _extension
+
+
+def _apply_ladder_pin_conditions(
+    result: "ParsedProject", routine: Routine, bindings: list, source: CapturedSection,
+) -> None:
+    for binding in bindings:
+        if binding.network_index >= len(routine.graphical_diagrams):
+            continue
+        diagram = routine.graphical_diagrams[binding.network_index]
+        matches = [obj for obj in diagram.objects if obj.kind == "block" and obj.position == binding.position]
+        if len(matches) != 1:
+            result.report("unresolved_ladder_pin_condition",
+                          f"No unique block found for a resolved Ladder wire at {binding.position}", source)
+            continue
+        pins = [pin for pin in matches[0].pins if pin.name == binding.pin_name]
+        if len(pins) != 1:
+            result.report("unresolved_ladder_pin_condition",
+                          f"No unique {binding.pin_name!r} pin found for a resolved Ladder wire at {binding.position}",
+                          source)
+            continue
+        pins[0].ladder_condition = binding.condition
 
 
 @dataclass
@@ -243,6 +264,9 @@ def _function_blocks(
                     if language == "LD":
                         routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
                         result.diagnostics.extend(ladder_diagnostics)
+                        pin_bindings, pin_diagnostics = resolve_ladder_pin_conditions(source)
+                        result.diagnostics.extend(pin_diagnostics)
+                        _apply_ladder_pin_conditions(result, routine, pin_bindings, source)
                 aoi.add_routine(routine)
             else:
                 result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", program)
@@ -292,6 +316,9 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
                 if language == "LD":
                     routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
                     result.diagnostics.extend(ladder_diagnostics)
+                    pin_bindings, pin_diagnostics = resolve_ladder_pin_conditions(source)
+                    result.diagnostics.extend(pin_diagnostics)
+                    _apply_ladder_pin_conditions(result, routine, pin_bindings, source)
             program.add_routine(routine)
         else:
             result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", node)

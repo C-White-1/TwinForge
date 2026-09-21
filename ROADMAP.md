@@ -148,7 +148,14 @@ Delivery status and acceptance criteria are maintained in the
   (Schneider FAQ FA340273), generalized to a full topological sort for
   dependency chains deeper than its own worked example (verified up to 7
   levels against the real corpus)
-- [ ] Resolve Ladder branch/vertical-wire routing (blocked on further evidence)
+- [x] Resolve `shortCircuit`/`VLink` vertical wires that land cleanly on a
+  target block's `EN` pin (structural connectivity only, not Schneider's
+  documented Short Circuit Evaluation bypass semantics, which no fixture
+  in the corpus proves applies here)
+- [ ] Resolve the remaining ambiguous `shortCircuit`/`VLink` shape: a wire
+  that keeps a vertical link alive one row past a candidate landing, whose
+  true target (a second input row, or just a multi-row block's own border)
+  is not decidable from the grid alone
 - [ ] Capture device DDT definitions (a distinct mechanism from `DDTSource`)
 - [ ] Validate against Schneider schemas, then native import/build and runtime evidence
 

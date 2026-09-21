@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from .ladder import LadderPosition
+from .ladder import LadderPosition, LadderSeries
 from .source_extension import SourceExtension
 
 if TYPE_CHECKING:
@@ -27,6 +27,10 @@ class GraphicalPin:
     # Block body, against that FB's own parameter -- a distinct namespace
     # from the project's global tags, never both at once.
     target_parameter: "AddOnInstructionParameter | None" = field(default=None, repr=False)
+    # A Ladder vertical-wire condition resolved by grid position, distinct
+    # from expression/target_tag above (which come from an explicit source
+    # attribute, never grid geometry). None means not resolved this way.
+    ladder_condition: "LadderSeries | None" = field(default=None, repr=False)
 
 
 @dataclass

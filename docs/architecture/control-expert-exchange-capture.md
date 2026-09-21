@@ -1149,3 +1149,72 @@ diagram unconditionally -- `execution_order_resolved` never becomes `True`
 for LD by any mechanism, so this was noise, not evidence, present since the
 diagnostic was first introduced. Filtered out for LD; no existing test
 relied on the old count, and a new one locks in the fix.
+
+## `shortCircuit`/`VLink` vertical wires: not vendor SCE, but evidenced anyway
+
+Schneider's own Machine Expert documentation ("Parallel Branch",
+product-help.se.com, part number EIO0000002854.00) names the double
+vertical line in a Ladder rung "Short Circuit Evaluation" (SCE): a
+conditional bypass for a function block with a boolean input/output --
+when a parallel branch made only of contacts evaluates true, the gated
+block is skipped and its input value passes straight through to its
+output; when false, the block runs normally. That is a real, documented
+mechanism, but it is not what the `shortCircuit` element represents in
+every project in this corpus. No fixture here shows the doc's specific
+shape (one parallel branch with a block, another with only contacts,
+merging to a shared point). Every real `shortCircuit` instead feeds one
+target pin directly, confirmed by recomputing grid columns/rows by hand
+and matching them exactly against the target `FFBBlock`'s own
+`objPosition`. `resolve_ladder_pin_conditions` (`ladder.py`) resolves this
+narrower, actually-evidenced case, and deliberately stops short of
+synthesizing the vendor's bypass-and-passthrough execution semantics,
+which nothing in the corpus proves applies here.
+
+Column/row arithmetic, worked out against `Escalier_Mecanique.XEF` and
+`function15.zip`/`function2.zip` (the same `mbp_mstr15`/`mbp_mstrf2`
+projects behind the FBD execution-order evidence) and cross-checked
+against every real `objPosition`:
+
+- `emptyCell`/`HLink` consume their `nbCells`; a bare `contact`, `coil` or
+  `VLink` consumes exactly one column, matching the existing pure-series
+  convention.
+- `shortCircuit` wraps exactly one `VLink` plus one sibling (`contact` or
+  `HLink`). Its own column-width equals that sibling's width, and its
+  vertical "tie" column is the *last* column of that span, not the first
+  -- confirmed because every subsequent bare `VLink` continuing the same
+  wire lands on that end column, never the start column.
+- A wire's condition is whichever `contact`s appear in its origin row
+  before reaching the `shortCircuit` (as ordinary series siblings, or
+  nested inside the `shortCircuit` itself, or both) -- zero, for a
+  `shortCircuit` wrapping a plain `HLink`, means the wire is unconditional.
+- The wire continues through following rows wherever a bare `VLink` sits
+  in the *same* column. It does not survive a blank/skipped span
+  (`emptyLine`): nothing is drawn there to carry it, and no fixture shows
+  otherwise.
+- It lands, unambiguously, on `EN` -- never any other pin -- when it
+  reaches a row that is exactly an `FFBBlock`'s own `objPosition posY`,
+  that block has `enEnO="true"` with `EN` listed first in its
+  `descriptionFFB` (always true for such a block), and nothing but empty
+  cells lies between the wire's column and the block's `posX`. `EN` is
+  the only pin ever evidenced as a target; no fixture shows a second input
+  row being fed this way.
+- A landing is confirmed only if the same column carries *no* marker one
+  row past the landing row. Real evidence needed this refinement twice:
+  `resetnoe`'s `.3`/RESET looks like a clean landing at row 20, but the
+  same wire genuinely continues (through two more real, undrawn-nothing
+  rows) to `.4`/SET at row 23 -- confirming the landing at row 20 would
+  have been wrong. Conversely, `MBP_MSTR_7` (a 7-row `MBP_MSTR` block with
+  three wireable inputs, `EN`/`ENABLE`/`ABORT`) shows a wire landing
+  cleanly on its anchor row, then keeping a `VLink` alive at the same
+  column for exactly one further row before dangling. Whether that means
+  the wire also feeds `ENABLE`, or is merely the block's own border
+  rendered with the same element, is not decidable from the grid alone --
+  left unresolved rather than guessed.
+
+Confirmed across the full corpus: 4 resolved `EN` conditions each in
+`function15.zip`/`function2.zip` (`.2`/SET ← `abortnoe`,
+`.4`/ADD ← `timedoutnoe`, `.5`/ADD ← `resetnoe`,
+`.4`/SET ← unconditional), zero elsewhere -- both of
+`Escalier_Mecanique.XEF`'s two `shortCircuit` occurrences dangle (no
+`FFBBlock` reached at all), and no other fixture in the corpus contains a
+`shortCircuit` element.

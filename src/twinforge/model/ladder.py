@@ -49,3 +49,23 @@ class LadderParallel:
     """Two or more alternative ladder paths retained recursively."""
 
     branches: tuple[LadderSeries, ...]
+
+
+@dataclass(frozen=True)
+class LadderPinCondition:
+    """A grid-position-resolved vertical-wire condition feeding one block pin.
+
+    Evidenced only for the `EN` pin: a `shortCircuit`-originated vertical bus
+    (continuing through bare `VLink` rows at the same column) that lands
+    cleanly -- nothing but empty cells between the wire and the block, on the
+    block's own anchor row, with no further `VLink` continuing past it --
+    unambiguously targets the first (`EN`) pin, since that is always listed
+    first for an `enEnO="true"` block. Multi-row blocks where the wire keeps
+    a `VLink` alive past the anchor row are not resolved by this rule; the
+    row-to-pin mapping for additional input rows is not evidenced.
+    """
+
+    network_index: int
+    position: LadderPosition
+    pin_name: str
+    condition: LadderSeries

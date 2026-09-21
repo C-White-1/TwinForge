@@ -6,6 +6,34 @@ import pytest
 from twinforge.model import LadderInstruction, LadderOperation, LadderRung
 from twinforge.parsers.control_expert import capture_bytes, capture_file, parse_project, parse_projects
 
+_FFB_TEMPLATE = (
+    '<FFBBlock instanceName="{instance}" typeName="{type_name}" additionnalPinNumber="0" '
+    'enEnO="{en_en_o}" width="10" height="3">'
+    '<objPosition posX="{posx}" posY="{posy}"/>'
+    '<descriptionFFB execAfter=""><inputVariable invertedPin="false" formalParameter="{first_input}"/>'
+    '</descriptionFFB></FFBBlock>'
+)
+
+
+def _ffb(instance="B1", type_name="TON", posx=2, posy=1, en_en_o="true", first_input="EN"):
+    return _FFB_TEMPLATE.format(
+        instance=instance, type_name=type_name, posx=posx, posy=posy,
+        en_en_o=en_en_o, first_input=first_input,
+    )
+
+
+def _block(routine, instance="B1"):
+    diagram = routine.graphical_diagrams[0]
+    matches = [obj for obj in diagram.objects if obj.instance_name == instance]
+    assert len(matches) == 1
+    return matches[0]
+
+
+def _en_pin(routine, instance="B1"):
+    pins = [pin for pin in _block(routine, instance).pins if pin.name == "EN"]
+    assert len(pins) == 1
+    return pins[0]
+
 
 def _ld_routine(network_body: str):
     data = f'''<FEFExchangeFile><logicConf><resource><taskDesc task="MAST" taskType="cyclic">
@@ -153,6 +181,91 @@ def test_optional_real_escalator_ladder_rungs(filename):
         ["Presence_Request", "Start_Timer"],
         ["p", "p_prev"],
     ]
+
+
+def test_short_circuit_wire_resolves_to_target_block_en_pin():
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    <contact typeContact="openContact" contactVariableName="A"/></shortCircuit>
+    <HLink nbCells="9"/></typeLine>
+    <typeLine><VLink/><emptyCell nbCells="1"/>{_ffb(posx=2, posy=1)}</typeLine>''')
+    pin = _en_pin(routine)
+    assert pin.ladder_condition is not None
+    assert len(pin.ladder_condition.elements) == 1
+    instruction = pin.ladder_condition.elements[0]
+    assert isinstance(instruction, LadderInstruction)
+    assert instruction.operation == LadderOperation.NORMALLY_OPEN_CONTACT
+    assert instruction.operand == "A"
+
+
+def test_short_circuit_wire_with_no_contact_is_unconditional():
+    _result, routine = _ld_routine(f'''
+    <typeLine><HLink nbCells="1"/><shortCircuit><VLink/>
+    <HLink nbCells="3"/></shortCircuit><emptyCell nbCells="6"/></typeLine>
+    <typeLine><emptyCell nbCells="3"/><VLink/><emptyCell nbCells="1"/>{_ffb(posx=5, posy=1)}</typeLine>''')
+    pin = _en_pin(routine)
+    assert pin.ladder_condition is not None
+    assert pin.ladder_condition.elements == ()
+
+
+def test_short_circuit_wire_that_continues_past_landing_row_stays_unresolved():
+    # Real evidence (MBP_MSTR_7 in the corpus) shows this shape exists but its
+    # true target is ambiguous; do not guess which pin it feeds.
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    <contact typeContact="openContact" contactVariableName="A"/></shortCircuit>
+    <HLink nbCells="9"/></typeLine>
+    <typeLine><VLink/><emptyCell nbCells="1"/>{_ffb(posx=2, posy=1)}</typeLine>
+    <typeLine><VLink/><emptyCell nbCells="9"/></typeLine>''')
+    pin = _en_pin(routine)
+    assert pin.ladder_condition is None
+
+
+def test_short_circuit_wire_does_not_bind_without_en_en_o():
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    <contact typeContact="openContact" contactVariableName="A"/></shortCircuit>
+    <HLink nbCells="9"/></typeLine>
+    <typeLine><VLink/><emptyCell nbCells="1"/>{_ffb(posx=2, posy=1, en_en_o="false")}</typeLine>''')
+    pin = _en_pin(routine)
+    assert pin.ladder_condition is None
+
+
+def test_malformed_short_circuit_shape_is_diagnosed_not_guessed():
+    result, _routine = _ld_routine('''
+    <typeLine><shortCircuit>
+    <contact typeContact="openContact" contactVariableName="A"/>
+    <contact typeContact="openContact" contactVariableName="B"/>
+    </shortCircuit><HLink nbCells="9"/></typeLine>''')
+    assert sum(d.code == "unresolved_ladder_short_circuit" for d in result.diagnostics) == 1
+
+
+def test_optional_real_function15_short_circuit_conditions():
+    for filename in ("function15.zip", "function2.zip"):
+        path = Path("reference/control-expert") / filename
+        if not path.exists():
+            pytest.skip("Local function15/function2 reference unavailable")
+        captured = capture_file(path)
+        result, = parse_projects(next(m for m in captured.members if m.name.endswith(".zef")))
+
+        def en_condition(program_name: str, instance: str) -> list[str | None] | None:
+            routine = result.controller.programs[program_name].main_routine
+            assert routine is not None
+            block = next(o for d in routine.graphical_diagrams for o in d.objects if o.instance_name == instance)
+            pin = next(p for p in block.pins if p.name == "EN")
+            if pin.ladder_condition is None:
+                return None
+            return [e.operand for e in pin.ladder_condition.elements]  # type: ignore[union-attr]
+
+        assert en_condition("sendnoe", ".2") == ["abortnoe"]       # SET
+        assert en_condition("sendnoe", ".4") == ["timedoutnoe"]    # ADD
+        assert en_condition("resetnoe", ".5") == ["resetnoe"]      # ADD
+        assert en_condition("resetnoe", ".4") == []                # SET, unconditional
+        # Genuinely ambiguous shapes in the corpus stay unresolved, not guessed.
+        assert en_condition("sendnoe", "MBP_MSTR_2") is None
+        assert en_condition("sendnoe", "TON_2") is None
+        assert en_condition("resetnoe", ".3") is None               # RESET
+        assert en_condition("resetnoe", "MBP_MSTR_7") is None
 
 
 @pytest.mark.parametrize("filename", ["MultiGrafcet_Coordination_V1_2026.XEF", "tsaii_multigrafcet_final_v1.zef"])
