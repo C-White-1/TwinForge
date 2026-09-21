@@ -137,8 +137,25 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                 "description": m.description,
             } for m in dt.members],
         } for dt in controller.datatypes.values()],
+        "function_blocks": [{
+            "name": aoi.name, "description": aoi.description,
+            "parameters": [{
+                "name": p.name, "type": p.data_type, "usage": p.usage,
+                "resolved_datatype": p.data_type_definition.name if p.data_type_definition else None,
+            } for p in aoi.parameters.values()],
+            "local_tags": [{
+                "name": t.name, "type": t.data_type,
+                "resolved_datatype": t.data_type_definition.name if t.data_type_definition else None,
+            } for t in aoi.local_tags.values()],
+            "body": [{
+                "language": r.language, "structured_text_line_count": len(r.structured_text_lines),
+                "diagram_count": len(r.graphical_diagrams), "ladder_rung_count": len(r.ladder_rungs),
+                "sequential_chart_count": len(r.sequential_charts),
+            } for r in aoi.routines.values()],
+        } for aoi in controller.add_on_instructions.values()],
         "variables": [{
             "name": tag.name, "type": tag.data_type,
+            "resolved_datatype": tag.data_type_definition.name if tag.data_type_definition else None,
             "address": tag.metadata.get("source_memory_address"),
             "array_bounds": tag.metadata.get("source_array_bounds"),
             "initializers": tag.metadata.get("source_initial_values", []),
@@ -193,6 +210,7 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                          f"  Source: {location}\n"
                          f"  Controller: {project['controller_product'] or '(unknown)'}\n"
                          f"  Variables: {len(project['variables'])}; datatypes: {len(project['datatypes'])}; "
+                         f"function blocks: {len(project['function_blocks'])}; "
                          f"sections: {len(project['programs'])}; "
                          f"racks: {len(project['chassis'])}; unplaced modules: {len(project['unplaced_modules'])}\n")
             for task in project["tasks"]:

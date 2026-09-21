@@ -24,12 +24,25 @@ class MappingSpec:
     library_definitions: tuple[tuple[str, str, str], ...] = (
         ("EFBSource", "nameOfEFBType", "function_block"),
         ("EFSource", "nameOfEFType", "function"),
+        ("FBSource", "nameOfFBType", "user_function_block"),
     )
     library_parameters: tuple[tuple[PathSpec, str], ...] = (
         (("ExternalToolsOnly", "inputParameters", "variables"), "input"),
         (("ExternalToolsOnly", "outputParameters", "variables"), "output"),
         (("ExternalToolsOnly", "inOutParameters", "variables"), "inout"),
+        # FBSource declares the identical shape directly (not nested under
+        # ExternalToolsOnly) whenever its implementation body is not crypted;
+        # the two locations are mutually exclusive per definition, observed.
+        (("inputParameters", "variables"), "input"),
+        (("outputParameters", "variables"), "output"),
+        (("inOutParameters", "variables"), "inout"),
     )
+    function_blocks: PathSpec = ("FBSource",)
+    function_block_name_attribute: str = "nameOfFBType"
+    function_block_program: PathSpec = ("FBProgram",)
+    function_block_crypted: PathSpec = ("crypted",)
+    function_block_public_locals: PathSpec = ("publicLocalVariables", "variables")
+    function_block_private_locals: PathSpec = ("privateLocalVariables", "variables")
     roots: tuple[str, ...] = ("FEFExchangeFile", "ZEFExchangeFile")
     header: PathSpec = ("fileHeader",)
     content: PathSpec = ("contentHeader",)

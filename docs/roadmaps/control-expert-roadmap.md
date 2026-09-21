@@ -147,14 +147,13 @@ visible. Initial values are lexical evidence, not promoted typed values.
   (dataflow-only ordering above does not yet cover explicit links or `execAfter`)
 - [ ] Interpret section conditions, enable behavior, jumps and other control flow
 - [ ] Produce executable neutral graph/IR only for a verified semantic subset
-- [ ] Backlog: `FBSource`/`FBProgram` (user-defined Function Block bodies).
-      83 real definitions in the M580 safety fixture, each a full nested
-      program-like structure: an interface (`inputParameters`/
-      `outputParameters`/`inOutParameters`/`publicLocalVariables`/
-      `privateLocalVariables`) plus a body (`FBProgram`, on 76 of 83) that
-      itself contains an ordinary `FBDSource` -- reusable with the existing
-      graphical parser, but needs its own model/wiring as a new structural
-      layer, not a small extension. Left for its own pass.
+- [x] `FBSource`/`FBProgram` (user-defined Function Block definitions): interface,
+      locals and body captured into the existing `AddOnInstruction` model, and
+      also registered as a `user_function_block` library interface for call
+      validation at instantiation sites. See the DFB capture checkpoint below
+      for scope -- body-internal pin/symbol binding is a deliberately separate,
+      not-yet-attempted next step (an FB body's own parameter/local namespace,
+      not the project's flat global one)
 
 Completion criterion: connections and ordering are supported by a documented
 grammar plus discriminating fixtures. Task scans, section order, block order and
@@ -191,9 +190,10 @@ must remain unchanged.
       composite (struct/array) *initialization* is a separate, still-pending
       concern -- see the DDT capture checkpoint below for scope
 - [x] Capture DDT definitions and cross-references (`DDTSource`, including
-      forward references between DDTs); device DDT and custom DFB
-      (`FBSource`/`FBProgram`) definitions are a distinct, still-pending
-      mechanism -- see the Milestone 4 `FBSource` note below, not this item
+      forward references between DDTs) and custom DFB definitions
+      (`FBSource`/`FBProgram`, interface/locals/body -- see the DFB capture
+      checkpoint below); device DDT remains a distinct, still-pending
+      mechanism, not yet found in any local fixture
 - [ ] Distinguish library types, block-instance types and user-defined data types
 - [ ] Extend ST analysis with source dialect/system-address evidence
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
@@ -229,7 +229,7 @@ Portable fixtures are independently authored; local-reference tests skip
 explicitly when the ignored source files are unavailable.
 
 ```powershell
-uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py tests/test_control_expert_datatypes.py
+uv run pytest tests/test_control_expert_sfc.py tests/test_control_expert_capture.py tests/test_control_expert_project.py tests/test_control_expert_graphical.py tests/test_graphical_bindings.py tests/test_cli_control_expert.py tests/test_model_json_export.py tests/test_sfc_connectivity.py tests/test_sfc_coverage.py tests/test_control_expert_ladder.py tests/test_control_expert_datatypes.py tests/test_control_expert_function_blocks.py
 ```
 
 Run Ruff and Pyright on changed modules, plus relevant model/CLI/ST regressions
@@ -518,3 +518,51 @@ multi-Grafcet corpus's periodic MAST task; only its *name* ("SAFE") is new.
 All 13 real DDTs resolve; `T_BMENOC0321` (5 array members, 1 nested-DDT
 reference to `T_NOCDIO_HEALTH`) is checked directly. 8 targeted datatype
 tests passed; full suite (1232 tests) passed; Ruff and Pyright passed.
+
+DFB (user-defined Function Block) capture checkpoint (2026-09-21):
+`FBSource` maps to the existing `AddOnInstruction`/`AddOnInstructionParameter`
+model -- unpopulated for Control Expert until now, the same shape Rockwell
+AOIs already use, and a natural fit: a DFB genuinely is "a reusable
+instruction with parameters, local tags and an implementation," not a new
+concept requiring its own model. All 83 real definitions in the M580 safety
+fixture resolve: interface parameters (`inputParameters`/`outputParameters`/
+`inOutParameters`, direct children when the body is real, nested under
+`ExternalToolsOnly` when `crypted` -- the two locations are mutually
+exclusive, reusing the same `library_parameters` path list rather than
+adding a second lookup mechanism), local variables
+(`publicLocalVariables`/`privateLocalVariables` into `local_tags`, kept
+separate from the external parameter interface, matching the AOI model's own
+separation) and a body: `STSource` (65) or `FBDSource` (10) parsed exactly
+as a top-level program's would be, reusing `parse_diagrams`/structured-text
+line-splitting unchanged. 7 are `crypted` (interface retained, body
+genuinely opaque, diagnosed `encrypted_function_block_body`); one
+(`IO_AI_EX`) has two `FBProgram` elements -- diagnosed
+`ambiguous_function_block_body` rather than guessed, the same discipline
+applied to every other multi-match case in this parser.
+
+Parameter and local-variable types now resolve against the DDT registry
+built earlier the same pass (`data_type_definition`), and -- since the
+registry already existed -- top-level tags gained the same resolution as a
+direct, low-risk completion of the earlier DDT checkpoint (it had suppressed
+the `unresolved_type` diagnostic for a DDT-typed tag but never actually set
+`Tag.data_type_definition`, an oversight caught while implementing this).
+
+Each DFB is also registered as a `user_function_block` library interface
+(alongside the existing `EFBSource`/`EFSource` vendor-library entries),
+letting the already-built `match_library_calls` validate calls to
+project-defined FBs the same way it validates vendor-library calls -- a real
+gap closed for free, since 260 real `FFBBlock` instances in this project's
+own top-level programs call a user-defined FB, previously left entirely
+unrecognized (`unclassified`/`unresolved_library_interface`).
+
+Deliberately not attempted: resolving pins/symbols *inside* an FB body. An
+FB body's parameters and locals form their own namespace, not the project's
+flat global tag table the existing `resolve_graphical_bindings`/
+`resolve_sequential_bindings` assume -- wiring FB routines into those passes
+without FB-local scoping would produce wrong bindings, not just incomplete
+ones, so it stays a separate, explicitly deferred step. Device DDT
+definitions also remain unaddressed -- a distinct mechanism from
+`DDTSource`, not yet found in any local fixture. 11 targeted tests passed
+(synthetic interface/body/locals/diagnostics cases, a call-validation
+round-trip, and the full real fixture); full suite (1243 tests) passed;
+Ruff and Pyright passed.

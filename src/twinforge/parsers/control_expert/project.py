@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 import re
 
 from twinforge.model import (
-    Chassis, Controller, Datatype, DatatypeMember, Identity, Module, Program, Routine,
-    SourceExtension, StructuredTextLine, Tag, Task,
+    AddOnInstruction, AddOnInstructionParameter, Chassis, Controller, Datatype, DatatypeMember,
+    Identity, Module, Program, Routine, SourceExtension, StructuredTextLine, Tag, Task,
 )
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
@@ -110,8 +110,9 @@ def _variables(
             # The model has no typed lower-bound field. Do not normalize this
             # into a zero-based dimensions string and imply portability.
             result.report("unresolved_array_type", f"{name}: array expression and bounds retained; type not resolved", node)
-        known = bool(base_type) and base_type.casefold() in known_datatypes
-        if not known and (not base_type or base_type.upper() not in spec.scalar_types):
+        if base_type:
+            tag.data_type_definition = known_datatypes.get(base_type.casefold())
+        if tag.data_type_definition is None and (not base_type or base_type.upper() not in spec.scalar_types):
             result.report("unresolved_type", f"{name}: no supported type definition for {base_type!r}", node)
         result.controller.add_tag(tag)
 
@@ -163,6 +164,91 @@ def _datatypes(result: ParsedProject, root: CapturedSection, spec: MappingSpec) 
                 result.report("unresolved_type", f"{label}: no supported type definition for {base_type!r}", member_node)
             datatype.members.append(member)
     return by_key
+
+
+def _function_blocks(
+    result: ParsedProject, root: CapturedSection, spec: MappingSpec,
+    known_datatypes: dict[str, Datatype],
+) -> None:
+    """Map user-defined Function Block (DFB) definitions: interface, locals and body.
+
+    A crypted body is genuinely opaque; only the interface is retained. Body
+    bindings (pin/symbol resolution) are not attempted here -- an FB body's
+    parameters and locals form their own namespace, not the project's global
+    tags, and the existing binding analyses assume one flat global scope.
+    """
+    used: set[str] = set()
+    for node in _select(root, spec.function_blocks):
+        name = _unique_name(result, node, node.raw_attributes.get(spec.function_block_name_attribute), used, "function block")
+        if name is None:
+            continue
+        comment = _first(node, spec.comments)
+        aoi = AddOnInstruction(name=name, description=comment.text if comment else None,
+                               source_extensions=[_extension(node)])
+        param_used: set[str] = set()
+        for path, direction in spec.library_parameters:
+            for parameter in _select(node, path):
+                attrs = parameter.raw_attributes
+                pname = _unique_name(result, parameter, attrs.get("name"), param_used, "function block parameter")
+                if pname is None:
+                    continue
+                type_name = attrs.get("typeName")
+                aoi.add_parameter(AddOnInstructionParameter(
+                    name=pname, data_type=type_name, usage=direction,
+                    data_type_definition=known_datatypes.get(type_name.casefold()) if type_name else None,
+                    source_extensions=[_extension(parameter)],
+                ))
+        local_used: set[str] = set()
+        for path in (spec.function_block_public_locals, spec.function_block_private_locals):
+            for local_node in _select(node, path):
+                attrs = local_node.raw_attributes
+                lname = _unique_name(result, local_node, attrs.get("name"), local_used, "function block local variable")
+                if lname is None:
+                    continue
+                type_name = attrs.get("typeName")
+                aoi.add_local_tag(Tag(
+                    name=lname, data_type=type_name,
+                    data_type_definition=known_datatypes.get(type_name.casefold()) if type_name else None,
+                    source_extensions=[_extension(local_node)],
+                ))
+        programs = _select(node, spec.function_block_program)
+        crypted = _first(node, spec.function_block_crypted)
+        if crypted is not None:
+            result.report("encrypted_function_block_body",
+                          f"{name}: implementation body is encrypted; interface retained", node)
+        elif len(programs) > 1:
+            result.report("ambiguous_function_block_body",
+                          f"{name}: expected one implementation body, found {len(programs)}", node)
+        elif programs:
+            program = programs[0]
+            sources = [(source, language) for tag, language in spec.languages for source in _select(program, (tag,))]
+            if len(sources) == 1:
+                source, language = sources[0]
+                routine = Routine(name=name, language=language, source_extensions=[_extension(source)])
+                if language == "ST":
+                    routine.structured_text_lines = [
+                        StructuredTextLine(number=index + 1, text=line)
+                        for index, line in enumerate((source.text or "").split("\n"))
+                    ]
+                    if source.ordered_children:
+                        result.report("unsupported_st_structure", f"{name}: nested ST content retained as evidence", source)
+                elif language == "SFC":
+                    routine.sequential_charts, diagnostics = parse_charts(program)
+                    result.diagnostics.extend(diagnostics)
+                    result.report("uninterpreted_sfc_execution", f"{name}: chart structure retained; connectivity and execution unresolved", source)
+                else:
+                    routine.graphical_diagrams, diagnostics = parse_diagrams(source)
+                    result.diagnostics.extend(diagnostics)
+                    result.report("uninterpreted_graphical_logic", f"{name}: {language} retained without execution mapping", source)
+                    if language == "LD":
+                        routine.ladder_rungs, ladder_diagnostics = parse_ladder_rungs(source)
+                        result.diagnostics.extend(ladder_diagnostics)
+                aoi.add_routine(routine)
+            else:
+                result.report("ambiguous_language", f"{name}: expected one supported source body, found {len(sources)}", program)
+        else:
+            result.report("unresolved_function_block_body", f"{name}: no supported implementation body found", node)
+        result.controller.add_add_on_instruction(aoi)
 
 
 def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
@@ -334,6 +420,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             ))
     known_datatypes = _datatypes(result, root, spec)
     _variables(result, root, spec, known_datatypes)
+    _function_blocks(result, root, spec, known_datatypes)
     _programs_and_tasks(result, root, spec)
     _hardware(result, root, spec)
     variable_counts: dict[str, int] = {}

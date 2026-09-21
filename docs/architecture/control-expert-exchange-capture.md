@@ -945,10 +945,79 @@ so this specific extension has no real-corpus example yet; it is a direct,
 low-risk consequence of the DDT registry now existing; not a speculative
 addition.
 
-Out of scope, not attempted: device DDTs and custom DFB (`FBSource`/
-`FBProgram`) definitions are a structurally distinct mechanism (see the
-Milestone 4 backlog note) and are not captured by this work despite sharing
-the "DDT" name in the milestone wording; composite/array *initialization*
-values (as opposed to the bounds captured here) remain unresolved lexical
-evidence, matching how scalar initial values are already handled for plain
-tags.
+Out of scope, not attempted: device DDTs are a structurally distinct
+mechanism from `DDTSource` and are not captured by this work despite sharing
+the "DDT" name in the milestone wording (custom DFB/`FBSource` definitions
+*are* now captured -- see below); composite/array *initialization* values
+(as opposed to the bounds captured here) remain unresolved lexical evidence,
+matching how scalar initial values are already handled for plain tags.
+
+## DFB (user-defined Function Block) grammar and capture
+
+`FBSource` is a root-level sibling of `program`/`DDTSource` (not nested
+under either), one per user-defined Function Block: `<FBSource
+nameOfFBType="..." version="..." dateTime="...">`, with `<comment>`,
+`<attribute>` metadata (`TypeCodeCheckSumString`, `TypeSignatureCheckSumString`,
+retained unmapped, same discipline as `DDTSource`'s own attributes), an
+interface and a body.
+
+Interface shape: `inputParameters`/`outputParameters`/`inOutParameters` and
+`publicLocalVariables`/`privateLocalVariables`, each containing `variables`
+elements -- the identical element reused for `DDTSource` members and
+`dataBlock` tags. Location varies by body state, observed as mutually
+exclusive across all 83 real definitions: a **direct** child of `FBSource`
+for the 76 with a real body, or nested under `ExternalToolsOnly` for the 7
+with a `crypted` one -- the same wrapper `EFBSource`/`EFSource` already use
+for their own (always-nested, never-direct in the observed evidence)
+interface declarations, apparently Control Expert's way of exposing an
+interface to external tools even when the implementation is inaccessible.
+Reused the existing `library_parameters` path list unchanged rather than
+adding a parallel lookup: it already tries the `ExternalToolsOnly`-nested
+paths, so three more entries for the direct paths cover both locations with
+one mechanism.
+
+Body shape: `FBProgram` wraps exactly one of the four recognized language
+sources (observed: `STSource` 65 times, `FBDSource` 10; no `LDSource` or
+`chartSource` body in this corpus, though nothing in the grammar rules them
+out) -- parsed with the identical machinery a top-level program's body
+already uses (`parse_diagrams`, ST line-splitting), producing an ordinary
+`Routine` attached to the DFB's own `AddOnInstruction.routines`. A `crypted`
+element (hex-encoded, `Encoding` attribute, no children -- genuinely opaque,
+not attempted) replaces `FBProgram` entirely for those 7; one definition
+(`IO_AI_EX`) has *two* `FBProgram` elements, diagnosed
+(`ambiguous_function_block_body`) rather than arbitrarily picking one.
+
+Model choice: `FBSource` maps to the existing `AddOnInstruction`/
+`AddOnInstructionParameter` model (`Controller.add_on_instructions`,
+previously populated only by the L5X/Rockwell AOI parser, unpopulated for
+Control Expert until now) rather than a new Control-Expert-specific type. A
+DFB and a Rockwell AOI are the same concept -- a reusable instruction with a
+parameter interface, local tags and an implementation body -- and the
+existing model already separates external parameters from local tags
+exactly the way this evidence needs. `AddOnInstructionParameter`'s
+pre-existing `data_type_definition: Datatype | None` field (mirroring
+`DatatypeMember.data_type`) resolves against the same DDT registry the
+`DDTSource` pass already builds; the same registry closed a small
+completion gap in that earlier pass -- `Tag.data_type_definition` was never
+actually being set for top-level tags, only the diagnostic was suppressed.
+
+Each `FBSource` is also registered as a `user_function_block` entry in
+`library_interfaces` (alongside the pre-existing `EFBSource`=`function_block`
+and `EFSource`=`function` entries), using its own already-collected
+parameter list. This costs nothing new structurally -- `match_library_calls`
+has no kind-specific logic, `kind` is purely descriptive -- but it closes a
+real, previously invisible gap: 260 real `FFBBlock` instances in this
+project's own top-level programs call a project-defined FB, and previously
+had no interface to validate against at all.
+
+Deliberately not attempted: binding pins/symbols *inside* a DFB body. An
+FB body's parameters and locals are their own namespace -- an `IN` pin
+inside a DFB body means "this DFB's own IN parameter," not a project-global
+tag named IN -- but `resolve_graphical_bindings` and
+`resolve_sequential_bindings` both assume one flat, project-wide symbol
+table. Wiring DFB routines into those passes unchanged would produce
+plausible-looking but *wrong* bindings for any DFB whose parameter or local
+name happens to collide with an unrelated global tag, not merely incomplete
+ones -- a materially worse failure mode than leaving them unresolved. Left
+as a separate, explicitly scoped next step, not a small extension of the
+existing passes.

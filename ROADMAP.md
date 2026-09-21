@@ -140,9 +140,12 @@ Delivery status and acceptance criteria are maintained in the
   `twinforge control-expert coverage`
 - [x] Resolve pure-series Ladder rungs and explicit FBD link connectivity by name
 - [x] Capture DDT definitions, array bounds and hardware power-supply modeling
+- [x] Capture custom DFB (`FBSource`/`FBProgram`) definitions into the shared
+  Add-On Instruction model, including call validation at instantiation sites
 - [ ] Resolve multi-block FBD execution order and Ladder branch/vertical-wire
   routing (next; blocked on further evidence for the branch case)
-- [ ] Capture device DDT and custom DFB (`FBSource`/`FBProgram`) definitions
+- [ ] Capture device DDT definitions; bind pins/symbols inside a DFB body
+  (needs the body's own parameter/local namespace, not the project-global one)
 - [ ] Validate against Schneider schemas, then native import/build and runtime evidence
 
 Current support is read-only and provisional. The corpus now includes a real
