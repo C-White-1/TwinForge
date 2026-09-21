@@ -68,6 +68,43 @@ def test_fbd_body_is_parsed_like_a_top_level_program():
     assert routine.graphical_diagrams[0].objects[0].type_name == "AND_BOOL"
 
 
+def test_fbd_body_pin_resolves_against_the_fbs_own_parameter_end_to_end():
+    result = project('''
+      <FBSource nameOfFBType="M_GATE">
+        <inputParameters><variables name="IN" typeName="BOOL"/></inputParameters>
+        <FBProgram><FBDSource><networkFBD>
+          <FFBBlock instanceName=".1" typeName="AND_BOOL">
+            <descriptionFFB><inputVariable formalParameter="IN1" effectiveParameter="IN"/></descriptionFFB>
+          </FFBBlock>
+        </networkFBD></FBDSource></FBProgram>
+      </FBSource>
+    ''')
+    aoi = result.controller.add_on_instructions["M_GATE"]
+    pin = aoi.routines["M_GATE"].graphical_diagrams[0].objects[0].pins[0]
+    assert pin.binding_kind == "declared_symbol"
+    assert pin.target_parameter is aoi.parameters["IN"]
+    assert pin.target_tag is None
+
+
+def test_fbd_body_pin_does_not_fall_back_to_a_same_named_global_tag():
+    result = project('''
+      <dataBlock><variables name="IN" typeName="BOOL"/></dataBlock>
+      <FBSource nameOfFBType="M_GATE">
+        <inputParameters><variables name="OTHER" typeName="BOOL"/></inputParameters>
+        <FBProgram><FBDSource><networkFBD>
+          <FFBBlock instanceName=".1" typeName="AND_BOOL">
+            <descriptionFFB><inputVariable formalParameter="IN1" effectiveParameter="IN"/></descriptionFFB>
+          </FFBBlock>
+        </networkFBD></FBDSource></FBProgram>
+      </FBSource>
+    ''')
+    aoi = result.controller.add_on_instructions["M_GATE"]
+    pin = aoi.routines["M_GATE"].graphical_diagrams[0].objects[0].pins[0]
+    assert pin.binding_kind == "missing_symbol"
+    assert pin.target_tag is None and pin.target_parameter is None
+    assert any(d.code == "unresolved_pin_symbol" for d in result.diagnostics)
+
+
 def test_public_and_private_local_variables_are_captured():
     result = project('''
       <FBSource nameOfFBType="M_STATE">
@@ -199,3 +236,19 @@ def test_optional_real_m580_safety_function_blocks(filename):
         if obj.interface_status == "matched" and obj.type_name in controller.add_on_instructions
     )
     assert matched_calls > 0
+
+    # Pins inside a DFB body resolve against that DFB's own parameters/locals,
+    # never the project's global tags -- IEC 61131-3 encapsulation.
+    fb_body_bindings: dict[str, int] = {}
+    parameter_bound = 0
+    for aoi in controller.add_on_instructions.values():
+        for routine in aoi.routines.values():
+            for diagram in routine.graphical_diagrams:
+                for obj in diagram.objects:
+                    for pin in obj.pins:
+                        fb_body_bindings[pin.binding_kind] = fb_body_bindings.get(pin.binding_kind, 0) + 1
+                        if pin.target_parameter is not None:
+                            parameter_bound += 1
+                            assert pin.target_tag is None
+    assert fb_body_bindings.get("declared_symbol", 0) > 0
+    assert parameter_bound > 0

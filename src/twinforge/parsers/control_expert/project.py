@@ -11,7 +11,7 @@ from twinforge.model import (
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 from twinforge.analysis.execution_order import resolve_fbd_execution_order
-from twinforge.analysis.graphical_bindings import resolve_graphical_bindings
+from twinforge.analysis.graphical_bindings import resolve_function_block_bindings, resolve_graphical_bindings
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
 from twinforge.analysis.sfc_connectivity import resolve_sfc_connectivity
@@ -453,8 +453,13 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         step_names=step_names,
         ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
     )
+    issues.extend(resolve_function_block_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+    ))
     for issue in issues:
-        obj = controller.programs[issue.program_name].routines[issue.routine_name].graphical_diagrams[
+        routines = (controller.add_on_instructions[issue.program_name].routines
+                    if issue.scope == "function_block" else controller.programs[issue.program_name].routines)
+        obj = routines[issue.routine_name].graphical_diagrams[
             issue.diagram_index].objects[issue.object_index]
         target = obj.pins[issue.pin_index] if issue.pin_index is not None else obj
         # Snapshot provenance is shared with the source capture, including

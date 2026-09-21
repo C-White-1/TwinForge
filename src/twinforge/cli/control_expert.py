@@ -61,41 +61,44 @@ def _ladder_rung(rung: LadderRung) -> dict[str, Any]:
             "network": _ladder_series(rung.network) if rung.network else None}
 
 
+def _diagram_summary(diagram: Any) -> dict[str, Any]:
+    return {
+        "language": diagram.language,
+        "connectivity_resolved": diagram.connectivity_resolved,
+        "execution_order_resolved": diagram.execution_order_resolved,
+        "execution_order": diagram.execution_order,
+        "execution_order_basis": diagram.execution_order_basis,
+        "shared_variables": [asdict(group) for group in diagram.shared_variables],
+        "links": [{
+            "source": asdict(link.source), "destination": asdict(link.destination),
+        } for link in diagram.links],
+        "objects": [{
+            "kind": obj.kind, "instance_name": obj.instance_name,
+            "type_name": obj.type_name, "operand": obj.operand,
+            "interface_status": obj.interface_status, "interface_index": obj.interface_index,
+            "position": asdict(obj.position) if obj.position else None,
+            "execution_after": obj.execution_after,
+            "operand_binding_kind": obj.operand_binding_kind,
+            "target_tag": obj.target_tag.name if obj.target_tag else None,
+            "target_step_name": obj.target_step_name,
+            "pins": [{"name": pin.name, "direction": pin.direction,
+                      "role": pin.role, "expression": pin.expression,
+                      "interface_status": pin.interface_status, "parameter_index": pin.parameter_index,
+                      "inverted": pin.inverted, "binding_kind": pin.binding_kind,
+                      "target_tag": pin.target_tag.name if pin.target_tag else None,
+                      "target_parameter": pin.target_parameter.name if pin.target_parameter else None}
+                     for pin in obj.pins],
+        } for obj in diagram.objects],
+    }
+
+
 def _project_summary(project: ParsedProject) -> dict[str, Any]:
     controller = project.controller
     programs = []
     for program in controller.programs.values():
         routines = []
         for routine in program.routines.values():
-            diagrams = []
-            for diagram in routine.graphical_diagrams:
-                diagrams.append({
-                    "language": diagram.language,
-                    "connectivity_resolved": diagram.connectivity_resolved,
-                    "execution_order_resolved": diagram.execution_order_resolved,
-                    "execution_order": diagram.execution_order,
-                    "execution_order_basis": diagram.execution_order_basis,
-                    "shared_variables": [asdict(group) for group in diagram.shared_variables],
-                    "links": [{
-                        "source": asdict(link.source), "destination": asdict(link.destination),
-                    } for link in diagram.links],
-                    "objects": [{
-                        "kind": obj.kind, "instance_name": obj.instance_name,
-                        "type_name": obj.type_name, "operand": obj.operand,
-                        "interface_status": obj.interface_status, "interface_index": obj.interface_index,
-                        "position": asdict(obj.position) if obj.position else None,
-                        "execution_after": obj.execution_after,
-                        "operand_binding_kind": obj.operand_binding_kind,
-                        "target_tag": obj.target_tag.name if obj.target_tag else None,
-                        "target_step_name": obj.target_step_name,
-                        "pins": [{"name": pin.name, "direction": pin.direction,
-                                  "role": pin.role, "expression": pin.expression,
-                                  "interface_status": pin.interface_status, "parameter_index": pin.parameter_index,
-                                  "inverted": pin.inverted, "binding_kind": pin.binding_kind,
-                                  "target_tag": pin.target_tag.name if pin.target_tag else None}
-                                 for pin in obj.pins],
-                    } for obj in diagram.objects],
-                })
+            diagrams = [_diagram_summary(diagram) for diagram in routine.graphical_diagrams]
             routines.append({
                 "name": routine.name, "language": routine.language,
                 "structured_text_line_count": len(routine.structured_text_lines),
@@ -149,8 +152,8 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             } for t in aoi.local_tags.values()],
             "body": [{
                 "language": r.language, "structured_text_line_count": len(r.structured_text_lines),
-                "diagram_count": len(r.graphical_diagrams), "ladder_rung_count": len(r.ladder_rungs),
-                "sequential_chart_count": len(r.sequential_charts),
+                "diagrams": [_diagram_summary(diagram) for diagram in r.graphical_diagrams],
+                "ladder_rung_count": len(r.ladder_rungs), "sequential_chart_count": len(r.sequential_charts),
             } for r in aoi.routines.values()],
         } for aoi in controller.add_on_instructions.values()],
         "variables": [{

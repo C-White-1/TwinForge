@@ -151,9 +151,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
       locals and body captured into the existing `AddOnInstruction` model, and
       also registered as a `user_function_block` library interface for call
       validation at instantiation sites. See the DFB capture checkpoint below
-      for scope -- body-internal pin/symbol binding is a deliberately separate,
-      not-yet-attempted next step (an FB body's own parameter/local namespace,
-      not the project's flat global one)
+- [x] Bind pins/symbols inside an FB body against that FB's own isolated
+      parameter/local namespace, never the project's flat global tags (IEC
+      61131-3 encapsulation) -- see the FB-local binding checkpoint below
 
 Completion criterion: connections and ordering are supported by a documented
 grammar plus discriminating fixtures. Task scans, section order, block order and
@@ -566,3 +566,39 @@ definitions also remain unaddressed -- a distinct mechanism from
 (synthetic interface/body/locals/diagnostics cases, a call-validation
 round-trip, and the full real fixture); full suite (1243 tests) passed;
 Ruff and Pyright passed.
+
+FB-local binding checkpoint (2026-09-21): the deferred step above is done.
+`resolve_graphical_bindings`'s core per-diagram resolution logic (contact/coil
+operand binding, pin binding, shared-variable grouping) was extracted into a
+private `_resolve_diagrams` helper reused by two public entry points --
+`resolve_graphical_bindings` unchanged (project-global `controller.tags`) and
+a new `resolve_function_block_bindings`, which builds one *isolated* symbol
+table per `AddOnInstruction` from only that FB's own `parameters` and
+`local_tags`, resolved once per FB, never mixed with the project's globals
+or another FB's namespace -- proven directly: two FBs each declaring a
+parameter named `IN`, wired to two separate pins, resolve independently to
+each FB's own parameter, and a global tag sharing a DFB's unresolved pin's
+name is deliberately *not* used as a fallback (IEC 61131-3 encapsulation,
+not an evidence gap).
+
+Only FBD bodies have anything to bind -- ST bodies are retained as plain
+text, not parsed into pin/expression structure at all, so this applies to
+10 of the 83 real DFBs, not all of them. `GraphicalPin` gained
+`target_parameter: AddOnInstructionParameter | None`, set instead of (never
+together with) `target_tag` when a pin resolves inside an FB body -- a
+resolved `AddOnInstructionParameter` is not a `Tag`, so reusing `target_tag`
+would have been a type error disguised as a shortcut, not a simplification.
+Real FBD-bodied DFB pins in the M580 safety fixture resolve cleanly against
+their own parameters (e.g. `M_DWORD_TO_BIT`'s inner `WORD_TO_BIT.BIT16` pin
+resolves to the outer DFB's own `BIT16` output parameter); complex
+expressions (`GEST[1].0`, `Communication = 16#00`,
+`UDINT_TO_TIME(1000 * HoldupTime)`) correctly stay `unresolved_expression`,
+the same conservative classification already applied to top-level programs.
+CLI JSON gained a shared `_diagram_summary` helper (extracted rather than
+duplicated) so `function_blocks[].body[].diagrams` now carries full
+object/pin detail, including `target_parameter`, matching what
+`programs[].routines[].diagrams` already exposed. 15 targeted tests passed
+(11 direct unit tests covering isolation, cross-FB independence, and the
+parameter/local-tag collision case, plus 4 end-to-end); full suite (1249
+tests) passed; Ruff and Pyright passed, including a full repo-wide Pyright
+re-check since this touched the shared `GraphicalPin` model.

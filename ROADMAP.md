@@ -142,10 +142,11 @@ Delivery status and acceptance criteria are maintained in the
 - [x] Capture DDT definitions, array bounds and hardware power-supply modeling
 - [x] Capture custom DFB (`FBSource`/`FBProgram`) definitions into the shared
   Add-On Instruction model, including call validation at instantiation sites
+- [x] Bind pins/symbols inside a DFB body against its own isolated
+  parameter/local namespace, never the project's global tags (encapsulation)
 - [ ] Resolve multi-block FBD execution order and Ladder branch/vertical-wire
   routing (next; blocked on further evidence for the branch case)
-- [ ] Capture device DDT definitions; bind pins/symbols inside a DFB body
-  (needs the body's own parameter/local namespace, not the project-global one)
+- [ ] Capture device DDT definitions (a distinct mechanism from `DDTSource`)
 - [ ] Validate against Schneider schemas, then native import/build and runtime evidence
 
 Current support is read-only and provisional. The corpus now includes a real

@@ -6,6 +6,7 @@ from .ladder import LadderPosition
 from .source_extension import SourceExtension
 
 if TYPE_CHECKING:
+    from .add_on_instruction import AddOnInstructionParameter
     from .tag import Tag
 
 
@@ -22,6 +23,10 @@ class GraphicalPin:
     role: str = "data"
     binding_kind: str = "unresolved"
     target_tag: "Tag | None" = field(default=None, repr=False)
+    # Set instead of target_tag when this pin resolves within a Function
+    # Block body, against that FB's own parameter -- a distinct namespace
+    # from the project's global tags, never both at once.
+    target_parameter: "AddOnInstructionParameter | None" = field(default=None, repr=False)
 
 
 @dataclass

@@ -1021,3 +1021,57 @@ name happens to collide with an unrelated global tag, not merely incomplete
 ones -- a materially worse failure mode than leaving them unresolved. Left
 as a separate, explicitly scoped next step, not a small extension of the
 existing passes.
+
+## FB-local pin binding: an isolated namespace per DFB
+
+The deferred step above is now implemented, not with a new pass bolted onto
+the existing one, but by giving `resolve_graphical_bindings` a shared core.
+Its per-diagram resolution logic (contact/coil operand classification, pin
+classification, shared-variable grouping) moved into a private
+`_resolve_diagrams` helper parameterized on the symbol table and scope name;
+`resolve_graphical_bindings` itself is behaviorally unchanged (still builds
+one project-global table from `controller.tags`), and a new
+`resolve_function_block_bindings` calls the same helper once per
+`AddOnInstruction`, each time with a table built from *only* that FB's own
+`parameters` and `local_tags` -- never the project's tags, never another
+FB's declarations.
+
+This is IEC 61131-3 encapsulation, confirmed directly rather than assumed: a
+pin inside a DFB body referencing a name that exists as a *project-global*
+tag, but not as that DFB's own parameter or local, resolves `missing_symbol`
+-- the global tag is not used as a fallback. Two DFBs each declaring a
+parameter named `IN` resolve two separate pins to two separate parameter
+objects; no cross-FB leakage. A parameter and a local tag sharing a name
+*within one* DFB (structurally possible -- `_function_blocks` checks
+parameter-name and local-name uniqueness with separate `used` sets, so nothing
+already prevented this at capture time) is correctly diagnosed
+`ambiguous_pin_symbol`, not resolved to either.
+
+Scope is smaller than "every DFB body": only FBD bodies carry parsed pins at
+all (`STSource` bodies are retained as plain text, never parsed into
+expression structure), so this binds pins in 10 of the 83 real M580 safety
+DFBs. Real results there: `M_DWORD_TO_BIT`'s inner `WORD_TO_BIT.BIT16` pin
+resolves to the *outer* DFB's own `BIT16` output parameter -- exactly the
+kind of same-named-across-nesting-levels case that would have silently
+mis-resolved against a shared global table. Complex expressions genuinely
+present in this corpus (`GEST[1].0`, `Communication = 16#00`,
+`UDINT_TO_TIME(1000 * HoldupTime)`) stay `unresolved_expression`, the same
+conservative classification already used for top-level program pins with
+equally complex expressions -- this work changes *which symbol table* a
+simple identifier resolves against, not what counts as "simple."
+
+Model change: `GraphicalPin` gained `target_parameter:
+AddOnInstructionParameter | None`, set instead of (never alongside)
+`target_tag` for an FB-scoped resolution. A resolved `AddOnInstructionParameter`
+is not a `Tag` -- `GraphicalPin.target_tag` is typed `Tag | None`, so
+assigning a parameter there would have been a real type error, not a
+convenient reuse. `GraphicalBindingIssue` gained `scope: str = "program"`
+(`"function_block"` for the new path) so the diagnostic-wiring code in
+`parse_project` can select `controller.add_on_instructions` instead of
+`controller.programs` when resolving an issue's source location, without
+guessing from the name alone. CLI JSON exposure was likewise unified: the
+per-diagram object/pin serialization (previously inline, only reachable from
+`programs[].routines[].diagrams`) became a shared `_diagram_summary`
+function, so `function_blocks[].body[].diagrams` now carries the same full
+detail -- including `target_parameter` -- instead of the summary-only shape
+it briefly had.

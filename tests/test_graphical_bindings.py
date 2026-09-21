@@ -1,7 +1,7 @@
 """Symbol evidence must not become an invented wire or execution dependency."""
-from twinforge.analysis.graphical_bindings import resolve_graphical_bindings
+from twinforge.analysis.graphical_bindings import resolve_function_block_bindings, resolve_graphical_bindings
 from twinforge.model import (
-    Controller, GraphicalDiagram, GraphicalObject, GraphicalPin,
+    AddOnInstruction, AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalObject, GraphicalPin,
     Identity, Program, Routine, Tag,
 )
 from twinforge.parsers.control_expert import capture_bytes, parse_project
@@ -11,6 +11,11 @@ from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 def resolve(controller: Controller):
     return resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
                                       literal_patterns=EXPRESSION_SPEC.literals)
+
+
+def resolve_fb(controller: Controller):
+    return resolve_function_block_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+                                           literal_patterns=EXPRESSION_SPEC.literals)
 
 
 def fixture():
@@ -175,3 +180,74 @@ def test_ambiguous_source_declarations_never_bind_to_first_retained_tag():
     assert pin.target_tag is None
     issue = next(d for d in result.diagnostics if d.code == "ambiguous_pin_symbol")
     assert issue.source.xml_path.startswith("/ZEFExchangeFile/")
+
+
+def _fb_controller(*, parameter_name: str = "IN", pin_expression: str | None = None, global_tag_name: str | None = None):
+    controller = Controller(name="example", identity=Identity())
+    if global_tag_name:
+        controller.add_tag(Tag(name=global_tag_name, data_type="BOOL"))
+    aoi = AddOnInstruction(name="M_FN")
+    aoi.add_parameter(AddOnInstructionParameter(name=parameter_name, data_type="BOOL", usage="input"))
+    routine = Routine(name="M_FN", language="FBD")
+    diagram = GraphicalDiagram(language="FBD", objects=[GraphicalObject(kind="block", pins=[
+        GraphicalPin(name="EN", direction="input", expression=pin_expression or parameter_name),
+    ])])
+    routine.graphical_diagrams.append(diagram)
+    aoi.add_routine(routine)
+    controller.add_add_on_instruction(aoi)
+    return controller, diagram
+
+
+def test_function_block_pin_resolves_against_its_own_parameter():
+    controller, diagram = _fb_controller()
+    issues = resolve_fb(controller)
+    pin = diagram.objects[0].pins[0]
+    assert pin.binding_kind == "declared_symbol"
+    assert pin.target_parameter is controller.add_on_instructions["M_FN"].parameters["IN"]
+    assert pin.target_tag is None
+    assert not issues
+
+
+def test_function_block_scope_never_falls_back_to_the_project_global_tags():
+    # "IN" exists as a global tag, but this FB has no parameter or local
+    # named "IN" -- encapsulation means the global tag must not be used.
+    controller, diagram = _fb_controller(parameter_name="OTHER", pin_expression="IN", global_tag_name="IN")
+    resolve_fb(controller)
+    pin = diagram.objects[0].pins[0]
+    assert pin.binding_kind == "missing_symbol"
+    assert pin.target_tag is None and pin.target_parameter is None
+
+
+def test_same_parameter_name_in_two_function_blocks_does_not_collide():
+    controller = Controller(name="example", identity=Identity())
+    for fb_name in ("M_A", "M_B"):
+        aoi = AddOnInstruction(name=fb_name)
+        aoi.add_parameter(AddOnInstructionParameter(name="IN", data_type="BOOL", usage="input"))
+        routine = Routine(name=fb_name, language="FBD")
+        routine.graphical_diagrams.append(GraphicalDiagram(language="FBD", objects=[GraphicalObject(
+            kind="block", pins=[GraphicalPin(name="EN", direction="input", expression="IN")])]))
+        aoi.add_routine(routine)
+        controller.add_add_on_instruction(aoi)
+    resolve_fb(controller)
+    for fb_name in ("M_A", "M_B"):
+        aoi = controller.add_on_instructions[fb_name]
+        pin = next(iter(aoi.routines.values())).graphical_diagrams[0].objects[0].pins[0]
+        assert pin.target_parameter is aoi.parameters["IN"]  # Each FB's own, not the other's.
+
+
+def test_parameter_and_local_tag_sharing_a_name_within_one_fb_is_ambiguous():
+    controller = Controller(name="example", identity=Identity())
+    aoi = AddOnInstruction(name="M_FN")
+    aoi.add_parameter(AddOnInstructionParameter(name="X", data_type="BOOL", usage="input"))
+    aoi.add_local_tag(Tag(name="X", data_type="BOOL"))
+    routine = Routine(name="M_FN", language="FBD")
+    diagram = GraphicalDiagram(language="FBD", objects=[GraphicalObject(kind="block", pins=[
+        GraphicalPin(name="EN", direction="input", expression="X"),
+    ])])
+    routine.graphical_diagrams.append(diagram)
+    aoi.add_routine(routine)
+    controller.add_add_on_instruction(aoi)
+    issues = resolve_fb(controller)
+    pin = diagram.objects[0].pins[0]
+    assert pin.binding_kind == "ambiguous_symbol"
+    assert any(issue.code == "ambiguous_pin_symbol" and issue.scope == "function_block" for issue in issues)
