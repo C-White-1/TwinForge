@@ -9,8 +9,13 @@ colocated with the first column's transition; convergence uses a linked
 position. Both require `relative_position == "0"`, the only value evidenced in
 the corpus (see the capture specification); any other shape, any row missing
 an expected column, or any conflicting pair of candidates stays diagnosed and
-unresolved rather than guessed. This proves grid/link adjacency only -- not
-memory effects, timing or runtime truth.
+unresolved rather than guessed. A transition may instead be followed by a
+`jumpSFC` element naming a target step; it resolves like `alternative_join`,
+onward to the step it names, only when that step is uniquely found within the
+same network -- both real evidenced usages "close the loop" back to a step in
+their own network, so a cross-network or cross-chart target is not chased.
+This proves grid/link adjacency only -- not memory effects, timing or
+runtime truth.
 """
 from dataclasses import dataclass
 
@@ -71,7 +76,7 @@ def _resolve_network(
     positions: dict[int, tuple[int, int]] = {}
     by_position: dict[tuple[int, int], list[int]] = {}
     for index, obj in enumerate(network.children):
-        if obj.kind not in _FLOW_KINDS | {"alternative_branch", "alternative_join"}:
+        if obj.kind not in _FLOW_KINDS | {"alternative_branch", "alternative_join", "step_jump"}:
             continue
         kinds[index] = obj.kind
         pos = _position(obj)
@@ -113,6 +118,22 @@ def _resolve_network(
         if pos is None or obj.properties.get("relative_position") != "0":
             return None
         return flow_at((pos[0], pos[1] + 1))
+
+    def jump_at(pos: tuple[int, int]) -> int | None:
+        candidates = [i for i in by_position.get(pos, []) if kinds[i] == "step_jump"]
+        return candidates[0] if len(candidates) == 1 else None
+
+    def jump_target(jump_index: int) -> int | None:
+        # Both real evidenced jumpSFC usages target a step in this same
+        # network (the "close the loop" pattern); a target elsewhere in the
+        # project is not evidenced and is left unresolved rather than chased.
+        name = network.children[jump_index].properties.get("step_name")
+        if not name:
+            return None
+        key = name.casefold()
+        candidates = [i for i in kinds if kinds[i] == "step"
+                     and (network.children[i].properties.get("name") or "").casefold() == key]
+        return candidates[0] if len(candidates) == 1 else None
 
     for index, kind in kinds.items():
         if kind not in _FLOW_KINDS:
@@ -160,11 +181,20 @@ def _resolve_network(
         # transition
         plain_index = flow_at(next_pos)
         plain_ok = plain_index is not None and kinds[plain_index] == "step"
-        if plain_ok and linked is not None:
+        jump_index = jump_at(next_pos)
+        candidate_count = sum([plain_ok, jump_index is not None, linked is not None])
+        if candidate_count > 1:
             issues.append((source_path, "ambiguous_sfc_successor",
-                           "transition: plain adjacency and explicit link disagree"))
+                           "transition: more than one of adjacent step/jumpSFC/explicit link is present"))
         elif plain_ok and plain_index is not None:
             edges.append(SequentialEdge(source_path, [network_index, plain_index], "grid_adjacency"))
+        elif jump_index is not None:
+            target = jump_target(jump_index)
+            if target is None:
+                issues.append((source_path, "unresolved_sfc_successor",
+                               "jumpSFC target step is missing or ambiguous within this network"))
+            else:
+                edges.append(SequentialEdge(source_path, [network_index, target], "named_jump_indirection"))
         elif linked is not None:
             if linked[0] != network_index:
                 issues.append((source_path, "unresolved_sfc_successor", "explicit link crosses network"))
@@ -183,7 +213,8 @@ def _resolve_network(
                 issues.append((source_path, "unresolved_sfc_successor",
                                f"explicit link destination kind {destination_kind!r} is not a step or alternative_join"))
         else:
-            issues.append((source_path, "unresolved_sfc_successor", "no adjacent step or explicit link"))
+            issues.append((source_path, "unresolved_sfc_successor",
+                           "no adjacent step, jumpSFC or explicit link"))
 
     return edges, issues
 

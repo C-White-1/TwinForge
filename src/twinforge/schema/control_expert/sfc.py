@@ -22,6 +22,7 @@ class SequentialSpec:
         ("transitionCondition", "condition", (("invertLogic", "inversion"),)),
         ("altBranch", "alternative_branch", (("width", "width"), ("relativePos", "relative_position"))),
         ("altJoint", "alternative_join", (("width", "width"), ("relativePos", "relative_position"))),
+        ("jumpSFC", "step_jump", (("stepName", "step_name"),)),
         ("linkSFC", "explicit_link", ()),
         ("directedLinkSource", "link_source", (("objectType", "source_object_type"),)),
         ("directedLinkDestination", "link_destination", (("objectType", "source_object_type"),)),

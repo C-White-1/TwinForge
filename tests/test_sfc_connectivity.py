@@ -178,3 +178,98 @@ def test_optional_real_multigrafcet_connectivity_fully_resolves(filename):
     assert all(chart.connectivity_resolved for chart in charts)
     assert not any(d.code.startswith(("unresolved_sfc_", "ambiguous_sfc_", "unsupported_sfc_"))
                    for d in result.diagnostics)
+
+
+def test_jump_sfc_closes_the_loop_to_a_named_step_within_the_same_network():
+    result, chart = _chart('''
+    <chartSource><networkSFC>
+    <step stepType="initialStep" stepName="S0"><objPosition posX="1" posY="1"/></step>
+    <transition><objPosition posX="1" posY="2"/></transition>
+    <step stepType="step" stepName="S1"><objPosition posX="1" posY="3"/></step>
+    <transition><objPosition posX="1" posY="4"/></transition>
+    <jumpSFC stepName="S0"><objPosition posX="1" posY="5"/></jumpSFC>
+    </networkSFC></chartSource>''')
+    assert chart.connectivity_resolved
+    assert len(chart.connectivity_edges) == 4
+    bases = {tuple(e.source_path + e.destination_path): e.basis for e in chart.connectivity_edges}
+    assert list(bases.values()).count("grid_adjacency") == 3
+    assert list(bases.values()).count("named_jump_indirection") == 1
+    jump_edge = next(e for e in chart.connectivity_edges if e.basis == "named_jump_indirection")
+    assert jump_edge.source_path == [0, 3] and jump_edge.destination_path == [0, 0]  # transition[1,4] -> S0
+    assert not any(d.code.startswith(("unresolved_sfc_", "ambiguous_sfc_")) for d in result.diagnostics)
+
+
+def test_jump_sfc_target_missing_or_ambiguous_is_diagnosed_not_guessed():
+    missing_result, missing_chart = _chart('''
+    <chartSource><networkSFC>
+    <step stepType="initialStep" stepName="S0"><objPosition posX="1" posY="1"/></step>
+    <transition><objPosition posX="1" posY="2"/></transition>
+    <jumpSFC stepName="NoSuchStep"><objPosition posX="1" posY="3"/></jumpSFC>
+    </networkSFC></chartSource>''')
+    assert not missing_chart.connectivity_resolved
+    assert any(d.code == "unresolved_sfc_successor" for d in missing_result.diagnostics)
+    assert len(missing_chart.connectivity_edges) == 1  # S0 -> its transition still resolves independently
+
+    ambiguous_result, ambiguous_chart = _chart('''
+    <chartSource><networkSFC>
+    <step stepType="initialStep" stepName="S0"><objPosition posX="1" posY="1"/></step>
+    <step stepType="step" stepName="S0"><objPosition posX="2" posY="1"/></step>
+    <transition><objPosition posX="1" posY="2"/></transition>
+    <jumpSFC stepName="S0"><objPosition posX="1" posY="3"/></jumpSFC>
+    </networkSFC></chartSource>''')
+    assert not ambiguous_chart.connectivity_resolved
+    assert any(d.code == "unresolved_sfc_successor" for d in ambiguous_result.diagnostics)
+    assert len(ambiguous_chart.connectivity_edges) == 1  # S0 -> its transition still resolves independently
+
+
+def test_jump_sfc_competing_with_a_plain_adjacent_step_is_ambiguous():
+    result, chart = _chart('''
+    <chartSource><networkSFC>
+    <step stepType="initialStep" stepName="S0"><objPosition posX="1" posY="1"/></step>
+    <transition><objPosition posX="1" posY="2"/></transition>
+    <step stepType="step" stepName="S1"><objPosition posX="1" posY="3"/></step>
+    <jumpSFC stepName="S0"><objPosition posX="1" posY="3"/></jumpSFC>
+    </networkSFC></chartSource>''')
+    assert not chart.connectivity_resolved
+    assert sum(d.code == "ambiguous_sfc_successor" for d in result.diagnostics) == 1
+
+
+@pytest.mark.parametrize("filename", ["probst_injection_molding_sfc_packaging_robot.xml"])
+def test_optional_real_packaging_robot_jump_sfc_resolves(filename):
+    # A real, independently authored (Stefan Probst, 2018) demo project's SFC
+    # section, sourced via github.com/apexsotjo-blip/control-expert-mcp's
+    # tools/lang_refs/. It is a bare section export (SFCExchangeFile), not a
+    # whole project (ZEFExchangeFile/FEFExchangeFile), so its real
+    # <SFCProgram>/<dataBlock> content is wrapped in a minimal project
+    # envelope here -- the same technique _chart() already uses, applied to
+    # real rather than synthetic content.
+    path = Path("reference/control-expert") / filename
+    if not path.exists():
+        pytest.skip("Local SFC reference unavailable")
+    import re
+    raw = path.read_text(encoding="utf-8")
+    sfc_match = re.search(r"(<SFCProgram.*?</SFCProgram>)", raw, re.S)
+    data_match = re.search(r"(<dataBlock>.*?</dataBlock>)", raw, re.S)
+    assert sfc_match is not None and data_match is not None
+    sfc_program, data_block = sfc_match.group(1), data_match.group(1)
+    wrapped = f'<ZEFExchangeFile><contentHeader name="Packaging_Robot"/>{sfc_program}{data_block}</ZEFExchangeFile>'
+    result = parse_project(capture_bytes(wrapped.encode(), name="probst.xef"))
+    routine = result.controller.programs["Packaging_Robot"].main_routine
+    assert routine is not None
+    chart = routine.sequential_charts[0]
+    jump_edges = [e for e in chart.connectivity_edges if e.basis == "named_jump_indirection"]
+    assert len(jump_edges) == 1
+    network = chart.elements[0]
+    jump_index = next(i for i, obj in enumerate(network.children) if obj.kind == "step_jump")
+    start_robot_index = next(i for i, obj in enumerate(network.children)
+                             if obj.kind == "step" and obj.properties.get("name") == "Start_Robot")
+    assert jump_edges[0].destination_path == [0, start_robot_index]
+    # The chart does not fully resolve end to end: real evidence for jumpSFC
+    # is confirmed above, but this chart's altBranch has transitions at only
+    # 2 of its declared width=4 columns (a sparser layout than the Annecy
+    # evidence this project's alternative-branch rule was built from) -- a
+    # separate, pre-existing, correctly conservative limitation, not a
+    # regression from this jumpSFC work.
+    assert any(d.code == "unsupported_sfc_branch_position" for d in result.diagnostics)
+    assert not chart.connectivity_resolved
+    assert jump_index > 0  # sanity: the jump element was actually captured

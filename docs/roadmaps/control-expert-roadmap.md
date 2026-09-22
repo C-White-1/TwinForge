@@ -49,11 +49,15 @@ marker or of current Control Expert versions.
 - [x] Establish SFC adjacency/branch grammar before resolving complete connectivity
       (linear grid adjacency plus `altBranch`/`altJoint` selective divergence and
       convergence; see the connectivity checkpoint below for scope and limits)
-- [ ] Backlog: `parBranch`/`parJoint` (simultaneous/AND branching) and `jumpSFC` (named
-      jump to a step) grammar. Currently documented only by a third party's own
-      reverse-engineering (`apexsotjo-blip/control-expert-mcp`'s `lang_reference.py`
-      and `tools/lang_refs/`), not by any captured export in the corpus. Do not
-      implement from that description alone; wait for a real fixture, the same
+- [x] `jumpSFC` (named jump to a step): a real fixture surfaced (see the
+      `jumpSFC` checkpoint below); resolves like `alternative_join`, onward
+      to the step it names, within the same network only
+- [ ] Backlog: `parBranch`/`parJoint` (simultaneous/AND branching) grammar.
+      Still documented only by a third party's own reverse-engineering
+      (`apexsotjo-blip/control-expert-mcp`'s `lang_reference.py`), never
+      observed in an actual export, including the new real fixture below (it
+      only uses `altBranch`/`altJoint`, already supported). Do not implement
+      from that description alone; wait for a real fixture, the same
       standard applied to every other element here.
 
 The new pair has matching SFC subtrees: five steps, six transitions and ten
@@ -1063,3 +1067,44 @@ operator grammar, and a materially different task; and 4 uses of `Para_PI`/
 `Mode_MH`, types this export never defines and no public manual has been
 found for (unlike the Device DDT catalog's types) -- blocked on evidence, not
 effort.
+
+`jumpSFC` checkpoint (2026-09-22): `apexsotjo-blip/control-expert-mcp` (a real
+MCP server that drives a licensed Control Expert 14.0 installation via its own
+COM automation, not a black-box reverse-engineering exercise) ships
+`tools/lang_refs/SFC_0_Packaging_Robot.xml` -- not synthetic content: its
+`contentHeader` credits a real, dated, independently authored demo project
+("injection molding machine", Stefan Probst, 07.05.2003; the same repo's
+other `lang_refs/` files are further sections of the identical demo).
+Copied into `reference/control-expert/probst_injection_molding_sfc_packaging_robot.xml`.
+It is a bare section export (`SFCExchangeFile`), not a whole project
+(`ZEFExchangeFile`/`FEFExchangeFile`); its real `<SFCProgram>`/`<dataBlock>`
+content is wrapped in a minimal project envelope for testing -- the same
+technique this test file's own `_chart()` helper already uses for synthetic
+content, applied here to real content instead.
+
+`jumpSFC stepName="..."` is now captured (`step_jump` kind,
+`properties["step_name"]` the raw reference) and resolves in
+`sfc_connectivity.py` exactly like `alternative_join`: a transition whose
+grid-adjacent successor is a `jumpSFC` resolves onward, directly to the step
+it uniquely names -- `named_jump_indirection` basis, distinct from
+`grid_adjacency`/`explicit_link`/`join_indirection`. Scope is deliberately
+narrow: only within the same network, matching both real evidenced usages
+("close the loop" back to a step in their own network); a missing, ambiguous,
+or cross-network target stays `unresolved_sfc_successor`, and a `jumpSFC`
+competing with a plain adjacent step or an explicit link at the same position
+is `ambiguous_sfc_successor` -- the same three-way conflict rule already
+governing plain adjacency vs. explicit links. No new capture diagnostic code
+was needed; both existing `unresolved_sfc_successor`/`ambiguous_sfc_successor`
+codes already fit.
+
+Real result: the fixture's one `jumpSFC` (`Start_Robot`) resolves correctly,
+confirmed by locating both the jump element and its target step
+independently and asserting the edge connects them. The chart does *not*
+fully resolve end to end, for an unrelated, pre-existing reason: its
+`altBranch width="4"` has transitions at only 2 of its 4 declared columns (a
+sparser real layout than the Annecy fixture the branch-column rule was built
+from), correctly left `unsupported_sfc_branch_position` rather than guessed
+at -- not a regression from this work, and not silently hidden by the test.
+4 new synthetic tests (closing-loop resolution, missing/ambiguous target,
+competing-candidate ambiguity) plus the real-fixture test; full suite
+(1385 tests) passed; Ruff and Pyright passed.
