@@ -228,6 +228,50 @@ must remain unchanged.
 No inferred DTDVersion-to-release table: preserve the marker alongside exporter
 identity and actual feature coverage.
 
+## Planned: multilingual identifiers and comments
+
+Motivation: the M580 safety project already proved real tags use French
+accented letters (Ã©/Ã¨; see the accented identifier checkpoint above), and a
+Spanish-authored ZEF export is expected next. Deferred here rather than
+implemented now -- explicitly requested to wait rather than build ahead of
+the evidence.
+
+- [ ] Broaden `ExpressionSpec.identifier`'s accented-letter allowance from the
+      two evidenced French characters to a general Unicode-letter class,
+      *ahead of* per-language fixture evidence -- a deliberate policy change
+      from how every other identifier fix in this roadmap proceeded (each
+      widened only after a real corpus occurrence). The reasoning: waiting
+      for a dedicated investigation each time a new language's tag names
+      surface (as the French checkpoint required) does not scale across
+      many languages the way it does for one. Still undecided before
+      implementing: exactly which Unicode category/block to accept (all
+      Unicode letter categories? Latin-1 Supplement + Latin Extended-A,
+      covering most Western European languages? something broader still,
+      e.g. Cyrillic/Greek?), and re-confirming it does not weaken the
+      numeric-literal/bit-select exclusion the identifier grammar depends on
+      (a purely-digit token must keep failing to match, exactly as the
+      digit-led KKS fix already guards for).
+- [ ] Detect the dominant language of a project's free-text fields (comments,
+      descriptions, action/step names, annotations) as an informational
+      diagnostic -- metadata only, no effect on capture, resolution, or the
+      captured text itself. Needs a decision on mechanism (a lightweight
+      heuristic vs. a real dependency) and on where the result surfaces (CLI
+      inspection output, or a new non-blocking `Diagnostic` code).
+- [ ] Translate captured comments/descriptions to English into a *separate*
+      log, never altering the captured source text (the same "never discard"
+      principle already governing everything else this project captures):
+      one entry per translated field, keyed by the element's existing
+      `SourceLocation`, recording the detected source language, the original
+      text and the English translation, id in brackets (e.g. `[id] es -> en:
+      "<original>" -> "<translation>"`). Needs a translation mechanism (the
+      project depends on none today) and a decision on where the log is
+      produced (a new CLI subcommand's output file, or a section of the
+      existing JSON inspection report).
+
+Blocked on: a real non-French-language fixture (the expected Spanish ZEF)
+before the first item is implemented from more than a policy decision alone;
+a concrete choice of translation mechanism/dependency for the third.
+
 ## Milestone 6: schema, editor and runtime validation â€” pending external evidence
 
 - [ ] Obtain a versioned Schneider SrcXmlSchema set and all dependencies
@@ -941,15 +985,15 @@ malformed separators and the unevidenced combined TIME form); full suite
 (1328 tests) passed; Ruff and Pyright passed.
 
 Accented identifier checkpoint (2026-09-22): real declared tags in this
-corpus use French accented letters -- "é" (e.g. `TG_Réseau`) and "è"
-(`Vit_STOP_Soulèvmt`) -- confirmed by checking every declared name across the
+corpus use French accented letters -- "ï¿½" (e.g. `TG_Rï¿½seau`) and "ï¿½"
+(`Vit_STOP_Soulï¿½vmt`) -- confirmed by checking every declared name across the
 whole corpus (controller/resource/program tags, DDT members, Function Block
 parameters and locals): exactly these two letters, both cases, never as a
 name's first character. `ExpressionSpec.identifier` now accepts them in the
 continuation position only, mirroring the digit-led KKS fix's shape and
 scope -- not a general Unicode-identifier allowance, since nothing else is
 evidenced. Real result: in the M580 safety project, 22 more pins bind to a
-declared symbol and 1 more resolves a member path (`Vit_STOP_Soulèvmt.IND`);
+declared symbol and 1 more resolves a member path (`Vit_STOP_Soulï¿½vmt.IND`);
 unresolved pin expressions dropped from 117 to 94. 3 new tests (both letters,
 plus a full-pipeline case-insensitive lookup with an uppercase accent). Full
 suite (1331 tests) passed; Ruff and Pyright passed.
@@ -1007,7 +1051,7 @@ or type compatibility -- structural evidence only, exactly like a MemberPath.
 Real result: 52 pin/operand occurrences (43 distinct expressions) now resolve;
 unresolved pin expressions dropped from 68 to 16. One side effect, the same
 shape as the resource-variable checkpoint's: a 9th program FBD network
-(`Séquence`) and the DFB body pins whose blocks feed a shared variable with no
+(`Sï¿½quence`) and the DFB body pins whose blocks feed a shared variable with no
 covering `linkFB` newly become visible to the unlinked-shared-variable guard
 once their pins bind, so it correctly stops claiming an order for that
 network too -- an existing test's expectations moved accordingly. 8 new tests
