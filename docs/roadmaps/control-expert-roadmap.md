@@ -130,9 +130,10 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
-      (partial: proven paths resolve -- see the member path and resource
-      variable checkpoints below; members of library device types this export
-      does not define stay unresolved)
+      (partial: proven paths resolve -- see the member path, resource variable
+      and Device DDT catalog checkpoints below; a handful of expressions that
+      are not paths at all, e.g. binary literals with a "_" separator or
+      non-ASCII names, stay unresolved on purpose -- unrelated gaps)
 - [x] Interpret explicit FBD links/connectors with endpoint diagnostics
       (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
       position; see the explicit FBD link checkpoint below -- this is
@@ -879,3 +880,38 @@ the unlinked-shared-variable reason already recorded there). 8 new tests
 (synthetic digit-led/pure-digit cases plus a real-fixture assertion on
 `00BBA01GS001.CLOSED`); full suite (1313 tests) passed; Ruff and Pyright
 passed.
+
+Device DDT catalog checkpoint (2026-09-22): the ~320 remaining unresolved
+member paths after the resource variable checkpoint all had bases typed by
+standard Universal I/O "Device DDT" types (`T_U_DIS_STD_CH_IN`,
+`T_U_ANA_STD_CH_IN`, ...) -- real, vendor-predefined structures that Control
+Expert auto-generates from a configured module's DTM, confirmed real by a
+user's domain knowledge of a related name (`00BBA01GS001`, a KKS-coded
+circuit breaker tag) prompting this investigation. This export never
+serializes their structure (unlike `T_BMENOC0321`/`T_BMEP58_ECPU_EXT`, which
+are genuinely configured head-end modules and do get a real `DDTSource`) --
+confirmed by checking the whole file for any other definition of these names,
+finding none. The real module catalog numbers are present, though
+(`BMXDDI3202K`, `BMXAMI0800`, `BMXSAI0410`, ...), which identified the exact
+public Schneider manuals to check. `schema/control_expert/device_ddt_catalog.py`
+now transcribes the documented structure of the 8 types this export actually
+uses, each member name and type taken verbatim from a cited manual page (not
+inferred from how the project happens to use a field) -- discrete and analog
+standard channels from the Modicon X80 I/O user manuals (35012474, 35011978),
+safety channels from the Modicon M580 Safety Manual (QGH46982.08). A table
+column that PDF extraction rendered ambiguously (e.g. some bit-level fields in
+the analog standard channel table) was left out rather than guessed at. The
+catalog only supplements `MemberPathContext.datatypes` inside member-path
+resolution -- never merged into a parsed project's own `Controller.datatypes`,
+so nothing is ever reported as if this project had captured it; a project's
+own real `DDTSource` of the same name (not expected, but not assumed
+impossible) still wins. Real result: resolved member paths in the M580 safety
+project rose from 375 to 688 (98 unique to 471 unique expressions); unresolved
+pin expressions dropped from 506 to 193; no out-of-bounds results; execution
+order unchanged from the prior checkpoint. What's left in the remaining 193 is
+a genuinely different mix -- binary literals with a `_` digit separator our
+literal grammar doesn't cover, full comparison/function-call expressions,
+non-ASCII names, and a few bases that are missing or ambiguous -- correctly
+untouched by this change. 14 new tests (per-type resolution, catalog/project
+precedence, non-leakage into `Controller.datatypes`, a real-fixture check);
+full suite (1327 tests) passed; Ruff and Pyright passed.
