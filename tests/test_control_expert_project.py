@@ -5,6 +5,24 @@ import pytest
 
 from twinforge.parsers.control_expert import capture_bytes, capture_file, parse_project, parse_projects
 
+# The exact set of whole-project fixtures a corpus-wide real-fixture test's
+# hardcoded counts were measured against. glob()-ing the directory and
+# checking "any file exists" is not a valid skip condition -- glob() only
+# ever returns paths that already exist, so that check is a no-op unless the
+# whole directory is empty, and silently runs (and fails) against a partial
+# checkout otherwise.
+_REFERENCE_CORPUS = [
+    "Escalier_Mecanique.XEF", "MultiGrafcet_Coordination_V1_2026.XEF", "cread_reg.zip", "cwrite_reg.zip",
+    "escalier_mecanique.zef", "estradege_m340.xef", "estradege_m580-safety.xef", "function15.zip",
+    "function2.zip", "readvar.zip", "tsaii_multigrafcet_final_v1.zef",
+]
+
+
+def _skip_unless_full_reference_corpus() -> None:
+    root = Path("reference/control-expert")
+    if not all((root / name).exists() for name in _REFERENCE_CORPUS):
+        pytest.skip("full reference corpus unavailable")
+
 
 def project(body: str):
     return parse_project(capture_bytes(
@@ -417,9 +435,8 @@ def test_multiple_initializers_on_one_tag_are_never_guessed_at():
 
 def test_real_fixtures_promote_scalar_initial_values_when_available():
     import glob
+    _skip_unless_full_reference_corpus()
     paths = glob.glob("reference/control-expert/*")
-    if not any(Path(p).exists() for p in paths):
-        pytest.skip("reference fixtures absent")
     promoted, unpromoted = [], []
     for path in paths:
         if not path.lower().endswith((".xef", ".zef", ".zip")):
@@ -498,9 +515,8 @@ def test_still_unknown_type_reports_unresolved_type():
 
 def test_real_fixture_classifies_dfb_and_library_typed_tags_when_available():
     import glob
+    _skip_unless_full_reference_corpus()
     paths = glob.glob("reference/control-expert/*")
-    if not any(Path(p).exists() for p in paths):
-        pytest.skip("reference fixtures absent")
     counts = {"fb_instance": 0, "library_type": 0, "ddt": 0, "catalog": 0}
     unresolved = 0
     for path in paths:

@@ -411,10 +411,15 @@ def test_real_fixtures_classify_direct_addresses_when_available():
     from pathlib import Path
     from twinforge.parsers.control_expert import capture_file, parse_projects
 
-    paths = glob.glob("reference/control-expert/*")
-    if not any(Path(p).exists() for p in paths):
+    # glob() only ever returns paths that already exist, so checking "any of
+    # them exists" is a no-op that skips only when the whole directory is
+    # empty -- this must check the specific fixtures the assertion below
+    # depends on, or it silently runs (and fails) against a partial checkout.
+    required = ["estradege_m580-safety.xef", "Escalier_Mecanique.XEF"]
+    if not all((Path("reference/control-expert") / name).exists() for name in required):
         import pytest
         pytest.skip("reference fixtures absent")
+    paths = glob.glob("reference/control-expert/*")
     found = set()
     for path in paths:
         if not path.lower().endswith((".xef", ".zef", ".zip")):
