@@ -225,9 +225,10 @@ must remain unchanged.
       populated Control Expert V14.0 M580 **safety** project is now in the
       corpus -- see the explicit FBD link and power supply checkpoints above
       -- but its `DTMConfiguration` content specifically has not been surveyed)
-- [ ] Characterize encrypted/protected exports and retain unsupported content
-      (`FBSource/crypted` in the M580 safety fixture is confirmed genuinely
-      opaque hex-encoded evidence, 7 occurrences; not yet wired into capture)
+- [x] Characterize encrypted/protected exports and retain unsupported content
+      (`FBSource/crypted`, 7 real occurrences; see the encrypted body
+      checkpoint below for what "characterize" means here and why the full
+      blob is not duplicated into the neutral model)
 
 No inferred DTDVersion-to-release table: preserve the marker alongside exporter
 identity and actual feature coverage.
@@ -1182,3 +1183,22 @@ out of scope, as already noted elsewhere for the former. Real result: 21 of
 correctly stay unpromoted. 14 new tests (one per promotable shape, malformed/
 unsupported/multi-initializer cases, a real-fixture check); full suite
 (1404 tests) passed; Ruff and Pyright passed.
+
+Encrypted body checkpoint (2026-09-23): a crypted Function Block's opaque hex
+body (`<crypted Encoding="65001">...</crypted>`) was detected (the existing
+`encrypted_function_block_body` diagnostic) but never exposed on the neutral
+model -- only the interface was retained there, even though the full blob
+was already preserved verbatim at the capture layer (`source_extensions`),
+as it is for every other element. "Characterize" is read narrowly: describe
+the opaque content (its size, its declared encoding, and a hash for identity/
+change-detection across exports), not embed the full blob into
+`AddOnInstruction.metadata["encrypted_body"]` -- real blobs range from 2.3 KB
+to 68 KB of hex per block, disproportionate to duplicate into every
+inspection report when the source is already retained losslessly elsewhere.
+`AddOnInstruction` gained a `metadata` dict (a field every other named model
+type already has; this one did not). 2 of the M580 safety project's 7
+crypted blocks have no `Encoding` attribute at all (still real, still
+hex-bodied) -- both shapes are captured. Real result: all 7 blocks now carry
+`{"encoding": "65001"|None, "hex_length": <2300..67750>, "sha256": <hex>}`.
+2 new tests (with/without the `Encoding` attribute) plus updated real-fixture
+assertions; full suite (1405 tests) passed; Ruff and Pyright passed.

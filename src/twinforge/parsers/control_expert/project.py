@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import hashlib
 import re
 
 from twinforge.model import (
@@ -331,6 +332,18 @@ def _function_blocks(
         programs = _select(node, spec.function_block_program)
         crypted = _first(node, spec.function_block_crypted)
         if crypted is not None:
+            # The body itself is genuinely opaque (Schneider's own encryption,
+            # not this project's to break); characterized, not decoded. The
+            # full hex blob is already retained verbatim at the capture layer
+            # (source_extensions), so only size/encoding/identity evidence --
+            # small enough to appear safely in an inspection report -- is
+            # copied onto the neutral model.
+            hex_text = crypted.text or ""
+            aoi.metadata["encrypted_body"] = {
+                "encoding": crypted.raw_attributes.get("Encoding"),
+                "hex_length": len(hex_text),
+                "sha256": hashlib.sha256(hex_text.encode("ascii", errors="ignore")).hexdigest(),
+            }
             result.report("encrypted_function_block_body",
                           f"{name}: implementation body is encrypted; interface retained", node)
         elif programs:

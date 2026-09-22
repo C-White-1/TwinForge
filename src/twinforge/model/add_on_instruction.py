@@ -82,6 +82,7 @@ class AddOnInstruction:
     dependencies: list[AddOnInstructionDependency] = field(
         default_factory=list
     )
+    metadata: dict = field(default_factory=dict)
     parent: Any | None = field(default=None, repr=False)
     source_extensions: list[SourceExtension] = field(
         default_factory=list, repr=False

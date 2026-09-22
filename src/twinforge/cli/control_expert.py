@@ -186,6 +186,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                 "diagrams": [_diagram_summary(diagram) for diagram in r.graphical_diagrams],
                 "ladder_rung_count": len(r.ladder_rungs), "sequential_chart_count": len(r.sequential_charts),
             } for r in aoi.routines.values()],
+            "encrypted_body": aoi.metadata.get("encrypted_body"),
         } for aoi in controller.add_on_instructions.values()],
         "variables": [{
             "name": tag.name, "type": tag.data_type,

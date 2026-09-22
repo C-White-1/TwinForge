@@ -50,6 +50,25 @@ def test_crypted_body_retains_interface_only():
     assert [(p.name, p.usage) for p in aoi.parameters.values()] == [("IN", "input"), ("OK", "output")]
     assert aoi.routines == {}
     assert any(d.code == "encrypted_function_block_body" for d in result.diagnostics)
+    # Characterized (size/encoding/identity), never decoded -- the full hex
+    # blob is already retained verbatim by the capture layer, not duplicated
+    # here.
+    assert aoi.metadata["encrypted_body"] == {
+        "encoding": "65001", "hex_length": 8,
+        "sha256": "668c072603bbc3a89b6e2a67f878e29dbe33c020984d4928eda299e7cebe0adb",
+    }
+
+
+def test_crypted_body_without_an_encoding_attribute_is_still_characterized():
+    result = project('''
+      <FBSource nameOfFBType="_SECRET2">
+        <crypted>AB12CD34</crypted>
+        <ExternalToolsOnly></ExternalToolsOnly>
+      </FBSource>
+    ''')
+    aoi = result.controller.add_on_instructions["_SECRET2"]
+    assert aoi.metadata["encrypted_body"]["encoding"] is None
+    assert aoi.metadata["encrypted_body"]["hex_length"] == 8
 
 
 def test_fbd_body_is_parsed_like_a_top_level_program():
@@ -225,6 +244,12 @@ def test_optional_real_m580_safety_function_blocks(filename):
     assert crypted_count == 7  # every remaining bodyless block is genuinely encrypted.
     assert sum(d.code == "encrypted_function_block_body" for d in result.diagnostics) == 7
     assert sum(d.code == "ambiguous_function_block_body" for d in result.diagnostics) == 0
+    encrypted = sorted(
+        aoi.metadata["encrypted_body"]["hex_length"]
+        for aoi in controller.add_on_instructions.values() if not aoi.routines)
+    assert encrypted == [2300, 3030, 4350, 6664, 12204, 17162, 67750]
+    assert {aoi.metadata["encrypted_body"]["encoding"] for aoi in controller.add_on_instructions.values()
+            if not aoi.routines} == {"65001", None}
 
     # IO_AI_EX has separately named INIT and MAIN sections; both are kept, and
     # INIT's activation condition (previously unreachable) is now captured.
