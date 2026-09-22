@@ -80,6 +80,13 @@ def test_variables_preserve_bounds_addresses_initializers_and_unresolved_types()
     assert tags["data"].metadata["source_memory_address"] == "%MW200"
     assert tags["data"].alias_for is None
     assert tags["data"].description == "Four values"
+    composite = tags["data"].composite_initial_value
+    assert composite is not None
+    assert composite.root.source_kind == "variables" and composite.root.name == "data"
+    element = composite.root.children[0]
+    assert element.name is None and element.index == "1"  # "[1]", not a struct member name
+    assert element.lexical_value == "7" and element.value is None  # lexical only, no promotion yet
+    assert any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
     assert tags["timer"].initial_value is None
     assert tags["timer"].metadata["source_initial_values"] == [{"value": "t#10s"}]
     assert tags["custom"].data_type_definition is None
@@ -574,3 +581,61 @@ def test_project_own_ddt_wins_over_a_same_named_catalog_entry():
     tag = result.controller.tags["a"]
     assert tag.data_type_definition is result.controller.datatypes["T_U_DIS_STD_CH_IN"]
     assert tag.vendor_documented_type is None
+
+
+def test_composite_initial_value_captures_nested_struct_and_array_members():
+    # Mirrors the real corpus shape: a DFB instance's own parameter overrides,
+    # nested arbitrarily deep, mixing named members and array indices.
+    result = project('''<dataBlock>
+      <variables name="OBJ1" typeName="DFBTYPE1">
+        <instanceElementDesc name="Pub1">
+          <instanceElementDesc name="Var1"><value>FALSE</value></instanceElementDesc>
+          <instanceElementDesc name="Var3">
+            <instanceElementDesc name="[0]"><value>0</value></instanceElementDesc>
+            <instanceElementDesc name="[1]"><value>1</value></instanceElementDesc>
+          </instanceElementDesc>
+        </instanceElementDesc>
+      </variables>
+    </dataBlock>''')
+    tag = result.controller.tags["OBJ1"]
+    composite = tag.composite_initial_value
+    assert composite is not None
+    pub1 = composite.root.children[0]
+    assert pub1.name == "Pub1" and pub1.lexical_value is None  # a container, not a leaf
+    var1, var3 = pub1.children
+    assert var1.name == "Var1" and var1.lexical_value == "FALSE"
+    assert var3.name == "Var3" and [c.index for c in var3.children] == ["0", "1"]
+    assert [c.lexical_value for c in var3.children] == ["0", "1"]
+
+
+def test_composite_initial_value_never_promotes_or_resolves_members():
+    # Deliberately lexical-only for now, matching the chosen scope: no
+    # scalar promotion, no DDT-member/FB-parameter resolution.
+    result = project('''<dataBlock>
+      <variables name="v" typeName="AnyType">
+        <instanceElementDesc name="X"><value>TRUE</value></instanceElementDesc>
+      </variables>
+    </dataBlock>''')
+    composite = result.controller.tags["v"].composite_initial_value
+    assert composite is not None
+    node = composite.root.children[0]
+    assert node.value is None
+    assert node.member_definition is None
+    assert node.data_type_definition is None
+    assert node.data_type is None
+
+
+def test_real_fixtures_capture_composite_initial_values_when_available():
+    _skip_unless_full_reference_corpus()
+    import glob
+    total = 0
+    for path in glob.glob("reference/control-expert/*"):
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            controller = result.controller
+            tags = list(controller.tags.values())
+            for resource in controller.resources.values():
+                tags += list(resource.tags.values())
+            total += sum(1 for tag in tags if tag.composite_initial_value is not None)
+    assert total == 214

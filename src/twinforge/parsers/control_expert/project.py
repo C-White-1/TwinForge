@@ -6,7 +6,8 @@ import hashlib
 import re
 
 from twinforge.model import (
-    AddOnInstruction, AddOnInstructionParameter, Chassis, Controller, Datatype, DatatypeMember,
+    AddOnInstruction, AddOnInstructionParameter, Chassis, CompositeTagValue, CompositeTagValueNode,
+    Controller, Datatype, DatatypeMember,
     Identity, Module, Program, Resource, Routine, SourceExtension, StructuredTextLine, Tag, TagValue, Task,
 )
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
@@ -221,6 +222,28 @@ def _promote_initial_value(data_type: str, lexical_value: str) -> "TagValue | No
     return None
 
 
+def _composite_value_node(node: CapturedSection) -> CompositeTagValueNode:
+    """Lexical-only capture of one `instanceElementDesc` (struct member, FB
+    instance parameter override, or array element -- one generic source
+    element covers all three, distinguished here only by whether its name is
+    an "[N]" array index). No scalar promotion, no member/parameter/type
+    resolution: a documented follow-up, the same as scalar initializer
+    promotion was before it was added.
+    """
+    raw_name = node.raw_attributes.get("name", "")
+    index_match = re.fullmatch(r"\[(\d+)\]", raw_name)
+    value_node = next((child for child in node.ordered_children if child.tag == "value"), None)
+    return CompositeTagValueNode(
+        source_kind="instanceElementDesc",
+        name=None if index_match else (raw_name or None),
+        index=index_match.group(1) if index_match else None,
+        lexical_value=value_node.text if value_node is not None else None,
+        children=tuple(_composite_value_node(child) for child in node.ordered_children
+                       if child.tag == "instanceElementDesc"),
+        raw_attributes=dict(node.raw_attributes),
+    )
+
+
 def _declare_variables(
     result: ParsedProject, nodes: list[CapturedSection], spec: MappingSpec,
     known_datatypes: dict[str, Datatype], catalog_datatypes: dict[str, Datatype],
@@ -248,6 +271,15 @@ def _declare_variables(
                     tag.initial_value = _promote_initial_value(type_name or "", value_text)
             if tag.initial_value is None:
                 result.report("uninterpreted_initial_value", f"{name}: initializer retained lexically", node)
+        instance_elements = _select(node, spec.instance_elements)
+        if instance_elements:
+            tag.composite_initial_value = CompositeTagValue(root=CompositeTagValueNode(
+                source_kind="variables", name=name, data_type=type_name,
+                children=tuple(_composite_value_node(child) for child in instance_elements),
+            ))
+            result.report(
+                "uninterpreted_composite_initial_value",
+                f"{name}: composite/array initial value retained lexically", node)
         match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
         base_type = type_name
         if match:

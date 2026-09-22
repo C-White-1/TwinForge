@@ -81,6 +81,19 @@ def _binary_expression(expression: Any) -> dict[str, Any]:
     }
 
 
+def _composite_value_node(node: Any) -> dict[str, Any]:
+    return {
+        "source_kind": node.source_kind, "name": node.name, "index": node.index,
+        "data_type": node.data_type, "lexical_value": node.lexical_value, "value": node.value,
+        # member_definition/data_type_definition are object references, left
+        # unresolved by this project's own lexical-only capture today; never
+        # asdict()-ed wholesale here in case a later pass does resolve them.
+        "member_definition": node.member_definition.name if node.member_definition else None,
+        "data_type_definition": node.data_type_definition.name if node.data_type_definition else None,
+        "children": [_composite_value_node(child) for child in node.children],
+    }
+
+
 def _diagram_summary(diagram: Any) -> dict[str, Any]:
     return {
         "language": diagram.language,
@@ -198,6 +211,9 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             "array_bounds": tag.metadata.get("source_array_bounds"),
             "initializers": tag.metadata.get("source_initial_values", []),
             "initial_value": asdict(tag.initial_value) if tag.initial_value else None,
+            "composite_initial_value": (
+                _composite_value_node(tag.composite_initial_value.root)
+                if tag.composite_initial_value else None),
         } for tag in controller.tags.values()],
         "chassis": [{"name": rack.name, "modules": [
             {"catalog": module.catalog, "slot": module.slot}

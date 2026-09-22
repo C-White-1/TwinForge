@@ -66,6 +66,7 @@ class MappingSpec:
     section_logic_attribute: str = "logicCondition"
     comments: PathSpec = ("comment",)
     initializers: PathSpec = ("variableInit",)
+    instance_elements: PathSpec = ("instanceElementDesc",)
     datatypes: PathSpec = ("DDTSource",)
     datatype_name_attribute: str = "DDTName"
     datatype_members: PathSpec = ("structure", "variables")

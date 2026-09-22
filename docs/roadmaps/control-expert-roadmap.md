@@ -206,13 +206,13 @@ must remain unchanged.
 
 - [ ] Promote a documented subset of scalar initial values with lexical provenance
       (partial: BOOL/integer-family/REAL tag initializers promote -- see the
-      scalar initial value checkpoint below; TIME and composite/struct
-      initialization remain open)
+      scalar initial value checkpoint below; TIME stays lexical-only on
+      purpose. Composite/array initial values are now captured lexically too
+      -- see the composite initial value checkpoint below -- but, like TIME,
+      not yet promoted)
 - [x] Model array lower bounds without zero-base loss, for DDT members
       (`DatatypeMember.dimension` retains the lexical `lower..upper` text
-      unchanged, e.g. `"257..384"`, deliberately not renumbered from zero);
-      composite (struct/array) *initialization* is a separate, still-pending
-      concern -- see the DDT capture checkpoint below for scope
+      unchanged, e.g. `"257..384"`, deliberately not renumbered from zero)
 - [x] Capture DDT definitions and cross-references (`DDTSource`, including
       forward references between DDTs) and custom DFB definitions
       (`FBSource`/`FBProgram`, interface/locals/body -- see the DFB capture
@@ -1273,3 +1273,33 @@ communication EFBs) -- none found in any manual searched so far, none
 guessed at. 3 new tests (catalog resolution, shared-instance identity across
 tags, project-evidence-wins-on-collision) plus updated real-fixture
 assertions; full suite (1414 tests) passed; Ruff and Pyright passed.
+
+Composite initial value checkpoint (2026-09-23): `instanceElementDesc` --
+Control Expert's generic element for a struct member's, a DFB instance
+parameter's, or an array element's initial value, nested arbitrarily deep --
+was not captured at all, not even lexically, unlike a scalar tag's own
+`<variableInit>`. Real evidence is substantial and was previously
+unmeasured: 3684 occurrences in the M580 safety project alone, 142 in the
+M340 project, plus more in two zip fixtures. `_composite_value_node()` now
+walks the tree recursively into `Tag.composite_initial_value`
+(`CompositeTagValue`/`CompositeTagValueNode` -- fields this project's model
+already defined, used by the L5X converter, never populated for Control
+Expert), distinguishing an array index (`name="[N]"`, real shape, routed to
+the node's `index` field) from a named struct/parameter member (routed to
+`name`) by lexical shape alone. Deliberately scoped to lexical capture only,
+by explicit choice over a larger one-shot version that would also promote
+leaf values and resolve member names against DDT members or FB parameters:
+`value`/`member_definition`/`data_type_definition` stay `None` on every
+node, matching how scalar `initial_value` promotion was itself a separate,
+later step after lexical retention. `uninterpreted_composite_initial_value`
+is reported for every tag captured this way, mirroring
+`uninterpreted_initial_value`. A real, previously unencountered literal
+shape surfaced in passing but was not chased further, since promotion is
+out of scope here: `tod#00:00:00` (TIME_OF_DAY), not yet in
+`ExpressionSpec.literals`. Real result: 214 tags across the corpus now
+carry a composite initial value (197 in the M580 safety project alone),
+correctly including both DDT-typed struct members and DFB-instance
+parameter overrides on the same tag. 3 new tests (nested struct+array
+capture matching the real M340 shape, the never-promotes-or-resolves
+guard, a real-fixture count) plus an updated existing test; full suite
+(1417 tests) passed; Ruff and Pyright passed.
