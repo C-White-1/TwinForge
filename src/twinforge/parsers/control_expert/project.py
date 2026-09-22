@@ -597,8 +597,22 @@ def _programs_and_tasks(result: ParsedProject, root: CapturedSection, spec: Mapp
         if name is None:
             continue
         task = Task(name=name, task_type=attrs.get("taskType"), source_extensions=[_extension(node)])
-        # Do not assign rate/watchdog units from undocumented raw values.
         task.metadata["source_task_attributes"] = dict(attrs)
+        # Milliseconds: inferred, not from a published XEF schema for these
+        # exact attributes, but from a real tool's live COM automation
+        # against Control Expert 14.0 (apexsotjo-blip/control-expert-mcp),
+        # whose own task.Periodicity/task.WatchDog properties -- the same
+        # underlying task settings -- are handled in milliseconds there
+        # (its own parameters are literally named periodicity_ms/watchdog_ms).
+        # "0" for a cyclic task's valueType is not a period; only a periodic
+        # task's own value is promoted.
+        watchdog_text = attrs.get("maxExecTime")
+        if watchdog_text is not None and re.fullmatch(r"[0-9]+", watchdog_text):
+            task.watchdog = int(watchdog_text)
+        if task.task_type == "periodic":
+            rate_text = attrs.get("valueType")
+            if rate_text is not None and re.fullmatch(r"[1-9][0-9]*", rate_text):
+                task.rate = int(rate_text)
         owner = task_resource.get(id(node))
         if owner is not None:
             task.metadata["resource"] = owner.name

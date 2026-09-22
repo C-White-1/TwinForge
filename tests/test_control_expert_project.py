@@ -46,7 +46,8 @@ def test_sections_follow_task_order_not_document_order_and_preserve_st():
     task = controller.tasks["MAST"]
     assert [p.name for p in task.scheduled_programs] == ["second", "first"]
     assert task.scheduled_program_names == ["second", "FIRST"]
-    assert task.watchdog is None
+    assert task.watchdog == 250  # milliseconds; applies to a cyclic task too, unlike rate
+    assert task.rate is None  # cyclic tasks have no periodic rate
     assert task.metadata["source_task_attributes"]["maxExecTime"] == "250"
     routine = controller.programs["first"].main_routine
     assert routine is not None
@@ -658,3 +659,46 @@ def test_real_fixtures_capture_composite_initial_values_when_available():
                 tags += list(resource.tags.values())
             total += sum(1 for tag in tags if tag.composite_initial_value is not None)
     assert total == 214
+
+
+@pytest.mark.parametrize(("task_type", "value_type", "max_exec_time", "rate", "watchdog"), [
+    ("cyclic", "0", "250", None, 250),      # "0" is not a period; only maxExecTime promotes
+    ("periodic", "20", "250", 20, 250),
+    ("periodic", "5", "100", 5, 100),
+    ("periodic", "0", "250", None, 250),     # a periodic task's own "0" is not evidenced as a real rate
+])
+def test_task_rate_and_watchdog_promote_to_milliseconds(task_type, value_type, max_exec_time, rate, watchdog):
+    result = project(f'''
+      <logicConf><resource><taskDesc task="MAST" taskType="{task_type}"
+        valueType="{value_type}" maxExecTime="{max_exec_time}">
+        <sectionDesc name="s"/></taskDesc></resource></logicConf>
+      <program><identProgram name="s" task="MAST"/><STSource>x := 1;</STSource></program>
+    ''')
+    task = result.controller.tasks["MAST"]
+    assert task.rate == rate
+    assert task.watchdog == watchdog
+
+
+def test_task_timing_never_promoted_from_missing_or_non_numeric_attributes():
+    result = project('''
+      <logicConf><resource><taskDesc task="MAST" taskType="periodic"><sectionDesc name="s"/></taskDesc></resource></logicConf>
+      <program><identProgram name="s" task="MAST"/><STSource>x := 1;</STSource></program>
+    ''')
+    task = result.controller.tasks["MAST"]
+    assert task.rate is None and task.watchdog is None
+
+
+def test_real_fixtures_promote_task_timing_when_available():
+    _skip_unless_full_reference_corpus()
+    import glob
+    seen = []
+    for path in glob.glob("reference/control-expert/*"):
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            for task in result.controller.tasks.values():
+                seen.append((task.task_type, task.rate, task.watchdog))
+    assert len(seen) == 18
+    assert all(watchdog is not None for _, _, watchdog in seen)
+    assert all(rate is None for task_type, rate, _ in seen if task_type == "cyclic")
+    assert {rate for task_type, rate, _ in seen if task_type == "periodic"} == {5, 20}

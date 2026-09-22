@@ -74,7 +74,8 @@ MAST, timer-member conditions, `NONE` action qualifiers and cross-chart control
 calls. Both exports identify Premium despite the repository's M580 description.
 
 - [x] Inventory and inspect the multi-Grafcet pair; retain provenance discrepancy
-- [ ] Specify periodic task timing from authoritative evidence
+- [x] Specify periodic task timing from authoritative evidence -- see the
+      task timing checkpoint below
 - [x] Resolve timer-member expressions without simple-name assumptions (e.g.
       `Tempo1.Q`, a library TON instance's output parameter, in an SFC
       condition/action) -- see the sequential binding checkpoint below.
@@ -1359,3 +1360,24 @@ re-measuring: `unresolved_type`, `fb_instance`, `library_type`, `catalog`
 and `ddt` counts are unchanged. 4 new tests (the two ambiguity guards, at
 the tag-typing and member-path-context layers respectively); full suite
 (1419 tests) passed; Ruff and Pyright passed.
+
+Task timing checkpoint (2026-09-23): a task's `valueType` (periodic rate) and
+`maxExecTime` (watchdog) were retained only as lexical
+`metadata["source_task_attributes"]`, with `Task.rate`/`Task.watchdog` --
+fields this project's model already defines, unused by any converter so
+far -- left unset ("Do not assign rate/watchdog units from undocumented raw
+values", the exact prior caution this revisits with better evidence than was
+available when written). Units are inferred, not from a published XEF schema
+for these exact attribute names: `apexsotjo-blip/control-expert-mcp`'s
+`bridge.py` reads the same underlying task settings through Control Expert's
+own live COM automation (`task.Periodicity`, `task.WatchDog`), and its own
+parameters for them are literally named `periodicity_ms`/`watchdog_ms` --
+real, if second-hand, confirmation of milliseconds. `maxExecTime` promotes
+for every task type; `valueType` only for a `periodic` task, since a cyclic
+task's own `valueType="0"` (real, always this value in the corpus) is not a
+period at all -- cyclic tasks have no periodic rate concept. Real result: all
+18 tasks across the corpus promote cleanly (`watchdog` always set;
+`rate` set for the 6 periodic tasks -- values 5 and 20 -- and correctly
+`None` for the 12 cyclic ones). 6 new tests (each real shape, missing/
+non-numeric attributes, a real-fixture count); full suite (1425 tests)
+passed; Ruff and Pyright passed.

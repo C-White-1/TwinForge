@@ -166,6 +166,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                                for i in project.library_interfaces],
         "tasks": [{
             "name": task.name, "type": task.task_type,
+            "rate_ms": task.rate, "watchdog_ms": task.watchdog,
             "cycle_policy": task.metadata.get("cycle_policy"),
             "scheduled_sections": task.scheduled_program_names,
             "resolved_sections": [p.name for p in task.scheduled_programs],
@@ -275,8 +276,11 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
             for task in project["tasks"]:
                 stdout.write(f"  Task {task['name']} ({task['type']}): "
                              + " -> ".join(task["scheduled_sections"]) + "\n")
+                rate = f"{task['rate_ms']}ms" if task['rate_ms'] is not None else "unresolved"
+                watchdog = f"{task['watchdog_ms']}ms" if task['watchdog_ms'] is not None else "unresolved"
                 stdout.write(f"    Resolved sections: {len(task['resolved_sections'])}/{len(task['scheduled_sections'])}; "
-                             f"cycle policy: {task['cycle_policy'] or 'unresolved'}\n")
+                             f"cycle policy: {task['cycle_policy'] or 'unresolved'}; "
+                             f"rate: {rate}; watchdog: {watchdog}\n")
             for program in project["programs"]:
                 for routine in program["routines"]:
                     object_count = sum(len(d["objects"]) for d in routine["diagrams"])
