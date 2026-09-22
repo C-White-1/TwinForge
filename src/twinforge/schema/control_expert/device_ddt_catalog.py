@@ -15,15 +15,27 @@ This catalog only supplements member-path resolution (see
 a parsed project's own ``Controller.datatypes``, so nothing here is ever
 reported as if a project actually captured it.
 
+Also includes the *module*-level Device DDTs (e.g. `T_U_DIS_STD_IN_32`) that
+wrap an array of the channel types above -- a tag itself typed this way (not
+just a member path into one) is real corpus evidence too. Their module-level
+status/debug fields are deliberately not fully modeled: only the simple BOOL/
+UINT status bits and the channel array(s) are transcribed; a nested debug
+sub-structure (`T_SAFE_COM_DBG_IN`/`_OUT`) and reserved/identity fields
+(`MUID`, `RESERVED`) are real and documented too, but no real expression in
+this corpus ever reaches into them, so they are left out rather than chasing
+citations nothing here needs.
+
 Sources:
 - Modicon X80 - Discrete Input/Output Modules User Manual, 35012474, 12/2018, p.371.
 - Modicon X80 - Analog Input/Output Modules User Manual, 35011978, 09/2020, p.261-262.
-- Modicon M580 Safety Manual, QGH46982.08, p.58-59 (analog), p.87 (discrete in),
-  p.117-118 (discrete relay out).
+- Modicon M580 Safety Manual, QGH46982.08, p.58-59 (analog in), p.85-87
+  (discrete in), p.117-118 (discrete relay out).
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+from twinforge.model.datatype import Datatype, DatatypeMember
 
 
 @dataclass(frozen=True)
@@ -86,4 +98,59 @@ DEVICE_DDT_CATALOG: dict[str, DeviceDdtDefinition] = {
         _members(("CH_HEALTH", "BOOL"), ("VALUE", "EBOOL"), ("TRUE_VALUE", "BOOL"),
                   ("IC", "BOOL"), ("CH_FBC", "BOOL"), ("CH_FBST", "BOOL")),
         _M580_SAFETY_DIS_ROUT),
+
+    # Module-level: real evidence is the exact sizes below, not every
+    # theoretically possible x/y combination the manuals also name.
+    "T_U_DIS_STD_IN_32": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("DIS_CH_IN", "ARRAY[0..31] OF T_U_DIS_STD_CH_IN")), _X80_DISCRETE),
+    "T_U_DIS_STD_IN_64": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("DIS_CH_IN", "ARRAY[0..63] OF T_U_DIS_STD_CH_IN")), _X80_DISCRETE),
+    "T_U_DIS_STD_OUT_32": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("DIS_CH_OUT", "ARRAY[0..31] OF T_U_DIS_STD_CH_OUT")), _X80_DISCRETE),
+    "T_U_DIS_STD_OUT_64": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("DIS_CH_OUT", "ARRAY[0..63] OF T_U_DIS_STD_CH_OUT")), _X80_DISCRETE),
+    "T_U_ANA_STD_IN_8": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("ANA_CH_IN", "ARRAY[0..7] OF T_U_ANA_STD_CH_IN")), _X80_ANALOG),
+    "T_U_ANA_STD_OUT_8": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("ANA_CH_OUT", "ARRAY[0..7] OF T_U_ANA_STD_CH_OUT")), _X80_ANALOG),
+    "T_U_ANA_TEMP_IN_8": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("MOD_FLT", "BYTE"),
+                  ("ANA_CH_IN", "ARRAY[0..7] OF T_U_ANA_TEMP_CH_IN")), _X80_ANALOG),
+    "T_U_ANA_SIS_IN_4": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("SAFE_COM_STS", "BOOL"), ("CONF_LOCKED", "BOOL"),
+                  ("CH_IN", "ARRAY[0..3] OF T_U_ANA_SIS_CH_IN")),
+        "Modicon M580 Safety Manual, QGH46982.08, p.56-57"),
+    "T_U_DIS_SIS_IN_16": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("SAFE_COM_STS", "BOOL"), ("PP_STS", "BOOL"),
+                  ("CONF_LOCKED", "BOOL"), ("CH_IN_A", "ARRAY[0..7] OF T_U_DIS_SIS_CH_IN"),
+                  ("CH_IN_B", "ARRAY[0..7] OF T_U_DIS_SIS_CH_IN")),
+        "Modicon M580 Safety Manual, QGH46982.08, p.84-86"),
+    "T_U_DIS_SIS_OUT_4": DeviceDdtDefinition(
+        _members(("MOD_HEALTH", "BOOL"), ("SAFE_COM_STS", "BOOL"), ("CONF_LOCKED", "BOOL"),
+                  ("APPLI", "UINT"), ("TIME_PERIOD", "UINT"),
+                  ("CH_OUT", "ARRAY[0..3] OF T_U_DIS_SIS_CH_ROUT"), ("S_TO", "UINT")),
+        "Modicon M580 Safety Manual, QGH46982.08, p.113-116"),
 }
+
+
+def datatypes() -> dict[str, Datatype]:
+    """The catalog, as Datatype objects keyed by casefolded name, for lookup only.
+
+    Never added to a parsed project's own Controller.datatypes -- these are
+    vendor documentation, not something this project captured.
+    """
+    return {
+        name.casefold(): Datatype(
+            name=name, description=f"Vendor-documented (not project-evidenced): {definition.source}",
+            members=[DatatypeMember(name=member.name, data_type_name=member.data_type_name)
+                     for member in definition.members],
+            metadata={"vendor_documented": True, "source": definition.source},
+        )
+        for name, definition in DEVICE_DDT_CATALOG.items()
+    }

@@ -501,7 +501,7 @@ def test_real_fixture_classifies_dfb_and_library_typed_tags_when_available():
     paths = glob.glob("reference/control-expert/*")
     if not any(Path(p).exists() for p in paths):
         pytest.skip("reference fixtures absent")
-    counts = {"fb_instance": 0, "library_type": 0, "ddt": 0}
+    counts = {"fb_instance": 0, "library_type": 0, "ddt": 0, "catalog": 0}
     unresolved = 0
     for path in paths:
         if not path.lower().endswith((".xef", ".zef", ".zip")):
@@ -518,6 +518,43 @@ def test_real_fixture_classifies_dfb_and_library_typed_tags_when_available():
                     counts["library_type"] += 1
                 elif tag.data_type_definition is not None:
                     counts["ddt"] += 1
+                elif tag.vendor_documented_type is not None:
+                    counts["catalog"] += 1
             unresolved += sum(1 for d in result.diagnostics if d.code == "unresolved_type")
-    assert counts == {"fb_instance": 336, "library_type": 131, "ddt": 3}
-    assert unresolved == 327
+    assert counts == {"fb_instance": 336, "library_type": 131, "ddt": 3, "catalog": 301}
+    assert unresolved == 26  # PID library (Para_PI/Mode_MH/Para_RAMP), RIO drop
+    # types (T_M_*), ADDR_TYPE, T_U_CRP_STD_IN, WordArr5 -- no manual found yet.
+
+
+def test_tag_typed_as_a_device_ddt_catalog_type_resolves_without_unresolved_type():
+    result = project('<dataBlock><variables name="ch" typeName="T_U_DIS_STD_CH_IN"/></dataBlock>')
+    tag = result.controller.tags["ch"]
+    assert tag.vendor_documented_type is not None and tag.vendor_documented_type.name == "T_U_DIS_STD_CH_IN"
+    assert tag.data_type_definition is None
+    assert tag.function_block_instance is None and tag.library_type is None
+    assert not any(d.code == "unresolved_type" for d in result.diagnostics)
+    # Never merged into the project's own captured datatypes.
+    assert "T_U_DIS_STD_CH_IN" not in result.controller.datatypes
+
+
+def test_two_tags_of_the_same_catalog_type_share_one_datatype_instance():
+    result = project('''<dataBlock>
+      <variables name="a" typeName="T_U_DIS_STD_CH_IN"/>
+      <variables name="b" typeName="t_u_dis_std_ch_in"/>
+    </dataBlock>''')
+    a, b = result.controller.tags["a"], result.controller.tags["b"]
+    assert a.vendor_documented_type is b.vendor_documented_type
+
+
+def test_project_own_ddt_wins_over_a_same_named_catalog_entry():
+    # Not expected to ever collide in practice, but project evidence must
+    # still win if it ever does.
+    result = project('''
+      <DDTSource DDTName="T_U_DIS_STD_CH_IN"><structure>
+        <variables name="Only" typeName="INT"/>
+      </structure></DDTSource>
+      <dataBlock><variables name="a" typeName="T_U_DIS_STD_CH_IN"/></dataBlock>
+    ''')
+    tag = result.controller.tags["a"]
+    assert tag.data_type_definition is result.controller.datatypes["T_U_DIS_STD_CH_IN"]
+    assert tag.vendor_documented_type is None

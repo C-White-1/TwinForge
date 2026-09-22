@@ -7,10 +7,10 @@ import re
 from twinforge.analysis.member_paths import MemberPathResult, resolve_member_path
 from twinforge.analysis.simple_expressions import resolve_binary_expression
 from twinforge.model import AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalVariableReferences, Tag
-from twinforge.model.datatype import Datatype, DatatypeMember
+from twinforge.model.datatype import Datatype
 from twinforge.model.resource import Resource
 from twinforge.model.library_interface import LibraryInterface
-from twinforge.schema.control_expert.device_ddt_catalog import DEVICE_DDT_CATALOG
+from twinforge.schema.control_expert import device_ddt_catalog
 
 
 @dataclass(frozen=True)
@@ -23,27 +23,10 @@ class MemberPathContext:
     library_interfaces: dict[str, LibraryInterface]
 
 
-def _device_ddt_catalog() -> dict[str, Datatype]:
-    """Schneider-documented standard Device DDTs, as Datatype objects for lookup only.
-
-    Never added to a parsed project's own Controller.datatypes -- these are
-    vendor documentation, not something this project captured.
-    """
-    return {
-        name.casefold(): Datatype(
-            name=name, description=f"Vendor-documented (not project-evidenced): {definition.source}",
-            members=[DatatypeMember(name=member.name, data_type_name=member.data_type_name)
-                     for member in definition.members],
-            metadata={"vendor_documented": True, "source": definition.source},
-        )
-        for name, definition in DEVICE_DDT_CATALOG.items()
-    }
-
-
 def member_path_context(
     controller: Controller, library_interfaces: list[LibraryInterface], array_pattern: str,
 ) -> MemberPathContext:
-    datatypes = _device_ddt_catalog()
+    datatypes = device_ddt_catalog.datatypes()
     # A project's own captured definition always wins over vendor documentation.
     datatypes.update({datatype.name.casefold(): datatype for datatype in controller.datatypes.values()})
     return MemberPathContext(

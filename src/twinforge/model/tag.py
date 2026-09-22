@@ -78,6 +78,11 @@ class Tag:
     # since a tag's type is exactly one of these three kinds of definition.
     function_block_instance: "AddOnInstruction | None" = field(default=None, repr=False)
     library_type: LibraryInterface | None = None
+    # Set instead of all three above when data_type names a type this project
+    # did not capture but has vendor documentation for (e.g. a Control
+    # Expert Device DDT) -- deliberately distinct from data_type_definition,
+    # which means "this project's own export defined this type".
+    vendor_documented_type: Datatype | None = None
     dimensions: str | None = None
     radix: str | None = None
     constant: bool | None = None

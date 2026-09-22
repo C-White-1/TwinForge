@@ -1230,3 +1230,46 @@ vendor documentation, not project evidence) and multi-dimensional
 kind, the DFB/library-interface precedence rule, case-insensitivity, the
 negative case, a real-fixture check with exact counts); full suite
 (1411 tests) passed; Ruff and Pyright passed.
+
+Device DDT type distinction checkpoint (2026-09-23): the type distinction
+checkpoint above deliberately left the Device DDT catalog unlinked from
+`Tag.data_type_definition`/`function_block_instance`/`library_type`, all
+read elsewhere as "this project captured this type". Revisited here with a
+fourth, clearly separate field instead of reversing that: `Tag` gained
+`vendor_documented_type` (`Datatype | None`), set only from the catalog,
+checked last (after every kind of project evidence). `_type_definition`
+returns a 4-tuple now; `device_ddt_catalog.datatypes()` (moved out of
+`graphical_bindings.py`, which now calls the same shared function, so the
+member-path resolver and tag typing are never out of sync) is built once per
+project and shared across every tag, so two tags of the same catalog type
+share one `Datatype` instance rather than each getting its own copy.
+
+This also **doubled the catalog**: measuring what remained `unresolved_type`
+after the first checkpoint surfaced 11 real *module*-level Device DDTs (a
+tag itself typed `T_U_DIS_STD_IN_32`, not just a member path into one) the
+channel-level catalog did not cover -- `T_U_DIS_STD_IN_32/64`,
+`T_U_DIS_STD_OUT_32/64`, `T_U_ANA_STD_IN_8`, `T_U_ANA_STD_OUT_8`,
+`T_U_ANA_TEMP_IN_8` (same X80 manuals as before) and `T_U_ANA_SIS_IN_4`,
+`T_U_DIS_SIS_IN_16`, `T_U_DIS_SIS_OUT_4` (M580 Safety Manual, QGH46982.08,
+p.56-57/84-86/113-116 respectively -- exact page numbers reverified against
+the extracted text, not assumed from the channel-level citations nearby).
+Only the exact sizes real tags in this corpus actually use are added, not
+every theoretical size the manuals also name. Each module type's simple
+status bits (`MOD_HEALTH`, `MOD_FLT`, and for SIS types `SAFE_COM_STS`/
+`PP_STS`/`CONF_LOCKED`/`APPLI`/`TIME_PERIOD`/`S_TO`) and channel array(s)
+are transcribed; a nested debug sub-structure (`T_SAFE_COM_DBG_IN`/`_OUT`,
+itself documented) and `MUID`/`RESERVED` fields are real too but left out --
+no real expression in this corpus reaches into them, so their citations
+were not chased.
+
+Real result: `unresolved_type` diagnostics dropped further, from 327 to 26
+(301 tags now resolve via the catalog). What remains `unresolved_type` is a
+different, still-open family entirely: a PID/regulation library
+(`Para_PI`/`Mode_MH`/`Para_RAMP`, 11 occurrences), RIO-drop/communication
+Device DDTs (`T_M_CRA_EXT_IN` and 3 siblings, 8 occurrences), `ADDR_TYPE`
+(2, likely a comms EFB's address structure), `T_U_CRP_STD_IN` (1), and
+`WordArr5` (4, likely a generic Schneider array typedef used internally by
+communication EFBs) -- none found in any manual searched so far, none
+guessed at. 3 new tests (catalog resolution, shared-instance identity across
+tags, project-evidence-wins-on-collision) plus updated real-fixture
+assertions; full suite (1414 tests) passed; Ruff and Pyright passed.
