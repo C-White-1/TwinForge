@@ -193,6 +193,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             "address": tag.metadata.get("source_memory_address"),
             "array_bounds": tag.metadata.get("source_array_bounds"),
             "initializers": tag.metadata.get("source_initial_values", []),
+            "initial_value": asdict(tag.initial_value) if tag.initial_value else None,
         } for tag in controller.tags.values()],
         "chassis": [{"name": rack.name, "modules": [
             {"catalog": module.catalog, "slot": module.slot}

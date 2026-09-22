@@ -162,10 +162,11 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
-- [ ] Interpret section conditions, enable behavior, jumps and other control flow
+- [ ] Interpret section conditions, enable behavior and other control flow
       (partial: section `activationCondition`/`logicCondition` captured as
-      lexical evidence -- see the section condition checkpoint below; nothing
-      is evaluated, and enable behavior and jumps remain open)
+      lexical evidence -- see the section condition checkpoint below; `jumpSFC`
+      connectivity is resolved -- see the `jumpSFC` checkpoint below; nothing
+      is evaluated, and enable behavior remains open)
 - [ ] Produce executable neutral graph/IR only for a verified semantic subset
 - [x] `FBSource`/`FBProgram` (user-defined Function Block definitions): interface,
       locals and body captured into the existing `AddOnInstruction` model, and
@@ -204,6 +205,9 @@ must remain unchanged.
 ## Milestone 5: broader type and source coverage — partial
 
 - [ ] Promote a documented subset of scalar initial values with lexical provenance
+      (partial: BOOL/integer-family/REAL tag initializers promote -- see the
+      scalar initial value checkpoint below; TIME and composite/struct
+      initialization remain open)
 - [x] Model array lower bounds without zero-base loss, for DDT members
       (`DatatypeMember.dimension` retains the lexical `lower..upper` text
       unchanged, e.g. `"257..384"`, deliberately not renumbered from zero);
@@ -1152,3 +1156,29 @@ at -- not a regression from this work, and not silently hidden by the test.
 4 new synthetic tests (closing-loop resolution, missing/ambiguous target,
 competing-candidate ambiguity) plus the real-fixture test; full suite
 (1385 tests) passed; Ruff and Pyright passed.
+
+Scalar initial value checkpoint (2026-09-23): a top-level tag's
+`<variableInit value="...">` was retained only as lexical
+`metadata["source_initial_values"]`, with `Tag.initial_value` -- a field this
+project's model already defines, used by the L5X converter -- never
+populated for Control Expert. `_promote_initial_value()` now promotes it to a
+`TagValue` when the literal text matches a shape this project already
+recognizes elsewhere (`EXPRESSION_SPEC.literals`) *and* the declared type is
+one real initializers here actually use: BOOL/EBOOL (`TRUE`/`FALSE`, and
+`"0"`/`"1"` -- standard IEC 61131-3 BOOL literal syntax, real evidence:
+`Sim_BBA01_PFe="0"`, `Sim_BBB01_PFe="1"`), an integer family (plain or based
+literal, reusing this project's own digit-separator support), or REAL/LREAL.
+TIME (6 real occurrences, `t#10s`/`t#20s`) stays lexical-only on purpose --
+no duration-to-integer conversion factor is invented, the same restraint the
+L5X converter's own scalar promotion (`converters/l5x/decorated_value.py`)
+already applies to types it does not recognize. More than one initializer on
+one tag (never evidenced, always exactly one in this corpus) is never
+guessed at either. `uninterpreted_initial_value` now fires only when nothing
+promoted, not unconditionally as before. Composite (struct/array)
+initialization and DDT *member* initializers (a separate, pre-existing gap:
+member initializers are not captured at all yet, lexically or otherwise) stay
+out of scope, as already noted elsewhere for the former. Real result: 21 of
+27 real tag initializers promote (15 REAL, 4 BOOL, 2 INT); the 6 TIME ones
+correctly stay unpromoted. 14 new tests (one per promotable shape, malformed/
+unsupported/multi-initializer cases, a real-fixture check); full suite
+(1404 tests) passed; Ruff and Pyright passed.

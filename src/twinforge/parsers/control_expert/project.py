@@ -6,7 +6,7 @@ import re
 
 from twinforge.model import (
     AddOnInstruction, AddOnInstructionParameter, Chassis, Controller, Datatype, DatatypeMember,
-    Identity, Module, Program, Resource, Routine, SourceExtension, StructuredTextLine, Tag, Task,
+    Identity, Module, Program, Resource, Routine, SourceExtension, StructuredTextLine, Tag, TagValue, Task,
 )
 from twinforge.schema.control_expert.mapping import BASIC_MAPPING, MappingSpec, PathSpec
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
@@ -135,6 +135,52 @@ def _resources(
         result.controller.add_resource(resource)
 
 
+# Real corpus evidence only ever declares an initializer on these IEC scalar
+# families; TIME (also evidenced) stays lexical-only -- no duration
+# conversion factor is invented, matching how the L5X converter's own scalar
+# promotion (converters/l5x/decorated_value.py) also leaves unmapped types
+# unpromoted rather than guessing.
+_PROMOTABLE_BOOL_TYPES = frozenset({"BOOL", "EBOOL"})
+_PROMOTABLE_INTEGER_TYPES = frozenset({"INT", "UINT", "DINT", "UDINT", "BYTE", "WORD", "DWORD"})
+_PROMOTABLE_REAL_TYPES = frozenset({"REAL", "LREAL"})
+
+
+def _promote_initial_value(data_type: str, lexical_value: str) -> "TagValue | None":
+    """Promote one Control Expert initializer literal to a typed value, or None.
+
+    Only a shape this project already recognizes as a literal elsewhere
+    (``EXPRESSION_SPEC.literals``) is attempted, so a malformed or
+    unsupported initializer text is never guessed at -- it just stays
+    lexical-only, the same outcome as an unpromotable type.
+    """
+    text = lexical_value.strip()
+    normalized = data_type.strip().upper()
+    if not any(re.fullmatch(pattern, text, re.IGNORECASE) for pattern in EXPRESSION_SPEC.literals):
+        return None
+    if normalized in _PROMOTABLE_BOOL_TYPES:
+        if re.fullmatch("TRUE|FALSE", text, re.IGNORECASE):
+            return TagValue(text.upper() == "TRUE", normalized, lexical_value, source_format="Lexical")
+        # "0"/"1" is standard IEC 61131-3 BOOL literal syntax too (real corpus
+        # evidence: Sim_BBA01_PFe="0", Sim_BBB01_PFe="1"), distinct from a
+        # numeric type's own integer literal below.
+        if text in {"0", "1"}:
+            return TagValue(text == "1", normalized, lexical_value, source_format="Lexical")
+    if normalized in _PROMOTABLE_INTEGER_TYPES:
+        based = re.fullmatch(r"(2|8|16)#([0-9A-Fa-f_]+)", text)
+        if based:
+            base, digits = based.groups()
+            return TagValue(int(digits.replace("_", ""), int(base)), normalized, lexical_value,
+                            radix=f"{base}#", source_format="Lexical")
+        if re.fullmatch(r"[+-]?[0-9]+", text):
+            return TagValue(int(text), normalized, lexical_value, source_format="Lexical")
+        return None
+    if normalized in _PROMOTABLE_REAL_TYPES:
+        if re.fullmatch(r"[+-]?(?:[0-9]+\.[0-9]*|[0-9]*\.[0-9]+)(?:[Ee][+-]?[0-9]+)?", text):
+            return TagValue(float(text), normalized, lexical_value, source_format="Lexical")
+        return None
+    return None
+
+
 def _declare_variables(
     result: ParsedProject, nodes: list[CapturedSection], spec: MappingSpec,
     known_datatypes: dict[str, Datatype], used: set[str], register,
@@ -155,7 +201,12 @@ def _declare_variables(
         initializers = _select(node, spec.initializers)
         if initializers:
             tag.metadata["source_initial_values"] = [dict(n.raw_attributes) for n in initializers]
-            result.report("uninterpreted_initial_value", f"{name}: initializer retained lexically", node)
+            if len(initializers) == 1:
+                value_text = initializers[0].raw_attributes.get("value")
+                if value_text is not None:
+                    tag.initial_value = _promote_initial_value(type_name or "", value_text)
+            if tag.initial_value is None:
+                result.report("uninterpreted_initial_value", f"{name}: initializer retained lexically", node)
         match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
         base_type = type_name
         if match:

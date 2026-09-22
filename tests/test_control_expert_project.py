@@ -358,3 +358,81 @@ def test_real_safety_project_resources_when_available():
     assert all(not r.ambiguous_names for r in controller.resources.values())
     assert {t.name: t.metadata["resource"] for t in controller.tasks.values()} == {"MAST": "process", "SAFE": "safe"}
     assert controller.tags == {}  # this export has no controller-level variables
+
+
+@pytest.mark.parametrize(("type_name", "lexical", "expected"), [
+    ("BOOL", "TRUE", True),
+    ("BOOL", "false", False),
+    ("BOOL", "1", True),
+    ("BOOL", "0", False),
+    ("EBOOL", "TRUE", True),
+    ("INT", "89", 89),
+    ("INT", "-5", -5),
+    ("UDINT", "16#0000_0001", 1),
+    ("WORD", "2#0000_0100", 4),
+    ("REAL", "123.4", 123.4),
+    ("REAL", "-5.0", -5.0),
+])
+def test_scalar_initial_values_promote_by_declared_type(type_name, lexical, expected):
+    result = project(f'''<dataBlock>
+      <variables name="v" typeName="{type_name}"><variableInit value="{lexical}"/></variables>
+    </dataBlock>''')
+    tag = result.controller.tags["v"]
+    assert tag.initial_value is not None
+    assert tag.initial_value.value == expected
+    assert tag.initial_value.data_type == type_name
+    assert tag.initial_value.lexical_value == lexical
+    assert not any(d.code == "uninterpreted_initial_value" for d in result.diagnostics)
+
+
+@pytest.mark.parametrize(("type_name", "lexical"), [
+    ("TIME", "t#10s"),  # no duration conversion factor is invented
+    ("BOOL", "2"),  # not TRUE/FALSE/0/1
+    ("INT", "1.5"),  # not an integer literal shape
+    ("INT", "abc"),  # not a literal at all
+    ("REAL", "16#FF"),  # a based literal is not a REAL shape
+    ("STRING", "'hi'"),  # not a promotable type family
+]) 
+def test_scalar_initial_values_that_do_not_promote_stay_lexical(type_name, lexical):
+    result = project(f'''<dataBlock>
+      <variables name="v" typeName="{type_name}"><variableInit value="{lexical}"/></variables>
+    </dataBlock>''')
+    tag = result.controller.tags["v"]
+    assert tag.initial_value is None
+    assert tag.metadata["source_initial_values"] == [{"value": lexical}]
+    assert any(d.code == "uninterpreted_initial_value" for d in result.diagnostics)
+
+
+def test_multiple_initializers_on_one_tag_are_never_guessed_at():
+    # Not evidenced in the real corpus (always exactly one), but stays
+    # unpromoted rather than picking either value if it ever occurs.
+    result = project('''<dataBlock>
+      <variables name="v" typeName="INT"><variableInit value="1"/><variableInit value="2"/></variables>
+    </dataBlock>''')
+    tag = result.controller.tags["v"]
+    assert tag.initial_value is None
+    assert tag.metadata["source_initial_values"] == [{"value": "1"}, {"value": "2"}]
+    assert any(d.code == "uninterpreted_initial_value" for d in result.diagnostics)
+
+
+def test_real_fixtures_promote_scalar_initial_values_when_available():
+    import glob
+    paths = glob.glob("reference/control-expert/*")
+    if not any(Path(p).exists() for p in paths):
+        pytest.skip("reference fixtures absent")
+    promoted, unpromoted = [], []
+    for path in paths:
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            controller = result.controller
+            tags = list(controller.tags.values())
+            for resource in controller.resources.values():
+                tags += list(resource.tags.values())
+            for tag in tags:
+                if not tag.metadata.get("source_initial_values"):
+                    continue
+                (promoted if tag.initial_value is not None else unpromoted).append(tag.data_type)
+    assert len(promoted) == 21
+    assert set(promoted) == {"REAL", "INT", "BOOL"}
+    assert set(unpromoted) == {"TIME"}
