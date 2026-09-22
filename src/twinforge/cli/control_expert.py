@@ -191,6 +191,8 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
         "variables": [{
             "name": tag.name, "type": tag.data_type,
             "resolved_datatype": tag.data_type_definition.name if tag.data_type_definition else None,
+            "function_block_instance": tag.function_block_instance.name if tag.function_block_instance else None,
+            "library_type": tag.library_type.name if tag.library_type else None,
             "address": tag.metadata.get("source_memory_address"),
             "array_bounds": tag.metadata.get("source_array_bounds"),
             "initializers": tag.metadata.get("source_initial_values", []),

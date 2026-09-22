@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .source_extension import SourceExtension
 from .datatype import Datatype
@@ -11,8 +11,12 @@ from .engineering_unit import (
     EngineeringRangeEvidence,
     EngineeringUnitEvidence,
 )
+from .library_interface import LibraryInterface
 from .tag_value import TagValue
 from .tag_value import CompositeTagValue
+
+if TYPE_CHECKING:
+    from .add_on_instruction import AddOnInstruction
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,12 @@ class Tag:
     tag_type: str | None = None
     data_type: str | None = None
     data_type_definition: Datatype | None = None
+    # Set instead of data_type_definition when data_type names a captured
+    # user-defined Function Block (DFB) instance or a library (EFB) block
+    # type -- never both, and never together with data_type_definition,
+    # since a tag's type is exactly one of these three kinds of definition.
+    function_block_instance: "AddOnInstruction | None" = field(default=None, repr=False)
+    library_type: LibraryInterface | None = None
     dimensions: str | None = None
     radix: str | None = None
     constant: bool | None = None

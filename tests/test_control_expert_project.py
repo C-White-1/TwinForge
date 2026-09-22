@@ -436,3 +436,88 @@ def test_real_fixtures_promote_scalar_initial_values_when_available():
     assert len(promoted) == 21
     assert set(promoted) == {"REAL", "INT", "BOOL"}
     assert set(unpromoted) == {"TIME"}
+
+
+def test_tag_typed_as_a_dfb_instance_resolves_without_unresolved_type():
+    result = project('''
+      <FBSource nameOfFBType="MyDFB">
+        <FBProgram><STSource>x := 1;</STSource></FBProgram>
+      </FBSource>
+      <dataBlock><variables name="inst" typeName="MyDFB"/></dataBlock>
+    ''')
+    tag = result.controller.tags["inst"]
+    assert tag.function_block_instance is result.controller.add_on_instructions["MyDFB"]
+    assert tag.data_type_definition is None and tag.library_type is None
+    assert not any(d.code == "unresolved_type" for d in result.diagnostics)
+
+
+def test_tag_typed_as_a_library_efb_resolves_without_unresolved_type():
+    result = project('''
+      <EFBSource nameOfEFBType="TON"><ExternalToolsOnly>
+        <outputParameters><variables name="Q" typeName="BOOL"/></outputParameters>
+      </ExternalToolsOnly></EFBSource>
+      <dataBlock><variables name="timer1" typeName="TON"/></dataBlock>
+    ''')
+    tag = result.controller.tags["timer1"]
+    assert tag.library_type is not None and tag.library_type.name == "TON"
+    assert tag.data_type_definition is None and tag.function_block_instance is None
+    assert not any(d.code == "unresolved_type" for d in result.diagnostics)
+
+
+def test_dfb_instance_wins_over_its_own_library_interface_registration():
+    # Every DFB is also registered in library_interfaces (kind
+    # "user_function_block", for call validation at instantiation sites);
+    # a tag of that type must resolve to the richer AddOnInstruction, not
+    # the duplicate library registration.
+    result = project('''
+      <FBSource nameOfFBType="MyDFB">
+        <FBProgram><STSource>x := 1;</STSource></FBProgram>
+      </FBSource>
+      <dataBlock><variables name="inst" typeName="mydfb"/></dataBlock>
+    ''')
+    tag = result.controller.tags["inst"]
+    assert tag.function_block_instance is result.controller.add_on_instructions["MyDFB"]
+    assert tag.library_type is None
+
+
+def test_type_matching_is_case_insensitive_for_each_kind():
+    result = project('''
+      <DDTSource DDTName="MyDDT"><structure><variables name="F" typeName="BOOL"/></structure></DDTSource>
+      <dataBlock><variables name="a" typeName="mYdDt"/></dataBlock>
+    ''')
+    assert result.controller.tags["a"].data_type_definition is result.controller.datatypes["MyDDT"]
+
+
+def test_still_unknown_type_reports_unresolved_type():
+    result = project('<dataBlock><variables name="v" typeName="TotallyUnknownType"/></dataBlock>')
+    tag = result.controller.tags["v"]
+    assert tag.data_type_definition is None
+    assert tag.function_block_instance is None and tag.library_type is None
+    assert any(d.code == "unresolved_type" for d in result.diagnostics)
+
+
+def test_real_fixture_classifies_dfb_and_library_typed_tags_when_available():
+    import glob
+    paths = glob.glob("reference/control-expert/*")
+    if not any(Path(p).exists() for p in paths):
+        pytest.skip("reference fixtures absent")
+    counts = {"fb_instance": 0, "library_type": 0, "ddt": 0}
+    unresolved = 0
+    for path in paths:
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            controller = result.controller
+            tags = list(controller.tags.values())
+            for resource in controller.resources.values():
+                tags += list(resource.tags.values())
+            for tag in tags:
+                if tag.function_block_instance is not None:
+                    counts["fb_instance"] += 1
+                elif tag.library_type is not None:
+                    counts["library_type"] += 1
+                elif tag.data_type_definition is not None:
+                    counts["ddt"] += 1
+            unresolved += sum(1 for d in result.diagnostics if d.code == "unresolved_type")
+    assert counts == {"fb_instance": 336, "library_type": 131, "ddt": 3}
+    assert unresolved == 327

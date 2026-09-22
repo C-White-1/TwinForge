@@ -136,6 +136,35 @@ def _resources(
         result.controller.add_resource(resource)
 
 
+def _type_definition(
+    base_type: str, known_datatypes: dict[str, Datatype], result: ParsedProject,
+) -> tuple[Datatype | None, "AddOnInstruction | None", LibraryInterface | None]:
+    """Classify a tag's declared type against every kind of definition this
+    project captures -- a user-defined DDT, a captured Function Block (DFB)
+    instance, or a library (EFB) block interface -- so unresolved_type is
+    raised only when none of the three actually apply. A DFB instance is
+    checked before library interfaces: every DFB is also registered there
+    (as a "user_function_block" kind, for call validation), and the richer
+    AddOnInstruction definition should win over that duplicate registration.
+    """
+    key = base_type.casefold()
+    datatype = known_datatypes.get(key)
+    if datatype is not None:
+        return datatype, None, None
+    function_block = result.controller.add_on_instructions.get(base_type)
+    if function_block is None:
+        for name, instance in result.controller.add_on_instructions.items():
+            if name.casefold() == key:
+                function_block = instance
+                break
+    if function_block is not None:
+        return None, function_block, None
+    for interface in result.library_interfaces:
+        if interface.name and interface.name.casefold() == key:
+            return None, None, interface
+    return None, None, None
+
+
 # Real corpus evidence only ever declares an initializer on these IEC scalar
 # families; TIME (also evidenced) stays lexical-only -- no duration
 # conversion factor is invented, matching how the L5X converter's own scalar
@@ -222,8 +251,10 @@ def _declare_variables(
             # into a zero-based dimensions string and imply portability.
             result.report("unresolved_array_type", f"{name}: array expression and bounds retained; type not resolved", node)
         if base_type:
-            tag.data_type_definition = known_datatypes.get(base_type.casefold())
-        if tag.data_type_definition is None and (not base_type or base_type.upper() not in spec.scalar_types):
+            tag.data_type_definition, tag.function_block_instance, tag.library_type = _type_definition(
+                base_type, known_datatypes, result)
+        known = tag.data_type_definition or tag.function_block_instance or tag.library_type
+        if known is None and (not base_type or base_type.upper() not in spec.scalar_types):
             result.report("unresolved_type", f"{name}: no supported type definition for {base_type!r}", node)
         register(tag)
 
@@ -633,9 +664,13 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
                 [_extension(node)],
             ))
     known_datatypes = _datatypes(result, root, spec)
+    # Function Blocks are captured before variables/resources so a tag typed
+    # as a DFB instance can be cross-referenced immediately, the same as one
+    # typed as a DDT; _function_blocks does not itself depend on tags or
+    # resources having been captured first.
+    _function_blocks(result, root, spec, known_datatypes)
     _variables(result, root, spec, known_datatypes)
     _resources(result, root, spec, known_datatypes)
-    _function_blocks(result, root, spec, known_datatypes)
     _programs_and_tasks(result, root, spec)
     _hardware(result, root, spec)
     variable_counts: dict[str, int] = {}

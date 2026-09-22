@@ -218,7 +218,8 @@ must remain unchanged.
       (`FBSource`/`FBProgram`, interface/locals/body -- see the DFB capture
       checkpoint below); device DDT remains a distinct, still-pending
       mechanism, not yet found in any local fixture
-- [ ] Distinguish library types, block-instance types and user-defined data types
+- [x] Distinguish library types, block-instance types and user-defined data types
+      (see the type distinction checkpoint below)
 - [ ] Extend ST analysis with source dialect/system-address evidence
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
 - [ ] Add populated DTM and modern M580/Control Expert examples (a real,
@@ -1202,3 +1203,30 @@ hex-bodied) -- both shapes are captured. Real result: all 7 blocks now carry
 `{"encoding": "65001"|None, "hex_length": <2300..67750>, "sha256": <hex>}`.
 2 new tests (with/without the `Encoding` attribute) plus updated real-fixture
 assertions; full suite (1405 tests) passed; Ruff and Pyright passed.
+
+Type distinction checkpoint (2026-09-23): a tag typed as a captured
+Function Block (DFB) instance or a library (EFB) block type -- `TON`,
+`S_SR`, `MBP_MSTR`, a user `FBSource`, ... -- was reported `unresolved_type`
+exactly like a genuinely undefined type, because only `Controller.datatypes`
+(DDTs) was ever checked. `Tag` gained two new fields, `function_block_instance`
+(`AddOnInstruction | None`) and `library_type` (`LibraryInterface | None`),
+set instead of `data_type_definition` -- a tag's type is exactly one of
+these three kinds, never more than one. `_function_blocks` now runs before
+`_variables`/`_resources` (it does not itself depend on tags/resources
+existing yet) so a DFB instance can be cross-referenced the same as a DDT.
+Every DFB is also registered in `library_interfaces` (kind
+`"user_function_block"`, for call validation), so a same-named match there
+is checked only after the richer `AddOnInstruction` match fails, never
+instead of it. Matching is case-insensitive, like everywhere else in this
+project. Real result: `unresolved_type` diagnostics dropped from 794 to 327
+(336 tags newly resolve to a Function Block instance, 131 to a library
+type); the pre-existing 3 DDT-linked tags are unaffected. What remains
+`unresolved_type` is genuinely so: mostly the Device DDT catalog's own
+types (`T_U_DIS_STD_CH_IN` and siblings -- deliberately not linked here,
+since `Tag.data_type_definition`/`function_block_instance`/`library_type`
+are read elsewhere as "this project captured this type", and the catalog is
+vendor documentation, not project evidence) and multi-dimensional
+`ARRAY[...]` types (a separate, already-tracked gap). 6 new tests (each
+kind, the DFB/library-interface precedence rule, case-insensitivity, the
+negative case, a real-fixture check with exact counts); full suite
+(1411 tests) passed; Ruff and Pyright passed.
