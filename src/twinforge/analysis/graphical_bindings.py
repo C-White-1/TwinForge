@@ -18,7 +18,7 @@ class MemberPathContext:
 
     array_pattern: str
     datatypes: dict[str, Datatype]
-    function_blocks: dict[str, dict[str, AddOnInstructionParameter]]
+    function_blocks: dict[str, dict[str, AddOnInstructionParameter | Tag]]
     library_interfaces: dict[str, LibraryInterface]
 
 
@@ -48,10 +48,15 @@ def member_path_context(
     return MemberPathContext(
         array_pattern,
         datatypes,
-        # Only externally visible parameters: local variables' public/private
-        # split is not captured, so no local is proven reachable from outside.
-        {aoi.name.casefold(): {p.name.casefold(): p for p in aoi.parameters.values()}
-         for aoi in controller.add_on_instructions.values()},
+        # Externally visible members of an FB instance: its parameters, plus
+        # only its *public* locals -- a private local is never proven
+        # reachable from outside (see the public local member-path checkpoint;
+        # this is a real Control Expert visibility distinction, not a guess).
+        {aoi.name.casefold(): {
+            **{p.name.casefold(): p for p in aoi.parameters.values()},
+            **{t.name.casefold(): t for t in aoi.local_tags.values()
+               if t.metadata.get("visibility") == "public"},
+        } for aoi in controller.add_on_instructions.values()},
         {i.name.casefold(): i for i in library_interfaces if i.name},
     )
 

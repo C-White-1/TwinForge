@@ -258,18 +258,25 @@ def _function_blocks(
                     source_extensions=[_extension(parameter)],
                 ))
         local_used: set[str] = set()
-        for path in (spec.function_block_public_locals, spec.function_block_private_locals):
+        # Public vs private is a real Control Expert distinction (separate XML
+        # sections), not an evidence gap -- retained so a public local, unlike
+        # a private one, can later be proven reachable from outside the FB
+        # (see the public local member-path checkpoint).
+        for path, visibility in ((spec.function_block_public_locals, "public"),
+                                 (spec.function_block_private_locals, "private")):
             for local_node in _select(node, path):
                 attrs = local_node.raw_attributes
                 lname = _unique_name(result, local_node, attrs.get("name"), local_used, "function block local variable")
                 if lname is None:
                     continue
                 type_name = attrs.get("typeName")
-                aoi.add_local_tag(Tag(
+                local_tag = Tag(
                     name=lname, data_type=type_name,
                     data_type_definition=known_datatypes.get(type_name.casefold()) if type_name else None,
                     source_extensions=[_extension(local_node)],
-                ))
+                )
+                local_tag.metadata["visibility"] = visibility
+                aoi.add_local_tag(local_tag)
         programs = _select(node, spec.function_block_program)
         crypted = _first(node, spec.function_block_crypted)
         if crypted is not None:

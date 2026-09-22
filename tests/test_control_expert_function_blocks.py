@@ -115,6 +115,8 @@ def test_public_and_private_local_variables_are_captured():
     ''')
     aoi = result.controller.add_on_instructions["M_STATE"]
     assert {t.name: t.data_type for t in aoi.local_tags.values()} == {"Pub": "BOOL", "Priv": "INT"}
+    assert aoi.local_tags["Pub"].metadata["visibility"] == "public"
+    assert aoi.local_tags["Priv"].metadata["visibility"] == "private"
 
 
 def test_ambiguous_body_is_diagnosed_not_guessed():

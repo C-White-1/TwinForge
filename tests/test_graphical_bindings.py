@@ -268,3 +268,70 @@ def test_parameter_and_local_tag_sharing_a_name_within_one_fb_is_ambiguous():
     pin = diagram.objects[0].pins[0]
     assert pin.binding_kind == "ambiguous_symbol"
     assert any(issue.code == "ambiguous_pin_symbol" and issue.scope == "function_block" for issue in issues)
+
+
+def test_member_path_context_exposes_only_public_locals_of_a_function_block():
+    from twinforge.analysis.graphical_bindings import member_path_context
+    from twinforge.schema.control_expert.mapping import BASIC_MAPPING
+
+    aoi = AddOnInstruction(name="IO_PM5320")
+    public = Tag(name="ACPT", data_type="REAL")
+    public.metadata["visibility"] = "public"
+    private = Tag(name="Secret", data_type="REAL")
+    private.metadata["visibility"] = "private"
+    aoi.add_local_tag(public)
+    aoi.add_local_tag(private)
+    controller = Controller(name="example", identity=Identity())
+    controller.add_add_on_instruction(aoi)
+
+    context = member_path_context(controller, [], BASIC_MAPPING.array_pattern)
+    members = context.function_blocks["io_pm5320"]
+    assert members["acpt"] is public
+    assert "secret" not in members
+
+
+def test_public_local_resolves_externally_but_private_locals_do_not():
+    result = parse_project(capture_bytes((
+        '<ZEFExchangeFile><contentHeader name="E"/>'
+        '<FBSource nameOfFBType="IO_PM5320">'
+        '<publicLocalVariables><variables name="ACPT" typeName="REAL"/></publicLocalVariables>'
+        '<privateLocalVariables><variables name="Secret" typeName="REAL"/></privateLocalVariables>'
+        '<FBProgram><STSource>ACPT := 1.0;</STSource></FBProgram>'
+        '</FBSource>'
+        '<dataBlock><variables name="PM5320" typeName="IO_PM5320"/></dataBlock>'
+        '<logicConf><resource><taskDesc task="MAST" taskType="cyclic">'
+        '<sectionDesc name="s"/></taskDesc></resource></logicConf>'
+        '<program><identProgram name="s" task="MAST"/><FBDSource><networkFBD>'
+        '<FFBBlock instanceName="B" typeName="X"><descriptionFFB>'
+        '<outputVariable formalParameter="OUT" effectiveParameter="PM5320.ACPT"/>'
+        '<inputVariable formalParameter="IN" effectiveParameter="PM5320.Secret"/>'
+        '</descriptionFFB></FFBBlock></networkFBD></FBDSource></program></ZEFExchangeFile>').encode(),
+        name="p.xef"))
+    routine = result.controller.programs["s"].main_routine
+    assert routine is not None
+    pins = {pin.name: pin for pin in routine.graphical_diagrams[0].objects[0].pins}
+    assert pins["OUT"].binding_kind == "declared_member_path"
+    assert pins["OUT"].member_path is not None and pins["OUT"].member_path.type_name == "REAL"
+    # A private local is never proven reachable from outside the FB instance.
+    assert pins["IN"].binding_kind == "unresolved_expression"
+
+
+def test_binding_inside_the_fb_body_still_sees_both_public_and_private_locals():
+    # The public/private filter is an *external* member-path rule only; the
+    # existing isolated-namespace binding inside a FB's own body is unaffected.
+    controller = Controller(name="example", identity=Identity())
+    aoi = AddOnInstruction(name="M_FN")
+    aoi.add_local_tag(Tag(name="Pub", data_type="BOOL", metadata={"visibility": "public"}))
+    aoi.add_local_tag(Tag(name="Priv", data_type="BOOL", metadata={"visibility": "private"}))
+    routine = Routine(name="M_FN", language="FBD")
+    diagram = GraphicalDiagram(language="FBD", objects=[GraphicalObject(kind="block", pins=[
+        GraphicalPin(name="EN", direction="input", expression="Pub"),
+        GraphicalPin(name="EN2", direction="input", expression="Priv"),
+    ])])
+    routine.graphical_diagrams.append(diagram)
+    aoi.add_routine(routine)
+    controller.add_add_on_instruction(aoi)
+    resolve_fb(controller)
+    pins = diagram.objects[0].pins
+    assert pins[0].binding_kind == "declared_symbol" and pins[0].target_tag is aoi.local_tags["Pub"]
+    assert pins[1].binding_kind == "declared_symbol" and pins[1].target_tag is aoi.local_tags["Priv"]

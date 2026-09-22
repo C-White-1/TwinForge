@@ -949,3 +949,27 @@ declared symbol and 1 more resolves a member path (`Vit_STOP_Soulèvmt.IND`);
 unresolved pin expressions dropped from 117 to 94. 3 new tests (both letters,
 plus a full-pipeline case-insensitive lookup with an uppercase accent). Full
 suite (1331 tests) passed; Ruff and Pyright passed.
+
+Public local member-path checkpoint (2026-09-22): real graphical pins in the
+M580 safety project reference a Function Block instance's own local variable
+from *outside* the instance -- e.g. `PM5320.ACPT`, an output pin's
+`effectiveParameter`, where `ACPT` is declared in `IO_PM5320`'s own
+`<publicLocalVariables>`, not its parameter interface. Public vs private is a
+real, separate Control Expert XML distinction (two different elements) that
+capture previously discarded, merging both into one `local_tags` dict with no
+visibility record -- not because the distinction was unproven, but because
+nothing had yet used it. Each local `Tag` now carries
+`metadata["visibility"] = "public"` or `"private"`. Member-path resolution's
+external view of a Function Block instance (`member_path_context`) now
+includes a public local alongside its declared parameters; a private local is
+still never proven reachable from outside, on purpose. This is deliberately
+narrow: it does not touch binding *inside* the FB's own body (already
+correctly sees every local, public or private, per the isolated-namespace
+checkpoint), and it does not extend the SFC two-part binding in
+`sequential_bindings.py`, which has its own, separate FB-member lookup not
+touched here. Real result: resolved member paths in the M580 safety project
+rose from 689 to 715; unresolved pin expressions dropped from 94 to 68. 4 new
+tests (context construction, a real external-reference shape resolving while
+a private local on the same instance does not, and confirmation that
+in-body binding is unaffected); full suite (1334 tests) passed; Ruff and
+Pyright passed.
