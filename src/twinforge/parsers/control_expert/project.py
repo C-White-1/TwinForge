@@ -167,9 +167,14 @@ def _type_definition(
                 break
     if function_block is not None:
         return None, function_block, None, None
-    for interface in result.library_interfaces:
-        if interface.name and interface.name.casefold() == key:
-            return None, None, interface, None
+    # Unlike DDTs and DFB instances (both name-unique by construction via
+    # _unique_name at declaration time), nothing prevents two library
+    # interface registrations (EFBSource/EFSource/FBSource) from sharing a
+    # name; picking the first would silently guess between them.
+    interface_matches = [interface for interface in result.library_interfaces
+                         if interface.name and interface.name.casefold() == key]
+    if len(interface_matches) == 1:
+        return None, None, interface_matches[0], None
     catalog_datatype = catalog_datatypes.get(key)
     if catalog_datatype is not None:
         return None, None, None, catalog_datatype
@@ -825,7 +830,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     for code, element in resolve_sequential_bindings(
-        controller, interfaces=result.library_interfaces, identifier_pattern=EXPRESSION_SPEC.identifier,
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier,
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
     ):
         metadata = element.source_extensions[0].metadata

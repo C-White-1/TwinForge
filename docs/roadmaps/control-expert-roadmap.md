@@ -75,7 +75,14 @@ calls. Both exports identify Premium despite the repository's M580 description.
 
 - [x] Inventory and inspect the multi-Grafcet pair; retain provenance discrepancy
 - [ ] Specify periodic task timing from authoritative evidence
-- [ ] Resolve timer-member and step-state expressions without simple-name assumptions
+- [x] Resolve timer-member expressions without simple-name assumptions (e.g.
+      `Tempo1.Q`, a library TON instance's output parameter, in an SFC
+      condition/action) -- see the sequential binding checkpoint below.
+      Step-state (`.X`) in this same SFC condition/action context has no
+      corpus evidence and stays unaddressed; a *different*, real, evidenced
+      shape -- `.X` inside a full ST statement (`ELSIF G1_2.X THEN`) -- is
+      now a separately scoped backlog item under ST analysis below, since it
+      needs real expression parsing this project does not have yet
 - [ ] Account for chart-control calls and multiple writers before execution claims
 
 ## Milestone 2: lossless capture — initial implementation complete
@@ -221,6 +228,17 @@ must remain unchanged.
 - [x] Distinguish library types, block-instance types and user-defined data types
       (see the type distinction checkpoint below)
 - [ ] Extend ST analysis with source dialect/system-address evidence
+- [ ] Backlog: step-state (`.X`) reference used inside a full ST statement,
+      not just as an isolated LD contact operand or SFC condition/action
+      variable -- real evidence: `ELSIF G1_2.X THEN` in
+      `MultiGrafcet_Coordination_V1_2026.XEF`. ST is currently captured only
+      as line-numbered text (`structured_text_lines`), with no expression-
+      level binding at all, so this needs real ST parsing this project does
+      not have for Control Expert yet -- `structured_text_semantics.py` /
+      `twinforge.structured_text` already does this for L5X/Logix ST and may
+      or may not generalize; that is its own investigation, not assumed
+      here. Do not guess at step-state inside arbitrary ST from this note
+      alone; establish the parsing foundation first
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
 - [ ] Add populated DTM and modern M580/Control Expert examples (a real,
       populated Control Expert V14.0 M580 **safety** project is now in the
@@ -1303,3 +1321,41 @@ parameter overrides on the same tag. 3 new tests (nested struct+array
 capture matching the real M340 shape, the never-promotes-or-resolves
 guard, a real-fixture count) plus an updated existing test; full suite
 (1417 tests) passed; Ruff and Pyright passed.
+
+Sequential binding checkpoint (2026-09-23): `resolve_sequential_bindings`
+(SFC condition/action `<variableName>` two-part `Tag.Member` binding, e.g.
+`Tempo1.Q`) did its own independent lookup -- filtering `library_interfaces`
+by `kind == "function_block"` and matching the tag's raw `data_type` string
+-- duplicating, and drifting from, the canonical type-resolution mechanism
+`Tag.function_block_instance`/`Tag.library_type` already established (see
+the type distinction checkpoint above). It now consults those fields
+directly instead, gaining the same DFB-instance-wins-over-library-duplicate
+precedence for free rather than needing a second, independently-evidenced
+implementation. Confirmed by measurement, not assumed: every real
+timer-member expression in this corpus already resolves cleanly today (zero
+`sfc_*` diagnostics across the whole corpus, all 12 real `Tempo1..6.Q`
+references bind), so this is a consistency fix, not a new capability filling
+an observed gap.
+
+The refactor surfaced a real, latent gap it does not depend on any real
+fixture to justify fixing: `_type_definition`'s library-interface lookup
+(and `member_path_context`'s equivalent dict) picked the *first* matching
+`LibraryInterface` by name, unlike DDTs and DFB instances, which are
+name-unique by construction (`_unique_name` at declaration time) --
+nothing enforces that for `EFBSource`/`EFSource`/`FBSource` registrations.
+The existing `test_members_require_unique_library_interface` fixture
+(two same-named `EFBSource` declarations) caught this immediately once
+`resolve_sequential_bindings` started relying on `Tag.library_type`: it
+regressed from `unresolved_member` to silently binding to whichever
+registration happened first. Both call sites now require a name to be
+unique before treating it as resolved -- `_type_definition` returns no
+`library_type` at all on a collision (falls through to `unresolved_type`,
+matching the existing "ambiguous is never guessed" standard applied
+everywhere else in this project), and `member_path_context`'s
+`_unique_by_name` drops the key entirely rather than keeping one. No real
+corpus project declares the same library interface name twice, so this is a
+safety-net fix, not an observed real-corpus regression fix, confirmed by
+re-measuring: `unresolved_type`, `fb_instance`, `library_type`, `catalog`
+and `ddt` counts are unchanged. 4 new tests (the two ambiguity guards, at
+the tag-typing and member-path-context layers respectively); full suite
+(1419 tests) passed; Ruff and Pyright passed.

@@ -41,8 +41,21 @@ def member_path_context(
             **{t.name.casefold(): t for t in aoi.local_tags.values()
                if t.metadata.get("visibility") == "public"},
         } for aoi in controller.add_on_instructions.values()},
-        {i.name.casefold(): i for i in library_interfaces if i.name},
+        _unique_by_name(library_interfaces),
     )
+
+
+def _unique_by_name(interfaces: list[LibraryInterface]) -> dict[str, LibraryInterface]:
+    """Nothing prevents two library interface registrations (EFBSource/
+    EFSource/FBSource) from sharing a name; a name that does is never
+    resolvable through this map rather than silently picking one."""
+    by_name: dict[str, LibraryInterface | None] = {}
+    for interface in interfaces:
+        if not interface.name:
+            continue
+        key = interface.name.casefold()
+        by_name[key] = None if key in by_name else interface
+    return {key: interface for key, interface in by_name.items() if interface is not None}
 
 
 def _member_path(

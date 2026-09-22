@@ -1,24 +1,22 @@
 """Conservative chart variable binding, independent of vendor XML and execution."""
 import re
 
-from twinforge.model import Controller
-from twinforge.model.library_interface import LibraryInterface
+from twinforge.model import Controller, Tag
 from twinforge.model.sequential import SequentialElement
 
 
 def resolve_sequential_bindings(
     controller: Controller, *, identifier_pattern: str,
-    interfaces: list[LibraryInterface] | None = None,
     ambiguous_names: frozenset[str] = frozenset(),
 ) -> list[tuple[str, SequentialElement]]:
     """Rebuild simple symbol bindings; do not interpret member expressions or effects."""
-    symbols: dict[str, str] = {}
+    symbols: dict[str, Tag] = {}
     ambiguous = {name.casefold() for name in ambiguous_names}
     for tag in controller.tags.values():
         key = tag.name.casefold()
         if key in symbols:
             ambiguous.add(key)
-        symbols[key] = tag.name
+        symbols[key] = tag
     issues: list[tuple[str, SequentialElement]] = []
 
     def visit(element: SequentialElement, parent_kind: str | None = None) -> None:
@@ -37,25 +35,36 @@ def resolve_sequential_bindings(
                 if base_key in ambiguous:
                     status = "ambiguous_symbol"
                 elif base_key in symbols:
-                    tag = next(t for t in controller.tags.values() if t.name == symbols[base_key])
-                    definitions = [i for i in interfaces or [] if i.kind == "function_block"
-                                   and i.name and i.name.casefold() == (tag.data_type or "").casefold()]
-                    if len(definitions) == 1:
-                        parameters = [p for p in definitions[0].parameters
-                                      if p.name and p.name.casefold() == member.casefold()]
-                        if len(parameters) == 1:
-                            parameter = parameters[0]
-                            status = "declared_member"
-                            element.target_symbol_name = tag.name
-                            element.target_member_name = parameter.name
-                            element.member_data_type = parameter.data_type
+                    tag = symbols[base_key]
+                    # The canonical source of "what is this tag's type", the
+                    # same one member-path resolution and unresolved_type
+                    # gating already use -- a DFB instance's own parameters
+                    # (function_block_instance) take precedence the same way
+                    # there, over a library (EFB) interface's (library_type).
+                    parameter = None
+                    if tag.function_block_instance is not None:
+                        parameter = tag.function_block_instance.parameters.get(member)
+                        if parameter is None:
+                            parameter = next(
+                                (p for p in tag.function_block_instance.parameters.values()
+                                 if p.name.casefold() == member.casefold()), None)
+                    elif tag.library_type is not None:
+                        matches = [p for p in tag.library_type.parameters
+                                  if p.name and p.name.casefold() == member.casefold()]
+                        if len(matches) == 1:
+                            parameter = matches[0]
+                    if parameter is not None:
+                        status = "declared_member"
+                        element.target_symbol_name = tag.name
+                        element.target_member_name = parameter.name
+                        element.member_data_type = parameter.data_type
             elif not re.fullmatch(identifier_pattern, expression):
                 status = "unresolved_expression"
             elif key in ambiguous:
                 status = "ambiguous_symbol"
             elif key in symbols:
                 status = "declared_symbol"
-                element.target_symbol_name = symbols[key]
+                element.target_symbol_name = symbols[key].name
             else:
                 status = "missing_symbol"
             element.binding_kind = status

@@ -488,6 +488,25 @@ def test_tag_typed_as_a_library_efb_resolves_without_unresolved_type():
     assert not any(d.code == "unresolved_type" for d in result.diagnostics)
 
 
+def test_two_library_interfaces_sharing_a_name_never_silently_bind_a_tag():
+    # Nothing prevents two EFBSource/EFSource/FBSource declarations from
+    # sharing a name, unlike DDTs/DFB instances (name-unique by construction
+    # at declaration time) -- picking the first would silently guess.
+    result = project('''
+      <EFBSource nameOfEFBType="TON"><ExternalToolsOnly>
+        <outputParameters><variables name="Q" typeName="BOOL"/></outputParameters>
+      </ExternalToolsOnly></EFBSource>
+      <EFBSource nameOfEFBType="TON"><ExternalToolsOnly>
+        <outputParameters><variables name="ET" typeName="TIME"/></outputParameters>
+      </ExternalToolsOnly></EFBSource>
+      <dataBlock><variables name="timer1" typeName="TON"/></dataBlock>
+    ''')
+    tag = result.controller.tags["timer1"]
+    assert tag.library_type is None
+    assert tag.data_type_definition is None and tag.function_block_instance is None
+    assert any(d.code == "unresolved_type" for d in result.diagnostics)
+
+
 def test_dfb_instance_wins_over_its_own_library_interface_registration():
     # Every DFB is also registered in library_interfaces (kind
     # "user_function_block", for call validation at instantiation sites);

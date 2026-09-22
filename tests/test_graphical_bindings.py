@@ -293,6 +293,21 @@ def test_member_path_context_exposes_only_public_locals_of_a_function_block():
     assert "secret" not in members
 
 
+def test_member_path_context_never_picks_between_two_same_named_library_interfaces():
+    from twinforge.analysis.graphical_bindings import member_path_context
+    from twinforge.model.library_interface import LibraryInterface, LibraryParameter
+    from twinforge.schema.control_expert.mapping import BASIC_MAPPING
+
+    unique = LibraryInterface("CTU", "EFB", [LibraryParameter("Q", "BOOL", "output")])
+    duplicate_a = LibraryInterface("TON", "EFB", [LibraryParameter("Q", "BOOL", "output")])
+    duplicate_b = LibraryInterface("TON", "EFB", [LibraryParameter("ET", "TIME", "output")])
+    controller = Controller(name="example", identity=Identity())
+
+    context = member_path_context(controller, [unique, duplicate_a, duplicate_b], BASIC_MAPPING.array_pattern)
+    assert context.library_interfaces["ctu"] is unique
+    assert "ton" not in context.library_interfaces
+
+
 def test_public_local_resolves_externally_but_private_locals_do_not():
     result = parse_project(capture_bytes((
         '<ZEFExchangeFile><contentHeader name="E"/>'
