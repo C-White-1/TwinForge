@@ -6,6 +6,14 @@ type-check literals, convert memory addresses, or infer expression dependencies.
 from dataclasses import dataclass
 
 
+#: Non-ASCII letters real corpus tag names use, beyond plain A-Za-z: French
+#: "é"/"è" (lower/upper), e.g. "Sim_Cs_VRég", "TG_Réseau" -- never evidenced
+#: as a name's first character, so they only extend the continuation class,
+#: same as the KKS digit-led names below. No other accented letter has been
+#: seen; this is not a general Unicode-identifier allowance.
+_ACCENTED_LETTERS = "éÉèÈ"
+
+
 @dataclass(frozen=True)
 class ExpressionSpec:
     # A name may also start with digits (real corpus evidence: KKS-coded tags
@@ -14,7 +22,9 @@ class ExpressionSpec:
     # somewhere -- a token that is purely digits is a numeric literal or a
     # bit-select index, never a name, and must keep failing this pattern so
     # those two stay unambiguous.
-    identifier: str = r"[A-Za-z_][A-Za-z_0-9]*|[0-9]+[A-Za-z_][A-Za-z_0-9]*"
+    identifier: str = (
+        rf"[A-Za-z_][A-Za-z_0-9{_ACCENTED_LETTERS}]*|[0-9]+[A-Za-z_][A-Za-z_0-9{_ACCENTED_LETTERS}]*"
+    )
     # Lexical shape of a direct/system address such as "%S13" or "%MW200".
     direct_address: str = r"%[A-Za-z]+[0-9]+(?:\.[0-9]+)?"
     literals: tuple[str, ...] = (

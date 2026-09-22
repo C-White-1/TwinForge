@@ -84,6 +84,17 @@ def test_pure_digit_tokens_are_never_treated_as_names(expression):
     assert _resolve(expression, _outer_tag()).status == "unresolved"
 
 
+@pytest.mark.parametrize(("expression", "base"), [
+    ("TG_Réseau.Name", "TG_Réseau"),  # real corpus tag: French "é"
+    ("Vit_STOP_Soulèvmt.Name", "Vit_STOP_Soulèvmt"),  # French "è"
+])
+def test_accented_french_tag_names_resolve(expression, base):
+    tag = Tag(name=base, data_type="Outer", data_type_definition=_types()["outer"])
+    result = _resolve(expression, tag)
+    assert result.status == "resolved"
+    assert result.path is not None and result.path.base == base
+
+
 def test_untyped_or_missing_base_never_resolves():
     assert _resolve("X.a", None).status == "unresolved"
     assert _resolve("X.a", Tag(name="X", data_type=None)).status == "unresolved"
@@ -141,6 +152,33 @@ def test_pins_bind_paths_to_the_base_symbol_without_joining_shared_variable_grou
     assert codes.count("pin_member_path_out_of_bounds") == 1
     assert codes.count("unresolved_pin_expression") == 2
     assert diagram.shared_variables == []
+
+
+def test_accented_tag_binds_case_insensitively_through_the_full_pipeline():
+    # A real corpus tag declared with a lowercase "é"; referenced both as
+    # declared and with the uppercase accent "É" -- the symbol lookup's
+    # casefold() must match both.
+    diagram = _fbd_project_with_accented_tag(["Réseau.A", "RÉSEAU.A"])
+    for pin in diagram.objects[0].pins:
+        assert pin.binding_kind == "declared_member_path"
+        assert pin.member_path is not None and pin.member_path.steps == (".A",)
+
+
+def _fbd_project_with_accented_tag(expressions):
+    pins = "".join(f'<inputVariable formalParameter="IN{i}" effectiveParameter="{e}"/>'
+                   for i, e in enumerate(expressions))
+    result = parse_project(capture_bytes((
+        '<ZEFExchangeFile><contentHeader name="E"/>'
+        '<DDTSource DDTName="Pair"><structure><variables name="A" typeName="INT"/></structure></DDTSource>'
+        '<dataBlock><variables name="Réseau" typeName="Pair"/></dataBlock>'
+        '<logicConf><resource><taskDesc task="MAST" taskType="cyclic">'
+        '<sectionDesc name="s"/></taskDesc></resource></logicConf>'
+        '<program><identProgram name="s" task="MAST"/><FBDSource><networkFBD>'
+        f'<FFBBlock instanceName="B" typeName="X"><descriptionFFB>{pins}</descriptionFFB></FFBBlock>'
+        '</networkFBD></FBDSource></program></ZEFExchangeFile>').encode(), name="p.xef"))
+    routine = result.controller.programs["s"].main_routine
+    assert routine is not None
+    return routine.graphical_diagrams[0]
 
 
 def test_real_fixtures_resolve_member_paths_when_available():

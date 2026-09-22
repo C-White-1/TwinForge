@@ -935,3 +935,17 @@ unresolved pin expressions dropped from 193 to 117. 2 new tests (positive
 shapes including the sign/case variants, and a negative set covering
 malformed separators and the unevidenced combined TIME form); full suite
 (1328 tests) passed; Ruff and Pyright passed.
+
+Accented identifier checkpoint (2026-09-22): real declared tags in this
+corpus use French accented letters -- "é" (e.g. `TG_Réseau`) and "è"
+(`Vit_STOP_Soulèvmt`) -- confirmed by checking every declared name across the
+whole corpus (controller/resource/program tags, DDT members, Function Block
+parameters and locals): exactly these two letters, both cases, never as a
+name's first character. `ExpressionSpec.identifier` now accepts them in the
+continuation position only, mirroring the digit-led KKS fix's shape and
+scope -- not a general Unicode-identifier allowance, since nothing else is
+evidenced. Real result: in the M580 safety project, 22 more pins bind to a
+declared symbol and 1 more resolves a member path (`Vit_STOP_Soulèvmt.IND`);
+unresolved pin expressions dropped from 117 to 94. 3 new tests (both letters,
+plus a full-pipeline case-insensitive lookup with an uppercase accent). Full
+suite (1331 tests) passed; Ruff and Pyright passed.
