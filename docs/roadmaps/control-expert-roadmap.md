@@ -131,9 +131,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
       (partial: proven paths resolve -- see the member path, resource variable,
-      Device DDT catalog and Tier 1 binary expression checkpoints below;
-      multi-operator expressions and inline function/EF calls remain
-      unresolved on purpose -- see the Tier 1 checkpoint's explicit exclusions)
+      Device DDT catalog and Tier 1/2 binary expression checkpoints below;
+      chained same-operator expressions and inline function/EF calls remain
+      unresolved on purpose -- see the Tier 2 checkpoint's explicit exclusions)
 - [x] Interpret explicit FBD links/connectors with endpoint diagnostics
       (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
       position; see the explicit FBD link checkpoint below -- this is
@@ -1010,3 +1010,29 @@ network too -- an existing test's expectations moved accordingly. 8 new tests
 (split-shape coverage including the `:=`/quote/multi-operator guards, operand
 classification, a real-fixture check); full suite (1364 tests) passed; Ruff
 and Pyright passed.
+
+Tier 2 binary expression checkpoint (2026-09-22): after Tier 1, 3 real
+expressions remained that need a logical AND/OR: `GEST[2] and 16#0F`,
+`Reset or GQC=65535`, `Reset or BQC=65535`. `split_logical_expression` now
+recognizes exactly one occurrence of AND or OR (checked in that
+precedence order -- OR is outermost, matching real IEC 61131-3 precedence,
+not an invented rule), word-bounded so it never matches inside a longer
+identifier (`Corridor`, `Sandbox`). Each side resolves either as a plain
+operand or, matching the real evidenced shape, as its own Tier 1
+comparison/arithmetic expression (`GQC=65535`) -- never as a further logical
+expression, since real precedence puts comparison inside AND inside OR, not
+the reverse. This is implemented as genuine (if shallow) recursion rather
+than a hardcoded two-level special case, but stays exactly as conservative at
+every level: more than one occurrence of the same keyword (`A and B and C`)
+is refused, matching Tier 1's refusal of a second occurrence of the same
+comparison/arithmetic operator, since left-associative chaining of either is
+unevidenced. `ExpressionOperand` gained `sub_expression` for this one
+evidenced case (a logical operand that is itself a comparison), not a
+general nested-expression allowance. Real result: all 3 resolve; unresolved
+pin/operand expressions dropped from 16 to 13. What remains in those 13 is
+exactly the two categories the Tier 1 checkpoint already named as
+out-of-scope (3 function/EF calls) plus symbols this export never defines (4
+uses of `Para_PI`/`Mode_MH`, plus one `%S6` direct address) -- not a grammar
+gap. 8 new tests (split-precedence coverage including the substring-boundary
+guard, nested-comparison resolution, real-fixture check); full suite
+(1378 tests) passed; Ruff and Pyright passed.

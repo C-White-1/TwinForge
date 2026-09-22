@@ -67,6 +67,9 @@ def _expression_operand(operand: Any) -> dict[str, Any]:
         "target_tag": operand.target_tag.name if operand.target_tag else None,
         "target_parameter": operand.target_parameter.name if operand.target_parameter else None,
         "member_path": asdict(operand.member_path) if operand.member_path else None,
+        # Set for kind "declared_expression": a logical operand that is
+        # itself a Tier 1 comparison/arithmetic expression.
+        "sub_expression": _binary_expression(operand.sub_expression) if operand.sub_expression else None,
     }
 
 

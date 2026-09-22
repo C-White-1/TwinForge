@@ -1,7 +1,9 @@
-"""Tier 1: a single evidenced binary operator between two independently proven operands."""
+"""Tier 1/2: single evidenced operators between independently proven operands."""
 import pytest
 
-from twinforge.analysis.simple_expressions import resolve_binary_expression, split_binary_expression
+from twinforge.analysis.simple_expressions import (
+    resolve_binary_expression, split_binary_expression, split_logical_expression,
+)
 from twinforge.model import AddOnInstructionParameter, Datatype, DatatypeMember, Tag
 from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 
@@ -23,8 +25,8 @@ def test_split_recognizes_every_evidenced_operator_shape(expression, left, opera
 
 
 @pytest.mark.parametrize("expression", [
-    "GEST[2] and 16#0F",          # word-form logical operator: zero recognized operators
-    "Reset or GQC=65535",         # "or" isn't recognized; the lone "=" leaves "Reset or GQC" as an unclassifiable left side later, but split itself still succeeds here
+    "GEST[2] and 16#0F",          # word-form logical operator: zero recognized Tier 1 operators
+    "Reset or GQC=65535",         # "or" isn't a Tier 1 operator; the lone "=" leaves "Reset or GQC" as an unclassifiable left side later, but split_binary_expression itself still succeeds here
     "RE(Sim_W505_STOP)",          # function call: zero recognized operators
     "-3",                          # leading operator -> empty left side
     "-t#5s",                       # same, for a signed literal
@@ -33,12 +35,34 @@ def test_split_recognizes_every_evidenced_operator_shape(expression, left, opera
     "A = B = C",                    # more than one recognized operator
     "",
 ])
-def test_split_rejects_unsupported_or_ambiguous_shapes(expression):
+def test_split_binary_rejects_unsupported_or_ambiguous_shapes(expression):
     result = split_binary_expression(expression)
     if expression == "Reset or GQC=65535":
         assert result == ("Reset or GQC", "=", "65535")  # splits; classification is what fails
     else:
         assert result is None
+
+
+@pytest.mark.parametrize(("expression", "left", "keyword", "right"), [
+    ("GEST[2] and 16#0F", "GEST[2]", "and", "16#0F"),
+    ("Reset or GQC=65535", "Reset", "or", "GQC=65535"),
+    ("A AND B", "A", "and", "B"),          # case-insensitive keyword
+    ("A and B or C", "A and B", "or", "C"),  # OR is outermost (lower precedence), even with AND present
+])
+def test_split_logical_recognizes_evidenced_shapes_at_correct_precedence(expression, left, keyword, right):
+    assert split_logical_expression(expression) == (left, keyword, right)
+
+
+@pytest.mark.parametrize("expression", [
+    "A and B and C",       # repeated keyword: left-associative chaining not evidenced
+    "A or B or C",
+    "Sandbox",               # "and"/"or" must be a whole word, never a substring
+    "Corridor",
+    "'and'",                 # never split inside a string literal
+    "",
+])
+def test_split_logical_rejects_unsupported_or_ambiguous_shapes(expression):
+    assert split_logical_expression(expression) is None
 
 
 def _types():
@@ -88,10 +112,33 @@ def test_member_path_operand_resolves():
     "Buffer + missing",       # right operand not declared
     "missing + Buffer",       # left operand not declared
     "P.Vals[4] > 0",           # left operand is a proven-unprovable index (out of bounds)
-    "GEST[2] and 16#0F",       # no recognized operator at all
+    "missing and Buffer",     # logical left operand not declared
+    "Buffer and missing",     # logical right operand not declared
+    "Buffer and missing > 1",  # the Tier 1 sub-expression itself fails
 ])
 def test_any_unresolved_operand_leaves_the_whole_expression_unresolved(expression):
     assert _resolve(expression) is None
+
+
+def test_logical_operand_resolves_a_plain_symbol_on_each_side():
+    result = _resolve("Buffer and Buffer")
+    assert result is not None
+    assert result.operator == "and"
+    assert result.left.kind == "declared_symbol" and result.right.kind == "declared_symbol"
+
+
+def test_logical_operand_resolves_a_nested_tier1_comparison():
+    # Mirrors the real corpus shape "Reset or GQC=65535": one side is a plain
+    # symbol, the other is itself a Tier 1 comparison -- real IEC 61131-3
+    # precedence (comparison binds tighter than the logical operator).
+    result = _resolve("Buffer or P.Vals[5] > 0")
+    assert result is not None
+    assert result.operator == "or"
+    assert result.left.kind == "declared_symbol"
+    assert result.right.kind == "declared_expression"
+    sub = result.right.sub_expression
+    assert sub is not None and sub.operator == ">"
+    assert sub.left.kind == "declared_member_path" and sub.right.kind == "literal"
 
 
 def test_ambiguous_operand_is_never_guessed():
@@ -126,7 +173,11 @@ def test_real_fixture_resolves_tier1_binary_expressions_when_available():
     assert resolved["TR_H -0.5"] == "-"
     assert resolved["PM5320.ACPT/1000.0"] == "/"
     assert resolved["00MAV10AP002.Mode <>2"] == "<>"
-    # Explicitly out of Tier 1 scope: not a binary expression at all.
-    assert "GEST[2] and 16#0F" not in resolved
+    # Tier 2: logical operators, one side a nested Tier 1 comparison.
+    assert resolved["GEST[2] and 16#0F"] == "and"
+    assert resolved["Reset or GQC=65535"] == "or"
+    assert resolved["Reset or BQC=65535"] == "or"
+    # Explicitly out of scope: function/EF calls are not an operator grammar at all.
     assert "RE(Sim_W505_STOP)" not in resolved
+    assert "ADDMX (IN := '0.2.0{10.24.9.31}')" not in resolved
     assert len(resolved) >= 40

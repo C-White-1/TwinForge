@@ -24,13 +24,21 @@ class MemberPath:
 
 @dataclass(frozen=True)
 class ExpressionOperand:
-    """One side of a resolved BinaryExpression, proven the same way a standalone expression is."""
+    """One side of a resolved BinaryExpression, proven the same way a standalone expression is.
+
+    Also used for a logical (and/or) operand that is itself a comparison, e.g.
+    "GQC=65535" in "Reset or GQC=65535" -- real, evidenced IEC 61131-3
+    precedence (comparison binds tighter than AND, which binds tighter than
+    OR), not a general nested-expression allowance: kind "declared_expression"
+    is only reached through that specific precedence relationship.
+    """
 
     text: str
-    kind: str  # "literal" | "declared_symbol" | "declared_member_path"
+    kind: str  # "literal" | "declared_symbol" | "declared_member_path" | "declared_expression"
     target_tag: "Tag | None" = field(default=None, repr=False)
     target_parameter: "AddOnInstructionParameter | None" = field(default=None, repr=False)
     member_path: "MemberPath | None" = None
+    sub_expression: "BinaryExpression | None" = None
 
 
 @dataclass(frozen=True)
