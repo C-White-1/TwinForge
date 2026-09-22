@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import re
 
 from twinforge.analysis.member_paths import MemberPathResult, resolve_member_path
+from twinforge.analysis.simple_expressions import resolve_binary_expression
 from twinforge.model import AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalVariableReferences, Tag
 from twinforge.model.datatype import Datatype, DatatypeMember
 from twinforge.model.resource import Resource
@@ -109,6 +110,7 @@ def _resolve_diagrams(
                 obj.target_tag = None
                 obj.target_step_name = None
                 obj.operand_member_path = None
+                obj.operand_binary_expression = None
                 expression = obj.operand.strip() if obj.operand is not None else ""
                 problem = None
                 # A coil cannot legitimately target a step's active-state
@@ -152,6 +154,13 @@ def _resolve_diagrams(
                     elif proven is not None and proven[0].status == "index_out_of_bounds":
                         obj.operand_binding_kind = "member_path_out_of_bounds"
                         problem = f"{obj.kind}_member_path_out_of_bounds"
+                    if problem:
+                        binary = resolve_binary_expression(
+                            expression, symbols, ambiguous, identifier_pattern, literal_patterns, member_paths)
+                        if binary is not None:
+                            obj.operand_binding_kind = "declared_expression"
+                            obj.operand_binary_expression = binary
+                            problem = None
                 if problem:
                     issues.append(GraphicalBindingIssue(
                         container_name, routine_name, diagram_index, object_index,
@@ -161,6 +170,7 @@ def _resolve_diagrams(
                 pin.target_tag = None
                 pin.target_parameter = None
                 pin.member_path = None
+                pin.binary_expression = None
                 expression = pin.expression.strip() if pin.expression is not None else ""
                 problem = None
                 if pin.expression is None:
@@ -208,6 +218,15 @@ def _resolve_diagrams(
                     elif proven is not None and proven[0].status == "index_out_of_bounds":
                         pin.binding_kind = "member_path_out_of_bounds"
                         problem = "pin_member_path_out_of_bounds"
+                    if problem:
+                        binary = resolve_binary_expression(
+                            expression, symbols, ambiguous, identifier_pattern, literal_patterns, member_paths)
+                        if binary is not None:
+                            # Not added to shared_variables: a composite expression's
+                            # operands are evidence of what it reads, not a wire.
+                            pin.binding_kind = "declared_expression"
+                            pin.binary_expression = binary
+                            problem = None
                 if problem:
                     issues.append(GraphicalBindingIssue(
                         container_name, routine_name, diagram_index, object_index,

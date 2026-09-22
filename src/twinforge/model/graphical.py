@@ -22,6 +22,32 @@ class MemberPath:
     is_array: bool = False
 
 
+@dataclass(frozen=True)
+class ExpressionOperand:
+    """One side of a resolved BinaryExpression, proven the same way a standalone expression is."""
+
+    text: str
+    kind: str  # "literal" | "declared_symbol" | "declared_member_path"
+    target_tag: "Tag | None" = field(default=None, repr=False)
+    target_parameter: "AddOnInstructionParameter | None" = field(default=None, repr=False)
+    member_path: "MemberPath | None" = None
+
+
+@dataclass(frozen=True)
+class BinaryExpression:
+    """A single evidenced binary operator between two independently proven operands.
+
+    Structural evidence only, deliberately narrow (see
+    ``analysis.simple_expressions``): exactly one recognized operator, per
+    corpus-evidenced shapes. No truth value, arithmetic result or type
+    compatibility is computed or implied by resolving one.
+    """
+
+    operator: str
+    left: ExpressionOperand
+    right: ExpressionOperand
+
+
 @dataclass
 class GraphicalPin:
     name: str | None = None
@@ -46,6 +72,10 @@ class GraphicalPin:
     # Set for binding_kind "declared_member_path"; target_tag/target_parameter
     # then name the *base* symbol only, never the member.
     member_path: "MemberPath | None" = None
+    # Set for binding_kind "declared_expression"; target_tag/target_parameter/
+    # member_path above are unset in that case (a composite expression has no
+    # single base symbol of its own).
+    binary_expression: "BinaryExpression | None" = None
 
 
 @dataclass
@@ -100,6 +130,7 @@ class GraphicalObject:
     # Canonical declared SFC step name for a "<step>.X"/".x" contact operand.
     target_step_name: str | None = None
     operand_member_path: "MemberPath | None" = None
+    operand_binary_expression: "BinaryExpression | None" = None
 
 
 @dataclass

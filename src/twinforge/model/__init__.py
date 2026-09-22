@@ -41,6 +41,8 @@ from .gateway import (
 )
 from .identity import Identity, VendorIdentity
 from .graphical import (
+    BinaryExpression,
+    ExpressionOperand,
     GraphicalDiagram,
     GraphicalLink,
     GraphicalLinkEndpoint,
@@ -121,6 +123,8 @@ from .visualization import (
 )
 
 __all__ = [
+    "BinaryExpression",
+    "ExpressionOperand",
     "GraphicalDiagram",
     "GraphicalLink",
     "GraphicalLinkEndpoint",

@@ -57,7 +57,7 @@ def test_literal_unbound_missing_and_complex_expressions():
     expressions = [
         "TRUE", "16#FF", "-3", "1.5", "'{1.101}SYS'",
         "16#0000_0001", "2#111_1000_0000", "t#200ms", "T#24h", "t#0.5s", "-t#5s",
-        None, "missing", "Buffer[1]", "Buffer + 1", "",
+        None, "missing", "Buffer[1]", "Buffer + missing", "",
     ]
     diagram.objects = [GraphicalObject(kind="block", pins=[
         GraphicalPin(direction="input", expression=e) for e in expressions
@@ -335,3 +335,43 @@ def test_binding_inside_the_fb_body_still_sees_both_public_and_private_locals():
     pins = diagram.objects[0].pins
     assert pins[0].binding_kind == "declared_symbol" and pins[0].target_tag is aoi.local_tags["Pub"]
     assert pins[1].binding_kind == "declared_symbol" and pins[1].target_tag is aoi.local_tags["Priv"]
+
+
+def test_pin_resolves_a_binary_expression_over_two_declared_operands():
+    controller, diagram = fixture()
+    diagram.objects = [GraphicalObject(kind="block", pins=[
+        GraphicalPin(direction="input", expression="Buffer + 1"),
+        GraphicalPin(direction="input", expression="Buffer + missing"),  # right operand undeclared
+    ])]
+    resolve(controller)
+    pins = diagram.objects[0].pins
+    assert pins[0].binding_kind == "declared_expression"
+    assert pins[0].binary_expression is not None
+    assert pins[0].binary_expression.operator == "+"
+    assert pins[0].binary_expression.left.target_tag is controller.tags["Buffer"]
+    assert pins[0].binary_expression.right.kind == "literal"
+    # A resolved binary expression pin has no single base symbol of its own.
+    assert pins[0].target_tag is None and pins[0].member_path is None
+    assert not diagram.shared_variables  # never treated as a wire
+    assert pins[1].binding_kind == "unresolved_expression" and pins[1].binary_expression is None
+
+
+def test_contact_and_coil_operands_also_resolve_binary_expressions():
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="Threshold", data_type="INT"))
+    program = Program(name="logic")
+    routine = Routine(name="logic", language="LD")
+    diagram = GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="contact", operand="Threshold > 0"),
+        GraphicalObject(kind="coil", operand="Threshold=1"),
+    ])
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+                               literal_patterns=EXPRESSION_SPEC.literals)
+    contact, coil = diagram.objects
+    assert contact.operand_binding_kind == "declared_expression"
+    assert contact.operand_binary_expression is not None and contact.operand_binary_expression.operator == ">"
+    assert coil.operand_binding_kind == "declared_expression"
+    assert coil.operand_binary_expression is not None and coil.operand_binary_expression.operator == "="

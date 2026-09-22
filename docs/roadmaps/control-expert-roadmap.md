@@ -130,10 +130,10 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
-      (partial: proven paths resolve -- see the member path, resource variable
-      and Device DDT catalog checkpoints below; a handful of expressions that
-      are not paths at all, e.g. binary literals with a "_" separator or
-      non-ASCII names, stay unresolved on purpose -- unrelated gaps)
+      (partial: proven paths resolve -- see the member path, resource variable,
+      Device DDT catalog and Tier 1 binary expression checkpoints below;
+      multi-operator expressions and inline function/EF calls remain
+      unresolved on purpose -- see the Tier 1 checkpoint's explicit exclusions)
 - [x] Interpret explicit FBD links/connectors with endpoint diagnostics
       (`GraphicalDiagram.links`, resolved by object-instance/pin name, not
       position; see the explicit FBD link checkpoint below -- this is
@@ -973,3 +973,40 @@ tests (context construction, a real external-reference shape resolving while
 a private local on the same instance does not, and confirmation that
 in-body binding is unaffected); full suite (1334 tests) passed; Ruff and
 Pyright passed.
+
+Tier 1 binary expression checkpoint (2026-09-22): after every prior member
+path checkpoint, 68 unresolved pin/contact/coil expressions in the M580
+safety project remained. Surveyed by shape: comparison (`Mode=8`,
+`StepNo>=4`), arithmetic (`PV1/9000.0`, `TR_H -0.5`), logical `and`/`or`
+mixed with comparison (`Reset or GQC=65535` -- needs real IEC 61131-3
+precedence, comparisons binding tighter than AND, tighter than OR), and
+inline function/EF calls (`RE(Sim_W505_STOP)`, `ADDMX (IN := '...')` -- a
+call-site parameter-binding problem, not an operator grammar at all). Given
+the user's explicit choice of scope, only the first two shapes (Tier 1) are
+resolved now; the rest stay unresolved on purpose, not a gap.
+`analysis/simple_expressions.py` recognizes exactly one occurrence of a
+comparison or arithmetic operator (`=`, `<>`, `<`, `>`, `<=`, `>=`, `+`, `-`,
+`*`, `/`) splitting an expression into two operands, each independently
+classified the same way a standalone expression already is (literal,
+declared symbol, or proven member path); both must resolve or the whole
+expression stays `unresolved_expression`, unchanged. A leading sign (e.g.
+`-3`) is never split, since such a token is already consumed as a signed
+literal before this stage runs; an expression containing a string literal is
+never split, to guard against an operator character appearing inside quoted
+text; `:=` is explicitly never read as `=` (guards the excluded call-site
+case from a spurious partial split). A resolved binary expression gets
+`binding_kind`/`operand_binding_kind = "declared_expression"` and a new
+`BinaryExpression` (operator plus two `ExpressionOperand`s); it is
+deliberately never added to `shared_variables`, matching every other
+non-plain-symbol resolution. This computes no truth value, arithmetic result,
+or type compatibility -- structural evidence only, exactly like a MemberPath.
+Real result: 52 pin/operand occurrences (43 distinct expressions) now resolve;
+unresolved pin expressions dropped from 68 to 16. One side effect, the same
+shape as the resource-variable checkpoint's: a 9th program FBD network
+(`Séquence`) and the DFB body pins whose blocks feed a shared variable with no
+covering `linkFB` newly become visible to the unlinked-shared-variable guard
+once their pins bind, so it correctly stops claiming an order for that
+network too -- an existing test's expectations moved accordingly. 8 new tests
+(split-shape coverage including the `:=`/quote/multi-operator guards, operand
+classification, a real-fixture check); full suite (1364 tests) passed; Ruff
+and Pyright passed.

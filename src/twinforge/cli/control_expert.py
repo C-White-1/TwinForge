@@ -61,6 +61,23 @@ def _ladder_rung(rung: LadderRung) -> dict[str, Any]:
             "network": _ladder_series(rung.network) if rung.network else None}
 
 
+def _expression_operand(operand: Any) -> dict[str, Any]:
+    return {
+        "text": operand.text, "kind": operand.kind,
+        "target_tag": operand.target_tag.name if operand.target_tag else None,
+        "target_parameter": operand.target_parameter.name if operand.target_parameter else None,
+        "member_path": asdict(operand.member_path) if operand.member_path else None,
+    }
+
+
+def _binary_expression(expression: Any) -> dict[str, Any]:
+    return {
+        "operator": expression.operator,
+        "left": _expression_operand(expression.left),
+        "right": _expression_operand(expression.right),
+    }
+
+
 def _diagram_summary(diagram: Any) -> dict[str, Any]:
     return {
         "language": diagram.language,
@@ -82,13 +99,17 @@ def _diagram_summary(diagram: Any) -> dict[str, Any]:
             "target_tag": obj.target_tag.name if obj.target_tag else None,
             "target_step_name": obj.target_step_name,
             "operand_member_path": asdict(obj.operand_member_path) if obj.operand_member_path else None,
+            "operand_binary_expression": (
+                _binary_expression(obj.operand_binary_expression) if obj.operand_binary_expression else None),
             "pins": [{"name": pin.name, "direction": pin.direction,
                       "role": pin.role, "expression": pin.expression,
                       "interface_status": pin.interface_status, "parameter_index": pin.parameter_index,
                       "inverted": pin.inverted, "binding_kind": pin.binding_kind,
                       "target_tag": pin.target_tag.name if pin.target_tag else None,
                       "target_parameter": pin.target_parameter.name if pin.target_parameter else None,
-                      "member_path": asdict(pin.member_path) if pin.member_path else None}
+                      "member_path": asdict(pin.member_path) if pin.member_path else None,
+                      "binary_expression": (
+                          _binary_expression(pin.binary_expression) if pin.binary_expression else None)}
                      for pin in obj.pins],
         } for obj in diagram.objects],
     }

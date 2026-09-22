@@ -324,17 +324,18 @@ def test_optional_real_m580_safety_execution_order(filename):
     result, = parse_projects(capture_file(path))
     controller = result.controller
 
-    # Program-scoped FBD diagrams. Resource-level variables are now captured, so
-    # plain-name pins bind and the unlinked-shared-variable guard can see them:
-    # 8 diagrams whose blocks exchange values through a shared variable with no
-    # covering linkFB wire correctly stop claiming an order (22/22 resolved
-    # earlier only because those pins were unbound and the guard was blind).
+    # Program-scoped FBD diagrams. Resource variables, then Tier 1 binary
+    # expressions, made more pins bind, letting the unlinked-shared-variable
+    # guard see them: 9 diagrams whose blocks exchange values through a shared
+    # variable with no covering linkFB wire correctly stop claiming an order
+    # (22/22 resolved earlier only because those pins were unbound/unresolved
+    # and the guard was blind).
     program_diagrams = {program.name: d for program in controller.programs.values()
                         for routine in program.routines.values()
                         for d in routine.graphical_diagrams if d.language == "FBD"}
     assert len(program_diagrams) == 22
     unlinked_dataflow = {"Sim_FBD", "Sim_W505", "MAV10EA100", "MAK10EA100", "MAX10EA100",
-                         "MAL10EA100", "MKA10EA100", "TRIP_TG"}
+                         "MAL10EA100", "MKA10EA100", "TRIP_TG", "Séquence"}
     assert {name for name, d in program_diagrams.items() if not d.execution_order_resolved} == unlinked_dataflow
     for name, d in program_diagrams.items():
         if name in unlinked_dataflow:
@@ -362,8 +363,10 @@ def test_optional_real_m580_safety_execution_order(filename):
     for d in result.diagnostics:
         if d.code in {"ambiguous_block_order", "cyclic_block_dependency", "unresolved_block_order"}:
             codes[d.code] = codes.get(d.code, 0) + 1
-    # 3 DFB bodies plus the 8 program diagrams named above.
-    assert codes == {"ambiguous_block_order": 1, "unresolved_block_order": 11}
+    # 3 DFB bodies plus the 9 program diagrams named above. "Séquence" (like
+    # P_MUX3 already did) gets both codes: ambiguous from the multi-writer
+    # guard, and unresolved_block_order from the final unresolved-diagram sweep.
+    assert codes == {"ambiguous_block_order": 2, "unresolved_block_order": 12}
 
 
 def test_ladder_diagrams_never_get_a_meaningless_unresolved_block_order(tmp_path):
