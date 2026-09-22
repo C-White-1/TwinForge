@@ -604,10 +604,11 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
         step_names=step_names,
         ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
+        direct_address_pattern=EXPRESSION_SPEC.direct_address,
     )
     issues.extend(resolve_function_block_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
-        member_paths=member_paths,
+        member_paths=member_paths, direct_address_pattern=EXPRESSION_SPEC.direct_address,
     ))
     for issue in issues:
         routines = (controller.add_on_instructions[issue.program_name].routines

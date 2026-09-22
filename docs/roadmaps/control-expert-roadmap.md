@@ -1036,3 +1036,30 @@ uses of `Para_PI`/`Mode_MH`, plus one `%S6` direct address) -- not a grammar
 gap. 8 new tests (split-precedence coverage including the substring-boundary
 guard, nested-comparison resolution, real-fixture check); full suite
 (1378 tests) passed; Ruff and Pyright passed.
+
+Direct address classification checkpoint (2026-09-22): a "%..." direct/system
+address (e.g. `%S1`, `%S6`) used as a pin or contact/coil expression fell into
+`unresolved_expression`, even though this project already recognizes the
+exact same shape elsewhere (`ExpressionSpec.direct_address`, used for section
+activation conditions). Pins and contact/coil operands now classify it too,
+as `binding_kind`/`operand_binding_kind = "direct_address"` -- evidence, not
+a resolved target: no `Tag`/parameter/member path is attached, the same way
+a `"literal"` classification carries no target. Kept strictly opt-in
+(`direct_address_pattern: str | None = None`, only classified when a caller
+passes it): `resolve_graphical_bindings`/`resolve_function_block_bindings`
+callers that do not ask for it keep the prior behavior unchanged. Real result
+across the whole corpus (not only the M580 safety project): 6 occurrences
+(`%S1` x4 on contact/coil operands, `%S6` x2 on pins), all newly classified;
+no diagnostic is raised for them, matching `"literal"`. 3 new tests
+(pin/output-pin classification, the opt-in default, a real-fixture check);
+full suite (1381 tests) passed; Ruff and Pyright passed.
+
+This closes out the corpus-evidenced work in `docs/roadmaps/control-expert-roadmap.md`
+originating from the indexed/member-expression and control-flow investigation
+threads. What remains unresolved in the M580 safety project (10 expressions)
+is, by shape: 3 inline function/EF calls (`RE(...)`, `ADDMX(...)`,
+`UDINT_TO_TIME(...)`) -- a call-site parameter-binding problem, not an
+operator grammar, and a materially different task; and 4 uses of `Para_PI`/
+`Mode_MH`, types this export never defines and no public manual has been
+found for (unlike the Device DDT catalog's types) -- blocked on evidence, not
+effort.

@@ -98,7 +98,7 @@ def _resolve_diagrams(
     symbols: dict[str, Tag | AddOnInstructionParameter], ambiguous: set[str],
     steps: dict[str, str], step_ambiguous: set[str],
     identifier_pattern: str, step_state_pattern: re.Pattern[str], literal_patterns: tuple[str, ...],
-    member_paths: MemberPathContext | None = None,
+    member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
     issues: list[GraphicalBindingIssue] = []
     for diagram_index, diagram in enumerate(diagrams):
@@ -141,6 +141,10 @@ def _resolve_diagrams(
                     else:
                         obj.operand_binding_kind = "missing_symbol"
                         problem = f"unresolved_{obj.kind}_symbol"
+                elif direct_address_pattern is not None and re.fullmatch(direct_address_pattern, expression):
+                    # A direct/system address (e.g. "%S1"): real evidence, not a
+                    # declared symbol -- classified, not resolved to a target.
+                    obj.operand_binding_kind = "direct_address"
                 else:
                     obj.operand_binding_kind = "unresolved_expression"
                     problem = f"unresolved_{obj.kind}_expression"
@@ -181,6 +185,8 @@ def _resolve_diagrams(
                     else:
                         pin.binding_kind = "invalid_output_literal"
                         problem = "invalid_output_literal"
+                elif direct_address_pattern is not None and re.fullmatch(direct_address_pattern, expression):
+                    pin.binding_kind = "direct_address"
                 elif re.fullmatch(identifier_pattern, expression):
                     key = expression.casefold()
                     if key in ambiguous:
@@ -257,7 +263,7 @@ def resolve_graphical_bindings(
     controller: Controller, *, identifier_pattern: str,
     literal_patterns: tuple[str, ...], ambiguous_names: frozenset[str] = frozenset(),
     step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
-    member_paths: MemberPathContext | None = None,
+    member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Classify pins and contact operands in place; retained source text is unchanged.
 
@@ -300,13 +306,14 @@ def resolve_graphical_bindings(
                 step_ambiguous=step_ambiguous,
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
                 literal_patterns=literal_patterns, member_paths=member_paths,
+                direct_address_pattern=direct_address_pattern,
             ))
     return issues
 
 
 def resolve_function_block_bindings(
     controller: Controller, *, identifier_pattern: str, literal_patterns: tuple[str, ...],
-    member_paths: MemberPathContext | None = None,
+    member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Resolve pins inside a Function Block body against that FB's own namespace.
 
@@ -332,5 +339,6 @@ def resolve_function_block_bindings(
                 symbols=symbols, ambiguous=ambiguous, steps={}, step_ambiguous=set(),
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
                 literal_patterns=literal_patterns, member_paths=member_paths,
+                direct_address_pattern=direct_address_pattern,
             ))
     return issues

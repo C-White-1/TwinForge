@@ -10,12 +10,14 @@ from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 
 def resolve(controller: Controller):
     return resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
-                                      literal_patterns=EXPRESSION_SPEC.literals)
+                                      literal_patterns=EXPRESSION_SPEC.literals,
+                                      direct_address_pattern=EXPRESSION_SPEC.direct_address)
 
 
 def resolve_fb(controller: Controller):
     return resolve_function_block_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
-                                           literal_patterns=EXPRESSION_SPEC.literals)
+                                           literal_patterns=EXPRESSION_SPEC.literals,
+                                           direct_address_pattern=EXPRESSION_SPEC.direct_address)
 
 
 def fixture():
@@ -118,18 +120,19 @@ def test_contact_operand_binding_covers_symbols_and_step_state():
     issues = resolve_graphical_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
         step_names={"g1_0": "G1_0"}, ambiguous_step_names=frozenset({"g1_1"}),
+        direct_address_pattern=EXPRESSION_SPEC.direct_address,
     )
     contacts = diagram.objects[:7]
     assert [c.operand_binding_kind for c in contacts] == [
         "declared_symbol", "declared_step_state", "declared_step_state",
-        "ambiguous_step_state", "missing_symbol", "unresolved_expression", "unbound",
+        "ambiguous_step_state", "missing_symbol", "direct_address", "unbound",
     ]
     assert contacts[0].target_tag is controller.tags["Start"]
     assert contacts[1].target_step_name == "G1_0" and contacts[2].target_step_name == "G1_0"
     assert contacts[3].target_step_name is None
     contact_codes = {issue.code for issue in issues if issue.pin_index is None}
     assert contact_codes == {
-        "ambiguous_contact_step_state", "unresolved_contact_symbol", "unresolved_contact_expression",
+        "ambiguous_contact_step_state", "unresolved_contact_symbol",
     }
     # The block's pin, unaffected by contact handling, resolves cleanly with no issue.
     assert diagram.objects[7].pins[0].target_tag is controller.tags["Start"]
@@ -155,11 +158,11 @@ def test_coil_operand_binding_covers_symbols_but_never_step_state():
     controller.add_program(program)
     issues = resolve_graphical_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
-        step_names={"g1_0": "G1_0"},
+        step_names={"g1_0": "G1_0"}, direct_address_pattern=EXPRESSION_SPEC.direct_address,
     )
     coils = diagram.objects
     assert [c.operand_binding_kind for c in coils] == [
-        "declared_symbol", "unresolved_expression", "missing_symbol", "unresolved_expression", "unbound",
+        "declared_symbol", "unresolved_expression", "missing_symbol", "direct_address", "unbound",
     ]
     assert coils[0].target_tag is controller.tags["Output"]
     assert coils[1].target_step_name is None  # Never classified as a step state.
@@ -375,3 +378,56 @@ def test_contact_and_coil_operands_also_resolve_binary_expressions():
     assert contact.operand_binary_expression is not None and contact.operand_binary_expression.operator == ">"
     assert coil.operand_binding_kind == "declared_expression"
     assert coil.operand_binary_expression is not None and coil.operand_binary_expression.operator == "="
+
+
+def test_direct_address_is_classified_on_pins_and_operands_without_a_target():
+    controller, diagram = fixture()
+    diagram.objects = [GraphicalObject(kind="block", pins=[
+        GraphicalPin(direction="input", expression="%S6"),
+        GraphicalPin(direction="output", expression="%MW200.1"),
+    ])]
+    resolve(controller)
+    pins = diagram.objects[0].pins
+    assert pins[0].binding_kind == "direct_address" and pins[0].target_tag is None
+    assert pins[1].binding_kind == "direct_address"  # allowed on an output pin, unlike a literal
+
+
+def test_direct_address_pattern_is_opt_in_and_never_defaults_on():
+    # A caller that doesn't pass direct_address_pattern keeps the prior
+    # behavior: a "%..." expression stays unresolved rather than silently
+    # gaining a new classification.
+    controller, diagram = fixture()
+    diagram.objects = [GraphicalObject(kind="block", pins=[
+        GraphicalPin(direction="input", expression="%S6"),
+    ])]
+    from twinforge.analysis.graphical_bindings import resolve_graphical_bindings
+    resolve_graphical_bindings(controller, identifier_pattern=EXPRESSION_SPEC.identifier,
+                               literal_patterns=EXPRESSION_SPEC.literals)
+    assert diagram.objects[0].pins[0].binding_kind == "unresolved_expression"
+
+
+def test_real_fixtures_classify_direct_addresses_when_available():
+    import glob
+    from pathlib import Path
+    from twinforge.parsers.control_expert import capture_file, parse_projects
+
+    paths = glob.glob("reference/control-expert/*")
+    if not any(Path(p).exists() for p in paths):
+        import pytest
+        pytest.skip("reference fixtures absent")
+    found = set()
+    for path in paths:
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            controller = result.controller
+            for container in [*controller.programs.values(), *controller.add_on_instructions.values()]:
+                for routine in container.routines.values():
+                    for diagram in routine.graphical_diagrams:
+                        for obj in diagram.objects:
+                            if obj.operand_binding_kind == "direct_address":
+                                found.add(obj.operand)
+                            for pin in obj.pins:
+                                if pin.binding_kind == "direct_address":
+                                    found.add(pin.expression)
+    assert found == {"%S1", "%S6"}
