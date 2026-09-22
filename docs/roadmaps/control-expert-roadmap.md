@@ -858,3 +858,24 @@ variables. Also outstanding: ~480 expressions that are not member paths at
 all (direct addresses like `%S6`, time literals, digit-leading names such as
 `00BBA01GS001.CLOSED`). 3 new synthetic tests plus 1 real-fixture test; full
 suite (1307 tests) passed; Ruff and Pyright passed.
+
+Digit-led name checkpoint (2026-09-22): real names in this corpus are
+KKS-coded plant tags (the power-plant equipment identification standard),
+which may start with digits (`00BBA01GS001`, a circuit breaker; `.CLOSED` is
+its member) -- confirmed real by a user, not previously evidenced as a naming
+convention here. The identifier grammar required a leading letter/underscore,
+so every such name failed before member-path resolution ever ran. It now also
+accepts one or more leading digits followed by at least one letter/underscore
+(`ExpressionSpec.identifier`), applied everywhere it is used: pin/contact/coil
+binding, member paths, SFC two-part bindings, and section activation
+conditions. A token that is purely digits still cannot match -- required, so a
+bit-select index (`.6`) and a numeric literal (`123`) both stay unambiguous
+from a name. This is a single shared grammar change, not a new mechanism, so
+no new diagnostic codes. Real result: resolved member paths in the M580 safety
+project rose from 98 to 375 (unresolved pin expressions dropped from 804 to
+506); no new out-of-bounds results; execution order results unchanged from the
+prior checkpoint (same 8 program networks and 3 DFB bodies stay unresolved for
+the unlinked-shared-variable reason already recorded there). 8 new tests
+(synthetic digit-led/pure-digit cases plus a real-fixture assertion on
+`00BBA01GS001.CLOSED`); full suite (1313 tests) passed; Ruff and Pyright
+passed.

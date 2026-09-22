@@ -66,6 +66,24 @@ def test_unproven_or_out_of_range_paths(expression, status):
     assert _resolve(expression, _outer_tag()).status == status
 
 
+@pytest.mark.parametrize(("expression", "base"), [
+    ("00BBA01GS001.Name", "00BBA01GS001"),  # KKS-coded plant tag: digit-led, contains letters
+    ("2A.Name", "2A"),
+])
+def test_digit_led_kks_style_names_resolve(expression, base):
+    tag = Tag(name=base, data_type="Outer", data_type_definition=_types()["outer"])
+    result = _resolve(expression, tag)
+    assert result.status == "resolved"
+    assert result.path is not None and result.path.base == base
+
+
+@pytest.mark.parametrize("expression", ["6", "123", "00.Name", "6.Name"])
+def test_pure_digit_tokens_are_never_treated_as_names(expression):
+    # A bit index or a numeric literal must never collide with a name, even
+    # a digit-led one: the identifier grammar requires at least one letter.
+    assert _resolve(expression, _outer_tag()).status == "unresolved"
+
+
 def test_untyped_or_missing_base_never_resolves():
     assert _resolve("X.a", None).status == "unresolved"
     assert _resolve("X.a", Tag(name="X", data_type=None)).status == "unresolved"
@@ -144,4 +162,6 @@ def test_real_fixtures_resolve_member_paths_when_available():
     assert resolved["GEST[1].0"] == "BOOL"
     assert resolved["GEST[2]"] == "INT"
     assert resolved["T1.STAT.6"] == "BOOL"
-    assert len(resolved) >= 10
+    # A KKS-coded plant tag (digit-led, e.g. a circuit breaker's "closed" status).
+    assert resolved["00BBA01GS001.CLOSED"] == "BOOL"
+    assert len(resolved) >= 90
