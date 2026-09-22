@@ -21,8 +21,15 @@ class ExpressionSpec:
         r"TRUE|FALSE",
         r"[+-]?[0-9]+",
         r"[+-]?(?:[0-9]+\.[0-9]*|[0-9]*\.[0-9]+)(?:[Ee][+-]?[0-9]+)?",
-        r"(?:2#[01]+|8#[0-7]+|16#[0-9A-F]+)",
+        # "_" digit separators are real corpus evidence for based literals
+        # only (e.g. "16#0000_0001", "2#111_1000_0000"); plain int/real
+        # literals show no such evidence here, so they are not extended.
+        r"(?:2#[01]+(?:_[01]+)*|8#[0-7]+(?:_[0-7]+)*|16#[0-9A-F]+(?:_[0-9A-F]+)*)",
         r"'[^'\r\n$]*'",
+        # TIME literal, single unit only (corpus evidence: "t#200ms", "t#24h",
+        # ...; no combined multi-unit form like "t#1d2h" is evidenced). The
+        # sole caller always matches case-insensitively, so "t#" covers "T#" too.
+        r"[+-]?t#[0-9]+(?:\.[0-9]+)?(?:ms|s|m|h|d)",
     )
 
 

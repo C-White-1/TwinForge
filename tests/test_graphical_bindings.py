@@ -54,18 +54,35 @@ def test_case_insensitive_resolution_and_shared_variables_are_not_wires():
 
 def test_literal_unbound_missing_and_complex_expressions():
     controller, diagram = fixture()
-    expressions = ["TRUE", "16#FF", "-3", "1.5", "'{1.101}SYS'", None, "missing", "Buffer[1]", "Buffer + 1", ""]
+    expressions = [
+        "TRUE", "16#FF", "-3", "1.5", "'{1.101}SYS'",
+        "16#0000_0001", "2#111_1000_0000", "t#200ms", "T#24h", "t#0.5s", "-t#5s",
+        None, "missing", "Buffer[1]", "Buffer + 1", "",
+    ]
     diagram.objects = [GraphicalObject(kind="block", pins=[
         GraphicalPin(direction="input", expression=e) for e in expressions
     ] + [GraphicalPin(direction="output", expression="1")])]
     issues = resolve(controller)
     assert [p.binding_kind for p in diagram.objects[0].pins] == [
-        "literal", "literal", "literal", "literal", "literal", "unbound",
-        "missing_symbol", "unresolved_expression", "unresolved_expression",
+        "literal", "literal", "literal", "literal", "literal",
+        "literal", "literal", "literal", "literal", "literal", "literal",
+        "unbound", "missing_symbol", "unresolved_expression", "unresolved_expression",
         "unresolved_expression", "invalid_output_literal",
     ]
     assert len(issues) == 5
     assert all(p.target_tag is None for p in diagram.objects[0].pins)
+
+
+def test_digit_separator_and_time_literal_edge_cases_stay_unresolved():
+    controller, diagram = fixture()
+    # Leading/trailing/doubled separators, and a combined multi-unit TIME form
+    # (no corpus evidence for that shape), must not be accepted as literals.
+    expressions = ["16#_FF", "16#FF_", "16#0__1", "2#01_", "t#1d2h", "t#5", "t#s", "16#0000__0001"]
+    diagram.objects = [GraphicalObject(kind="block", pins=[
+        GraphicalPin(direction="input", expression=e) for e in expressions
+    ])]
+    resolve(controller)
+    assert all(p.binding_kind == "unresolved_expression" for p in diagram.objects[0].pins)
 
 
 def test_resolution_rebuilds_derived_state():

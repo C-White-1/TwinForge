@@ -915,3 +915,23 @@ non-ASCII names, and a few bases that are missing or ambiguous -- correctly
 untouched by this change. 14 new tests (per-type resolution, catalog/project
 precedence, non-leakage into `Controller.datatypes`, a real-fixture check);
 full suite (1327 tests) passed; Ruff and Pyright passed.
+
+Literal grammar checkpoint (2026-09-22): two IEC 61131-3 standard literal
+forms were unevidenced gaps in `ExpressionSpec.literals`, found while
+surveying what remained unresolved after the Device DDT catalog checkpoint --
+not vendor-specific, so added directly rather than treated as a vendor rule
+needing its own citation. (1) A TIME literal (`t#200ms`, `T#24h`, `t#0.5s`,
+optionally signed) is now a literal; scope is deliberately bounded to the
+single-unit shapes this corpus evidences (36 distinct real ones) -- no
+combined multi-unit form like `t#1d2h` is evidenced, so that stays
+unresolved. (2) A `"_"` digit separator between digits is now accepted in
+binary/octal/hex literals (`16#0000_0001`, `2#111_1000_0000`), matching real
+and common corpus usage; a leading, trailing or doubled separator still fails
+to match, on purpose. Plain integer/real literals are deliberately not
+extended the same way -- no corpus evidence of an underscore in either form
+was found. Real result: recognized literals in the M580 safety project rose
+from 633 to 709 (exactly the 39 TIME + 37 based-literal instances evidenced);
+unresolved pin expressions dropped from 193 to 117. 2 new tests (positive
+shapes including the sign/case variants, and a negative set covering
+malformed separators and the unevidenced combined TIME form); full suite
+(1328 tests) passed; Ruff and Pyright passed.
