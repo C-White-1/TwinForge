@@ -85,6 +85,21 @@ def _comment_text(node: CapturedSection, spec: MappingSpec) -> str | None:
     return comment.text if comment is not None else None
 
 
+def _library_description(node: CapturedSection) -> str | None:
+    # Schneider's own documentation text for a library block, e.g.
+    # `<attribute name="TypeDescriptiveForm" value="  The function block is
+    # used as the On delay...&#xA;">`, a direct child of EFSource/EFBSource/
+    # FBSource alongside other name/value `attribute` pairs (IsTypeHidden,
+    # TypeCodeCheckSumString, ...) this project does not otherwise interpret.
+    # An empty value is real (most blocks have no descriptive text) but is
+    # not documentation, so it is treated the same as absent.
+    for attribute in _select(node, ("attribute",)):
+        if attribute.raw_attributes.get("name") == "TypeDescriptiveForm":
+            value = attribute.raw_attributes.get("value")
+            return value if value else None
+    return None
+
+
 def _location(extension: SourceExtension) -> SourceLocation:
     metadata = extension.metadata
     return SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"])
@@ -724,7 +739,8 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
                                   parameter.raw_attributes.get("typeName"), direction,
                                   comment=_comment_text(parameter, spec))
                  for path, direction in spec.library_parameters for parameter in _select(node, path)],
-                [_extension(node)],
+                description=_library_description(node),
+                source_extensions=[_extension(node)],
             ))
     known_datatypes = _datatypes(result, root, spec)
     # Built once and shared across every tag: distinct Datatype instances per

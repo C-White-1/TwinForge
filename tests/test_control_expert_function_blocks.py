@@ -320,3 +320,53 @@ def test_a_single_section_keeps_the_block_name_and_no_section_metadata():
     ''')
     routine = result.controller.add_on_instructions["M_ONE"].routines["M_ONE"]
     assert "function_block_section" not in routine.metadata
+
+
+def test_library_interface_description_captures_the_vendor_documentation_text():
+    # Real shape (estradege_m580-safety.xef): a `TypeDescriptiveForm` attribute
+    # sits alongside other name/value attribute pairs this project does not
+    # otherwise interpret (IsTypeHidden, TypeCodeCheckSumString, ...), as a
+    # direct child of the library registration itself, not its comment.
+    result = project('''
+      <EFSource nameOfEFType="GE_REAL" version="1.00">
+        <comment>Greater than or equal to</comment>
+        <attribute name="TypeDescriptiveForm" value="  The function checks the values.&#xA;"></attribute>
+        <attribute name="IsTypeHidden" value="FALSE"></attribute>
+        <ExternalToolsOnly>
+          <inputParameters><variables name="IN1" typeName="REAL"/></inputParameters>
+          <outputParameters><variables name="OUT" typeName="BOOL"/></outputParameters>
+        </ExternalToolsOnly>
+      </EFSource>
+    ''')
+    interface = next(i for i in result.library_interfaces if i.name == "GE_REAL")
+    assert interface.description == "  The function checks the values.\n"
+
+
+def test_library_interface_description_stays_none_when_empty_or_absent():
+    result = project('''
+      <EFSource nameOfEFType="NO_DOC">
+        <ExternalToolsOnly><outputParameters><variables name="OUT" typeName="BOOL"/></outputParameters></ExternalToolsOnly>
+      </EFSource>
+      <EFSource nameOfEFType="BLANK_DOC">
+        <attribute name="TypeDescriptiveForm" value=""></attribute>
+        <ExternalToolsOnly><outputParameters><variables name="OUT" typeName="BOOL"/></outputParameters></ExternalToolsOnly>
+      </EFSource>
+    ''')
+    assert next(i for i in result.library_interfaces if i.name == "NO_DOC").description is None
+    assert next(i for i in result.library_interfaces if i.name == "BLANK_DOC").description is None
+
+
+@pytest.mark.parametrize("filename", ["estradege_m580-safety.xef"])
+def test_optional_real_m580_safety_library_descriptions(filename):
+    path = Path(__file__).resolve().parents[1] / "reference" / "control-expert" / filename
+    if not path.exists():
+        pytest.skip("Local M580 safety reference unavailable")
+    result, = parse_projects(capture_file(path))
+    described = [i for i in result.library_interfaces if i.description]
+    # Real, measured counts (2026-09-23): 257 registered library interfaces,
+    # 154 carrying real documentation text.
+    assert len(result.library_interfaces) == 257
+    assert len(described) == 154
+    s_tof = next(i for i in result.library_interfaces if i.name == "S_TOF")
+    assert s_tof.description is not None
+    assert s_tof.description.startswith("  The function block is used as the Off delay.")

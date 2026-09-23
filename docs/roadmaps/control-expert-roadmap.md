@@ -145,6 +145,9 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Group shared-variable references without inventing graphical wires
 - [x] Preserve ambiguous declarations instead of binding to the first occurrence
 - [x] Capture and validate library block interfaces against actual calls
+      (`LibraryInterface.description` now also promotes Schneider's own
+      `TypeDescriptiveForm` documentation text -- see the library
+      description checkpoint below)
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
       (partial: proven paths resolve -- see the member path, resource variable,
@@ -1440,3 +1443,29 @@ a same-named-tag-wins case, the FB-body call/contact scope-separation pair
 above, and a real-fixture check gated on the
 `MultiGrafcet_Coordination_V1_2026.XEF` fixture); full suite (1432 tests)
 passed; Ruff and Pyright passed.
+
+Library description checkpoint (2026-09-23): `EFSource`/`EFBSource`/
+`FBSource` library registrations carry a `TypeDescriptiveForm` attribute --
+Schneider's own first-party prose documentation for the block, e.g. "The
+function block is used as the On delay. When the function block is called
+for the first time, the initial state of ET is "0"." This text was never
+actually lost -- `LibraryInterface.source_extensions` already snapshots the
+whole registration node losslessly -- but it sat unpromoted alongside
+sibling `attribute` pairs this project still does not interpret
+(`IsTypeHidden`, `TypeCodeCheckSumString`, `TypeSignatureCheckSumString`),
+undiscoverable without walking raw source evidence by hand. Real evidence is
+substantial, not marginal: 257 library interfaces in the M580 safety
+fixture alone, 154 of them (60%) carrying real, non-empty text; smaller
+real counts confirm the same shape in `estradege_m340.xef`,
+`Escalier_Mecanique.XEF` and `MultiGrafcet_Coordination_V1_2026.XEF`. New
+`LibraryInterface.description: str | None`, populated from that attribute
+when its value is non-empty (an empty attribute is real -- most blocks have
+none -- but is "undocumented", not "documented as blank", so both cases
+collapse to `None` rather than distinguishing them); exposed in the CLI's
+`library_interfaces` JSON output alongside `name`/`kind`/`parameters`. This
+is a promotion of already-retained evidence to a first-class field, not a
+new capture pathway, so it carries no ambiguity-handling of its own -- the
+only judgment call is the empty-value normalization above. 3 new tests (a
+real-shaped value, the empty/absent pair, a real-fixture count with an
+example block's text checked by prefix); full suite (1435 tests) passed;
+Ruff and Pyright passed.

@@ -163,7 +163,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
         "source": asdict(project.artifact.source),
         "sha256": project.artifact.sha256,
         "controller_product": controller.identity.product_name,
-        "library_interfaces": [{"name": i.name, "kind": i.kind,
+        "library_interfaces": [{"name": i.name, "kind": i.kind, "description": i.description,
                                 "parameters": [asdict(p) for p in i.parameters]}
                                for i in project.library_interfaces],
         "tasks": [{
