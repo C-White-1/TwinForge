@@ -111,6 +111,7 @@ automatically general product guarantees.
 ## Device and feature roadmaps
 
 - [Control Expert / Unity Pro import](roadmaps/control-expert-roadmap.md)
+  ([development checkpoint journal](development/control-expert-checkpoints.md))
 - [RTC_PulseGen AOI](roadmaps/RTC_PulseGen-AOI-roadmap.md)
 - [Sys_Module AOI](roadmaps/Sys_Module-AOI-roadmap.md)
 - [Online discovery](roadmaps/online-discovery-roadmap.md)

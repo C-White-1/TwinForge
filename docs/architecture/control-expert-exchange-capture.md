@@ -9,7 +9,8 @@ not a claim to reproduce Schneider's complete exchange grammar.
 ## Evidence and limits
 
 Delivery status, remaining milestones and the next implementation step are
-tracked in the [Control Expert roadmap](../roadmaps/control-expert-roadmap.md).
+tracked in the [Control Expert roadmap](../roadmaps/control-expert-roadmap.md),
+including the safety-scope note covering the M580 safety fixture used below.
 This document owns technical observations and mapping decisions.
 
 Five user-supplied ZIP archives are held in ignored
