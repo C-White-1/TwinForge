@@ -21,6 +21,7 @@ from twinforge.analysis.graphical_bindings import (
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
 from twinforge.analysis.sfc_connectivity import resolve_sfc_connectivity
+from twinforge.analysis.tag_dependencies import TagDependencyGraph, build_tag_dependency_graph
 
 from twinforge.model.library_interface import LibraryInterface, LibraryParameter
 from twinforge.model.sequential import SequentialElement
@@ -61,6 +62,7 @@ class ParsedProject:
 
     library_interfaces: list[LibraryInterface] = field(default_factory=list)
     coil_write_evidence: list[TagWriteEvidence] = field(default_factory=list)
+    tag_dependency_graph: TagDependencyGraph | None = None
 
     def report(self, code: str, message: str, node: CapturedSection) -> None:
         self.diagnostics.append(Diagnostic(code, message, node.source))
@@ -971,6 +973,24 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         writers = "; ".join(f"{loc.program_name}/{loc.routine_name}" for loc in evidence.locations)
         result.diagnostics.append(Diagnostic(
             "multiple_coil_writers", f"{evidence.tag_name}: written by coils in {writers}",
+            SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
+        ))
+    # Reuses the project-wide step registry already built above for LD
+    # contact/chart-control-call resolution -- the identical evidence
+    # standard, now also covering a ".X" reference inside an ST expression
+    # (e.g. "IF G1_0.X THEN"), which the graphical-binding passes above
+    # never see since they only walk graphical diagrams, not ST bodies.
+    result.tag_dependency_graph = build_tag_dependency_graph(
+        controller, step_names=step_names,
+        ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
+    )
+    for ambiguous in result.tag_dependency_graph.ambiguous_step_state_references:
+        routine = controller.programs[ambiguous.program_name].routines[ambiguous.routine_name]
+        metadata = routine.source_extensions[0].metadata
+        result.diagnostics.append(Diagnostic(
+            "ambiguous_step_state_reference",
+            f"{ambiguous.program_name}/{ambiguous.routine_name}: {ambiguous.operand!r} "
+            f"names more than one declared step",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     # Shared symbols can expose ambiguity, but cannot establish vendor order.

@@ -1558,3 +1558,44 @@ here. Real result: all 3 real occurrences now resolve as
 precedence case, the opt-in/no-behavior-change-by-default guard, a
 real-fixture check with exact step/routine names); full suite (1473
 tests) passed; Ruff and Pyright passed.
+
+Tag dependency graph wiring checkpoint (2026-09-24): the ST step-state
+reference checkpoint above deliberately left `build_tag_dependency_graph`
+uncalled from Control Expert's own pipeline. `parse_project` now calls it
+directly -- reusing the exact `step_names`/`step_counts` already built
+earlier in the same function for LD contact and chart-control-call
+resolution, no new evidence-gathering needed -- and stores the result on
+`ParsedProject.tag_dependency_graph`, exposed in CLI JSON via the existing
+`tag_dependency_graph_data` helper (already shared with L5X's own report
+CLI) under a new `tag_dependency_graph` key, alongside the existing
+`coil_write_evidence`. A new `ambiguous_step_state_reference` diagnostic
+mirrors `multiple_coil_writers`'s own pattern -- real evidence stays at
+zero ambiguous cases in the corpus, but the mechanism is exercised by a
+synthetic test.
+
+This is deliberately *not* the L5X report bundle (alarm/cause-effect/
+IO-list/module-schedule/functional-description, `cli/l5x_report.py`) --
+that is a separate, materially larger, already-mature multi-report system
+built over many prior sessions; giving Control Expert an equivalent is its
+own future project, not a natural extension of today's step-state work.
+This checkpoint only wires the dependency graph itself (the same one the
+step-state checkpoint already built) into evidence a CE user can actually
+see today, without inventing a new report format.
+
+Measuring the real corpus through the now-wired pipeline surfaced one more
+finding, recorded as its own backlog item rather than chased here:
+`FREEZECHART(G2, NOT Run_G2)` in `MultiGrafcet_Coordination_V1_2026.XEF`'s
+`FREEZE` program is a chart-control call made *from ST*, not a graphical
+diagram -- the existing `_call_reference_kind` mechanism (declared
+parameter type, not block name) only ever inspects `GraphicalPin`/
+`GraphicalObject`, so `G2` still shows up as a plain
+`UnresolvedTagReference` rather than a program reference. Real result:
+295 tag references now resolve corpus-wide (unchanged from before this
+checkpoint -- this wiring surfaces evidence, it doesn't change what
+resolves), 6 step-state references (the 3 real `G1_0`/`G1_1`/`G1_2`
+occurrences, doubled by the standalone/embedded pair as usual), 210 still
+unresolved (a mix of genuinely undeclared symbols, the `FREEZECHART`
+program-name gap just noted, and other not-yet-categorized shapes). 4 new
+tests (full-pipeline resolution, the ambiguous-reference diagnostic, a
+CLI JSON end-to-end check, a real-fixture check); full suite (1477 tests)
+passed; Ruff and Pyright passed.

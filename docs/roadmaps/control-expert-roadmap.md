@@ -109,6 +109,17 @@ calls. Both exports identify Premium despite the repository's M580 description.
       standalone and once as its own embedded export. Stays unimplemented
       on purpose, the same standard already applied to `parBranch`/
       `parJoint`, until a real fixture demonstrates the shape)
+- [ ] Backlog: a chart-control call made *from ST*, not a graphical
+      diagram -- real evidence: `FREEZECHART(G2, NOT Run_G2)` in
+      `MultiGrafcet_Coordination_V1_2026.XEF`'s `FREEZE` program. The
+      chart-control reference checkpoint's `_call_reference_kind` mechanism
+      only ever looks at `GraphicalPin`/`GraphicalObject`, so this stays an
+      `UnresolvedTagReference` (`identifier="G2"`) rather than a
+      `StepStateReference`-style program reference. Found while measuring
+      the tag dependency graph wiring checkpoint below; not attempted
+      there, since it needs its own investigation (how the call-argument
+      extraction for a regex-scanned ST call site should route into
+      program-name resolution, not just member-suffix step-state matching)
 - [x] Connect `analysis/tag_dependencies.py` (the shared machinery behind
       L5X cause-and-effect/alarm-candidate analysis) to Control Expert and
       CCW ladder logic -- see the structured ladder reference checkpoint
@@ -294,12 +305,12 @@ must remain unchanged.
       ST) does generalize to Control Expert's own ST -- see the label/jump
       statement checkpoint, which found and closed the dominant real gap
       (57% of unsupported statements). `.X` itself now resolves too -- see
-      the ST step-state reference checkpoint below -- wired into
+      the ST step-state reference checkpoint below -- via
       `analysis/tag_dependencies.py` (an optional, opt-in parameter; an
-      L5X caller offering no step evidence sees no behavior change) rather
-      than a new CE-specific mechanism, and not yet called from CE's own
-      CLI pipeline (that command doesn't exist for CE at all yet -- see the
-      checkpoint for what "wired" means here precisely)
+      L5X caller offering no step evidence sees no behavior change), now
+      also called from `parse_project` itself and exposed as
+      `tag_dependency_graph` in CLI JSON -- see the tag dependency graph
+      wiring checkpoint below
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
 - [ ] Add populated DTM and modern M580/Control Expert examples (a real,
       populated Control Expert V14.0 M580 **safety** project is now in the

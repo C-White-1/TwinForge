@@ -51,6 +51,28 @@ def test_inspection_json_is_deterministic_and_leaves_source_unchanged(tmp_path: 
     assert path.read_bytes() == data
 
 
+def test_st_step_state_reference_is_exposed_in_the_tag_dependency_graph(tmp_path: Path):
+    path = tmp_path / "step_state.xef"
+    path.write_bytes(
+        '<ZEFExchangeFile><contentHeader name="Example"/>'
+        '<logicConf><resource><taskDesc task="MAST" taskType="cyclic">'
+        '<sectionDesc name="Voyants"/></taskDesc></resource></logicConf>'
+        '<program><identProgram name="Voyants" task="MAST"/>'
+        '<STSource>IF G1_0.X THEN X := TRUE; END_IF;</STSource></program>'
+        '<SFCProgram><identProgram name="G1" task="MAST"/><chartSource><networkSFC>'
+        '<step stepName="G1_0" stepType="initialStep"/>'
+        '</networkSFC></chartSource></SFCProgram></ZEFExchangeFile>'.encode()
+    )
+    output = StringIO()
+    assert main(("control-expert", "inspect", str(path), "--format", "json"), stdout=output) == 0
+    graph = json.loads(output.getvalue())["projects"][0]["tag_dependency_graph"]
+    assert graph["step_state_references"] == [{
+        "step_name": "G1_0", "program_name": "Voyants", "routine_name": "Voyants",
+        "operand": "G1_0.X", "line_number": 1,
+    }]
+    assert graph["ambiguous_step_state_references"] == []
+
+
 def test_archive_projects_remain_separate_in_text_output(tmp_path: Path):
     path = tmp_path / "examples.zip"
     with zipfile.ZipFile(path, "w") as archive:

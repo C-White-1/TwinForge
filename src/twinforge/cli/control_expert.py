@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from typing import Any, TextIO
 
+from twinforge.analysis.tag_dependencies import tag_dependency_graph_data
 from twinforge.model.ladder import LadderInstruction, LadderPosition, LadderSeries
 from twinforge.model.routine import LadderRung
 from twinforge.model.sequential import SequentialElement
@@ -233,6 +234,9 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
             "tag_name": evidence.tag_name,
             "locations": [asdict(location) for location in evidence.locations],
         } for evidence in project.coil_write_evidence],
+        "tag_dependency_graph": (
+            tag_dependency_graph_data(project.tag_dependency_graph)
+            if project.tag_dependency_graph is not None else None),
         "diagnostics": [asdict(diagnostic) for diagnostic in project.diagnostics],
     }
 

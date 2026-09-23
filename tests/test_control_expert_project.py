@@ -205,6 +205,54 @@ def test_ld_contact_binds_unique_step_state_across_sections():
                    for d in result.diagnostics)
 
 
+def test_st_step_state_reference_resolves_through_the_full_pipeline():
+    # Real shape (MultiGrafcet_Coordination_V1_2026.XEF's G1_Voyants):
+    # "IF G1_0.X THEN ..." inside an ST body, reusing the same project-wide
+    # step registry LD contacts already resolve against.
+    result = project('''
+      <program><identProgram name="Voyants" task="MAST"/>
+        <STSource>IF G1_0.X THEN X := TRUE; END_IF;</STSource>
+      </program>
+      <SFCProgram><identProgram name="G1" task="MAST"/><chartSource><networkSFC>
+        <step stepName="G1_0" stepType="initialStep"/>
+      </networkSFC></chartSource></SFCProgram>
+    ''')
+    graph = result.tag_dependency_graph
+    assert graph is not None
+    assert len(graph.step_state_references) == 1
+    reference = graph.step_state_references[0]
+    assert reference.step_name == "G1_0" and reference.program_name == "Voyants"
+    assert not any("G1_0" in u.identifier for u in graph.unresolved_references)
+
+
+def test_st_step_state_reference_is_diagnosed_when_ambiguous():
+    result = project('''
+      <program><identProgram name="Voyants" task="MAST"/>
+        <STSource>IF G1_0.X THEN X := TRUE; END_IF;</STSource>
+      </program>
+      <SFCProgram><identProgram name="G1" task="MAST"/><chartSource><networkSFC>
+        <step stepName="G1_0" stepType="initialStep"/>
+        <step stepName="G1_0" stepType="step"/>
+      </networkSFC></chartSource></SFCProgram>
+    ''')
+    graph = result.tag_dependency_graph
+    assert graph is not None
+    assert graph.step_state_references == ()
+    assert len(graph.ambiguous_step_state_references) == 1
+    assert any(d.code == "ambiguous_step_state_reference" for d in result.diagnostics)
+
+
+def test_real_fixture_resolves_st_step_state_references_when_available():
+    _skip_unless_full_reference_corpus()
+    path = Path("reference/control-expert/MultiGrafcet_Coordination_V1_2026.XEF")
+    result, = parse_projects(capture_file(path))
+    graph = result.tag_dependency_graph
+    assert graph is not None
+    resolved = {(item.step_name, item.routine_name) for item in graph.step_state_references}
+    assert resolved == {("G1_0", "G1_Voyants"), ("G1_1", "G1_Voyants"), ("G1_2", "G1_Voyants")}
+    assert graph.ambiguous_step_state_references == ()
+
+
 def test_invalid_input_rejected_and_unrecognized_xml_not_promoted():
     artifact = capture_bytes(b"<Other/>", name="other.xml")
     with pytest.raises(ValueError, match="exchange XML"):
