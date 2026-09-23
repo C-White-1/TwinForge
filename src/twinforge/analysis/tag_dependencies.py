@@ -10,6 +10,10 @@ from typing import Any
 
 from twinforge.model import (
     Controller,
+    LadderInstruction,
+    LadderOperation,
+    LadderParallel,
+    LadderSeries,
     Program,
     Routine,
     SoftwareCallLanguage,
@@ -150,6 +154,14 @@ def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
                 references,
                 unresolved,
             )
+            _collect_structured_ladder_references(
+                program,
+                routine,
+                program_tags,
+                controller_tags,
+                references,
+                unresolved,
+            )
     return TagDependencyGraph(
         references=tuple(sorted(references, key=_reference_key)),
         unresolved_references=tuple(sorted(unresolved, key=_unresolved_key)),
@@ -207,6 +219,69 @@ def _collect_operand(
                 source_tag_key=source_tag_key,
             )
         )
+
+
+# A rung's structured LadderSeries network is the portable representation
+# Control Expert's and CCW's own ladder capture populate; unlike L5X, they
+# never synthesize RLL mnemonic text, so _ladder_calls (which only reads
+# LadderRung.text) sees nothing for them at all -- silently, not diagnosed.
+# LadderInstruction.operation already carries portable read/write meaning
+# (see LadderOperation), more precise than re-parsing mnemonic text the way
+# _ladder_calls does for L5X, so no text synthesis or mnemonic table is
+# needed here.
+_LADDER_ACCESS = {
+    LadderOperation.NORMALLY_OPEN_CONTACT: TagReferenceAccess.READ,
+    LadderOperation.NORMALLY_CLOSED_CONTACT: TagReferenceAccess.READ,
+    LadderOperation.COIL: TagReferenceAccess.WRITE,
+    LadderOperation.SET_COIL: TagReferenceAccess.WRITE,
+    LadderOperation.RESET_COIL: TagReferenceAccess.WRITE,
+    # UNSUPPORTED intentionally has no entry: an instruction shape this
+    # project does not yet recognize is never guessed at as a read or write.
+}
+
+
+def _walk_ladder_series(series: LadderSeries) -> tuple[LadderInstruction, ...]:
+    instructions: list[LadderInstruction] = []
+    for element in series.elements:
+        if isinstance(element, LadderParallel):
+            for branch in element.branches:
+                instructions.extend(_walk_ladder_series(branch))
+        else:
+            instructions.append(element)
+    return tuple(instructions)
+
+
+def _collect_structured_ladder_references(
+    program: Program,
+    routine: Routine,
+    program_tags: dict[str, tuple[Tag, str]],
+    controller_tags: dict[str, tuple[Tag, str]],
+    references: list[TagReference],
+    unresolved: list[UnresolvedTagReference],
+) -> None:
+    for rung in routine.ladder_rungs:
+        # Mutually exclusive by construction across every converter that
+        # populates LadderRung (L5X: text only; Control Expert and CCW:
+        # network only) -- reading .network here can never double-count an
+        # L5X reference _ladder_calls already extracted from .text.
+        if rung.text is not None or rung.network is None:
+            continue
+        for instruction in _walk_ladder_series(rung.network):
+            access = _LADDER_ACCESS.get(instruction.operation)
+            if access is None or not instruction.operand:
+                continue
+            call = SoftwareCallSite(
+                callee=instruction.operation.value,
+                arguments=(),
+                program_name=program.name,
+                routine_name=routine.name,
+                language=SoftwareCallLanguage.LADDER,
+                source_text=instruction.operand,
+                rung_number=rung.number,
+            )
+            _collect_operand(
+                call, 0, instruction.operand, access, program_tags, controller_tags, references, unresolved,
+            )
 
 
 def _collect_alias_definitions(

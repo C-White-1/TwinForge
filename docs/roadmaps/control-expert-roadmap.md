@@ -109,16 +109,17 @@ calls. Both exports identify Premium despite the repository's M580 description.
       standalone and once as its own embedded export. Stays unimplemented
       on purpose, the same standard already applied to `parBranch`/
       `parJoint`, until a real fixture demonstrates the shape)
-- [ ] Backlog: connect `analysis/tag_dependencies.py` (the shared machinery
-      behind L5X cause-and-effect/alarm-candidate analysis) to Control
-      Expert and CCW ladder logic. It currently only reads a routine's
-      `LadderRung.text` (an RLL mnemonic string only the L5X converter
-      populates); CE and CCW instead populate the portable, already-
-      structured `LadderRung.network`, so their ladder logic is silently
-      invisible to that whole analysis family today. Found while scoping
-      the coil write evidence checkpoint below; a substantially larger
-      change than that checkpoint, touching shared L5X-relied-on code, so
-      deliberately not attempted under it
+- [x] Connect `analysis/tag_dependencies.py` (the shared machinery behind
+      L5X cause-and-effect/alarm-candidate analysis) to Control Expert and
+      CCW ladder logic -- see the structured ladder reference checkpoint
+      below. It previously only read a routine's `LadderRung.text` (an RLL
+      mnemonic string only the L5X converter populates); CE and CCW instead
+      populate the portable, already-structured `LadderRung.network`, so
+      their ladder logic was silently invisible to that whole analysis
+      family. Only simple contact/coil read/write access is covered --
+      matching what CE's own ladder capture ever resolves into `.network`
+      in the first place (the pure-series case; see the Ladder series
+      checkpoint)
 
 ## Milestone 2: lossless capture — initial implementation complete
 

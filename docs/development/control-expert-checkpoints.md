@@ -1302,3 +1302,50 @@ alarm-candidate analysis for Control Expert and CCW projects for free. That
 is a substantially larger change touching shared, already-relied-on L5X
 machinery, so it is recorded here as a scoped follow-up rather than
 attempted under this checkpoint.
+
+Structured ladder reference checkpoint (2026-09-23): the follow-up recorded
+above is done. `tag_dependencies.py`'s `_ladder_calls`-based extraction only
+ever read `LadderRung.text`; verified directly that Control Expert's own
+`LadderRung(...)` construction site (`parsers/control_expert/ladder.py`)
+sets only `network`, never `text` -- confirming the earlier finding was
+real, not assumed. The same check on every `LadderRung(...)` construction
+site in the codebase found CCW's own converter (`converters/ccw/project.py`)
+in the identical position, and L5X's (`converters/l5x/program.py`) as the
+mirror image: `text` only, `network` never set. The two are mutually
+exclusive by construction everywhere, with zero real counterexample, so a
+new `.network`-reading path can never double-count a reference `_ladder_calls`
+already extracted from `.text` -- verified with a dedicated test (both set
+on one rung; only the `.text`-derived reference appears).
+
+New `_collect_structured_ladder_references` (`analysis/tag_dependencies.py`)
+walks a rung's `LadderSeries`/`LadderInstruction` tree directly (recursing
+into `LadderParallel` branches) whenever `.text` is absent and `.network`
+is present, mapping `LadderOperation` to `TagReferenceAccess` directly --
+`NORMALLY_OPEN_CONTACT`/`NORMALLY_CLOSED_CONTACT` to `READ`,
+`COIL`/`SET_COIL`/`RESET_COIL` to `WRITE` -- more precise than `_ladder_calls`'s
+own mnemonic-text regex matching, since `LadderOperation` is already the
+portable classification this project assigned at capture time. `UNSUPPORTED`
+(an instruction shape with no portable meaning yet) and an instruction with
+no operand produce neither a resolved nor an unresolved reference at all --
+not even "unresolved," since the access kind itself is unknown, not just
+the operand's target.
+
+Real result: 12 real structured-ladder references (5 `coil`, 5
+`normally_open_contact`, 1 `reset_coil`, 1 `normally_closed_contact`) across
+the corpus now flow through `build_tag_dependency_graph` -- previously
+silently absent, not diagnosed. `p_prev` in the real escalator project
+(the same tag the coil write evidence checkpoint above found) now resolves
+its full read/write picture through the shared, general-purpose machinery
+too: a `reset_coil` write in `Init_Logic`, a `normally_closed_contact` read
+and a `coil` write in `Rising_Edge_Detection` -- richer than the CE-specific
+coil write evidence pass above, which only ever saw the two coil writes,
+not the read. `build_alarm_trip_candidate_report`/`build_cause_effect_
+candidate_report` were smoke-tested directly against the real escalator
+project end to end (ran cleanly, zero candidates -- this fixture's tag
+names carry no alarm/trip lexical evidence for that separate heuristic to
+match, not a defect in this change). 5 new tests (read/write resolution,
+the text-wins-over-network non-double-counting guard, parallel-branch
+recursion, the unsupported/unbound-operand exclusion, a real-fixture
+check); full suite (1451 tests) passed; Ruff and Pyright passed, including
+the CCW-specific test subset (23 tests), since CCW's own ladder rungs are
+now processed the same way for the first time too.
