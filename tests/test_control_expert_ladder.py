@@ -86,6 +86,20 @@ def test_unconditional_coil_with_leading_wire_only_resolves():
     assert elements[0].position is not None and elements[0].position.column == 10
 
 
+def test_set_coil_resolves_like_reset_coil():
+    # Real evidence: github.com/sayahali/conveyor-automation's M340 export
+    # uses typeCoil="setCoil" (4 real occurrences) -- resetCoil's natural
+    # counterpart, previously missing from _COIL_OPERATIONS entirely, so
+    # every such row fell through to UNSUPPORTED/unresolved_ladder_instruction.
+    result, routine = _ld_routine('''
+    <typeLine><HLink nbCells="10"/><coil typeCoil="setCoil" coilVariableName="P"/></typeLine>''')
+    assert len(routine.ladder_rungs) == 1
+    elements = _instructions(routine.ladder_rungs[0])
+    assert len(elements) == 1
+    assert elements[0].operation == LadderOperation.SET_COIL
+    assert not any(d.code == "unresolved_ladder_instruction" for d in result.diagnostics)
+
+
 def test_missing_coil_is_diagnosed_and_not_resolved():
     result, routine = _ld_routine('''
     <typeLine><contact typeContact="openContact" contactVariableName="A"/><HLink nbCells="9"/></typeLine>''')
@@ -281,3 +295,18 @@ def test_optional_real_multigrafcet_ladder_has_no_pure_series_rungs(filename):
     # shortCircuit+VLink); nothing here is a pure series rung.
     assert ld_routines[0].ladder_rungs == []
     assert any(d.code == "unresolved_ladder_row" for d in result.diagnostics)
+
+
+def test_optional_real_sayahali_conveyor_set_coil_rows():
+    # github.com/sayahali/conveyor-automation's real M340 export -- see the
+    # setCoil/new-corpus checkpoint. Real evidence: 4 rows end in
+    # typeCoil="setCoil", previously UNSUPPORTED.
+    path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
+    if not path.exists():
+        pytest.skip("Local sayahali/conveyor-automation reference unavailable")
+    result, = parse_projects(capture_file(path))
+    routine = result.controller.programs["prog"].routines["prog"]
+    set_coil_rungs = [rung for rung in routine.ladder_rungs
+                      if any(e.operation == LadderOperation.SET_COIL for e in _instructions(rung))]
+    assert len(set_coil_rungs) == 4
+    assert not any(d.code == "unresolved_ladder_instruction" for d in result.diagnostics)

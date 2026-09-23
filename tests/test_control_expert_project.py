@@ -492,14 +492,14 @@ def test_multiple_initializers_on_one_tag_are_never_guessed_at():
 
 
 def test_real_fixtures_promote_scalar_initial_values_when_available():
-    import glob
     _skip_unless_full_reference_corpus()
-    paths = glob.glob("reference/control-expert/*")
+    # Iterates the canonical _REFERENCE_CORPUS list, not glob.glob("reference/
+    # control-expert/*") -- the exact counts below are calibrated against
+    # exactly that set; an extra real fixture present locally (e.g. a
+    # researcher's own download) must not perturb them.
     promoted, unpromoted = [], []
-    for path in paths:
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in _REFERENCE_CORPUS:
+        for result in parse_projects(capture_file(Path("reference/control-expert") / name)):
             controller = result.controller
             tags = list(controller.tags.values())
             for resource in controller.resources.values():
@@ -591,15 +591,14 @@ def test_still_unknown_type_reports_unresolved_type():
 
 
 def test_real_fixture_classifies_dfb_and_library_typed_tags_when_available():
-    import glob
     _skip_unless_full_reference_corpus()
-    paths = glob.glob("reference/control-expert/*")
+    # See test_real_fixtures_promote_scalar_initial_values_when_available's
+    # own comment: iterates the canonical _REFERENCE_CORPUS list, not every
+    # file present in the (gitignored, locally extensible) directory.
     counts = {"fb_instance": 0, "library_type": 0, "ddt": 0, "catalog": 0}
     unresolved = 0
-    for path in paths:
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in _REFERENCE_CORPUS:
+        for result in parse_projects(capture_file(Path("reference/control-expert") / name)):
             controller = result.controller
             tags = list(controller.tags.values())
             for resource in controller.resources.values():
@@ -792,12 +791,9 @@ def test_composite_initial_value_resolves_a_local_variable_that_is_itself_a_dfb_
 
 def test_real_fixtures_capture_composite_initial_values_when_available():
     _skip_unless_full_reference_corpus()
-    import glob
     total = 0
-    for path in glob.glob("reference/control-expert/*"):
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in _REFERENCE_CORPUS:
+        for result in parse_projects(capture_file(Path("reference/control-expert") / name)):
             controller = result.controller
             tags = list(controller.tags.values())
             for resource in controller.resources.values():
@@ -808,7 +804,6 @@ def test_real_fixtures_capture_composite_initial_values_when_available():
 
 def test_real_fixtures_resolve_and_promote_composite_initial_values_when_available():
     _skip_unless_full_reference_corpus()
-    import glob
 
     def walk(node):
         yield node
@@ -818,10 +813,8 @@ def test_real_fixtures_resolve_and_promote_composite_initial_values_when_availab
     leaves = 0
     promoted = 0
     diagnostics = 0
-    for path in glob.glob("reference/control-expert/*"):
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in _REFERENCE_CORPUS:
+        for result in parse_projects(capture_file(Path("reference/control-expert") / name)):
             controller = result.controller
             diagnostics += sum(1 for d in result.diagnostics if d.code == "uninterpreted_composite_initial_value")
             tags = list(controller.tags.values())
@@ -879,12 +872,9 @@ def test_task_timing_never_promoted_from_missing_or_non_numeric_attributes():
 
 def test_real_fixtures_promote_task_timing_when_available():
     _skip_unless_full_reference_corpus()
-    import glob
     seen = []
-    for path in glob.glob("reference/control-expert/*"):
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in _REFERENCE_CORPUS:
+        for result in parse_projects(capture_file(Path("reference/control-expert") / name)):
             for task in result.controller.tasks.values():
                 seen.append((task.task_type, task.rate, task.watchdog))
     assert len(seen) == 18

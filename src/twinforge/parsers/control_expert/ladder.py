@@ -46,6 +46,11 @@ _CONTACT_OPERATIONS = {
 _COIL_OPERATIONS = {
     "coil": LadderOperation.COIL,
     "resetCoil": LadderOperation.RESET_COIL,
+    # Real evidence: github.com/sayahali/conveyor-automation's real M340
+    # export uses "setCoil" (4 occurrences), the natural counterpart to the
+    # already-evidenced "resetCoil" -- LadderOperation.SET_COIL already
+    # existed in the model but this mnemonic was simply missing here.
+    "setCoil": LadderOperation.SET_COIL,
 }
 
 

@@ -1212,10 +1212,54 @@ against every real `objPosition`:
   rendered with the same element, is not decidable from the grid alone --
   left unresolved rather than guessed.
 
-Confirmed across the full corpus: 4 resolved `EN` conditions each in
+Confirmed at the time this was written: 4 resolved `EN` conditions each in
 `function15.zip`/`function2.zip` (`.2`/SET ← `abortnoe`,
 `.4`/ADD ← `timedoutnoe`, `.5`/ADD ← `resetnoe`,
 `.4`/SET ← unconditional), zero elsewhere -- both of
 `Escalier_Mecanique.XEF`'s two `shortCircuit` occurrences dangle (no
 `FFBBlock` reached at all), and no other fixture in the corpus contains a
-`shortCircuit` element.
+`shortCircuit` element. That third fact is no longer true -- see the new
+corpus entry immediately below.
+
+New corpus (2026-09-24): `sayahali_conveyor_ali_conv.zef` (no license
+stated; from [sayahali/conveyor-automation](https://github.com/sayahali/conveyor-automation),
+a public third-party GitHub repository for an M340 conveyor project; kept
+local-only in `reference/control-expert/`, never committed, per the
+artifact policy's redistribution-rights caution -- SHA-256
+`d9b88318...f8443a06`). Uniquely valuable among the corpus: the same
+repository also carries `documentation convoyeur.pdf` (SHA-256
+`eeadca01...760d3a62`), a real, human-authored printout of this exact
+project's own ladder diagrams -- password-protected against the text/page
+tools this project already uses, but rendered losslessly to images with
+`pdftoppm` (poppler), which is not subject to that restriction. This is
+the first fixture in the corpus with independent, human-readable ground
+truth for a ladder network's *visual* layout, not just its own XML.
+
+This fixture is dense with real `shortCircuit`/inline-`FFBBlock` evidence
+the corpus never had: at least 20 real `SR` (Set-Reset latch) instances
+and several `TON`/`CTU` instances wired directly into ladder rows, almost
+all with `enEnO="false"` (an `SR` block has no `EN`/`ENO` pins at all,
+confirmed directly from `descriptionFFB`) -- meaning the existing
+`resolve_ladder_pin_conditions` mechanism's own precondition (a vertical
+wire always lands on `EN`, "the only pin ever evidenced as a target") does
+not apply to a single one of them; there is no `EN` for it to land on.
+Cross-checked visually against the PDF (page 28, `SR_33`/`SR_34`/`SR_35`/
+`SR_36`/`SR_38`): the real, consistent shape is two *separate* contact
+rows landing on a block's `S1` and `R` inputs independently, with the
+block's own `Q1` output feeding a coil (or, per page 25's `SR_3` → `TON_24`,
+feeding *another* block's `IN` input) -- a materially different, harder
+problem than the single-EN-landing case already resolved: multiple
+distinct pins landing on one block, from independent wires, needs its own
+row-to-pin mapping (by declared parameter order and relative row offset
+from the block's `objPosition`, not assumed here) plus block-to-block
+chaining. Not attempted in this pass -- recorded as new, now real, evidence
+for the `shortCircuit`/`VLink` backlog item, not a fix.
+
+One immediate, narrower bug this fixture did surface and this pass does
+fix: `typeCoil="setCoil"` (4 real occurrences) was entirely missing from
+`_COIL_OPERATIONS`, even though `LadderOperation.SET_COIL` already existed
+in the model as `resetCoil`'s natural counterpart -- every row using it
+fell through to `UNSUPPORTED` and `unresolved_ladder_instruction`. Fixed
+by adding the one missing dictionary entry; all 4 real rows now resolve
+correctly as `set_coil`-terminated series rows, and
+`unresolved_ladder_instruction` drops to zero for this fixture.

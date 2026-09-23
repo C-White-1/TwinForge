@@ -424,7 +424,6 @@ def test_direct_address_pattern_is_opt_in_and_never_defaults_on():
 
 
 def test_real_fixtures_classify_direct_addresses_when_available():
-    import glob
     from pathlib import Path
     from twinforge.parsers.control_expert import capture_file, parse_projects
 
@@ -432,16 +431,22 @@ def test_real_fixtures_classify_direct_addresses_when_available():
     # them exists" is a no-op that skips only when the whole directory is
     # empty -- this must check the specific fixtures the assertion below
     # depends on, or it silently runs (and fails) against a partial checkout.
+    # The exact-set assertion below is calibrated against these two fixtures
+    # only; iterating the whole directory (glob.glob("reference/control-
+    # expert/*")) would also fail the moment any other real fixture is added
+    # locally -- deliberately scoped instead of "whatever happens to be
+    # present" (see the local-corpus fragility this caused in practice: a
+    # third-party fixture download broke this test's exact-set assertion by
+    # adding real %M12/%M15 evidence of its own, unrelated to what this test
+    # verifies).
     required = ["estradege_m580-safety.xef", "Escalier_Mecanique.XEF"]
     if not all((Path("reference/control-expert") / name).exists() for name in required):
         import pytest
         pytest.skip("reference fixtures absent")
-    paths = glob.glob("reference/control-expert/*")
     found = set()
-    for path in paths:
-        if not path.lower().endswith((".xef", ".zef", ".zip")):
-            continue
-        for result in parse_projects(capture_file(Path(path))):
+    for name in required:
+        path = Path("reference/control-expert") / name
+        for result in parse_projects(capture_file(path)):
             controller = result.controller
             for container in [*controller.programs.values(), *controller.add_on_instructions.values()]:
                 for routine in container.routines.values():

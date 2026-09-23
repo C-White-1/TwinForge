@@ -1599,3 +1599,61 @@ program-name gap just noted, and other not-yet-categorized shapes). 4 new
 tests (full-pipeline resolution, the ambiguous-reference diagnostic, a
 CLI JSON end-to-end check, a real-fixture check); full suite (1477 tests)
 passed; Ruff and Pyright passed.
+
+`setCoil`/new-corpus checkpoint (2026-09-24): the user pointed at
+`github.com/sayahali/conveyor-automation`, a public third-party repository
+carrying a real Control Expert M340 export (`ali conv.zef`) and, uniquely
+for this corpus, a PDF printout of the same project's own ladder diagrams
+(`documentation convoyeur.pdf`) -- independent, human-authored ground
+truth for what a real ladder network's visual layout looks like, not just
+its XML. See the new-corpus entry in the capture specification for full
+provenance, license status (none stated -- kept local-only, never
+committed) and detail.
+
+The PDF itself resisted this project's own text/page tools (password-
+protected), but `pdftoppm` (poppler) rendered every page to a lossless PNG
+without needing the password at all, which is how it was actually read.
+Cross-checking the rendered pages against the parsed model surfaced one
+immediate, narrowly-scoped real bug: `typeCoil="setCoil"` (4 real
+occurrences) was simply missing from `_COIL_OPERATIONS`, even though
+`LadderOperation.SET_COIL` already existed in the model as `resetCoil`'s
+natural counterpart. Fixed by adding the one missing dictionary entry (one
+line); all 4 real rows now resolve correctly, and
+`unresolved_ladder_instruction` drops to zero for this fixture.
+
+The same fixture also surfaced a real, latent test-design bug, unrelated
+to Control Expert parsing itself: five real-fixture tests (in
+`test_control_expert_project.py`/`test_graphical_bindings.py`) skip
+correctly when specific named fixtures are absent, but then iterate
+`glob.glob("reference/control-expert/*")` to do the actual work --
+processing *every* file present, not just the ones their exact-count
+assertions were calibrated against. Adding this new, legitimate local
+fixture (per the artifact policy, `reference/` is the normal place for
+exactly this) broke three of them immediately, since it added real `%M12`/
+`%M15`/task/DFB evidence of its own that those counts never accounted for.
+Fixed by iterating the existing canonical `_REFERENCE_CORPUS` list (already
+defined and already used for the skip check) instead of a wildcard glob,
+in all five affected tests -- the same "don't silently run against more
+than intended" discipline the earlier broken-skip-check fix already
+established, just for the iteration itself rather than the skip guard.
+
+The fixture's real value is bigger than the one bug it fixed: it is dense
+with `shortCircuit`/inline-`FFBBlock` evidence the corpus never had before
+(at least 20 real `SR` Set-Reset latch instances, several `TON`/`CTU`
+instances, almost all `enEnO="false"` -- no `EN` pin at all). The existing
+`resolve_ladder_pin_conditions` mechanism is `EN`-only by construction, so
+none of these resolve through it. Cross-checked visually against the PDF
+(page 28): the real, consistent shape is two independent contact rows
+landing on one block's `S1` and `R` inputs separately, with the block's
+own output feeding a coil or (page 25) chaining into a second block's own
+input -- a materially harder problem than the single-`EN`-landing case
+already solved, needing its own row-to-pin mapping design (by declared
+parameter order and row offset from `objPosition`, not assumed) plus
+block-to-block chaining. This is genuinely new evidence for the
+`shortCircuit`/`VLink` backlog item -- the "needs more fixtures" half of
+its own stated blocker is now met -- but the design and implementation
+itself is deliberately not attempted in this pass; recorded as a real,
+scoped, ground-truth-backed follow-up rather than guessed at under time
+pressure. 2 new tests (the `setCoil` shape resolving correctly, a
+malformed-shape guard remains unaffected); full suite (1477 tests) passed;
+Ruff and Pyright passed.
