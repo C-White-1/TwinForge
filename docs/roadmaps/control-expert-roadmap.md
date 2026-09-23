@@ -286,16 +286,20 @@ must remain unchanged.
       mis-tokenized as a numeric literal either -- see the digit-led
       identifier checkpoint below; 42 distinct real names across the
       corpus now resolve as names)
-- [ ] Backlog: step-state (`.X`) reference used inside a full ST statement,
-      not just as an isolated LD contact operand or SFC condition/action
-      variable -- real evidence: `ELSIF G1_2.X THEN` in
+- [x] Step-state (`.X`) reference used inside a full ST statement, not just
+      as an isolated LD contact operand or SFC condition/action variable --
+      real evidence: `ELSIF G1_2.X THEN` in
       `MultiGrafcet_Coordination_V1_2026.XEF`. The investigation this note
       asked for is done: `twinforge.structured_text` (built for L5X/Logix
       ST) does generalize to Control Expert's own ST -- see the label/jump
-      statement checkpoint below, which found and closed the dominant real
-      gap (57% of unsupported statements). Parsing alone does not resolve
-      `.X` though; that needs its own binding step wiring CE's already-built
-      step-name namespace into the ST semantic layer, not assumed here
+      statement checkpoint, which found and closed the dominant real gap
+      (57% of unsupported statements). `.X` itself now resolves too -- see
+      the ST step-state reference checkpoint below -- wired into
+      `analysis/tag_dependencies.py` (an optional, opt-in parameter; an
+      L5X caller offering no step evidence sees no behavior change) rather
+      than a new CE-specific mechanism, and not yet called from CE's own
+      CLI pipeline (that command doesn't exist for CE at all yet -- see the
+      checkpoint for what "wired" means here precisely)
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
 - [ ] Add populated DTM and modern M580/Control Expert examples (a real,
       populated Control Expert V14.0 M580 **safety** project is now in the

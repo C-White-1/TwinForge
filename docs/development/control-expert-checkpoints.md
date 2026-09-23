@@ -1515,3 +1515,46 @@ name, a pure-digit token still correctly staying a literal, a based/typed
 literal still taking priority when `#` follows a digit-led prefix,
 lossless reconstruction); full suite (1468 tests) passed; Ruff and
 Pyright passed.
+
+ST step-state reference checkpoint (2026-09-24): closes the step-state-
+inside-ST backlog item now that the ST parsing foundation is solid. Real
+evidence, confirmed unchanged since it was first noted: exactly 3
+occurrences, `G1_0.X`/`G1_1.X`/`G1_2.X` in `G1_Voyants`'s `IF G1_0.X THEN
+... ELSIF G1_1.X THEN ... ELSIF G1_2.X THEN ...` (`MultiGrafcet_
+Coordination_V1_2026.XEF`). This already parsed cleanly before this
+checkpoint (0 diagnostics, `MemberExpression(target=NameExpression("G1_0"),
+member="X")`) -- the gap was purely semantic: `tag_dependencies.py` had no
+concept of an SFC step at all, so all three showed up as
+`UnresolvedTagReference(identifier="G1_0.X", ...)`, indistinguishable from
+a genuinely undeclared tag.
+
+`build_tag_dependency_graph` gained optional `step_names`/
+`ambiguous_step_names` parameters (a project-wide step registry, the exact
+same shape `resolve_graphical_bindings` already builds for LD contacts) --
+omitting them changes nothing for an existing caller with no step evidence
+to offer, verified by a dedicated test. Inside `_collect_structured_text_
+direct_references`, an extracted operand matching `<name>.X`/`<name>.x`
+is checked against the step registry *before* falling through to ordinary
+`_collect_operand` tag resolution -- but only after confirming `<name>`
+is not already a declared tag, the identical precedence already
+established for chart-control calls (a same-named tag always wins over a
+program/step interpretation). New `StepStateReference`/
+`AmbiguousStepStateReference` result types, kept deliberately separate
+from `TagReference` rather than conflated with it: a resolved SFC step is
+not a `Tag` object, and forcing one into the other's shape would be a
+type mismatch dressed up as a simplification, the same reasoning that
+already produced `local_variable_definition` as its own field alongside
+`member_definition` in the composite initial value work.
+
+This is analysis-layer only: `tag_dependencies.py` is not currently
+called anywhere in Control Expert's own CLI pipeline at all (it backs
+L5X's `cli/l5x_report.py`/`cli/review_validation.py`), the same standing
+already established by the structured ladder reference checkpoint's own
+smoke tests. Giving Control Expert an equivalent tag-dependency/cause-
+effect CLI surface is a separate, materially larger feature, not attempted
+here. Real result: all 3 real occurrences now resolve as
+`StepStateReference` instead of `UnresolvedTagReference`. 5 new tests
+(basic resolution, the ambiguous-step-name guard, the declared-tag-wins
+precedence case, the opt-in/no-behavior-change-by-default guard, a
+real-fixture check with exact step/routine names); full suite (1473
+tests) passed; Ruff and Pyright passed.

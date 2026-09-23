@@ -85,11 +85,40 @@ class UnresolvedTagReference:
 
 
 @dataclass(frozen=True)
+class StepStateReference:
+    """One ".X"/".x" SFC step-active-state reference inside a Structured
+    Text expression -- the same convention already established for LD
+    contacts (see resolve_graphical_bindings), resolved against the
+    identical project-wide step registry. Retained as evidence that the
+    step is reachable, never an execution-order or timing claim.
+    """
+
+    step_name: str
+    program_name: str
+    routine_name: str
+    operand: str
+    line_number: int | None
+
+
+@dataclass(frozen=True)
+class AmbiguousStepStateReference:
+    """A ".X" reference whose base name matches more than one declared step."""
+
+    identifier: str
+    program_name: str
+    routine_name: str
+    operand: str
+    line_number: int | None
+
+
+@dataclass(frozen=True)
 class TagDependencyGraph:
     """Deterministic routine-to-tag edges and retained unresolved evidence."""
 
     references: tuple[TagReference, ...]
     unresolved_references: tuple[UnresolvedTagReference, ...]
+    step_state_references: tuple[StepStateReference, ...] = ()
+    ambiguous_step_state_references: tuple[AmbiguousStepStateReference, ...] = ()
 
 
 _IDENTIFIER = re.compile(
@@ -97,6 +126,12 @@ _IDENTIFIER = re.compile(
     r"(?:\[[^\]]+\])?(?:\.[A-Za-z0-9_]+)*"
 )
 _IGNORED_IDENTIFIERS = frozenset({"false", "true"})
+# IEC SFC step-active-state convention (real evidence: "G1_0.X" in an ST
+# IF/ELSIF condition), the same ".X"/".x" shape already recognized for LD
+# contacts. Only a single trailing member is a step-state candidate -- a
+# longer dotted chain (e.g. "Foo.G1_0.X") never matches a bare step name
+# and falls through to ordinary tag resolution unchanged.
+_STEP_STATE_SUFFIX = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\.([Xx])$")
 _READ_ALL = frozenset({"XIC", "XIO", "EQU", "NEQ", "GRT", "GEQ", "LES", "LEQ"})
 _WRITE_FIRST = frozenset({"OTE", "OTL", "OTU"})
 _STATE_FIRST = frozenset({"TON", "TOF", "RTO", "CTU", "CTD", "RES", "ONS"})
@@ -109,10 +144,23 @@ _VALUE_WRITES = {
 }
 
 
-def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
-    """Resolve known tag occurrences without discarding unknown operands."""
+def build_tag_dependency_graph(
+    controller: Controller, *,
+    step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
+) -> TagDependencyGraph:
+    """Resolve known tag occurrences without discarding unknown operands.
+
+    ``step_names``/``ambiguous_step_names`` are optional, evidence-driven
+    lookups (a project-wide SFC step registry, matching how
+    ``resolve_graphical_bindings`` already builds one for LD contacts) that
+    let a Structured Text ``.X``/``.x`` step-active-state reference resolve
+    instead of staying an unresolved tag identifier. Omitting them changes
+    nothing for a caller with no step evidence to offer (e.g. L5X).
+    """
     references: list[TagReference] = []
     unresolved: list[UnresolvedTagReference] = []
+    step_state_references: list[StepStateReference] = []
+    ambiguous_step_state_references: list[AmbiguousStepStateReference] = []
     controller_tags = _tag_lookup(controller.tags)
     _collect_alias_definitions(
         "<controller>",
@@ -153,6 +201,10 @@ def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
                 controller_tags,
                 references,
                 unresolved,
+                step_names,
+                ambiguous_step_names,
+                step_state_references,
+                ambiguous_step_state_references,
             )
             _collect_structured_ladder_references(
                 program,
@@ -165,6 +217,9 @@ def build_tag_dependency_graph(controller: Controller) -> TagDependencyGraph:
     return TagDependencyGraph(
         references=tuple(sorted(references, key=_reference_key)),
         unresolved_references=tuple(sorted(unresolved, key=_unresolved_key)),
+        step_state_references=tuple(sorted(step_state_references, key=_step_state_key)),
+        ambiguous_step_state_references=tuple(
+            sorted(ambiguous_step_state_references, key=_ambiguous_step_state_key)),
     )
 
 
@@ -337,6 +392,10 @@ def _collect_structured_text_direct_references(
     controller_tags: dict[str, tuple[Tag, str]],
     references: list[TagReference],
     unresolved: list[UnresolvedTagReference],
+    step_names: dict[str, str] | None,
+    ambiguous_step_names: frozenset[str],
+    step_state_references: list[StepStateReference],
+    ambiguous_step_state_references: list[AmbiguousStepStateReference],
 ) -> None:
     source = routine.structured_text
     if not source:
@@ -350,6 +409,28 @@ def _collect_structured_text_direct_references(
         position: int,
     ) -> None:
         for operand in _direct_expression_operands(expression, source):
+            line_number = _captured_line_number(routine, source, expression)
+            # A step-state ".X"/".x" reference is checked before ordinary
+            # tag resolution, but a same-named declared tag still wins --
+            # the same precedence already established for chart-control
+            # calls (declared_symbol is tried first, a program/step
+            # interpretation only once that's ruled out).
+            step_match = _STEP_STATE_SUFFIX.match(operand) if step_names is not None else None
+            if step_match:
+                root_key = step_match.group(1).casefold()
+                is_declared_tag = root_key in program_tags or root_key in controller_tags
+                if not is_declared_tag and root_key in ambiguous_step_names:
+                    ambiguous_step_state_references.append(AmbiguousStepStateReference(
+                        identifier=step_match.group(1), program_name=program.name,
+                        routine_name=routine.name, operand=operand, line_number=line_number,
+                    ))
+                    continue
+                if not is_declared_tag and step_names is not None and root_key in step_names:
+                    step_state_references.append(StepStateReference(
+                        step_name=step_names[root_key], program_name=program.name,
+                        routine_name=routine.name, operand=operand, line_number=line_number,
+                    ))
+                    continue
             call = SoftwareCallSite(
                 callee=instruction,
                 arguments=(),
@@ -357,7 +438,7 @@ def _collect_structured_text_direct_references(
                 routine_name=routine.name,
                 language=SoftwareCallLanguage.STRUCTURED_TEXT,
                 source_text=source[expression.span.start : expression.span.end],
-                line_number=_captured_line_number(routine, source, expression),
+                line_number=line_number,
             )
             _collect_operand(
                 call,
@@ -544,6 +625,24 @@ def _unresolved_key(item: UnresolvedTagReference) -> tuple[Any, ...]:
     )
 
 
+def _step_state_key(item: StepStateReference) -> tuple[Any, ...]:
+    return (
+        item.program_name,
+        item.routine_name,
+        item.line_number if item.line_number is not None else -1,
+        item.step_name,
+    )
+
+
+def _ambiguous_step_state_key(item: AmbiguousStepStateReference) -> tuple[Any, ...]:
+    return (
+        item.program_name,
+        item.routine_name,
+        item.line_number if item.line_number is not None else -1,
+        item.identifier,
+    )
+
+
 def tag_dependency_graph_data(graph: TagDependencyGraph) -> dict[str, Any]:
     """Return deterministic JSON-compatible cross-reference data."""
     return {
@@ -557,6 +656,12 @@ def tag_dependency_graph_data(graph: TagDependencyGraph) -> dict[str, Any]:
         ],
         "unresolved_references": [
             item.__dict__ for item in graph.unresolved_references
+        ],
+        "step_state_references": [
+            item.__dict__ for item in graph.step_state_references
+        ],
+        "ambiguous_step_state_references": [
+            item.__dict__ for item in graph.ambiguous_step_state_references
         ],
     }
 

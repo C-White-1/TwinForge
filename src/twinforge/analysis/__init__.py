@@ -149,6 +149,8 @@ from .external_references import (
     external_reference_inventory_json,
 )
 from .tag_dependencies import (
+    AmbiguousStepStateReference,
+    StepStateReference,
     TagDependencyGraph,
     TagReference,
     TagReferenceAccess,
@@ -212,6 +214,7 @@ __all__ = [
     "AOIPortability",
     "AOIPortabilityFinding",
     "AOIPortabilityReport",
+    "AmbiguousStepStateReference",
     "AlarmTripCandidate",
     "AlarmTripCandidateKind",
     "AlarmTripCandidateReport",
@@ -295,6 +298,7 @@ __all__ = [
     "StructuredTextRoutineFinding",
     "StructuredTextSemanticFinding",
     "StructuredTextSemanticReport",
+    "StepStateReference",
     "TagDependencyGraph",
     "TagReference",
     "TagReferenceAccess",

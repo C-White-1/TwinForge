@@ -265,3 +265,102 @@ def test_real_fixture_resolves_structured_ladder_references_when_available() -> 
     assert ("coil", "Rising_Edge_Detection", "Rising_Edge_Detection", TagReferenceAccess.WRITE) in p_prev
     assert ("normally_closed_contact", "Rising_Edge_Detection", "Rising_Edge_Detection",
            TagReferenceAccess.READ) in p_prev
+
+
+def _step_state_controller(step_source: str) -> Controller:
+    controller = Controller(name="PLC", identity=Identity())
+    program = Program("Main")
+    routine = Routine(name="Logic", language="ST")
+    routine.structured_text_lines = [
+        StructuredTextLine(number=1, text=step_source),
+    ]
+    program.add_routine(routine)
+    controller.add_program(program)
+    return controller
+
+
+def test_step_state_reference_resolves_against_a_declared_step() -> None:
+    # Real Control Expert shape (MultiGrafcet_Coordination_V1_2026.XEF's
+    # G1_Voyants): "IF G1_0.X THEN" -- the same ".X" step-active-state
+    # convention already established for LD contacts, now inside ST.
+    controller = _step_state_controller("IF G1_0.X THEN X := TRUE; END_IF;")
+    graph = build_tag_dependency_graph(
+        controller, step_names={"g1_0": "G1_0"}, ambiguous_step_names=frozenset(),
+    )
+    assert len(graph.step_state_references) == 1
+    reference = graph.step_state_references[0]
+    assert reference.step_name == "G1_0" and reference.operand == "G1_0.X"
+    assert reference.program_name == "Main" and reference.routine_name == "Logic"
+    assert not any("G1_0" in u.identifier for u in graph.unresolved_references)
+
+
+def test_step_state_reference_stays_ambiguous_when_the_step_name_collides() -> None:
+    controller = _step_state_controller("IF G1_0.X THEN X := TRUE; END_IF;")
+    graph = build_tag_dependency_graph(
+        controller, step_names={"g1_0": "G1_0"}, ambiguous_step_names=frozenset({"g1_0"}),
+    )
+    assert graph.step_state_references == ()
+    assert len(graph.ambiguous_step_state_references) == 1
+    assert graph.ambiguous_step_state_references[0].identifier == "G1_0"
+
+
+def test_a_declared_tag_takes_precedence_over_a_step_state_reading() -> None:
+    # Symbols are checked first; a step interpretation is only attempted
+    # once a name is confirmed *not* to be a declared tag -- the same
+    # precedence already established for chart-control calls.
+    controller = _step_state_controller("IF G1_0.X THEN X := TRUE; END_IF;")
+    controller.programs["Main"].add_tag(Tag(name="G1_0"))
+    graph = build_tag_dependency_graph(
+        controller, step_names={"g1_0": "G1_0"}, ambiguous_step_names=frozenset(),
+    )
+    assert graph.step_state_references == ()
+    resolved = {item.tag_key for item in graph.references}
+    assert "program:Main:G1_0" in resolved
+
+
+def test_step_state_resolution_is_opt_in_and_never_defaults_on() -> None:
+    # Omitting step_names must behave exactly as before -- no interception,
+    # matching an L5X caller with no step evidence to offer.
+    controller = _step_state_controller("IF G1_0.X THEN X := TRUE; END_IF;")
+    graph = build_tag_dependency_graph(controller)
+    assert graph.step_state_references == ()
+    assert any(u.identifier == "G1_0.X" for u in graph.unresolved_references)
+
+
+def test_real_fixture_resolves_step_state_references_when_available() -> None:
+    import pytest
+    from pathlib import Path
+    from twinforge.parsers.control_expert import capture_file, parse_projects
+
+    path = Path("reference/control-expert/MultiGrafcet_Coordination_V1_2026.XEF")
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    result, = parse_projects(capture_file(path))
+    controller = result.controller
+
+    step_names: dict[str, str] = {}
+    step_counts: dict[str, int] = {}
+
+    def collect_steps(elements):
+        for element in elements:
+            if element.kind == "step":
+                name = element.properties.get("name")
+                if name:
+                    key = name.casefold()
+                    step_counts[key] = step_counts.get(key, 0) + 1
+                    step_names.setdefault(key, name)
+            collect_steps(element.children)
+
+    for program in controller.programs.values():
+        for routine in program.routines.values():
+            for chart in routine.sequential_charts:
+                collect_steps(chart.elements)
+
+    graph = build_tag_dependency_graph(
+        controller, step_names=step_names,
+        ambiguous_step_names=frozenset(k for k, c in step_counts.items() if c > 1),
+    )
+    resolved = {(item.step_name, item.routine_name) for item in graph.step_state_references}
+    assert resolved == {("G1_0", "G1_Voyants"), ("G1_1", "G1_Voyants"), ("G1_2", "G1_Voyants")}
+    assert graph.ambiguous_step_state_references == ()
+    assert not any("G1_" in u.identifier for u in graph.unresolved_references)
