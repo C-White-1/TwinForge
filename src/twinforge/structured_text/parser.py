@@ -8,6 +8,7 @@ from .syntax import (
     BinaryExpression,
     CallArgument,
     CallExpression,
+    DirectAddressExpression,
     Expression,
     ExpressionStatement,
     ExitStatement,
@@ -369,6 +370,9 @@ class _Parser:
         if token.kind in {TokenKind.LITERAL, TokenKind.STRING}:
             token = self._take(skip_trivia=True)
             return LiteralExpression(token.span, token.text)
+        if token.kind is TokenKind.DIRECT_ADDRESS:
+            token = self._take(skip_trivia=True)
+            return DirectAddressExpression(token.span, token.text)
         if token.kind is TokenKind.LEFT_PAREN:
             opening = self._take(skip_trivia=True)
             expression = self._expression()

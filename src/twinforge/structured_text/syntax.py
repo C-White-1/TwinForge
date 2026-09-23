@@ -14,6 +14,7 @@ class TokenKind(str, Enum):
     IDENTIFIER = "identifier"
     LITERAL = "literal"
     STRING = "string"
+    DIRECT_ADDRESS = "direct_address"
     ASSIGN = "assign"
     OUTPUT_ASSIGN = "output_assign"
     OPERATOR = "operator"
@@ -74,6 +75,20 @@ class NameExpression(Expression):
     """Identifier reference."""
 
     name: str
+
+
+@dataclass(frozen=True)
+class DirectAddressExpression(Expression):
+    """A "%"-prefixed IEC direct/located variable reference (e.g. "%S18").
+
+    Distinct from NameExpression on purpose: a direct address is not a
+    declared symbol, and is never treated as one by downstream tag
+    resolution -- the address text is retained as evidence, never
+    interpreted, matching how this same shape is already handled outside
+    ST (ExpressionSpec.direct_address).
+    """
+
+    address: str
 
 
 @dataclass(frozen=True)

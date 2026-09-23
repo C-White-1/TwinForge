@@ -277,10 +277,16 @@ must remain unchanged.
 - [ ] Extend ST analysis with source dialect/system-address evidence
       (partial: the shared `twinforge.structured_text` parser now supports
       Control Expert's own labeled-statement/`JMP` GOTO-style control flow
-      -- see the label/jump statement checkpoint below; a `%`-prefixed
-      direct/system address inside an ST expression, e.g. `%S18`, `%SW12`,
-      is real, substantial evidence too (42 of the corpus's remaining 117
-      unsupported statements) but not yet attempted)
+      -- see the label/jump statement checkpoint below -- and a
+      `%`-prefixed direct/system address inside an ST expression (`%S18`,
+      `%SW12`) -- see the direct-address expression checkpoint below.
+      Unsupported statements in the corpus are now 71, down from an
+      original 271. A newly-noticed, separate, not-yet-fixed gap: a
+      digit-led KKS-style identifier (`00CMA01EA900`, real evidence, an
+      industrial tag-naming convention) is currently mis-tokenized as a
+      numeric literal by the shared lexer rather than a name -- doesn't
+      cause a parse failure so it isn't in the unsupported count, but is a
+      real, separate correctness gap)
 - [ ] Backlog: step-state (`.X`) reference used inside a full ST statement,
       not just as an isolated LD contact operand or SFC condition/action
       variable -- real evidence: `ELSIF G1_2.X THEN` in

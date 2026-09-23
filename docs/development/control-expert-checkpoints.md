@@ -1432,3 +1432,47 @@ new tokens, a semantics-layer test confirming `LABEL`/`JUMP` get their own
 with exact counts -- 37 labels, 20 jumps, 117 remaining unsupported, all
 in `estradege_m580-safety.xef`); full suite (1460 tests) passed; Ruff and
 Pyright passed.
+
+Direct-address expression checkpoint (2026-09-24): the remaining gap the
+label/jump checkpoint identified and deferred -- a `%`-prefixed IEC direct/
+system address (`%S18`, `%SW12`, `%S6`, 11 distinct real addresses) used
+inside an ST expression, not just the isolated LD/FBD/section-condition
+contexts this shape was already recognized in (`ExpressionSpec.direct_
+address`). The shared lexer previously tokenized `%` one character at a
+time as `UNKNOWN`, failing whatever statement contained it -- a real call
+argument (`RESET(%S18)`), assignment RHS (`_alarms.5 := %S18`), and
+comparison operand (`(%SW12 = 16#A501) and (%SW13 = 16#501A)`) all hit
+this.
+
+New `TokenKind.DIRECT_ADDRESS` (lexed as `%` followed by letters then
+digits; a malformed shape, e.g. `%6` with no letters, is diagnosed --
+`malformed_direct_address` -- not silently guessed at) and a matching
+`DirectAddressExpression` syntax node, deliberately separate from
+`NameExpression` since a direct address is not a declared symbol and must
+never be treated as one downstream -- confirmed by inspection, not just
+assumption: `tag_dependencies.py`'s `_direct_expression_operands` already
+falls through to its `return ()` default for any expression kind it
+doesn't explicitly recognize, so the new node type is automatically
+excluded from tag-reference extraction with no changes needed there. A
+`.digit` bit-select suffix (the shape `ExpressionSpec.direct_address`'s
+own regex allows) has zero real ST occurrence, so it is deliberately left
+to the existing generic member-access grammar (`%SW12.5` would parse as
+`DirectAddressExpression("%SW12")` plus a `MemberExpression(".5")`) rather
+than folded into the token -- proportionate to evidence, not the broadest
+shape possible.
+
+Real result: unsupported statements in `estradege_m580-safety.xef` (the
+only fixture with substantial ST) dropped from 117 to 71. In passing, a
+second, separate, real gap surfaced and is deliberately not fixed here:
+`00CMA01EA900` and similar digit-led identifiers (a real industrial KKS
+tag-naming convention, dozens of real occurrences in `Sim_ST`) are
+currently mis-tokenized by the shared lexer's own numeric-literal path
+(`_consume_literal_tail` accepts letters, originally for typed literals
+like `16#FF`) as a `LiteralExpression` rather than a name -- this does not
+fail to parse, so it never appeared in the unsupported-statement count,
+but it is a real correctness gap distinct from anything measured so far;
+recorded as its own roadmap follow-up rather than guessed at a fix here.
+4 new tests (a call argument and an assignment RHS, a direct address
+nested inside a parenthesized binary comparison, the malformed-shape
+diagnostic, lossless reconstruction); full suite (1464 tests) passed;
+Ruff and Pyright passed.

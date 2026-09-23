@@ -81,6 +81,8 @@ class _Lexer:
             self._word_or_typed_literal()
         elif character.isdigit():
             self._numeric_literal()
+        elif character == "%":
+            self._direct_address()
         elif self._starts_with(":="):
             self._fixed(2, TokenKind.ASSIGN)
         elif self._starts_with("=>"):
@@ -179,6 +181,34 @@ class _Lexer:
             self._advance()
             self._consume_literal_tail()
         self._append(kind, start, line, column)
+
+    def _direct_address(self) -> None:
+        # IEC direct/located variable representation, e.g. "%S18", "%SW12"
+        # -- real evidence, not the isolated LD/FBD contexts this shape was
+        # already recognized in (ExpressionSpec.direct_address); a ".digit"
+        # bit-select suffix has no real ST occurrence, so it is left to the
+        # existing generic member-access grammar rather than folded into
+        # this token, unlike the direct_address regex used elsewhere.
+        start, line, column = self.position, self.line, self.column
+        self._advance()
+        letters_start = self.position
+        while self.position < len(self.source) and self.source[self.position].isalpha():
+            self._advance()
+        digits_start = self.position
+        while self.position < len(self.source) and self.source[self.position].isdigit():
+            self._advance()
+        digits_end = self.position
+        if digits_start == letters_start or digits_end == digits_start:
+            self.diagnostics.append(
+                StructuredTextDiagnostic(
+                    code="malformed_direct_address",
+                    message="'%' is not followed by the evidenced <letters><digits> address shape",
+                    span=SourceSpan(start, self.position),
+                )
+            )
+            self._append(TokenKind.UNKNOWN, start, line, column)
+            return
+        self._append(TokenKind.DIRECT_ADDRESS, start, line, column)
 
     def _numeric_literal(self) -> None:
         start, line, column = self.position, self.line, self.column

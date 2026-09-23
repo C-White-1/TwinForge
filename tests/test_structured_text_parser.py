@@ -6,6 +6,7 @@ from twinforge.structured_text import (
     AssignmentStatement,
     BinaryExpression,
     CallExpression,
+    DirectAddressExpression,
     ExitStatement,
     ExpressionStatement,
     IfStatement,
@@ -15,6 +16,7 @@ from twinforge.structured_text import (
     MemberExpression,
     MissingExpression,
     NameExpression,
+    ParenthesizedExpression,
     UnsupportedStatement,
     WhileStatement,
     parse_structured_text,
@@ -266,7 +268,56 @@ def test_real_fixture_resolves_labels_and_jumps_when_available():
     # Real result measured directly against this fixture: 37 labels and 20
     # jumps now resolve as their own nodes (E_VALVE1, E_MOT1, E_FG, ...
     # share the same GOTO-style pattern); unsupported statements dropped
-    # from 271 to 117 across the whole corpus once this landed -- entirely
-    # attributable to this one fixture, the only one with substantial ST.
+    # from 271 (label/jump support landed first: to 117; %-direct-address
+    # support landed next: to 71) across the whole corpus once both landed
+    # -- entirely attributable to this one fixture, the only one with
+    # substantial ST.
     assert labels == 37 and jumps == 20
-    assert unsupported == 117
+    assert unsupported == 71
+
+
+def test_direct_address_is_an_explicit_node_in_a_call_argument_and_assignment():
+    # Real Control Expert shapes: RESET(%S18); and _alarms.5 := %S18;
+    source = "RESET(%S18);\n_alarms.5 := %S18;\n"
+
+    document = parse_structured_text(source)
+
+    assert document.diagnostics == ()
+    call_statement = document.statements[0]
+    assert isinstance(call_statement, ExpressionStatement)
+    assert isinstance(call_statement.expression, CallExpression)
+    argument = call_statement.expression.arguments[0].value
+    assert isinstance(argument, DirectAddressExpression)
+    assert argument.address == "%S18"
+    assignment = document.statements[1]
+    assert isinstance(assignment, AssignmentStatement)
+    assert isinstance(assignment.value, DirectAddressExpression)
+    assert assignment.value.address == "%S18"
+
+
+def test_direct_address_inside_a_parenthesized_binary_comparison():
+    # Real shape: "(%SW12 = 16#A501) and (%SW13 = 16#501A)".
+    document = parse_structured_text("R := (%SW12 = 16#A501) and (%SW13 = 16#501A);")
+
+    assert document.diagnostics == ()
+    assignment = document.statements[0]
+    assert isinstance(assignment, AssignmentStatement)
+    outer = assignment.value
+    assert isinstance(outer, BinaryExpression) and outer.operator.upper() == "AND"
+    left_paren = outer.left
+    assert isinstance(left_paren, ParenthesizedExpression)
+    left = left_paren.expression
+    assert isinstance(left, BinaryExpression)
+    assert isinstance(left.left, DirectAddressExpression) and left.left.address == "%SW12"
+
+
+def test_malformed_direct_address_is_diagnosed_not_guessed():
+    document = parse_structured_text("R := %6;\n")
+    assert any(d.code == "malformed_direct_address" for d in document.diagnostics)
+    assert document.reconstructed_source == "R := %6;\n"
+
+
+def test_direct_address_lossless_reconstruction():
+    source = "IF %S6 AND SIM THEN\n  X := %SW30;\nEND_IF;\n"
+    document = parse_structured_text(source)
+    assert document.reconstructed_source == source
