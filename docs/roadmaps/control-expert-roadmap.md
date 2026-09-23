@@ -275,17 +275,22 @@ must remain unchanged.
 - [x] Distinguish library types, block-instance types and user-defined data types
       (see the type distinction checkpoint below)
 - [ ] Extend ST analysis with source dialect/system-address evidence
+      (partial: the shared `twinforge.structured_text` parser now supports
+      Control Expert's own labeled-statement/`JMP` GOTO-style control flow
+      -- see the label/jump statement checkpoint below; a `%`-prefixed
+      direct/system address inside an ST expression, e.g. `%S18`, `%SW12`,
+      is real, substantial evidence too (42 of the corpus's remaining 117
+      unsupported statements) but not yet attempted)
 - [ ] Backlog: step-state (`.X`) reference used inside a full ST statement,
       not just as an isolated LD contact operand or SFC condition/action
       variable -- real evidence: `ELSIF G1_2.X THEN` in
-      `MultiGrafcet_Coordination_V1_2026.XEF`. ST is currently captured only
-      as line-numbered text (`structured_text_lines`), with no expression-
-      level binding at all, so this needs real ST parsing this project does
-      not have for Control Expert yet -- `structured_text_semantics.py` /
-      `twinforge.structured_text` already does this for L5X/Logix ST and may
-      or may not generalize; that is its own investigation, not assumed
-      here. Do not guess at step-state inside arbitrary ST from this note
-      alone; establish the parsing foundation first
+      `MultiGrafcet_Coordination_V1_2026.XEF`. The investigation this note
+      asked for is done: `twinforge.structured_text` (built for L5X/Logix
+      ST) does generalize to Control Expert's own ST -- see the label/jump
+      statement checkpoint below, which found and closed the dominant real
+      gap (57% of unsupported statements). Parsing alone does not resolve
+      `.X` though; that needs its own binding step wiring CE's already-built
+      step-name namespace into the ST semantic layer, not assumed here
 - [ ] Add SFC, IL/LL984 and additional task/hardware forms as evidence becomes available
 - [ ] Add populated DTM and modern M580/Control Expert examples (a real,
       populated Control Expert V14.0 M580 **safety** project is now in the

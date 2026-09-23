@@ -335,3 +335,17 @@ def test_output_binding_rejects_a_literal():
     assert semantics.diagnostics[0].code == (
         "non_assignable_output_argument"
     )
+
+
+def test_label_and_jump_get_their_own_neutral_operation_kinds():
+    # A named program point (real evidence: legacy GOTO-style control flow
+    # in Control Expert ST) is a real, portable operation, not an unmapped
+    # fallback -- distinguishing it from NeutralOperationKind.UNSUPPORTED.
+    document = parse_structured_text("SAFE_CMD:\nJMP SAFE_CMD;\n")
+    semantics = analyze_semantics(document, SemanticContext())
+
+    assert [item.kind for item in semantics.operations] == [
+        NeutralOperationKind.LABEL, NeutralOperationKind.JUMP,
+    ]
+    assert semantics.operations[0].detail == "SAFE_CMD"
+    assert semantics.operations[1].detail == "SAFE_CMD"

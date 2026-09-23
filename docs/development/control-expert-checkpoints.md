@@ -1383,3 +1383,52 @@ the whole corpus. 4 new tests (the `nin`-without-marker shape, a non-first-
 parameter template alongside an unrelated unresolved output pin staying
 correctly unresolved, a real-fixture check covering all 7 newly-resolved
 block types); full suite (1454 tests) passed; Ruff and Pyright passed.
+
+Label/jump statement checkpoint (2026-09-24): the step-state-inside-ST
+backlog item asked, as a prerequisite, whether `twinforge.structured_text`
+(built for L5X/Logix ST) generalizes to Control Expert's own ST -- an
+investigation, not an assumption. It does: `parse_structured_text` already
+ran against every real CE ST body via `tag_dependencies.py`'s existing
+`_collect_structured_text_direct_references` (itself vendor-neutral,
+operating on the shared `routine.structured_text` field), but a direct
+corpus-wide measurement found real cost: 1362 real statements, 271 (20%)
+`UnsupportedStatement`, concentrated almost entirely in one fixture
+(`estradege_m580-safety.xef`, 67 real ST bodies).
+
+Categorizing all 271 found one dominant root cause behind roughly 83% of
+them: Control Expert's own legacy GOTO-style control flow -- a labeled
+program point (`CMD_ACTION:`, standing alone, unrelated statements
+following it in the same list) and `JMP <label>;` -- which the parser had
+no grammar for at all. A bare label swallowed not just itself but
+everything after it up to the next recovery point into one garbled
+`UnsupportedStatement` blob, real evidence a single diagnostic count
+understated the true cost. New `LabelStatement`/`JumpStatement` syntax
+nodes, a new `TokenKind.COLON` (a bare `:`, distinct from the existing
+`:=` token, which the lexer already checks first), and two additions to
+`_statement()`: `JMP` as a keyword (matching how `IF`/`WHILE`/`EXIT`
+already are), and a 2-token lookahead (`IDENTIFIER` then `COLON`) checked
+*before* the generic expression path, since a bare `NameExpression`
+followed by an unexpected `:` is exactly what previously failed. A label
+is a no-op marker only -- statements after it in the same list still
+execute in order; resolving a jump's target against an actual
+`LabelStatement` (and what that implies for reachability) is retained as
+evidence only, not attempted here. `NeutralOperationKind` gained matching
+`LABEL`/`JUMP` entries in `semantics.py` so both are properly classified
+rather than falling through to `UNSUPPORTED` there too.
+
+Real result measured directly: 271 unsupported statements dropped to 117
+(all still in the same one fixture) -- a 57% reduction from a single,
+well-evidenced root cause. What remains is a second, separate, already-
+measured gap (a `%`-prefixed direct/system address inside an ST
+expression, e.g. `%S18`, `RESET(%S18)`, `_alarms.5 := %S18`, 42
+occurrences) and a residual "other" category (a `FOR` loop, a handful of
+other shapes) -- neither attempted here, recorded as its own follow-up in
+the roadmap rather than bundled into this change. 6 new tests (label
+standing alone before an unrelated statement, label immediately followed
+only by a comment, a malformed `JMP` with no label staying diagnosed
+rather than guessed, the lossless-reconstruction contract holding for the
+new tokens, a semantics-layer test confirming `LABEL`/`JUMP` get their own
+`NeutralOperationKind` rather than `UNSUPPORTED`, a real-fixture check
+with exact counts -- 37 labels, 20 jumps, 117 remaining unsupported, all
+in `estradege_m580-safety.xef`); full suite (1460 tests) passed; Ruff and
+Pyright passed.

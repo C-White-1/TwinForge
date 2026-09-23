@@ -23,6 +23,7 @@ class TokenKind(str, Enum):
     RIGHT_BRACKET = "right_bracket"
     COMMA = "comma"
     DOT = "dot"
+    COLON = "colon"
     SEMICOLON = "semicolon"
     UNKNOWN = "unknown"
     END_OF_FILE = "end_of_file"
@@ -167,6 +168,29 @@ class ExpressionStatement(Statement):
 @dataclass(frozen=True)
 class ExitStatement(Statement):
     """EXIT statement for terminating the innermost loop."""
+
+
+@dataclass(frozen=True)
+class LabelStatement(Statement):
+    """A named program point ("name:"), real evidence of legacy GOTO-style
+    control flow (real occurrence: "CMD_ACTION:" followed by unrelated
+    statements, jumped to by a JumpStatement elsewhere). A no-op marker on
+    its own; every statement after it in the same statement list still
+    executes in order unless a jump elsewhere skips past it.
+    """
+
+    name: str
+
+
+@dataclass(frozen=True)
+class JumpStatement(Statement):
+    """"JMP <label>;" -- an unconditional jump to a LabelStatement's name
+    elsewhere in the same routine. The target is retained as evidence only;
+    resolving it against an actual LabelStatement (and whatever that implies
+    for reachability) is a separate, not-yet-attempted step.
+    """
+
+    label: str
 
 
 @dataclass(frozen=True)

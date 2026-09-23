@@ -10,6 +10,8 @@ from twinforge.structured_text import (
     ExpressionStatement,
     IfStatement,
     IndexExpression,
+    JumpStatement,
+    LabelStatement,
     MemberExpression,
     MissingExpression,
     NameExpression,
@@ -172,3 +174,99 @@ end_while;
         conditional.branches[0].statements[0],
         ExitStatement,
     )
+
+
+def test_label_and_jmp_are_explicit_nodes_not_unsupported():
+    # Real Control Expert shape (estradege_m580-safety.xef's E_VALVE1): a
+    # label stands alone on its own line, unrelated statements follow it in
+    # the same statement list, and JMP elsewhere targets it by name.
+    source = """\
+if X then
+    JMP SAFE_CMD;
+end_if;
+
+SAFE_CMD:
+_OUT := FALSE;
+"""
+
+    document = parse_structured_text(source)
+
+    assert document.diagnostics == ()
+    conditional = document.statements[0]
+    assert isinstance(conditional, IfStatement)
+    jump = conditional.branches[0].statements[0]
+    assert isinstance(jump, JumpStatement)
+    assert jump.label == "SAFE_CMD"
+    label = document.statements[1]
+    assert isinstance(label, LabelStatement)
+    assert label.name == "SAFE_CMD"
+    assignment = document.statements[2]
+    assert isinstance(assignment, AssignmentStatement)
+
+
+def test_label_followed_only_by_a_comment_then_a_separate_statement():
+    # Real shape: "SAFE_CMD: (* comment *)" on one line, the labeled
+    # program point's own first real statement on the next.
+    source = "CMD_ACTION: (* comment *)\nX := TRUE;\n"
+
+    document = parse_structured_text(source)
+
+    assert document.diagnostics == ()
+    assert len(document.statements) == 2
+    assert isinstance(document.statements[0], LabelStatement)
+    assert document.statements[0].name == "CMD_ACTION"
+    assert isinstance(document.statements[1], AssignmentStatement)
+
+
+def test_jmp_missing_a_label_is_diagnosed_not_guessed():
+    document = parse_structured_text("JMP;\n")
+
+    assert any(d.code == "missing_jump_label" for d in document.diagnostics)
+    assert isinstance(document.statements[0], UnsupportedStatement)
+
+
+def test_assignment_target_named_jmp_or_a_colon_shaped_prefix_still_reconstructs():
+    # The lossless-reconstruction contract must hold for the new tokens too.
+    source = "SAFE_CMD:\nJMP OTHER;\nX := 1;\n"
+    document = parse_structured_text(source)
+    assert document.reconstructed_source == source
+
+
+def test_real_fixture_resolves_labels_and_jumps_when_available():
+    import pytest
+    from twinforge.parsers.control_expert import capture_file, parse_projects
+
+    path = Path(__file__).resolve().parents[1] / "reference" / "control-expert" / "estradege_m580-safety.xef"
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    result, = parse_projects(capture_file(path))
+    controller = result.controller
+
+    def all_routines():
+        for program in controller.programs.values():
+            for routine in program.routines.values():
+                yield routine
+        for aoi in controller.add_on_instructions.values():
+            for routine in aoi.routines.values():
+                yield routine
+
+    labels = jumps = unsupported = 0
+    for routine in all_routines():
+        source = routine.structured_text
+        if not source:
+            continue
+        document = parse_structured_text(source)
+        for statement in document.statements:
+            if isinstance(statement, LabelStatement):
+                labels += 1
+            elif isinstance(statement, JumpStatement):
+                jumps += 1
+            elif isinstance(statement, UnsupportedStatement):
+                unsupported += 1
+    # Real result measured directly against this fixture: 37 labels and 20
+    # jumps now resolve as their own nodes (E_VALVE1, E_MOT1, E_FG, ...
+    # share the same GOTO-style pattern); unsupported statements dropped
+    # from 271 to 117 across the whole corpus once this landed -- entirely
+    # attributable to this one fixture, the only one with substantial ST.
+    assert labels == 37 and jumps == 20
+    assert unsupported == 117

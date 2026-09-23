@@ -14,6 +14,8 @@ from .syntax import (
     IfBranch,
     IfStatement,
     IndexExpression,
+    JumpStatement,
+    LabelStatement,
     LiteralExpression,
     MemberExpression,
     MissingExpression,
@@ -113,6 +115,27 @@ class _Parser:
             start = self._take(skip_trivia=True).span.start
             return ExitStatement(
                 SourceSpan(start, self._statement_end(start))
+            )
+        if self._keyword("JMP"):
+            start = self._take(skip_trivia=True).span.start
+            if self._at(TokenKind.IDENTIFIER, skip_trivia=True):
+                label_token = self._take(skip_trivia=True)
+                end = self._statement_end(label_token.span.end)
+                return JumpStatement(SourceSpan(start, end), label=label_token.text)
+            return self._recover_statement("missing_jump_label")
+        # A named program point ("name:"), real evidence of legacy
+        # GOTO-style control flow -- must be checked before the generic
+        # expression path below, since a bare NameExpression followed by an
+        # unexpected ':' would otherwise fail as an unsupported statement.
+        if (
+            self._at(TokenKind.IDENTIFIER, skip_trivia=True)
+            and self._peek(skip_trivia=True, offset=1).kind is TokenKind.COLON
+        ):
+            self._skip_trivia()
+            label_token = self._take()
+            colon_token = self._take(skip_trivia=True)
+            return LabelStatement(
+                SourceSpan(label_token.span.start, colon_token.span.end), name=label_token.text,
             )
 
         start = self._current().span.start

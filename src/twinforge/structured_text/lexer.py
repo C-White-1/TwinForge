@@ -19,6 +19,7 @@ _SINGLE_TOKENS = {
     "]": TokenKind.RIGHT_BRACKET,
     ",": TokenKind.COMMA,
     ".": TokenKind.DOT,
+    ":": TokenKind.COLON,
     ";": TokenKind.SEMICOLON,
 }
 _OPERATOR_CHARACTERS = set("+-*/=<>&|^")

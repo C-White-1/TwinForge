@@ -14,6 +14,8 @@ from .syntax import (
     ExpressionStatement,
     IfStatement,
     IndexExpression,
+    JumpStatement,
+    LabelStatement,
     LiteralExpression,
     MemberExpression,
     MissingExpression,
@@ -95,6 +97,8 @@ class NeutralOperationKind(str, Enum):
     CONDITIONAL = "conditional"
     LOOP = "loop"
     EXIT = "exit"
+    LABEL = "label"
+    JUMP = "jump"
     UNSUPPORTED = "unsupported"
 
 
@@ -391,6 +395,10 @@ class _SemanticAnalyzer:
             )
         if isinstance(statement, ExitStatement):
             return NeutralOperation(NeutralOperationKind.EXIT, statement.span)
+        if isinstance(statement, LabelStatement):
+            return NeutralOperation(NeutralOperationKind.LABEL, statement.span, statement.name)
+        if isinstance(statement, JumpStatement):
+            return NeutralOperation(NeutralOperationKind.JUMP, statement.span, statement.label)
         if isinstance(statement, UnsupportedStatement):
             return NeutralOperation(
                 NeutralOperationKind.UNSUPPORTED,
