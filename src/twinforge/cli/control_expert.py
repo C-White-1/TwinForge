@@ -123,6 +123,8 @@ def _diagram_summary(diagram: Any) -> dict[str, Any]:
                       "inverted": pin.inverted, "binding_kind": pin.binding_kind,
                       "target_tag": pin.target_tag.name if pin.target_tag else None,
                       "target_parameter": pin.target_parameter.name if pin.target_parameter else None,
+                      "target_program_name": pin.target_program_name,
+                      "target_step_name": pin.target_step_name,
                       "member_path": asdict(pin.member_path) if pin.member_path else None,
                       "binary_expression": (
                           _binary_expression(pin.binary_expression) if pin.binary_expression else None)}

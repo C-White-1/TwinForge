@@ -451,3 +451,183 @@ def test_real_fixtures_classify_direct_addresses_when_available():
                                 if pin.binding_kind == "direct_address":
                                     found.add(pin.expression)
     assert found == {"%S1", "%S6"}
+
+
+def test_call_parameter_type_resolves_a_program_and_a_step_reference():
+    # Generalized by declared parameter type (SFCCHART_STATE/SFCSTEP_STATE),
+    # not hardcoded to INITCHART/SETSTEP -- any block whose library interface
+    # declares a parameter of one of these types is covered the same way.
+    controller = Controller(name="example", identity=Identity())
+    controller.add_program(Program(name="G1"))
+    diagram = GraphicalDiagram(language="FBD", objects=[
+        GraphicalObject(kind="block", type_name="InitChart", pins=[
+            GraphicalPin(name="CHARTREF", direction="input", expression="G1"),
+            GraphicalPin(name="CHARTREF", direction="input", expression="NoSuchChart"),
+        ]),
+        GraphicalObject(kind="block", type_name="SetStep", pins=[
+            GraphicalPin(name="STEPNAME", direction="input", expression="G1_0"),
+        ]),
+    ])
+    program = Program(name="Init")
+    routine = Routine(name="Init", language="FBD")
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+
+    from twinforge.model.library_interface import LibraryInterface, LibraryParameter
+    interfaces = [
+        LibraryInterface("InitChart", "function", [LibraryParameter("CHARTREF", "SFCCHART_STATE", "input")]),
+        LibraryInterface("SetStep", "function", [LibraryParameter("STEPNAME", "SFCSTEP_STATE", "input")]),
+    ]
+    call_parameter_types = {
+        "initchart": {"chartref": "SFCCHART_STATE"}, "setstep": {"stepname": "SFCSTEP_STATE"},
+    }
+    resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        program_names={"g1": "G1"}, call_parameter_types=call_parameter_types,
+        step_names={"g1_0": "G1_0"},
+    )
+    init_pins = diagram.objects[0].pins
+    assert init_pins[0].binding_kind == "declared_program_reference" and init_pins[0].target_program_name == "G1"
+    assert init_pins[1].binding_kind == "missing_symbol"  # "NoSuchChart" -- never guessed at
+    step_pin = diagram.objects[1].pins[0]
+    assert step_pin.binding_kind == "declared_step_reference" and step_pin.target_step_name == "G1_0"
+    _ = interfaces  # documents the real library interfaces this scenario mirrors
+
+
+def test_call_parameter_type_reference_stays_missing_symbol_without_a_declared_type():
+    # A plain identifier-shaped pin with no matching call_parameter_types
+    # entry (e.g. an ordinary block, or a call this project has no library
+    # interface evidence for) must not be treated as a program/step reference.
+    controller, diagram = fixture()
+    diagram.objects = [GraphicalObject(kind="block", type_name="SomeOtherBlock", pins=[
+        GraphicalPin(name="IN", direction="input", expression="G1"),
+    ])]
+    resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        program_names={"g1": "G1"},
+    )
+    assert diagram.objects[0].pins[0].binding_kind == "missing_symbol"
+
+
+def test_call_parameter_type_reference_is_ambiguous_when_the_name_collides():
+    controller = Controller(name="example", identity=Identity())
+    diagram = GraphicalDiagram(language="FBD", objects=[
+        GraphicalObject(kind="block", type_name="InitChart", pins=[
+            GraphicalPin(name="CHARTREF", direction="input", expression="G1"),
+        ]),
+        GraphicalObject(kind="block", type_name="SetStep", pins=[
+            GraphicalPin(name="STEPNAME", direction="input", expression="Dup"),
+        ]),
+    ])
+    program = Program(name="Init")
+    routine = Routine(name="Init", language="FBD")
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    issues = resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        program_names={"g1": "G1"}, ambiguous_program_names=frozenset({"g1"}),
+        step_names={"dup": "Dup"}, ambiguous_step_names=frozenset({"dup"}),
+        call_parameter_types={"initchart": {"chartref": "SFCCHART_STATE"},
+                              "setstep": {"stepname": "SFCSTEP_STATE"}},
+    )
+    chart_pin, step_pin = diagram.objects[0].pins[0], diagram.objects[1].pins[0]
+    assert chart_pin.binding_kind == "ambiguous_symbol" and chart_pin.target_program_name is None
+    assert step_pin.binding_kind == "ambiguous_symbol" and step_pin.target_step_name is None
+    assert {issue.code for issue in issues} == {"ambiguous_pin_symbol"}
+
+
+def test_a_declared_tag_takes_precedence_over_a_chart_or_step_reference():
+    # Symbols are checked first; a program/step reference is only attempted
+    # once a pin's text is confirmed *not* to name a declared tag.
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="G1", data_type="BOOL"))
+    controller.add_program(Program(name="G1"))
+    diagram = GraphicalDiagram(language="FBD", objects=[
+        GraphicalObject(kind="block", type_name="InitChart", pins=[
+            GraphicalPin(name="CHARTREF", direction="input", expression="G1"),
+        ]),
+    ])
+    program = Program(name="Init")
+    routine = Routine(name="Init", language="FBD")
+    routine.graphical_diagrams.append(diagram)
+    program.add_routine(routine)
+    controller.add_program(program)
+    resolve_graphical_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        program_names={"g1": "G1"}, call_parameter_types={"initchart": {"chartref": "SFCCHART_STATE"}},
+    )
+    pin = diagram.objects[0].pins[0]
+    assert pin.binding_kind == "declared_symbol"
+    assert pin.target_tag is controller.tags["G1"] and pin.target_program_name is None
+
+
+def test_chart_control_call_references_resolve_inside_a_function_block_body_too():
+    # A call's chart/step reference is project-wide identity, not project-wide
+    # *tag* scope -- unlike an LD contact's `.X` step-state test (deliberately
+    # FB-scope-empty), it resolves inside a DFB body the same way it does at
+    # program scope.
+    aoi = AddOnInstruction(name="MyDFB")
+    routine = Routine(name="MyDFB", language="FBD")
+    diagram = GraphicalDiagram(language="FBD", objects=[
+        GraphicalObject(kind="block", type_name="SetStep", pins=[
+            GraphicalPin(name="STEPNAME", direction="input", expression="G1_0"),
+        ]),
+    ])
+    routine.graphical_diagrams.append(diagram)
+    aoi.add_routine(routine)
+    controller = Controller(name="example", identity=Identity())
+    controller.add_add_on_instruction(aoi)
+    resolve_function_block_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        step_names={"g1_0": "G1_0"}, call_parameter_types={"setstep": {"stepname": "SFCSTEP_STATE"}},
+    )
+    pin = diagram.objects[0].pins[0]
+    assert pin.binding_kind == "declared_step_reference" and pin.target_step_name == "G1_0"
+
+
+def test_step_state_contact_inside_a_function_block_body_still_stays_unresolved():
+    # The one thing the fix above must NOT change: an LD contact testing
+    # `<step>.X` is still resolved against an empty, FB-scope-local step
+    # table, even when the same project-wide steps are supplied for
+    # chart-control-call resolution above.
+    aoi = AddOnInstruction(name="MyDFB")
+    routine = Routine(name="MyDFB", language="LD")
+    diagram = GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="contact", operand="G1_0.X"),
+    ])
+    routine.graphical_diagrams.append(diagram)
+    aoi.add_routine(routine)
+    controller = Controller(name="example", identity=Identity())
+    controller.add_add_on_instruction(aoi)
+    resolve_function_block_bindings(
+        controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
+        step_names={"g1_0": "G1_0"},
+    )
+    assert diagram.objects[0].operand_binding_kind == "missing_step_state"
+    assert diagram.objects[0].target_step_name is None
+
+
+def test_real_fixture_resolves_chart_control_call_references_when_available():
+    import pytest
+    from pathlib import Path
+    from twinforge.parsers.control_expert import capture_file, parse_projects
+
+    path = Path("reference/control-expert/MultiGrafcet_Coordination_V1_2026.XEF")
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    result, = parse_projects(capture_file(path))
+    found = []
+    for program in result.controller.programs.values():
+        for routine in program.routines.values():
+            for diagram in routine.graphical_diagrams:
+                for obj in diagram.objects:
+                    if obj.type_name and obj.type_name.upper() in ("INITCHART", "SETSTEP"):
+                        for pin in obj.pins:
+                            if pin.binding_kind in ("declared_program_reference", "declared_step_reference"):
+                                found.append((obj.type_name, pin.name, pin.target_program_name, pin.target_step_name))
+    assert ("INITCHART", "CHARTREF", "G1", None) in found
+    assert ("INITCHART", "CHARTREF", "G2", None) in found
+    assert ("SETSTEP", "STEPNAME", None, "G1_0") in found
+    assert len(found) == 3

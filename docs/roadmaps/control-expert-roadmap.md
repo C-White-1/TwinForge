@@ -85,6 +85,11 @@ calls. Both exports identify Premium despite the repository's M580 description.
       now a separately scoped backlog item under ST analysis below, since it
       needs real expression parsing this project does not have yet
 - [ ] Account for chart-control calls and multiple writers before execution claims
+      (partial: chart-control call references now resolve -- see the chart
+      control reference checkpoint below; "multiple writers" for chart/step
+      state specifically -- distinct from the existing shared-variable
+      multi-writer guard, which does not model chart state at all -- remains
+      open)
 
 ## Milestone 2: lossless capture — initial implementation complete
 
@@ -1380,4 +1385,58 @@ period at all -- cyclic tasks have no periodic rate concept. Real result: all
 `rate` set for the 6 periodic tasks -- values 5 and 20 -- and correctly
 `None` for the 12 cyclic ones). 6 new tests (each real shape, missing/
 non-numeric attributes, a real-fixture count); full suite (1425 tests)
+passed; Ruff and Pyright passed.
+
+Chart control reference checkpoint (2026-09-23): graphical calls to
+`INITCHART`/`FREEZECHART`/`SETSTEP` (real `EFSource` library interfaces in
+`MultiGrafcet_Coordination_V1_2026.XEF`, whose declared parameters --
+`CHARTREF`, `STEPNAME` -- carry Control Expert's own
+`SFCCHART_STATE`/`SFCSTEP_STATE` parameter types) previously resolved as
+`missing_symbol`: pin resolution only ever tried "is this an in-scope tag",
+and a chart or step name is neither -- it identifies an SFC diagram or one
+of its steps by name, not a variable. 3 real call sites in that fixture
+(`.1 INITCHART CHARTREF="G1"`, `.2 INITCHART CHARTREF="G2"`,
+`.3 SETSTEP STEPNAME="G1_0"`) were misclassified this way before the fix.
+The mechanism is generalized by declared parameter type rather than by
+block name, so it covers any current or future block with an
+`SFCCHART_STATE`/`SFCSTEP_STATE`-typed parameter, not just these three: a
+new `_call_reference_kind` helper looks up the pin's declared parameter type
+from the block's library interface, and pins of that kind are matched
+against known program/chart names or, for FBD/LD diagrams outside a chart's
+own body, step names -- landing on new `GraphicalPin.target_program_name`/
+`target_step_name` fields and `declared_program_reference`/
+`declared_step_reference` binding kinds (both proving only that the name is
+reachable, never an execution-order or timing claim, matching this
+project's existing binding-kind discipline). A same-named tag still takes
+precedence over a chart/step interpretation, and a name colliding across
+multiple programs or steps still lands on `ambiguous_symbol` rather than
+picking one, consistent with the "ambiguous is never guessed" standard
+applied everywhere else in this project. Real result: all 3 real call sites
+now resolve (`declared_program_reference` x2, `declared_step_reference`
+x1) instead of `missing_symbol`. This addresses only the "chart-control
+calls" half of the roadmap line above; "multiple writers" -- more than one
+call site setting the same chart/step's state -- is a distinct concern this
+change does not model (chart/step state has no binding-kind equivalent of
+the existing shared-variable multiple-writer guard) and remains open.
+
+A call's chart/step reference resolves inside a Function Block body too
+(`resolve_function_block_bindings`), unlike the LD `<step>.X` contact
+convention, which stays deliberately FB-scope-empty (a DFB body should not
+hardcode a reference to a specific project's own chart). Both share the
+same `_resolve_diagrams` core, so this needed its own dedicated
+`call_step_names`/`ambiguous_call_step_names` parameter pair, distinct from
+`steps`/`step_ambiguous`: it defaults to falling back to `steps` (so
+program-scope callers, which already want the same full project-wide
+namespace for both purposes, need no changes), but lets
+`resolve_function_block_bindings` supply the real project-wide step table
+for call resolution while still passing an empty `steps={}` for contact
+resolution -- proven by two new tests, one confirming a `SETSTEP` call
+inside a DFB body now resolves, one confirming a `.X` contact inside the
+same body still does not.
+
+7 new tests (a program reference, a step reference, an undeclared-type call
+staying `missing_symbol`, a name-collision case staying `ambiguous_symbol`,
+a same-named-tag-wins case, the FB-body call/contact scope-separation pair
+above, and a real-fixture check gated on the
+`MultiGrafcet_Coordination_V1_2026.XEF` fixture); full suite (1432 tests)
 passed; Ruff and Pyright passed.

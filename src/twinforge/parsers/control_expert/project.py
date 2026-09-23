@@ -15,7 +15,7 @@ from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 from twinforge.schema.control_expert import device_ddt_catalog
 from twinforge.analysis.execution_order import resolve_fbd_execution_order
 from twinforge.analysis.graphical_bindings import (
-    member_path_context, resolve_function_block_bindings, resolve_graphical_bindings,
+    _unique_by_name, member_path_context, resolve_function_block_bindings, resolve_graphical_bindings,
 )
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
@@ -765,17 +765,32 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
             for chart in routine.sequential_charts:
                 _collect_steps(chart.elements)
     member_paths = member_path_context(controller, result.library_interfaces, spec.array_pattern)
+    # Programs are already casefold-unique by construction (_unique_name at
+    # declaration time), so no ambiguity is possible here in practice; still
+    # threaded through for symmetry with steps/symbols, which are not.
+    program_names = {p.name.casefold(): p.name for p in controller.programs.values()}
+    # A call's own type_name (e.g. "INITCHART") must map to exactly one
+    # interface to know its parameter types reliably -- reusing the same
+    # ambiguity handling library_interfaces lookups already apply elsewhere.
+    call_parameter_types = {
+        name: {p.name.casefold(): p.data_type for p in interface.parameters if p.name and p.data_type}
+        for name, interface in _unique_by_name(result.library_interfaces).items()
+    }
     issues = resolve_graphical_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, member_paths=member_paths,
         literal_patterns=EXPRESSION_SPEC.literals,
         ambiguous_names=frozenset(key for key, count in variable_counts.items() if count > 1),
         step_names=step_names,
         ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
+        program_names=program_names, call_parameter_types=call_parameter_types,
         direct_address_pattern=EXPRESSION_SPEC.direct_address,
     )
     issues.extend(resolve_function_block_bindings(
         controller, identifier_pattern=EXPRESSION_SPEC.identifier, literal_patterns=EXPRESSION_SPEC.literals,
         member_paths=member_paths, direct_address_pattern=EXPRESSION_SPEC.direct_address,
+        program_names=program_names, call_parameter_types=call_parameter_types,
+        step_names=step_names,
+        ambiguous_step_names=frozenset(key for key, count in step_counts.items() if count > 1),
     ))
     for issue in issues:
         routines = (controller.add_on_instructions[issue.program_name].routines

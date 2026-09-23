@@ -6,7 +6,10 @@ import re
 
 from twinforge.analysis.member_paths import MemberPathResult, resolve_member_path
 from twinforge.analysis.simple_expressions import resolve_binary_expression
-from twinforge.model import AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalVariableReferences, Tag
+from twinforge.model import (
+    AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalObject, GraphicalPin,
+    GraphicalVariableReferences, Tag,
+)
 from twinforge.model.datatype import Datatype
 from twinforge.model.resource import Resource
 from twinforge.model.library_interface import LibraryInterface
@@ -89,13 +92,46 @@ class GraphicalBindingIssue:
     scope: str = "program"
 
 
+def _call_reference_kind(
+    obj: GraphicalObject, pin: GraphicalPin, call_parameter_types: dict[str, dict[str, str]] | None,
+) -> str | None:
+    """The declared data type (e.g. "SFCCHART_STATE"/"SFCSTEP_STATE") of this
+    pin's own formal parameter, from the library interface of the block it
+    belongs to -- proves what an identifier-shaped pin *names* (a program or
+    an SFC step, not a tag) without hardcoding specific block names like
+    INITCHART/SETSTEP; any future call with a parameter of one of these
+    documented types is covered the same way.
+    """
+    if call_parameter_types is None or not obj.type_name or not pin.name:
+        return None
+    return call_parameter_types.get(obj.type_name.casefold(), {}).get(pin.name.casefold())
+
+
 def _resolve_diagrams(
     diagrams: list[GraphicalDiagram], container_name: str, routine_name: str, scope: str, *,
     symbols: dict[str, Tag | AddOnInstructionParameter], ambiguous: set[str],
+    # `steps`/`step_ambiguous`: the `<step>.X` contact convention's own
+    # namespace -- deliberately FB-scope-empty (IEC 61131-3 encapsulation; a
+    # DFB body hardcoding a specific project's chart step would not be
+    # reusable). `call_step_names`/`ambiguous_call_step_names`: a *separate*
+    # namespace for a chart-control call's own SFCSTEP_STATE parameter (see
+    # `_call_reference_kind`) -- that call names an external step explicitly
+    # by its own argument regardless of scope, the same reasoning
+    # `program_names` already applies; defaults to `steps` when not given
+    # separately, which is correct for program scope (the same full
+    # project-wide namespace either way) and lets FB-body callers supply a
+    # real one without also, as a side effect, enabling `.X` contacts there.
     steps: dict[str, str], step_ambiguous: set[str],
+    call_step_names: dict[str, str] | None = None, ambiguous_call_step_names: set[str] | None = None,
+    program_names: dict[str, str] | None = None, ambiguous_program_names: set[str] | None = None,
+    call_parameter_types: dict[str, dict[str, str]] | None = None,
     identifier_pattern: str, step_state_pattern: re.Pattern[str], literal_patterns: tuple[str, ...],
     member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
+    call_step_names = steps if call_step_names is None else call_step_names
+    ambiguous_call_step_names = step_ambiguous if ambiguous_call_step_names is None else ambiguous_call_step_names
+    program_names = program_names or {}
+    ambiguous_program_names = ambiguous_program_names or set()
     issues: list[GraphicalBindingIssue] = []
     for diagram_index, diagram in enumerate(diagrams):
         groups: dict[str, GraphicalVariableReferences] = {}
@@ -171,6 +207,8 @@ def _resolve_diagrams(
                 pin.target_parameter = None
                 pin.member_path = None
                 pin.binary_expression = None
+                pin.target_program_name = None
+                pin.target_step_name = None
                 expression = pin.expression.strip() if pin.expression is not None else ""
                 problem = None
                 if pin.expression is None:
@@ -201,8 +239,22 @@ def _resolve_diagrams(
                         elif pin.direction == "output":
                             group.output_pins.append((object_index, pin_index))
                     else:
-                        pin.binding_kind = "missing_symbol"
-                        problem = "unresolved_pin_symbol"
+                        reference_kind = _call_reference_kind(obj, pin, call_parameter_types)
+                        if reference_kind == "SFCCHART_STATE" and key in ambiguous_program_names:
+                            pin.binding_kind = "ambiguous_symbol"
+                            problem = "ambiguous_pin_symbol"
+                        elif reference_kind == "SFCCHART_STATE" and key in program_names:
+                            pin.binding_kind = "declared_program_reference"
+                            pin.target_program_name = program_names[key]
+                        elif reference_kind == "SFCSTEP_STATE" and key in ambiguous_call_step_names:
+                            pin.binding_kind = "ambiguous_symbol"
+                            problem = "ambiguous_pin_symbol"
+                        elif reference_kind == "SFCSTEP_STATE" and key in call_step_names:
+                            pin.binding_kind = "declared_step_reference"
+                            pin.target_step_name = call_step_names[key]
+                        else:
+                            pin.binding_kind = "missing_symbol"
+                            problem = "unresolved_pin_symbol"
                 else:
                     pin.binding_kind = "unresolved_expression"
                     problem = "unresolved_pin_expression"
@@ -259,6 +311,8 @@ def resolve_graphical_bindings(
     controller: Controller, *, identifier_pattern: str,
     literal_patterns: tuple[str, ...], ambiguous_names: frozenset[str] = frozenset(),
     step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
+    program_names: dict[str, str] | None = None, ambiguous_program_names: frozenset[str] = frozenset(),
+    call_parameter_types: dict[str, dict[str, str]] | None = None,
     member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Classify pins and contact operands in place; retained source text is unchanged.
@@ -280,6 +334,8 @@ def resolve_graphical_bindings(
         symbols[key] = tag
     steps = dict(step_names or {})
     step_ambiguous = {name.casefold() for name in ambiguous_step_names}
+    resolved_program_names = dict(program_names or {})
+    resolved_ambiguous_program_names = {name.casefold() for name in ambiguous_program_names}
     step_state_pattern = re.compile(rf"({identifier_pattern})\.[Xx]")
     issues = []
     resources = _program_resources(controller)
@@ -299,7 +355,9 @@ def resolve_graphical_bindings(
             issues.extend(_resolve_diagrams(
                 routine.graphical_diagrams, program.name, routine.name, "program",
                 symbols=program_symbols, ambiguous=program_ambiguous, steps=steps,
-                step_ambiguous=step_ambiguous,
+                step_ambiguous=step_ambiguous, program_names=resolved_program_names,
+                ambiguous_program_names=resolved_ambiguous_program_names,
+                call_parameter_types=call_parameter_types,
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
                 literal_patterns=literal_patterns, member_paths=member_paths,
                 direct_address_pattern=direct_address_pattern,
@@ -309,6 +367,9 @@ def resolve_graphical_bindings(
 
 def resolve_function_block_bindings(
     controller: Controller, *, identifier_pattern: str, literal_patterns: tuple[str, ...],
+    program_names: dict[str, str] | None = None, ambiguous_program_names: frozenset[str] = frozenset(),
+    step_names: dict[str, str] | None = None, ambiguous_step_names: frozenset[str] = frozenset(),
+    call_parameter_types: dict[str, dict[str, str]] | None = None,
     member_paths: MemberPathContext | None = None, direct_address_pattern: str | None = None,
 ) -> list[GraphicalBindingIssue]:
     """Resolve pins inside a Function Block body against that FB's own namespace.
@@ -317,8 +378,22 @@ def resolve_function_block_bindings(
     the project's global tags -- IEC 61131-3 encapsulation, not an evidence
     gap. Each FB is resolved against its own isolated symbol table; the same
     name in two different FBs is not a collision.
+
+    A chart-control call's own project-wide identity references (program/
+    chart names, SFC step names -- see ``_call_reference_kind``) are the
+    single exception: unlike a step-state ``.X`` contact (deliberately kept
+    FB-scope-empty, since it tests a specific project's own chart), a call
+    like SETSTEP/INITCHART names an external chart/step explicitly by its own
+    parameter, so it is resolved the same project-wide way regardless of
+    which scope the call is textually written in -- not itself separately
+    evidenced from inside an FB body, but the consistent generalization of
+    the same reasoning ``program_names`` already applies here.
     """
     step_state_pattern = re.compile(rf"({identifier_pattern})\.[Xx]")
+    resolved_program_names = dict(program_names or {})
+    resolved_ambiguous_program_names = {name.casefold() for name in ambiguous_program_names}
+    resolved_call_step_names = dict(step_names or {})
+    resolved_ambiguous_call_step_names = {name.casefold() for name in ambiguous_step_names}
     issues: list[GraphicalBindingIssue] = []
     for aoi in controller.add_on_instructions.values():
         symbols: dict[str, Tag | AddOnInstructionParameter] = {}
@@ -333,6 +408,9 @@ def resolve_function_block_bindings(
             issues.extend(_resolve_diagrams(
                 routine.graphical_diagrams, aoi.name, routine.name, "function_block",
                 symbols=symbols, ambiguous=ambiguous, steps={}, step_ambiguous=set(),
+                call_step_names=resolved_call_step_names, ambiguous_call_step_names=resolved_ambiguous_call_step_names,
+                program_names=resolved_program_names, ambiguous_program_names=resolved_ambiguous_program_names,
+                call_parameter_types=call_parameter_types,
                 identifier_pattern=identifier_pattern, step_state_pattern=step_state_pattern,
                 literal_patterns=literal_patterns, member_paths=member_paths,
                 direct_address_pattern=direct_address_pattern,

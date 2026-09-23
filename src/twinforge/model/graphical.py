@@ -84,6 +84,13 @@ class GraphicalPin:
     # member_path above are unset in that case (a composite expression has no
     # single base symbol of its own).
     binary_expression: "BinaryExpression | None" = None
+    # Set for binding_kind "declared_program_reference"/"declared_step_reference":
+    # a call whose declared parameter type (SFCCHART_STATE/SFCSTEP_STATE, e.g.
+    # INITCHART/SETSTEP) names a program/chart or an SFC step by identity, not
+    # a tag -- proven reachable, never an execution-order or timing claim
+    # about when the call itself takes effect.
+    target_program_name: str | None = None
+    target_step_name: str | None = None
 
 
 @dataclass
