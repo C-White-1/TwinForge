@@ -242,26 +242,110 @@ def _promote_initial_value(data_type: str, lexical_value: str) -> "TagValue | No
     return None
 
 
-def _composite_value_node(node: CapturedSection) -> CompositeTagValueNode:
-    """Lexical-only capture of one `instanceElementDesc` (struct member, FB
-    instance parameter override, or array element -- one generic source
-    element covers all three, distinguished here only by whether its name is
-    an "[N]" array index). No scalar promotion, no member/parameter/type
-    resolution: a documented follow-up, the same as scalar initializer
-    promotion was before it was added.
+def _composite_value_node(
+    node: CapturedSection, container: "Datatype | AddOnInstruction | None", own_type_name: str | None,
+    known_datatypes: dict[str, Datatype], catalog_datatypes: dict[str, Datatype], array_pattern: str,
+) -> CompositeTagValueNode:
+    """Recursively resolve one `instanceElementDesc` (struct member, DFB
+    instance local-variable override, or array element -- one generic source
+    element covers all three, distinguished by whether its name is an "[N]"
+    array index) against its declaring type, and promote a scalar leaf value
+    the same conservative way a top-level tag's own initializer already is.
+
+    `container` is the enclosing composite type this node's own name is
+    looked up in: a `Datatype` for a struct member, an `AddOnInstruction` for
+    a DFB instance's local-variable override -- real evidence, not a
+    parameter override: `IO_READAPI`'s `IO_READVAR` local is itself an
+    `IO_READVAR` instance, resolved the same way one level deeper.
+    `own_type_name` is the *parent* node's own resolved (already
+    array-unwrapped) element type, used only by an array-index child, which
+    reuses its declaring array's element type rather than being looked up by
+    name.
     """
     raw_name = node.raw_attributes.get("name", "")
     index_match = re.fullmatch(r"\[(\d+)\]", raw_name)
     value_node = next((child for child in node.ordered_children if child.tag == "value"), None)
+    lexical_value = value_node.text if value_node is not None else None
+
+    member_definition: DatatypeMember | None = None
+    local_variable_definition: Tag | None = None
+    resolved_type_name: str | None = None
+    if index_match:
+        resolved_type_name = own_type_name
+    elif isinstance(container, Datatype):
+        member_definition = next(
+            (m for m in container.members if m.name.casefold() == raw_name.casefold()), None)
+        if member_definition is not None:
+            resolved_type_name = member_definition.data_type_name
+    elif isinstance(container, AddOnInstruction):
+        local_variable_definition = next(
+            (t for t in container.local_tags.values() if t.name.casefold() == raw_name.casefold()), None)
+        if local_variable_definition is not None:
+            resolved_type_name = local_variable_definition.data_type
+
+    # A project DDT member's own data_type_name already arrives pre-stripped
+    # of any array wrapper (see _datatypes), but a DFB local variable's raw
+    # typeName and the vendor Device DDT catalog's own data_type_name do not
+    # -- real evidence: T_U_DIS_SIS_IN_16's own CH_IN_A member is
+    # "ARRAY[0..7] OF T_U_DIS_SIS_CH_IN". Element-type propagation (both for
+    # this node's own leaf promotion and for what its index children look up
+    # against) always uses the unwrapped form, mirroring the same
+    # normalization _declare_variables already applies to a top-level tag.
+    element_type_name = resolved_type_name
+    if resolved_type_name:
+        array_match = re.fullmatch(array_pattern, resolved_type_name, flags=re.IGNORECASE)
+        if array_match:
+            element_type_name = array_match[3]
+
+    child_container: Datatype | AddOnInstruction | None = None
+    if member_definition is not None:
+        child_container = member_definition.data_type
+    elif local_variable_definition is not None:
+        child_container = (local_variable_definition.function_block_instance
+                           or local_variable_definition.data_type_definition
+                           or local_variable_definition.vendor_documented_type)
+    if child_container is None and element_type_name:
+        key = element_type_name.casefold()
+        child_container = known_datatypes.get(key) or catalog_datatypes.get(key)
+
+    children = tuple(
+        _composite_value_node(child, child_container, element_type_name, known_datatypes, catalog_datatypes,
+                              array_pattern)
+        for child in node.ordered_children if child.tag == "instanceElementDesc")
+
+    value = None
+    radix = None
+    if not children and element_type_name and lexical_value is not None:
+        promoted = _promote_initial_value(element_type_name, lexical_value)
+        if promoted is not None:
+            value, radix = promoted.value, promoted.radix
+
     return CompositeTagValueNode(
         source_kind="instanceElementDesc",
         name=None if index_match else (raw_name or None),
         index=index_match.group(1) if index_match else None,
-        lexical_value=value_node.text if value_node is not None else None,
-        children=tuple(_composite_value_node(child) for child in node.ordered_children
-                       if child.tag == "instanceElementDesc"),
+        data_type=resolved_type_name,
+        radix=radix,
+        lexical_value=lexical_value,
+        value=value,
+        member_definition=member_definition,
+        local_variable_definition=local_variable_definition,
+        data_type_definition=child_container if isinstance(child_container, Datatype) else None,
+        children=children,
         raw_attributes=dict(node.raw_attributes),
     )
+
+
+def _composite_fully_resolved(node: CompositeTagValueNode) -> bool:
+    """Whether every leaf under this node promoted and every intermediate
+    node's own member/local-variable identity was resolved -- mirrors the
+    scalar initializer's own "nothing left uninterpreted" standard.
+    """
+    if node.source_kind != "variables" and node.data_type is None:
+        return False
+    if node.children:
+        return all(_composite_fully_resolved(child) for child in node.children)
+    return node.lexical_value is None or node.value is not None
 
 
 def _declare_variables(
@@ -282,6 +366,26 @@ def _declare_variables(
         # Address is a source memory binding, never an alias to another symbol.
         if "topologicalAddress" in attrs:
             tag.metadata["source_memory_address"] = attrs["topologicalAddress"]
+
+        # Type resolution happens up front (still reported in its original
+        # relative order below) so composite initial value resolution, which
+        # needs to know the tag's own resolved type, can use it.
+        match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
+        base_type = type_name
+        array_bounds_valid = True
+        if match:
+            lower, upper = int(match[1]), int(match[2])
+            base_type = match[3]
+            array_bounds_valid = upper >= lower
+            if array_bounds_valid:
+                tag.metadata["source_array_bounds"] = [[lower, upper]]
+                tag.metadata["source_array_element_type"] = base_type
+        if base_type:
+            (tag.data_type_definition, tag.function_block_instance, tag.library_type,
+             tag.vendor_documented_type) = _type_definition(base_type, known_datatypes, catalog_datatypes, result)
+        known = (tag.data_type_definition or tag.function_block_instance or tag.library_type
+                or tag.vendor_documented_type)
+
         initializers = _select(node, spec.initializers)
         if initializers:
             tag.metadata["source_initial_values"] = [dict(n.raw_attributes) for n in initializers]
@@ -293,31 +397,26 @@ def _declare_variables(
                 result.report("uninterpreted_initial_value", f"{name}: initializer retained lexically", node)
         instance_elements = _select(node, spec.instance_elements)
         if instance_elements:
-            tag.composite_initial_value = CompositeTagValue(root=CompositeTagValueNode(
+            container = tag.function_block_instance or tag.data_type_definition or tag.vendor_documented_type
+            root = CompositeTagValueNode(
                 source_kind="variables", name=name, data_type=type_name,
-                children=tuple(_composite_value_node(child) for child in instance_elements),
-            ))
-            result.report(
-                "uninterpreted_composite_initial_value",
-                f"{name}: composite/array initial value retained lexically", node)
-        match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
-        base_type = type_name
+                children=tuple(
+                    _composite_value_node(child, container, base_type, known_datatypes, catalog_datatypes,
+                                          spec.array_pattern)
+                    for child in instance_elements),
+            )
+            tag.composite_initial_value = CompositeTagValue(
+                root=root, data_type_definition=tag.data_type_definition or tag.vendor_documented_type)
+            if not _composite_fully_resolved(root):
+                result.report(
+                    "uninterpreted_composite_initial_value",
+                    f"{name}: composite/array initial value retained lexically", node)
         if match:
-            lower, upper = int(match[1]), int(match[2])
-            base_type = match[3]
-            if upper < lower:
+            if not array_bounds_valid:
                 result.report("invalid_array_bounds", f"{name}: upper bound precedes lower bound", node)
-            else:
-                tag.metadata["source_array_bounds"] = [[lower, upper]]
-                tag.metadata["source_array_element_type"] = base_type
             # The model has no typed lower-bound field. Do not normalize this
             # into a zero-based dimensions string and imply portability.
             result.report("unresolved_array_type", f"{name}: array expression and bounds retained; type not resolved", node)
-        if base_type:
-            (tag.data_type_definition, tag.function_block_instance, tag.library_type,
-             tag.vendor_documented_type) = _type_definition(base_type, known_datatypes, catalog_datatypes, result)
-        known = (tag.data_type_definition or tag.function_block_instance or tag.library_type
-                or tag.vendor_documented_type)
         if known is None and (not base_type or base_type.upper() not in spec.scalar_types):
             result.report("unresolved_type", f"{name}: no supported type definition for {base_type!r}", node)
         register(tag)

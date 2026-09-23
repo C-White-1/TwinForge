@@ -84,11 +84,14 @@ def _binary_expression(expression: Any) -> dict[str, Any]:
 def _composite_value_node(node: Any) -> dict[str, Any]:
     return {
         "source_kind": node.source_kind, "name": node.name, "index": node.index,
-        "data_type": node.data_type, "lexical_value": node.lexical_value, "value": node.value,
-        # member_definition/data_type_definition are object references, left
-        # unresolved by this project's own lexical-only capture today; never
-        # asdict()-ed wholesale here in case a later pass does resolve them.
+        "data_type": node.data_type, "radix": node.radix,
+        "lexical_value": node.lexical_value, "value": node.value,
+        # member_definition/local_variable_definition/data_type_definition
+        # are object references -- named here by identity, never asdict()-ed
+        # wholesale, matching how target_tag/target_parameter etc. are
+        # exposed elsewhere in this module.
         "member_definition": node.member_definition.name if node.member_definition else None,
+        "local_variable_definition": node.local_variable_definition.name if node.local_variable_definition else None,
         "data_type_definition": node.data_type_definition.name if node.data_type_definition else None,
         "children": [_composite_value_node(child) for child in node.children],
     }

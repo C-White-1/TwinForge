@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .datatype import Datatype, DatatypeMember
+    from .tag import Tag
 
 
 ScalarTagValue = bool | int | float | str
@@ -34,6 +35,12 @@ class CompositeTagValueNode:
     lexical_value: str | None = None
     value: ScalarTagValue | None = None
     member_definition: "DatatypeMember | None" = None
+    # Set instead of member_definition when this node names a DFB instance's
+    # own local-variable override (real evidence: instanceElementDesc can
+    # target a call-site override of a DFB's public/private local, not just
+    # a struct member) -- a Tag, never a DatatypeMember, so it needs its own
+    # field rather than overloading one typed for the other.
+    local_variable_definition: "Tag | None" = None
     data_type_definition: "Datatype | None" = None
     children: tuple["CompositeTagValueNode", ...] = ()
     raw_attributes: dict[str, str] = field(default_factory=dict, repr=False)

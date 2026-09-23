@@ -86,8 +86,10 @@ def test_variables_preserve_bounds_addresses_initializers_and_unresolved_types()
     assert composite.root.source_kind == "variables" and composite.root.name == "data"
     element = composite.root.children[0]
     assert element.name is None and element.index == "1"  # "[1]", not a struct member name
-    assert element.lexical_value == "7" and element.value is None  # lexical only, no promotion yet
-    assert any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
+    # INT is a promotable scalar element type; the array wrapper itself is
+    # still not a first-class modeled type (see unresolved_array_type below).
+    assert element.lexical_value == "7" and element.value == 7 and element.data_type == "INT"
+    assert not any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
     assert tags["timer"].initial_value is None
     assert tags["timer"].metadata["source_initial_values"] == [{"value": "t#10s"}]
     assert tags["custom"].data_type_definition is None
@@ -630,9 +632,9 @@ def test_composite_initial_value_captures_nested_struct_and_array_members():
     assert [c.lexical_value for c in var3.children] == ["0", "1"]
 
 
-def test_composite_initial_value_never_promotes_or_resolves_members():
-    # Deliberately lexical-only for now, matching the chosen scope: no
-    # scalar promotion, no DDT-member/FB-parameter resolution.
+def test_composite_initial_value_stays_unresolved_for_an_unrecognized_type():
+    # A type this project never captured (no DDT, DFB, library, or catalog
+    # match) leaves every member unresolved -- not guessed at.
     result = project('''<dataBlock>
       <variables name="v" typeName="AnyType">
         <instanceElementDesc name="X"><value>TRUE</value></instanceElementDesc>
@@ -643,8 +645,101 @@ def test_composite_initial_value_never_promotes_or_resolves_members():
     node = composite.root.children[0]
     assert node.value is None
     assert node.member_definition is None
+    assert node.local_variable_definition is None
     assert node.data_type_definition is None
     assert node.data_type is None
+    assert any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
+
+
+def test_composite_initial_value_resolves_and_promotes_struct_members():
+    result = project('''
+      <DDTSource DDTName="T_PAIR"><structure>
+        <variables name="A" typeName="BOOL"/>
+        <variables name="B" typeName="REAL"/>
+      </structure></DDTSource>
+      <dataBlock><variables name="v" typeName="T_PAIR">
+        <instanceElementDesc name="A"><value>TRUE</value></instanceElementDesc>
+        <instanceElementDesc name="B"><value>1.5</value></instanceElementDesc>
+      </variables></dataBlock>''')
+    tag = result.controller.tags["v"]
+    ddt = result.controller.datatypes["T_PAIR"]
+    composite = tag.composite_initial_value
+    assert composite is not None
+    assert composite.data_type_definition is ddt
+    a_node, b_node = composite.root.children
+    assert a_node.member_definition is ddt.members[0] and a_node.value is True and a_node.data_type == "BOOL"
+    assert b_node.member_definition is ddt.members[1] and b_node.value == 1.5 and b_node.data_type == "REAL"
+    assert not any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
+
+
+def test_composite_initial_value_resolves_array_member_elements():
+    result = project('''
+      <DDTSource DDTName="T_BUF"><structure>
+        <variables name="Cells" typeName="ARRAY[0..1] OF INT"/>
+      </structure></DDTSource>
+      <dataBlock><variables name="v" typeName="T_BUF">
+        <instanceElementDesc name="Cells">
+          <instanceElementDesc name="[0]"><value>7</value></instanceElementDesc>
+          <instanceElementDesc name="[1]"><value>9</value></instanceElementDesc>
+        </instanceElementDesc>
+      </variables></dataBlock>''')
+    composite = result.controller.tags["v"].composite_initial_value
+    assert composite is not None
+    cells = composite.root.children[0]
+    assert cells.member_definition is not None and cells.member_definition.name == "Cells"
+    assert [c.value for c in cells.children] == [7, 9]
+    assert [c.data_type for c in cells.children] == ["INT", "INT"]
+
+
+def test_composite_initial_value_resolves_a_dfb_instances_local_variable_override():
+    # Real corpus shape: a DFB instance's own public/private local, not a
+    # parameter, is overridden at the call site.
+    result = project('''
+      <FBSource nameOfFBType="Counter">
+        <privateLocalVariables><variables name="Lag" typeName="REAL"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+      <dataBlock><variables name="Obj1" typeName="Counter">
+        <instanceElementDesc name="Lag"><value>2.5</value></instanceElementDesc>
+      </variables></dataBlock>''')
+    tag = result.controller.tags["Obj1"]
+    fb = result.controller.add_on_instructions["Counter"]
+    composite = tag.composite_initial_value
+    assert composite is not None
+    node = composite.root.children[0]
+    assert node.local_variable_definition is fb.local_tags["Lag"]
+    assert node.member_definition is None
+    assert node.value == 2.5 and node.data_type == "REAL"
+    assert not any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
+
+
+def test_composite_initial_value_resolves_a_local_variable_that_is_itself_a_dfb_instance():
+    # Real evidence: IO_READAPI's IO_READVAR local is itself an IO_READVAR
+    # instance -- one more level of container switching than a plain struct.
+    result = project('''
+      <FBSource nameOfFBType="Inner">
+        <privateLocalVariables><variables name="Timeout" typeName="INT"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+      <FBSource nameOfFBType="Outer">
+        <privateLocalVariables><variables name="Sub" typeName="Inner"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+      <dataBlock><variables name="Obj1" typeName="Outer">
+        <instanceElementDesc name="Sub">
+          <instanceElementDesc name="Timeout"><value>0</value></instanceElementDesc>
+        </instanceElementDesc>
+      </variables></dataBlock>''')
+    tag = result.controller.tags["Obj1"]
+    inner = result.controller.add_on_instructions["Inner"]
+    composite = tag.composite_initial_value
+    assert composite is not None
+    sub = composite.root.children[0]
+    timeout = sub.children[0]
+    assert sub.local_variable_definition is result.controller.add_on_instructions["Outer"].local_tags["Sub"]
+    assert timeout.local_variable_definition is inner.local_tags["Timeout"]
+    assert timeout.value == 0 and timeout.data_type == "INT"
+    assert not any(d.code == "uninterpreted_composite_initial_value" for d in result.diagnostics)
 
 
 def test_real_fixtures_capture_composite_initial_values_when_available():
@@ -661,6 +756,50 @@ def test_real_fixtures_capture_composite_initial_values_when_available():
                 tags += list(resource.tags.values())
             total += sum(1 for tag in tags if tag.composite_initial_value is not None)
     assert total == 214
+
+
+def test_real_fixtures_resolve_and_promote_composite_initial_values_when_available():
+    _skip_unless_full_reference_corpus()
+    import glob
+
+    def walk(node):
+        yield node
+        for child in node.children:
+            yield from walk(child)
+
+    leaves = 0
+    promoted = 0
+    diagnostics = 0
+    for path in glob.glob("reference/control-expert/*"):
+        if not path.lower().endswith((".xef", ".zef", ".zip")):
+            continue
+        for result in parse_projects(capture_file(Path(path))):
+            controller = result.controller
+            diagnostics += sum(1 for d in result.diagnostics if d.code == "uninterpreted_composite_initial_value")
+            tags = list(controller.tags.values())
+            for resource in controller.resources.values():
+                tags += list(resource.tags.values())
+            for tag in tags:
+                if tag.composite_initial_value is None:
+                    continue
+                for node in walk(tag.composite_initial_value.root):
+                    if not node.children:
+                        leaves += 1
+                        if node.value is not None:
+                            promoted += 1
+    # Real corpus evidence: struct members, array elements and DFB
+    # local-variable overrides now resolve and promote by declared type, the
+    # same conservative promotable-type rules a top-level tag's own
+    # initializer already uses. What stays unpromoted is genuine: TIME
+    # values (the same deliberate restraint as scalar initializers), the
+    # still-open PID/regulation library and RIO-drop Device DDT families,
+    # library (EFB) instances with no captured internal structure, and a
+    # handful of Device DDT catalog sub-structures not yet transcribed
+    # (T_U_DIS_SIS_CH_IN's own V_OC/V_SC/DIS_VALUE, MUID/RESERVED -- already
+    # noted as left out when the catalog was doubled).
+    assert leaves == 1376
+    assert promoted == 646
+    assert diagnostics == 99
 
 
 @pytest.mark.parametrize(("task_type", "value_type", "max_exec_time", "rate", "watchdog"), [

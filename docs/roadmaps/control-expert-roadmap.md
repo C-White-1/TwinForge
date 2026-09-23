@@ -220,12 +220,17 @@ must remain unchanged.
 
 ## Milestone 5: broader type and source coverage — partial
 
-- [ ] Promote a documented subset of scalar initial values with lexical provenance
-      (partial: BOOL/integer-family/REAL tag initializers promote -- see the
-      scalar initial value checkpoint below; TIME stays lexical-only on
-      purpose. Composite/array initial values are now captured lexically too
-      -- see the composite initial value checkpoint below -- but, like TIME,
-      not yet promoted)
+- [x] Promote a documented subset of scalar initial values with lexical provenance
+      (BOOL/integer-family/REAL tag initializers promote -- see the scalar
+      initial value checkpoint below; TIME stays lexical-only on purpose.
+      Composite/array initial values -- struct members, array elements and
+      DFB instance local-variable overrides -- now resolve their member/
+      local identity and promote scalar leaves the same way -- see the
+      composite initial value promotion checkpoint below; what stays
+      unpromoted is the same kind of genuine, documented gap: TIME values,
+      the still-open PID/regulation library and RIO-drop Device DDT
+      families, library (EFB) instances with no captured internal
+      structure, and catalog sub-structures not yet transcribed)
 - [x] Model array lower bounds without zero-base loss, for DDT members
       (`DatatypeMember.dimension` retains the lexical `lower..upper` text
       unchanged, e.g. `"257..384"`, deliberately not renumbered from zero)
@@ -1508,3 +1513,56 @@ worked. 4 new tests (forward-reference DFB-typed local, array-typed local,
 genuinely-unknown-type local, plus an existing real-fixture count updated
 from 26 to 29 unresolved_type occurrences); full suite (1438 tests) passed;
 Ruff and Pyright passed.
+
+Composite initial value promotion checkpoint (2026-09-23): the composite
+initial value checkpoint above deliberately stopped at lexical-only capture.
+With DFB local variables now fully typed (see the checkpoint above -- a
+prerequisite this work is what actually surfaced that gap), each
+`instanceElementDesc` node now resolves its own declaring member/local
+variable and, for a leaf, promotes its scalar value the same conservative
+way a top-level tag's own initializer already does.
+
+`container` tracks what a node's own name is looked up against: a
+`Datatype` for a struct member (`CompositeTagValueNode.member_definition`)
+or an `AddOnInstruction` for a DFB instance's own local-variable override
+(`local_variable_definition`, a new field -- a `Tag`, not a `DatatypeMember`,
+so it needed its own slot rather than overloading one typed for the other).
+An array-index child reuses its declaring array's own element type rather
+than being looked up by name. Real evidence required one more
+normalization: a project DDT member's `data_type_name` already arrives
+array-unwrapped (existing `_datatypes` behavior), but the vendor Device DDT
+catalog's own `data_type_name` does not (`T_U_DIS_SIS_IN_16`'s `CH_IN_A` is
+literally `"ARRAY[0..7] OF T_U_DIS_SIS_CH_IN"`) -- element-type propagation
+now always unwraps, the same normalization already applied to a top-level
+tag's own type, which alone raised resolved member/local identities from
+1207 to 1723 real occurrences.
+
+`_declare_variables` now resolves a tag's own type before building its
+composite value (reordered, not rewritten -- every diagnostic still reports
+in its original relative position) so composite resolution can start from
+the tag's already-resolved `function_block_instance`/`data_type_definition`/
+`vendor_documented_type`. `uninterpreted_composite_initial_value` now fires
+only when something under a tag's composite value remains genuinely
+unresolved, mirroring the scalar initializer's own "nothing left
+uninterpreted" standard, rather than unconditionally on every composite tag
+as before.
+
+Real result across all 214 composite-valued tags: 1723 of 1988 member/
+local/array-index identities resolve, and 646 of 1376 leaf values promote.
+What stays unresolved is the same kind of genuine, already-documented gap
+promotion elsewhere in this project respects: TIME leaves (the same
+deliberate restraint as scalar initializers, 65 occurrences), the
+still-open PID/regulation library (`Para_PI`/`Para_RAMP`) and RIO-drop
+Device DDT families (`T_M_DIS_ERT`/`T_M_COM_NOM`/`T_M_CRA_EXT_IN`/
+`T_M_DROP_EXT_IN`, still no manual found), `TON` and other library (EFB)
+instances with no captured internal structure to resolve a composite
+override against, and a handful of Device DDT catalog sub-structures the
+catalog itself doesn't transcribe (`T_U_DIS_SIS_CH_IN`'s own `V_OC`/`V_SC`/
+`DIS_VALUE`, `MUID`/`RESERVED` -- already noted as left out when the catalog
+was doubled). 99 of the 214 composite-valued tags still carry the
+diagnostic; the other 115 now fully resolve. 8 new tests (struct member
+resolution and promotion, array member elements, a DFB instance's own
+local-variable override, a local variable that is itself a DFB instance one
+level deeper, an unrecognized-type negative case, plus real-fixture checks
+for both the existing 214-tag count and the new resolution/promotion
+counts); full suite (1443 tests) passed; Ruff and Pyright passed.
