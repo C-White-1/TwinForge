@@ -229,6 +229,10 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
         ]} for rack in controller.chassis.values()],
         "unplaced_modules": [{"catalog": module.catalog, "slot": module.slot}
                              for module in controller.unplaced_modules],
+        "coil_write_evidence": [{
+            "tag_name": evidence.tag_name,
+            "locations": [asdict(location) for location in evidence.locations],
+        } for evidence in project.coil_write_evidence],
         "diagnostics": [asdict(diagnostic) for diagnostic in project.diagnostics],
     }
 

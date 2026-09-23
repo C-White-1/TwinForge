@@ -416,3 +416,60 @@ def resolve_function_block_bindings(
                 direct_address_pattern=direct_address_pattern,
             ))
     return issues
+
+
+@dataclass(frozen=True)
+class CoilWriteLocation:
+    """One resolved coil write, by source location -- not itself a diagnostic."""
+
+    program_name: str
+    routine_name: str
+    diagram_index: int
+    object_index: int
+
+
+@dataclass(frozen=True)
+class TagWriteEvidence:
+    """Every coil across a controller's programs that writes a given declared
+    tag, grouped by tag identity. More than one location is real and common
+    (e.g. a conditional set in one section, a conditional reset in another)
+    -- this never claims the writes are erroneous, redundant, or mutually
+    exclusive, only that they exist. Consumers checking "multiple writers"
+    filter on ``len(locations) > 1`` themselves.
+    """
+
+    tag_name: str
+    locations: tuple[CoilWriteLocation, ...]
+
+
+def resolve_coil_write_evidence(controller: Controller) -> list[TagWriteEvidence]:
+    """Group every resolved coil write by its declared target tag, across all
+    top-level programs.
+
+    Deliberately scoped to LD coils only -- the one graphical shape this
+    project's own prior work already treats as an unconditional write (see
+    the coil operand binding checkpoint: "a coil cannot legitimately write a
+    step's active-state bit"). A general FBD/EFB "output" pin is excluded on
+    purpose: source pin direction alone does not prove memory read/write
+    effects (see ``GraphicalPin.direction``), so claiming one is a write
+    would be exactly the inference this project has repeatedly declined to
+    make elsewhere. Function Block bodies are excluded too -- a coil there
+    writes the FB *definition*'s own local tag, shared textually across
+    every instantiation, not a single project-wide storage location the way
+    a program-scope tag is.
+    """
+    by_tag: dict[int, tuple[Tag, list[CoilWriteLocation]]] = {}
+    for program in controller.programs.values():
+        for routine in program.routines.values():
+            for diagram_index, diagram in enumerate(routine.graphical_diagrams):
+                for object_index, obj in enumerate(diagram.objects):
+                    if obj.kind != "coil" or obj.target_tag is None:
+                        continue
+                    key = id(obj.target_tag)
+                    _, locations = by_tag.setdefault(key, (obj.target_tag, []))
+                    locations.append(CoilWriteLocation(
+                        program_name=program.name, routine_name=routine.name,
+                        diagram_index=diagram_index, object_index=object_index,
+                    ))
+    return [TagWriteEvidence(tag_name=tag.name, locations=tuple(locations))
+            for tag, locations in by_tag.values()]

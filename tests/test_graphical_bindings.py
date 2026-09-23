@@ -1,5 +1,7 @@
 """Symbol evidence must not become an invented wire or execution dependency."""
-from twinforge.analysis.graphical_bindings import resolve_function_block_bindings, resolve_graphical_bindings
+from twinforge.analysis.graphical_bindings import (
+    resolve_coil_write_evidence, resolve_function_block_bindings, resolve_graphical_bindings,
+)
 from twinforge.model import (
     AddOnInstruction, AddOnInstructionParameter, Controller, GraphicalDiagram, GraphicalObject, GraphicalPin,
     Identity, Program, Routine, Tag,
@@ -631,3 +633,79 @@ def test_real_fixture_resolves_chart_control_call_references_when_available():
     assert ("INITCHART", "CHARTREF", "G2", None) in found
     assert ("SETSTEP", "STEPNAME", None, "G1_0") in found
     assert len(found) == 3
+
+
+def test_coil_write_evidence_reports_every_writer_including_single():
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="Alarm", data_type="BOOL"))
+    controller.add_tag(Tag(name="Reset", data_type="BOOL"))
+    set_program = Program(name="SetLogic")
+    set_routine = Routine(name="SetLogic", language="LD")
+    set_routine.graphical_diagrams.append(GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="coil", operand="Alarm"),
+    ]))
+    set_program.add_routine(set_routine)
+    reset_program = Program(name="ResetLogic")
+    reset_routine = Routine(name="ResetLogic", language="LD")
+    reset_routine.graphical_diagrams.append(GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="coil", operand="Alarm"),
+        GraphicalObject(kind="coil", operand="Reset"),
+    ]))
+    reset_program.add_routine(reset_routine)
+    controller.add_program(set_program)
+    controller.add_program(reset_program)
+    resolve(controller)
+    evidence = {e.tag_name: e for e in resolve_coil_write_evidence(controller)}
+    assert len(evidence["Alarm"].locations) == 2
+    assert {(loc.program_name, loc.routine_name) for loc in evidence["Alarm"].locations} == {
+        ("SetLogic", "SetLogic"), ("ResetLogic", "ResetLogic"),
+    }
+    assert len(evidence["Reset"].locations) == 1
+
+
+def test_coil_write_evidence_excludes_output_pins_and_function_block_bodies():
+    # A general FBD/EFB output pin is not treated as a write -- source pin
+    # direction alone does not prove memory read/write effects. A coil
+    # inside an FB body writes the FB *definition*'s own local tag, shared
+    # textually across every call-site instance, not a single project-wide
+    # storage location -- also excluded.
+    controller = Controller(name="example", identity=Identity())
+    controller.add_tag(Tag(name="Buffer", data_type="WORD"))
+    program = Program(name="logic")
+    routine = Routine(name="logic", language="FBD")
+    routine.graphical_diagrams.append(GraphicalDiagram(language="FBD", objects=[
+        GraphicalObject(kind="block", pins=[
+            GraphicalPin(name="OUT", direction="output", expression="Buffer"),
+        ]),
+    ]))
+    program.add_routine(routine)
+    controller.add_program(program)
+    aoi = AddOnInstruction(name="MyDFB")
+    aoi.add_local_tag(Tag(name="Local", data_type="BOOL"))
+    fb_routine = Routine(name="MyDFB", language="LD")
+    fb_routine.graphical_diagrams.append(GraphicalDiagram(language="LD", objects=[
+        GraphicalObject(kind="coil", operand="Local"),
+    ]))
+    aoi.add_routine(fb_routine)
+    controller.add_add_on_instruction(aoi)
+    resolve(controller)
+    resolve_fb(controller)
+    assert resolve_coil_write_evidence(controller) == []
+
+
+def test_real_fixture_resolves_coil_write_evidence_when_available():
+    import pytest
+    from pathlib import Path
+    from twinforge.parsers.control_expert import capture_file, parse_projects
+
+    path = Path("reference/control-expert/Escalier_Mecanique.XEF")
+    if not path.exists():
+        pytest.skip("reference fixture absent")
+    result, = parse_projects(capture_file(path))
+    multi = {e.tag_name: e for e in result.coil_write_evidence if len(e.locations) > 1}
+    assert set(multi) == {"p_prev"}
+    assert {(loc.program_name, loc.routine_name) for loc in multi["p_prev"].locations} == {
+        ("Init_Logic", "Init_Logic"), ("Rising_Edge_Detection", "Rising_Edge_Detection"),
+    }
+    assert any(d.code == "multiple_coil_writers" and d.message.startswith("p_prev:")
+              for d in result.diagnostics)

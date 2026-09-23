@@ -15,7 +15,8 @@ from twinforge.schema.control_expert.expressions import EXPRESSION_SPEC
 from twinforge.schema.control_expert import device_ddt_catalog
 from twinforge.analysis.execution_order import resolve_fbd_execution_order
 from twinforge.analysis.graphical_bindings import (
-    _unique_by_name, member_path_context, resolve_function_block_bindings, resolve_graphical_bindings,
+    TagWriteEvidence, _unique_by_name, member_path_context, resolve_coil_write_evidence,
+    resolve_function_block_bindings, resolve_graphical_bindings,
 )
 from twinforge.analysis.library_calls import match_library_calls
 from twinforge.analysis.sequential_bindings import resolve_sequential_bindings
@@ -59,6 +60,7 @@ class ParsedProject:
     diagnostics: list[Diagnostic] = field(default_factory=list)
 
     library_interfaces: list[LibraryInterface] = field(default_factory=list)
+    coil_write_evidence: list[TagWriteEvidence] = field(default_factory=list)
 
     def report(self, code: str, message: str, node: CapturedSection) -> None:
         self.diagnostics.append(Diagnostic(code, message, node.source))
@@ -952,6 +954,23 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         metadata = target.source_extensions[0].metadata
         result.diagnostics.append(Diagnostic(
             issue.code, f"{issue.program_name}/{issue.routine_name}: {issue.expression!r}",
+            SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
+        ))
+    # Coil write evidence needs target_tag already resolved by the bindings
+    # pass above; every tag with a coil write is retained, not only the
+    # multiple-writer ones, matching how shared_variables exposes full
+    # evidence rather than only its own ambiguous cases.
+    result.coil_write_evidence = resolve_coil_write_evidence(controller)
+    for evidence in result.coil_write_evidence:
+        if len(evidence.locations) < 2:
+            continue
+        last = evidence.locations[-1]
+        obj = (controller.programs[last.program_name].routines[last.routine_name]
+               .graphical_diagrams[last.diagram_index].objects[last.object_index])
+        metadata = obj.source_extensions[0].metadata
+        writers = "; ".join(f"{loc.program_name}/{loc.routine_name}" for loc in evidence.locations)
+        result.diagnostics.append(Diagnostic(
+            "multiple_coil_writers", f"{evidence.tag_name}: written by coils in {writers}",
             SourceLocation(metadata["input_sha256"], metadata["members"], metadata["xml_path"]),
         ))
     # Shared symbols can expose ambiguity, but cannot establish vendor order.

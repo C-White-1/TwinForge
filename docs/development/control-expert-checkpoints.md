@@ -1233,3 +1233,72 @@ local-variable override, a local variable that is itself a DFB instance one
 level deeper, an unrecognized-type negative case, plus real-fixture checks
 for both the existing 214-tag count and the new resolution/promotion
 counts); full suite (1443 tests) passed; Ruff and Pyright passed.
+
+Coil write evidence checkpoint (2026-09-23): the "multiple writers" half of
+"Account for chart-control calls and multiple writers before execution
+claims" was scoped before implementing anything, since the roadmap line
+names chart/step state specifically. Checked directly: across the whole
+reference corpus, no `INITCHART`/`SETSTEP`/`FREEZECHART` call ever targets a
+chart or step already targeted by another call site within the same real
+project -- every apparent duplicate (`G1`, `G2`, `G1_0`, ...) turned out to
+be the identical project counted twice, once as a standalone export and
+once as its own embedded ZEF. That variant stays unimplemented, the same
+standard already applied to `parBranch`/`parJoint`: real, but not yet
+buildable against.
+
+Checking the *general* case (an ordinary declared tag written from more
+than one routine/section, not just multiple pins in one diagram, which the
+existing `shared_variables` grouping already covers) found real evidence
+instead: `p_prev` is set from both `Init_Logic` and `Rising_Edge_Detection`
+in the real escalator project; `databuffnoe`/`resetnoe` are each written
+from two different sections in the real function15/function2 fixtures.
+
+The `databuffnoe`/`resetnoe` writes are through a general FBD/EFB output
+pin, not a coil -- and this project has a standing, three-times-repeated
+rule that source pin direction alone does not prove memory read/write
+effects (`GraphicalPin.direction`'s own field comment, the roadmap, and the
+capture specification all say so independently). Claiming an "output" pin
+writes its bound tag would be exactly that inference. A coil is different:
+prior work already treats it as an unconditional write in its own
+commentary (the coil operand binding checkpoint: "a coil cannot legitimately
+write a step's active-state bit"), and IEC 61131-3 gives it well-established
+LD semantics a generic block parameter direction does not carry. `resolve_
+coil_write_evidence(controller)` is scoped to coils only on this basis --
+`databuffnoe`/`resetnoe` are real evidence for a *different*, not-yet-scoped
+capability (general read/write access semantics), not for this one.
+
+New `CoilWriteLocation`/`TagWriteEvidence` (`analysis/graphical_bindings.py`)
+group every resolved coil write by its target tag across a controller's
+top-level programs, keyed by tag identity; Function Block bodies are
+excluded on purpose -- a coil there writes the FB *definition*'s own local
+tag, shared textually across every call-site instance, not a single
+project-wide storage location the way a program-scope tag is. Every tag
+with at least one coil write is retained, not only the multiple-writer
+ones, matching how `shared_variables` already exposes full evidence rather
+than only its own ambiguous cases; a new `multiple_coil_writers` diagnostic
+fires only for tags with two or more distinct (program, routine) locations,
+listing them, and never claims the writes are erroneous, redundant or
+mutually exclusive -- a genuine PLC pattern (e.g. a conditional set in one
+section, a conditional reset in another) is exactly what this surfaces.
+Exposed in CLI JSON as `coil_write_evidence`, alongside the existing
+`diagnostics` list. 4 new tests (single- vs multi-writer grouping, the
+output-pin/FB-body exclusions, a real-fixture check); full suite (1446
+tests) passed; Ruff and Pyright passed.
+
+In passing, this also surfaced a larger, separate architectural gap not
+acted on here: `analysis/tag_dependencies.py` (which backs the existing
+L5X cause-and-effect/alarm-candidate analyses, and describes itself as
+building "source-neutral tag cross-references") only reads a routine's
+`LadderRung.text` -- an RLL mnemonic string only the L5X converter
+populates. Control Expert's own Ladder series checkpoint (and CCW's
+converter) populate `LadderRung.network` (the portable, already-structured
+`LadderSeries`/`LadderInstruction` representation) instead, so CE and CCW
+ladder logic is currently invisible to that whole analysis family, silently
+skipped rather than diagnosed. Teaching `tag_dependencies.py` to also walk
+`.network` when `.text` is absent -- using `LadderInstruction.operation`'s
+already-portable `COIL`/`RESET_COIL`/contact semantics directly, more
+precise than re-parsing mnemonic text -- would unlock cause-and-effect and
+alarm-candidate analysis for Control Expert and CCW projects for free. That
+is a substantially larger change touching shared, already-relied-on L5X
+machinery, so it is recorded here as a scoped follow-up rather than
+attempted under this checkpoint.

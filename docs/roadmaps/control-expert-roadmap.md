@@ -98,10 +98,27 @@ calls. Both exports identify Premium despite the repository's M580 description.
       needs real expression parsing this project does not have yet
 - [ ] Account for chart-control calls and multiple writers before execution claims
       (partial: chart-control call references now resolve -- see the chart
-      control reference checkpoint below; "multiple writers" for chart/step
-      state specifically -- distinct from the existing shared-variable
-      multi-writer guard, which does not model chart state at all -- remains
-      open)
+      control reference checkpoint below. Multiple writers for ordinary
+      declared tags, across routines/sections rather than within one
+      diagram, now resolve too -- see the coil write evidence checkpoint
+      below. "Multiple writers" for chart/step state *specifically* --
+      more than one `INITCHART`/`SETSTEP`/`FREEZECHART` call targeting the
+      same chart or step -- was checked directly and has zero real corpus
+      evidence: every apparent duplicate target across the whole reference
+      corpus turned out to be the same project counted twice, once
+      standalone and once as its own embedded export. Stays unimplemented
+      on purpose, the same standard already applied to `parBranch`/
+      `parJoint`, until a real fixture demonstrates the shape)
+- [ ] Backlog: connect `analysis/tag_dependencies.py` (the shared machinery
+      behind L5X cause-and-effect/alarm-candidate analysis) to Control
+      Expert and CCW ladder logic. It currently only reads a routine's
+      `LadderRung.text` (an RLL mnemonic string only the L5X converter
+      populates); CE and CCW instead populate the portable, already-
+      structured `LadderRung.network`, so their ladder logic is silently
+      invisible to that whole analysis family today. Found while scoping
+      the coil write evidence checkpoint below; a substantially larger
+      change than that checkpoint, touching shared L5X-relied-on code, so
+      deliberately not attempted under it
 
 ## Milestone 2: lossless capture — initial implementation complete
 
@@ -363,4 +380,3 @@ results at the time -- is kept separately in the
 For each milestone, record code, independent tests, source evidence, open
 limitations and user-facing documentation together. Do not mark graphical
 execution or vendor compatibility complete based only on successful capture.
-
