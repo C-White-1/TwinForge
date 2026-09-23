@@ -374,7 +374,7 @@ def _datatypes(result: ParsedProject, root: CapturedSection, spec: MappingSpec) 
 
 def _function_blocks(
     result: ParsedProject, root: CapturedSection, spec: MappingSpec,
-    known_datatypes: dict[str, Datatype],
+    known_datatypes: dict[str, Datatype], catalog_datatypes: dict[str, Datatype],
 ) -> None:
     """Map user-defined Function Block (DFB) definitions: interface, locals and body.
 
@@ -382,8 +382,16 @@ def _function_blocks(
     bindings (pin/symbol resolution) are not attempted here -- an FB body's
     parameters and locals form their own namespace, not the project's global
     tags, and the existing binding analyses assume one flat global scope.
+
+    Two passes: every DFB is registered by name first, then interfaces/locals/
+    bodies are filled in -- a local variable typed as *another* DFB (real
+    evidence: `IO_READAPI`'s `IO_READVAR` local is itself an `IO_READVAR`
+    instance) must be able to resolve regardless of which DFB is declared
+    first in source order, the same forward-reference problem DDT members
+    already solve with their own two-pass capture.
     """
     used: set[str] = set()
+    pending: list[tuple[CapturedSection, AddOnInstruction]] = []
     for node in _select(root, spec.function_blocks):
         name = _unique_name(result, node, node.raw_attributes.get(spec.function_block_name_attribute), used, "function block")
         if name is None:
@@ -391,6 +399,10 @@ def _function_blocks(
         comment = _first(node, spec.comments)
         aoi = AddOnInstruction(name=name, description=comment.text if comment else None,
                                source_extensions=[_extension(node)])
+        result.controller.add_add_on_instruction(aoi)
+        pending.append((node, aoi))
+    for node, aoi in pending:
+        name = aoi.name
         param_used: set[str] = set()
         for path, direction in spec.library_parameters:
             for parameter in _select(node, path):
@@ -417,11 +429,34 @@ def _function_blocks(
                 if lname is None:
                     continue
                 type_name = attrs.get("typeName")
-                local_tag = Tag(
-                    name=lname, data_type=type_name,
-                    data_type_definition=known_datatypes.get(type_name.casefold()) if type_name else None,
-                    source_extensions=[_extension(local_node)],
-                )
+                local_tag = Tag(name=lname, data_type=type_name, source_extensions=[_extension(local_node)])
+                # Mirrors _declare_variables: an array-wrapped type resolves
+                # its element type, never the wrapper text itself -- real
+                # evidence here (e.g. "_adelay: ARRAY[0..15] OF INT") is
+                # otherwise a plain scalar element, wrongly unresolved_type.
+                array_match = re.fullmatch(spec.array_pattern, type_name or "", flags=re.IGNORECASE)
+                base_type = type_name
+                if array_match:
+                    lower, upper = int(array_match[1]), int(array_match[2])
+                    base_type = array_match[3]
+                    if upper >= lower:
+                        local_tag.metadata["source_array_bounds"] = [[lower, upper]]
+                        local_tag.metadata["source_array_element_type"] = base_type
+                    else:
+                        result.report("invalid_array_bounds", f"{name}.{lname}: upper bound precedes lower bound",
+                                      local_node)
+                    result.report("unresolved_array_type",
+                                  f"{name}.{lname}: array expression and bounds retained; type not resolved",
+                                  local_node)
+                if base_type:
+                    (local_tag.data_type_definition, local_tag.function_block_instance,
+                     local_tag.library_type, local_tag.vendor_documented_type) = _type_definition(
+                        base_type, known_datatypes, catalog_datatypes, result)
+                local_known = (local_tag.data_type_definition or local_tag.function_block_instance
+                              or local_tag.library_type or local_tag.vendor_documented_type)
+                if local_known is None and (not base_type or base_type.upper() not in spec.scalar_types):
+                    result.report("unresolved_type",
+                                  f"{name}.{lname}: no supported type definition for {base_type!r}", local_node)
                 local_tag.metadata["visibility"] = visibility
                 aoi.add_local_tag(local_tag)
         programs = _select(node, spec.function_block_program)
@@ -460,7 +495,6 @@ def _function_blocks(
                     aoi.add_routine(routine)
         else:
             result.report("unresolved_function_block_body", f"{name}: no supported implementation body found", node)
-        result.controller.add_add_on_instruction(aoi)
 
 
 def _function_block_routine(
@@ -752,7 +786,7 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     # as a DFB instance can be cross-referenced immediately, the same as one
     # typed as a DDT; _function_blocks does not itself depend on tags or
     # resources having been captured first.
-    _function_blocks(result, root, spec, known_datatypes)
+    _function_blocks(result, root, spec, known_datatypes, catalog_datatypes)
     _variables(result, root, spec, known_datatypes, catalog_datatypes)
     _resources(result, root, spec, known_datatypes, catalog_datatypes)
     _programs_and_tasks(result, root, spec)

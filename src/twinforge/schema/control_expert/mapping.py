@@ -90,6 +90,11 @@ class MappingSpec:
         # EBOOL is Schneider's own extended-BOOL elementary type (adds
         # rising/falling-edge and forcing), still scalar, not composite.
         "BYTE", "REAL", "EBOOL", "DWORD", "UDINT", "UINT",
+        # Evidenced in the same corpus's DFB local-variable declarations
+        # (TOD/DATE/DT abbreviate IEC 61131-3 TIME_OF_DAY/DATE/DATE_AND_TIME);
+        # a genuinely elementary, unambiguous scalar family, not composite or
+        # vendor-specific, the same reasoning the types above already apply.
+        "TOD", "DATE", "DT",
     })
     array_pattern: str = r"ARRAY\[(-?\d+)\.\.(-?\d+)\] OF ([A-Za-z_][A-Za-z_0-9]*)"
 

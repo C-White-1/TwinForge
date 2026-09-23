@@ -1469,3 +1469,42 @@ only judgment call is the empty-value normalization above. 3 new tests (a
 real-shaped value, the empty/absent pair, a real-fixture count with an
 example block's text checked by prefix); full suite (1435 tests) passed;
 Ruff and Pyright passed.
+
+DFB local-variable typing checkpoint (2026-09-23): a DFB local variable's
+own `typeName` was resolved only against `known_datatypes` (a raw dict
+lookup), unlike a top-level or resource tag's own type, which already goes
+through the full four-way `_type_definition` (DDT / DFB instance / library
+interface / Device DDT catalog) with an `unresolved_type` diagnostic when
+none apply. This was a real, silent gap: real evidence surfaced while
+scoping composite-initial-value promotion (a natural next step after the
+composite initial value checkpoint above) shows a local variable is
+routinely itself a DFB instance -- `IO_READAPI`'s `IO_READVAR` local is an
+`IO_READVAR` instance, `P_BREAKER`'s `_count` local is its own counter DFB
+-- exactly what a composite `instanceElementDesc` override targets one level
+down, and what silently fell through as `data_type_definition = None` with
+no diagnostic at all.
+
+`_function_blocks` now runs in two passes: every DFB is registered by name
+first (structure filled in after), so a local naming a DFB declared *later*
+in source order resolves the same as one declared earlier -- the identical
+forward-reference problem DDT members already solve with their own
+two-pass capture, now solved the same way for DFB local variables. Locals
+also gained the same array-wrapper stripping `_declare_variables` already
+applies to top-level tags (`ARRAY[0..15] OF INT` resolves its `INT` element,
+not the wrapper text -- `unresolved_array_type`, not `unresolved_type`) and
+the same `unresolved_type` diagnostic top-level tags already get when
+nothing applies. Real result: 33 real local variables that previously
+resolved silently to nothing now classify correctly -- 30 as scalar arrays
+(`unresolved_array_type`, matching top-level/DDT-member convention) and 3
+as `Para_SCALING`, a genuinely new, unresolved member of the already-open
+PID/regulation library family (joining `Para_PI`/`Mode_MH`/`Para_RAMP`).
+`TOD`/`DATE`/`DT` (real evidence: `dt#1990-01-01-00:00:00` in a local's own
+composite initial value) were added to the recognized elementary scalar set,
+the same reasoning `BYTE`/`REAL`/`EBOOL`/`DWORD`/`UDINT`/`UINT` were added
+under earlier. Top-level/resource tag classification counts are unchanged
+(336 fb_instance / 131 library_type / 3 ddt / 301 catalog) -- this closes a
+gap in local-variable typing specifically, not a regression in what already
+worked. 4 new tests (forward-reference DFB-typed local, array-typed local,
+genuinely-unknown-type local, plus an existing real-fixture count updated
+from 26 to 29 unresolved_type occurrences); full suite (1438 tests) passed;
+Ruff and Pyright passed.

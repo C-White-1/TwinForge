@@ -199,6 +199,53 @@ def test_parameter_and_local_type_resolve_against_a_known_datatype():
     assert not any(d.code == "unresolved_type" for d in result.diagnostics)
 
 
+def test_local_variable_typed_as_another_dfb_resolves_regardless_of_declaration_order():
+    # Real evidence: IO_READAPI's IO_READVAR local is itself an IO_READVAR
+    # instance, and DFBs are captured in source order -- a local variable
+    # naming a DFB declared *later* in the file must still resolve, the same
+    # forward-reference problem DDT members already solve with two passes.
+    result = project('''
+      <FBSource nameOfFBType="Later"><FBProgram><STSource>;</STSource></FBProgram></FBSource>
+      <FBSource nameOfFBType="Earlier">
+        <privateLocalVariables><variables name="Inner" typeName="Later"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+    ''')
+    earlier = result.controller.add_on_instructions["Earlier"]
+    later = result.controller.add_on_instructions["Later"]
+    local = earlier.local_tags["Inner"]
+    assert local.function_block_instance is later
+    assert not any(d.code == "unresolved_type" for d in result.diagnostics)
+
+
+def test_array_typed_local_variable_resolves_its_element_type():
+    result = project('''
+      <FBSource nameOfFBType="M_ARR">
+        <privateLocalVariables><variables name="_buf" typeName="ARRAY[0..9] OF INT"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+    ''')
+    local = result.controller.add_on_instructions["M_ARR"].local_tags["_buf"]
+    assert local.metadata["source_array_bounds"] == [[0, 9]]
+    assert local.metadata["source_array_element_type"] == "INT"
+    codes = {d.code for d in result.diagnostics}
+    assert "unresolved_array_type" in codes
+    assert "unresolved_type" not in codes
+
+
+def test_local_variable_of_a_genuinely_unknown_type_is_diagnosed():
+    result = project('''
+      <FBSource nameOfFBType="M_UNKNOWN">
+        <privateLocalVariables><variables name="Par" typeName="Para_SCALING"/></privateLocalVariables>
+        <FBProgram><STSource>;</STSource></FBProgram>
+      </FBSource>
+    ''')
+    local = result.controller.add_on_instructions["M_UNKNOWN"].local_tags["Par"]
+    assert (local.data_type_definition, local.function_block_instance,
+            local.library_type, local.vendor_documented_type) == (None, None, None, None)
+    assert any(d.code == "unresolved_type" and d.message.startswith("M_UNKNOWN.Par:") for d in result.diagnostics)
+
+
 def test_function_block_is_a_library_interface_for_call_validation():
     result = project('''
       <FBSource nameOfFBType="M_ADD">
