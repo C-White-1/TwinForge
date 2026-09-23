@@ -1349,3 +1349,37 @@ recursion, the unsupported/unbound-operand exclusion, a real-fixture
 check); full suite (1451 tests) passed; Ruff and Pyright passed, including
 the CCW-specific test subset (23 tests), since CCW's own ladder rungs are
 now processed the same way for the first time too.
+
+`nin` extensible parameter checkpoint (2026-09-23): a real diagnostic
+survey across the whole corpus (`unresolved_library_pin`, 20 occurrences)
+led here -- all 20 were extensible-family pins the existing Extensible-
+parameter checkpoint's own mechanism did not cover: `MAX`/`MIN`/`LT`/`LE`/
+`GE`/`EQ` (and their `_REAL`/`_INT`/`_TIME` variants) and `LOOKUP_TABLE1`,
+all real calls in `estradege_m580-safety.xef`. Their own `IN1`/`XIYI1`
+parameter never carries the literal `"(Extensible)"` comment text the
+existing mechanism keys on; instead it reads `"Input 1..32"`,
+`"Input (IN0..IN30)"` (the `MUX` family), or has no extensibility hint in
+its own text at all (`LOOKUP_TABLE1`'s `"X/Y coordinate support points"`).
+
+Surveying every one of the 268 real library interfaces in the corpus for a
+hidden `nin` (input count) parameter -- the same structural marker the
+original Extensible-parameter checkpoint noted in passing but did not key
+on -- found it a strictly more general, equally reliable signal: every
+interface carrying the `"(Extensible)"` marker also declares `nin` (zero
+counterexample), while 21 real interfaces declare `nin` with no marker
+text at all. `_extensible_templates` now registers a template on either
+signal -- the marker check is kept, not replaced, since a hypothetical
+future template could carry the marker without `nin` the way none observed
+so far does the reverse -- and only for a parameter's own `input` side,
+matching every real occurrence (no evidence of an extensible output family
+paired with a hidden count parameter). This is exactly the same kind of
+generalization-by-declared-structure this session already applied to
+chart-control calls (typed parameters, not block names) and DFB local
+variables (full type resolution, not a raw dict lookup).
+
+Real result: all 20 previously-`unresolved_convention` pins now resolve
+`matched_extensible`; `unresolved_library_pin` drops from 20 to 0 across
+the whole corpus. 4 new tests (the `nin`-without-marker shape, a non-first-
+parameter template alongside an unrelated unresolved output pin staying
+correctly unresolved, a real-fixture check covering all 7 newly-resolved
+block types); full suite (1454 tests) passed; Ruff and Pyright passed.

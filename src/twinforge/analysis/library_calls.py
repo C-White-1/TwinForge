@@ -13,9 +13,25 @@ _TRAILING_DIGITS = re.compile(r"^(.*?)(\d+)$")
 
 
 def _extensible_templates(interface: LibraryInterface) -> dict[tuple[str, str], list[int]]:
+    """A repeatable input-parameter family, evidenced either by the literal
+    "(Extensible)" comment marker or by a hidden "nin" (input count)
+    parameter -- a second, more general real signal for the identical
+    convention: every real interface carrying the marker also declares
+    "nin", but 21 real interfaces (MAX/MIN/LT/LE/GE/EQ and their
+    _REAL/_INT/_TIME variants, the MUX family, LOOKUP_TABLE1) declare "nin"
+    alongside a differently-worded or absent comment instead ("Input
+    1..32", "Input (IN0..IN30)", or no comment at all). Both signals are
+    kept rather than replacing the marker check, since a future template
+    could plausibly carry the marker with no "nin" the way none observed so
+    far does the reverse.
+    """
+    has_nin = any(parameter.name and parameter.name.casefold() == "nin" for parameter in interface.parameters)
     templates: dict[tuple[str, str], list[int]] = {}
     for index, parameter in enumerate(interface.parameters):
-        if not parameter.name or not parameter.comment or _EXTENSIBLE_MARKER not in parameter.comment:
+        if not parameter.name:
+            continue
+        marked = bool(parameter.comment and _EXTENSIBLE_MARKER in parameter.comment)
+        if not marked and not (has_nin and parameter.direction == "input"):
             continue
         match = _TRAILING_DIGITS.match(parameter.name)
         if not match:

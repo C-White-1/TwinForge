@@ -177,7 +177,10 @@ visible. Initial values are lexical evidence, not promoted typed values.
 - [x] Capture and validate library block interfaces against actual calls
       (`LibraryInterface.description` now also promotes Schneider's own
       `TypeDescriptiveForm` documentation text -- see the library
-      description checkpoint below)
+      description checkpoint below. Extensible-parameter matching now also
+      recognizes a hidden `nin` parameter, not only the `(Extensible)`
+      comment marker -- see the `nin` extensible parameter checkpoint below;
+      real corpus coverage went from 0 to 20 previously-unresolved pins)
 - [x] Resolve LD contact step-state member expressions against declared SFC steps
 - [ ] Resolve indexed and other member expressions using proven type definitions and bounds
       (partial: proven paths resolve -- see the member path, resource variable,
