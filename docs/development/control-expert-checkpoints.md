@@ -1476,3 +1476,42 @@ recorded as its own roadmap follow-up rather than guessed at a fix here.
 nested inside a parenthesized binary comparison, the malformed-shape
 diagnostic, lossless reconstruction); full suite (1464 tests) passed;
 Ruff and Pyright passed.
+
+Digit-led identifier checkpoint (2026-09-24): the follow-up the direct-
+address checkpoint recorded above. `00CMA01EA900` and 41 other real KKS
+(power-plant equipment identification standard) tag names were mis-
+tokenized by the shared lexer's own numeric-literal path -- `_consume_
+literal_tail`'s continuation set (alnum/`_`/`#`/`:`) happily consumes
+letters too, originally so a based/typed literal's own tail (`16#FF`,
+`T#10s`) could be lexed from one entry point, with the side effect of
+also swallowing a digit-led name whole as one `LITERAL` token. This never
+failed to parse -- `P_SIM := %S6 and SIM and 00CMA01EA900;` parsed
+cleanly before this fix too -- so it never showed up in any unsupported-
+statement count; it silently mistyped a real tag reference as a literal
+value instead, a correctness gap distinct from a parse failure.
+
+`_numeric_literal` now consumes the alnum/`_` run first (without `#`,
+`:`, or the decimal/exponent tail yet) while tracking whether any letter
+appeared, then decides: a `#` immediately following still wins
+unconditionally and reads as a based/typed literal, exactly as before --
+real evidence backs this ordering too, since no real KKS name is ever
+followed by `#`; otherwise a letter anywhere in the run means the token
+is `IDENTIFIER`, matching `ExpressionSpec.identifier`'s own established
+rule for CE's pin/contact expressions ("a name may also start with
+digits... as long as it contains at least one letter/underscore
+somewhere... a token that is purely digits is a numeric literal... and
+must keep failing this pattern"); a purely-digit run still falls through
+to the original `_consume_literal_tail` call for its decimal/exponent
+tail, unchanged. `_primary()` needed no changes at all -- `TokenKind.
+IDENTIFIER` already becomes a `NameExpression` regardless of how it was
+produced.
+
+Real result: 42 distinct real digit-led names across the corpus
+(`00BBA01GS001`, `00CMA01GS100`, ...) now resolve as `NameExpression`
+instead of `LiteralExpression`; unsupported-statement counts are
+unaffected (71, unchanged), confirming this was purely a mistyping fix,
+not a parse-failure fix. 5 new tests (the real KKS shape resolving as a
+name, a pure-digit token still correctly staying a literal, a based/typed
+literal still taking priority when `#` follows a digit-led prefix,
+lossless reconstruction); full suite (1468 tests) passed; Ruff and
+Pyright passed.

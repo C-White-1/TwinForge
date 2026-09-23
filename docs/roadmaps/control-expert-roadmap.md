@@ -281,12 +281,11 @@ must remain unchanged.
       `%`-prefixed direct/system address inside an ST expression (`%S18`,
       `%SW12`) -- see the direct-address expression checkpoint below.
       Unsupported statements in the corpus are now 71, down from an
-      original 271. A newly-noticed, separate, not-yet-fixed gap: a
-      digit-led KKS-style identifier (`00CMA01EA900`, real evidence, an
-      industrial tag-naming convention) is currently mis-tokenized as a
-      numeric literal by the shared lexer rather than a name -- doesn't
-      cause a parse failure so it isn't in the unsupported count, but is a
-      real, separate correctness gap)
+      original 271. A digit-led KKS-style identifier (`00CMA01EA900`, real
+      evidence, an industrial tag-naming convention) is no longer
+      mis-tokenized as a numeric literal either -- see the digit-led
+      identifier checkpoint below; 42 distinct real names across the
+      corpus now resolve as names)
 - [ ] Backlog: step-state (`.X`) reference used inside a full ST statement,
       not just as an isolated LD contact operand or SFC condition/action
       variable -- real evidence: `ELSIF G1_2.X THEN` in

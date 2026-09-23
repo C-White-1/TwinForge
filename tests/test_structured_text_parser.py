@@ -13,6 +13,7 @@ from twinforge.structured_text import (
     IndexExpression,
     JumpStatement,
     LabelStatement,
+    LiteralExpression,
     MemberExpression,
     MissingExpression,
     NameExpression,
@@ -319,5 +320,50 @@ def test_malformed_direct_address_is_diagnosed_not_guessed():
 
 def test_direct_address_lossless_reconstruction():
     source = "IF %S6 AND SIM THEN\n  X := %SW30;\nEND_IF;\n"
+    document = parse_structured_text(source)
+    assert document.reconstructed_source == source
+
+
+def test_digit_led_kks_tag_name_is_an_identifier_not_a_literal():
+    # Real Control Expert evidence: "00CMA01EA900" is a KKS (power-plant
+    # equipment identification standard) tag name, not a number -- the same
+    # rule ExpressionSpec.identifier already applies to CE's own pin/contact
+    # expressions: digit-led is fine as long as a letter appears too.
+    document = parse_structured_text("P_SIM := %S6 and SIM and 00CMA01EA900;\n")
+
+    assert document.diagnostics == ()
+    assignment = document.statements[0]
+    assert isinstance(assignment, AssignmentStatement)
+    outer = assignment.value
+    assert isinstance(outer, BinaryExpression)
+    assert isinstance(outer.right, NameExpression)
+    assert outer.right.name == "00CMA01EA900"
+
+
+def test_pure_digit_token_stays_a_literal_not_an_identifier():
+    # The one shape that must keep failing to match as an identifier: no
+    # letter anywhere means it is a plain numeric literal, never a name.
+    document = parse_structured_text("X := 12345;\n")
+
+    assignment = document.statements[0]
+    assert isinstance(assignment, AssignmentStatement)
+    assert isinstance(assignment.value, LiteralExpression)
+    assert assignment.value.value == "12345"
+
+
+def test_based_literal_takes_priority_over_a_digit_led_identifier_reading():
+    # No real KKS name is ever immediately followed by "#"; a based/typed
+    # literal must still win when one directly follows a digit-led prefix.
+    document = parse_structured_text("X := 16#FF;\nY := T#10s;\n")
+
+    first, second = document.statements
+    assert isinstance(first, AssignmentStatement) and isinstance(first.value, LiteralExpression)
+    assert first.value.value == "16#FF"
+    assert isinstance(second, AssignmentStatement) and isinstance(second.value, LiteralExpression)
+    assert second.value.value == "T#10s"
+
+
+def test_digit_led_identifier_lossless_reconstruction():
+    source = "X := 00CMA01EA900 and 12345;\n"
     document = parse_structured_text(source)
     assert document.reconstructed_source == source

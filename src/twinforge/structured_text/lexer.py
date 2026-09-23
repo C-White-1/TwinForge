@@ -211,7 +211,30 @@ class _Lexer:
         self._append(TokenKind.DIRECT_ADDRESS, start, line, column)
 
     def _numeric_literal(self) -> None:
+        # A digit-led token is not always a literal: real evidence is a KKS
+        # (power-plant equipment identification standard) tag name such as
+        # "00CMA01EA900", indistinguishable from a literal only by whether a
+        # letter appears before the next non-identifier character -- the
+        # same rule ExpressionSpec.identifier already applies to CE's own
+        # pin/contact expressions. A based/typed literal ("16#FF", "T#10s")
+        # is checked first and always wins: no real KKS name is ever
+        # immediately followed by "#".
         start, line, column = self.position, self.line, self.column
+        has_letter = False
+        while self.position < len(self.source) and (
+            self.source[self.position].isalnum() or self.source[self.position] == "_"
+        ):
+            if self.source[self.position].isalpha():
+                has_letter = True
+            self._advance()
+        if self.position < len(self.source) and self.source[self.position] == "#":
+            self._advance()
+            self._consume_literal_tail()
+            self._append(TokenKind.LITERAL, start, line, column)
+            return
+        if has_letter:
+            self._append(TokenKind.IDENTIFIER, start, line, column)
+            return
         self._consume_literal_tail()
         self._append(TokenKind.LITERAL, start, line, column)
 
