@@ -1657,3 +1657,68 @@ scoped, ground-truth-backed follow-up rather than guessed at under time
 pressure. 2 new tests (the `setCoil` shape resolving correctly, a
 malformed-shape guard remains unaffected); full suite (1477 tests) passed;
 Ruff and Pyright passed.
+
+Multi-pin `shortCircuit`/`FFBBlock` investigation (2026-09-24, no code
+change): a direct follow-up attempt on the backlog item above, using the
+same `sayahali/conveyor-automation` fixture. Read-only investigation;
+nothing in `ladder.py` changed. Recorded in detail so the next attempt
+starts from what was actually learned here, not from zero.
+
+**Confirmed, and now independently re-verified beyond the original
+checkpoint's own evidence**: the parser's internal row counter (advanced
+one per `typeLine`, by `nbRows` per `emptyLine`) matches every real
+`FFBBlock`'s own `objPosition/posY` exactly. Checked directly against all
+12 `FFBBlock` instances in this fixture (`SR_8`, `SR_9`, `TON_23`, `SR_2`,
+`TON_24`, `SR_3`, `TON_25`, `SR_4`, `TON_26`, `SR_5`, `TON_28`, `SR_7`) by
+independently replicating the row-counting logic outside the parser and
+comparing to the raw XML's own `posY` attribute -- zero mismatches. This
+was already relied on for the `EN`-landing case; it is now confirmed to
+hold generally, not just for the cases already exercised.
+
+**The PDF is not ground truth for this specific file.** The instance the
+PDF visually shows with the cleanest two-separate-input-rows shape
+(`SR_33`, page 28 of `documentation convoyeur.pdf`) does not exist
+anywhere in `ali conv.zef`'s own XML -- confirmed by direct string search.
+The PDF documents a different revision of the same project. It remains
+useful as general reference for what Control Expert ladder wiring looks
+like, but nothing in it can be cross-checked instance-by-instance against
+this particular file's own XML, which is what an implementation would
+actually need to match exactly.
+
+**The real shape in this file is narrower, and different, from what the
+PDF suggested.** Every `SR` block that is actually wired (`SR_2`, `SR_3`,
+`SR_4`, `SR_5`, `SR_7` -- one per `TON_2x`/`TON_2x+1` pair) takes the form
+`<shortCircuit><VLink/><FFBBlock .../></shortCircuit>`, with *no contacts
+of its own* in that row (real example, `SR_2` at row 21: `empty(4) |
+shortCircuit(VLink,FFB[SR_2]) | HLink(1) | empty(2) | HLink(1) |
+coil[resetCoil:M1_S1]`). Since there is nothing upstream in the same row
+to carry a condition, and the immediately preceding rows (19: `TON_23`,
+20: a lone `HLink(7)`) are `TON_23`'s own EN/IN/output rows, the strong
+implication is that `SR_2.S1` is fed by `TON_23`'s own `Q` output, not by
+a second row of contacts -- block-to-block chaining, confirming the
+concern already raised in the previous checkpoint, not the "two
+independent contact rows" shape the PDF seemed to show.
+
+This is a materially different, and *not yet understood*, geometry
+problem: resolving it needs the column/width semantics of a block's
+*output* side (where `Q`/`ENO`/`ET` sit relative to `posX`+`width`), which
+nothing so far has verified against real evidence the way the row/`posY`
+correspondence was just confirmed. Attempting a rule here without that
+verification would be exactly the kind of guess this project does not
+make.
+
+**A real negative case, worth keeping in mind for any future attempt**:
+`SR_8` and `SR_9` are also `shortCircuit`/`FFBBlock`-shaped (`SR_8` at row
+1, `enEnO="false"`, `S1`/`R` both declared) but have *no* wire landing on
+them at all -- the rows immediately around them are unrelated, disconnected
+rungs. Being wrapped in `shortCircuit` does not by itself mean a real
+input condition exists; a future implementation needs the same "confirmed
+clean landing, not merely present" discipline the `EN` case already
+applies, generalized correctly, or it will produce false positives on
+exactly this shape.
+
+Net position: the evidence gap for `shortCircuit`/multi-pin `FFBBlock`
+landing is real and substantial, but the problem itself is now understood
+to be block-to-block output chaining, not the simpler two-row-input
+pattern originally hypothesized from the PDF alone. No code changed; no
+tests added. Still recorded as open in the roadmap.

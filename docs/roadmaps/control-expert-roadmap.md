@@ -218,13 +218,21 @@ visible. Initial values are lexical evidence, not promoted typed values.
       mean a second input row is fed the same way, or may just be a
       multi-row block's own border rendered with the same element. Not
       decidable from the grid alone; needs either more fixtures or vendor
-      documentation of the row-to-pin mapping for multi-row blocks. The
-      "needs more fixtures" half is now met -- see the `setCoil`/new-corpus
-      checkpoint below for `sayahali/conveyor-automation`'s real, dense
-      `SR`/`TON` evidence, including PDF ground truth -- but the
-      row-to-pin-mapping design itself is not attempted yet; the `setCoil`
-      checkpoint fixed only a smaller, unrelated bug the same fixture
-      surfaced
+      documentation of the row-to-pin mapping for multi-row blocks. Real,
+      dense `SR`/`TON` evidence now exists (`sayahali/conveyor-automation`,
+      including a PDF of the same project's own ladder diagrams -- see the
+      `setCoil`/new-corpus checkpoint and the multi-pin investigation
+      checkpoint below), but it turned out to reshape the problem rather
+      than resolve it: the real shape is `<shortCircuit><VLink/>
+      <FFBBlock/></shortCircuit>` with no contacts of its own, meaning the
+      condition most likely chains from an *upstream block's own output*
+      (`TON.Q` feeding an `SR.S1`), not from a second row of contacts as
+      first assumed from the PDF alone -- and the PDF's own clearest
+      example (`SR_33`) doesn't even exist in this specific file's XML (a
+      different project revision). Column/width semantics for a block's
+      output side are not yet verified against real evidence the way
+      row/`posY` now is. Still not attempted; the `setCoil` checkpoint
+      fixed only a smaller, unrelated bug the same fixture surfaced
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
