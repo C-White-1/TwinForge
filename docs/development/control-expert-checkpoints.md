@@ -1895,3 +1895,44 @@ show no "fresh birth" output wire at all). Representing even the confirmed
 subset also needs a small model addition first (`LadderInstruction.operand`
 is a plain tag-name string today; a block-output reference is a different
 kind of evidence, not a variable name) -- not started this pass.
+
+`effectiveParameter`: the output-edge puzzle is narrower than it looked
+(2026-09-24). Asked to keep digging the same question (which pin an
+`ADD`/`SR`-type block's wired output row corresponds to), the user's
+request to search externally for a genuine new LD fixture turned up
+several real repos (`estradege/controlexpert`, `pupenasan/PACFramework`,
+`anythingwithawire/unityview`, `jeanartics/reflex`, `tomha85/devagent`),
+but the one that actually mattered was a synthetic test fixture inside
+`tomha85/devagent` (MIT licensed) showing `outputVariable` can carry an
+`effectiveParameter` attribute, the same way an `inputVariable` can be
+bound to a literal (`PT effectiveParameter="t#3s"`, already known). That
+sent a direct check back into the *existing* corpus, which had never been
+searched for this attribute on outputs before:
+
+`effectiveParameter` on a real `outputVariable` is common, not rare --
+found on hundreds of instances across `Escalier_Mecanique.XEF`
+(`TON_0.Q -> Timer_Done`), `function15.zip`/`function2.zip` (`TON_2.Q ->
+timedoutnoe`, `TON_2.ET -> tcptimernoe`, `.4(ADD).OUT -> abortnoecount`,
+`.5(ADD).OUT -> resetnoecount`), and, directly answering the open
+question, `estradege_m580-safety.xef` (`Sim_W505_DA(SR).Q1 ->
+Sim_W505_STOP`, `SIM_TRIPW505(SR).Q1 -> Sim_W505_OK`, plus a dozen more
+real `S_SR` instances). This is a *named-variable* binding on the pin
+itself -- no drawn wire, no grid position needed at all to resolve it.
+
+Better still: it turns out to already be fully implemented.
+`graphical.py`'s pin construction already reads `effectiveParameter` into
+`GraphicalPin.expression` for every pin, input or output, with no
+LD/FBD distinction -- confirmed directly (`grep effectiveParameter
+src/twinforge/`, one call site, already wired for outputs).
+
+This reframes the actual scope of the remaining gap. It is not "how do
+`ADD`/`SR`-type block outputs get resolved" -- that's already solved for
+every instance that uses a named-variable binding, which the evidence
+above suggests is the common case. It is specifically: how does a *drawn
+ladder wire with no `effectiveParameter`* reach one of these pins --
+confirmed to be the shape actually used by `sayahali_conveyor_ali_conv.zef`'s
+`TON_23`-`TON_28` (`expression=None` checked directly on all three output
+pins of `TON_23`, ruling out any named-variable binding there). That is a
+real, narrower, and apparently rarer shape than originally framed, still
+open, still without a second `n_in > n_out` example to test the row
+formula against.

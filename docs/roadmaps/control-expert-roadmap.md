@@ -228,24 +228,43 @@ visible. Initial values are lexical evidence, not promoted typed values.
       five wired `SR` instances in `sayahali_conveyor_ali_conv.zef` now
       resolve `S1` unconditionally; the two bare, unwrapped `SR_8`/`SR_9`
       correctly stay unresolved.
-- [ ] Backlog: `R` (the second wireable input, one row below `S1`) is not
-      resolved -- genuinely unwired in all five real `SR` instances checked,
-      so there is no positive example to confirm the row-offset rule
-      against. The output side remains unresolved too: a corpus-wide "fresh
-      wire birth" scan found real, repeated (5/5, distinct targets each
-      time) evidence that a block's output edge can originate a wire --
-      `sayahali_conveyor_ali_conv.zef`'s five `TON` blocks each launch one
-      at row `posY+2` into a `resetCoil`, and the user identified it as `Q`
-      -- but the general row-to-pin rule for outputs still isn't fully
-      pinned down from grid structure alone (the naive declaration-order
-      reading gives `ET`, a `TIME` value that cannot legally drive a
-      boolean coil; the "+1 padding row" explanation fits all evidence
-      gathered so far but is confirmed only where competing formulas
-      coincide -- `TON`, `SET`, `RESET`, `MBP_MSTR` -- not for the corpus's
-      `n_in > n_out` shapes, `ADD`/`SR`/`INITCHART`/`SETSTEP`). Also,
-      representing a block-to-block output reference needs a model
+- [x] Recognize a block output bound to a named variable directly
+      (`outputVariable effectiveParameter="..."`, the same mechanism
+      already known for a literal-bound input) -- no grid position needed.
+      Turned out to already be implemented (`GraphicalPin.expression`,
+      every pin, input or output) and common in the corpus, not rare:
+      real `TON.Q`/`TON.ET`/`ADD.OUT` and, directly relevant below,
+      several real `SR`/`S_SR` instances in `estradege_m580-safety.xef`.
+      See the `effectiveParameter` checkpoint below.
+- [ ] Backlog, now narrower than originally framed: a block output reached
+      by a *drawn ladder wire with no `effectiveParameter`* -- confirmed
+      as the shape `sayahali_conveyor_ali_conv.zef`'s `TON_23`-`TON_28`
+      actually use (`expression=None` on all three output pins, checked
+      directly), and apparently the rarer case in practice now that the
+      named-variable path is confirmed common. `R` (the second wireable
+      input, one row below `S1`) is not resolved either -- genuinely
+      unwired in all five real `SR` instances checked, so there is no
+      positive example to confirm the row-offset rule against. For the
+      drawn-wire output case: a corpus-wide "fresh wire birth" scan found
+      real, repeated (5/5, distinct targets each time) evidence that a
+      block's output edge can originate a drawn wire -- the five `TON`
+      blocks above each launch one at row `posY+2` into a `resetCoil`,
+      user-identified as `Q` -- but the general row-to-pin rule for
+      outputs still isn't fully pinned down from grid structure alone
+      (the naive declaration-order reading gives `ET`, a `TIME` value
+      that cannot legally drive a boolean coil; the "+1 padding row"
+      explanation fits all evidence gathered so far but is confirmed only
+      where competing formulas coincide -- `TON`, `SET`, `RESET`,
+      `MBP_MSTR` -- not for the corpus's `n_in > n_out` shapes,
+      `ADD`/`SR`/`INITCHART`/`SETSTEP`). A search of several real external
+      repos (`estradege/controlexpert`, `pupenasan/PACFramework`,
+      `anythingwithawire/unityview`, `jeanartics/reflex`, `tomha85/devagent`)
+      did not turn up a new LD network with a drawn (non-`effectiveParameter`)
+      `ADD`/`SR`-type output to test the formula against. Also,
+      representing a block-to-block drawn-wire reference needs a model
       addition (`LadderInstruction.operand` is a plain tag-name string
-      today); not started. See the output-edge checkpoint below
+      today); not started. See the output-edge and `effectiveParameter`
+      checkpoints below
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below

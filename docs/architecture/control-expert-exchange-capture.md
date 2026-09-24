@@ -1403,3 +1403,28 @@ Not implemented: attaching a pin name for those shapes would still be a
 guess. Representing even the confirmed subset also needs a model addition
 (`LadderInstruction.operand` is a plain tag-name string; a block-output
 reference is a different kind of evidence) not yet made.
+
+## `outputVariable effectiveParameter`: the common case was already solved (2026-09-24)
+
+A block's output pin can be bound to a named variable directly --
+`<outputVariable formalParameter="Q" effectiveParameter="timedoutnoe"/>`
+-- the exact same mechanism already known for a literal-bound *input*
+(`PT effectiveParameter="t#3s"`), just not previously checked for outputs.
+It is common in the corpus, not an edge case: real examples include
+`TON.Q`, `TON.ET`, `ADD.OUT` (`function15.zip`/`function2.zip`,
+`Escalier_Mecanique.XEF`) and, directly relevant to the open `SR`/`ADD`
+row-offset question above, several real `SR`/`S_SR` instances in
+`estradege_m580-safety.xef` (`Sim_W505_DA.Q1 -> Sim_W505_STOP`,
+`SIM_TRIPW505.Q1 -> Sim_W505_OK`, a dozen more `S_SR` instances). This
+needs no grid position at all -- `graphical.py` already reads it into
+`GraphicalPin.expression` for every pin, input or output alike, with no
+LD/FBD distinction; nothing to implement.
+
+This narrows what the row-offset problem above actually covers: not "how
+do `ADD`/`SR`-type outputs resolve" -- solved already, for every instance
+using a named-variable binding, which real evidence suggests is the usual
+case -- but specifically a *drawn ladder wire with no `effectiveParameter`
+at all*. Confirmed as the exact shape `sayahali_conveyor_ali_conv.zef`'s
+`TON_23`-`TON_28` use: `expression=None` on all three of `TON_23`'s output
+pins, ruling out a named-variable binding there. Real, but narrower and
+rarer than originally framed.
