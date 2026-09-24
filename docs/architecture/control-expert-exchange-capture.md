@@ -1481,3 +1481,48 @@ risking already-tested output on an unrelated, not-yet-investigated
 semantic. New tests: one reproducing the real fixed shape exactly, one
 confirming a near-miss column (off by one from the true output edge)
 correctly stays unconditional. 282 tests pass; Ruff and Pyright pass.
+
+## The `emptyCell`-gap question, resolved (2026-09-25)
+
+Closes the exact gap the block-output-fed-coil fix above deliberately left
+open. Checked first, before writing anything: does the *tracked* corpus
+contain any row where this would change already-shipped output? Scanned
+every fixture for a row with an `emptyCell` strictly between two
+cell-bearing elements (contact/coil) -- found exactly two, both in
+`sayahali_conveyor_ali_conv.zef`, and both already a *different*,
+already-correctly-diagnosed shape (two coils on one row, caught by
+`ladder_series_unexpected_coil_position` regardless of gap handling). Zero
+real risk to shipped output from touching this.
+
+`parse_ladder_rungs` now treats an `emptyCell` occurring after at least
+one contact has been seen in the row as a genuine break: it starts a
+fresh segment (discarding the disconnected one) rather than silently
+folding every contact in the row into the coil's condition regardless of
+gaps. A *leading* run of `emptyCell`/`HLink` before any contact is
+unaffected -- confirmed unchanged against the same two real
+already-correct negatives used to validate the block-output fix
+(`Escalier_Mecanique.XEF` row 0, `sayahali` rows 81/97).
+
+Applied to `LD_1_Heating.xml` row 10 (`Start_process` ahead of the block-
+output wire, `minus_5_percent`'s coil): the row now resolves exactly like
+its five siblings (`BLOCK_OUTPUT_REFERENCE` naming `Heating_control.
+minus_5_percent`, then the coil) instead of the wrong `Start_process ->
+coil` reading -- the discarded segment reported once via a new
+`ladder_disconnected_segment_discarded` diagnostic (not silently dropped:
+evidence is preserved even though it's excluded from the condition).
+Deferred to the point a row is confirmed to resolve as a genuine rung, not
+raised the moment a gap is seen -- checked directly against the same real
+fixture, which has several *other* rows with a contact-then-gap shape that
+are unresolved for unrelated reasons (a `shortCircuit` elsewhere in the
+row, or no coil at all); raising the diagnostic eagerly there produced
+noise redundant with the row's real diagnosis, caught by the real-fixture
+test before it shipped (`5` premature firings instead of the correct `1`).
+
+Full real-fixture test added (`LD_1_Heating.xml`, local-only, no license
+-- calls `parse_ladder_rungs` directly against its `LDSource` node, since
+this file's `LDExchangeFile` root is a per-section export shape TwinForge
+does not otherwise recognize): confirms all six of `Heating_control`'s
+coil rows resolve identically now, `Start_process` included, plus exactly
+one `ladder_disconnected_segment_discarded` diagnostic for the whole
+file. Two new synthetic tests alongside it. 284 tests pass; Ruff and
+Pyright pass.

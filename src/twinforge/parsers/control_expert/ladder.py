@@ -21,15 +21,24 @@ function) confirms such a block reserves one blank row on its output side,
 then lands output pin `i` at row `posY+1+i`, column `posX+width` -- exactly
 the row/column an unconditional-looking coil's leading wire can originate
 from instead of the rail. Confirmed twice, independently, in real fixtures
-(see the function's own docstring). Scoped deliberately narrow: only a coil
-with zero leading contacts in its own row -- a row mixing a real contact
-with a gap-separated, block-fed coil (real example: row 10 of
-`LD_1_Heating.xml`'s `Heating_control` block, otherwise identical to its
-five sibling rows this rule does resolve) is not handled by this rule and
-still resolves by the pre-existing (and, for that shape, questionable)
-"every element in the row is one series condition" reading -- a separate,
-not-yet-investigated question about what a genuine gap between two real
-elements means, independent of this fix.
+(see the function's own docstring).
+
+An `emptyCell` occurring after at least one contact has already been seen
+in the same row is a genuine break, not decorative filler -- that contact
+does not reach whatever follows it, and starting a fresh segment there
+(discarding the disconnected one, diagnosed as
+`ladder_disconnected_segment_discarded` rather than silently dropped) is
+what lets the block-output check above reach a gap-separated coil at all.
+Real evidence: `LD_1_Heating.xml` row 10 (`Heating_control`, `control-
+expert-mcp`, local-only) has a genuine contact (`Start_process`) ahead of
+the same block-output wire its five sibling rows resolve, separated from
+it by a real gap; before this, every contact in a row was collected into
+the coil's condition regardless of gaps, silently misattributing that
+contact as the coil's condition instead of the block's own output. A
+*leading* run of `emptyCell`/`HLink` before any contact is unaffected --
+that is the already-confirmed "from the rail" case (real corpus negatives:
+`Escalier_Mecanique.XEF` row 0, `sayahali_conveyor_ali_conv.zef` rows
+81/97, all still correctly unconditional).
 
 `resolve_ladder_pin_conditions` below resolves one further, narrower case
 from the same grid: a `shortCircuit`-marked vertical bus, continuing through
@@ -185,16 +194,44 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
             elements: list[tuple[CapturedSection, int]] = []
             hlink_starts: list[int] = []
             resolvable = True
+            seen_contact = False
+            discarded_segments = 0
             for child in children:
-                if child.tag in {"emptyCell", "HLink"}:
+                if child.tag == "emptyCell":
                     width = cells(child)
                     if width is None:
                         resolvable = False
                     else:
-                        if child.tag == "HLink":
-                            hlink_starts.append(column)
                         column += width
-                elif child.tag in {"contact", "coil"}:
+                        if seen_contact:
+                            # Real evidence (LD_1_Heating.xml row 10, control-
+                            # expert-mcp): an emptyCell after a contact is a
+                            # genuine break, not decorative filler -- that
+                            # contact does not reach whatever follows. Start
+                            # a fresh segment; a discarded contact here would
+                            # otherwise be silently misattributed as the
+                            # coil's condition. Not reported yet -- only rows
+                            # that go on to resolve as a genuine rung need
+                            # this diagnostic; a row already unresolved for
+                            # another reason (a shortCircuit elsewhere, no
+                            # coil at all) would just get a redundant one.
+                            if elements:
+                                discarded_segments += 1
+                            elements = []
+                            hlink_starts = []
+                            seen_contact = False
+                elif child.tag == "HLink":
+                    width = cells(child)
+                    if width is None:
+                        resolvable = False
+                    else:
+                        hlink_starts.append(column)
+                        column += width
+                elif child.tag == "contact":
+                    elements.append((child, column))
+                    seen_contact = True
+                    column += 1
+                elif child.tag == "coil":
                     elements.append((child, column))
                     column += 1
                 else:
@@ -212,6 +249,10 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
                     report("ladder_series_unexpected_coil_position",
                            "Row must have exactly one coil, as its last element", line)
                 else:
+                    for _ in range(discarded_segments):
+                        report("ladder_disconnected_segment_discarded",
+                               "A contact segment is separated from what follows by a real "
+                               "gap; excluded from the coil's condition, not guessed at", line)
                     instructions = []
                     if len(elements) == 1:
                         # A coil with no leading contact was previously always

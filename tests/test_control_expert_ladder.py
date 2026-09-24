@@ -157,6 +157,82 @@ def test_coil_fed_from_an_unrelated_column_stays_unconditional():
     assert elements[0].operation == LadderOperation.COIL
 
 
+def test_contact_disconnected_by_a_gap_is_excluded_not_misattributed():
+    # Real evidence: LD_1_Heating.xml's sixth row (control-expert-mcp,
+    # local-only) has a real contact ("Start_process") ahead of the same
+    # block-output wire the other five rows resolve, separated from it by
+    # a genuine emptyCell gap. Before this fix, every contact in a row was
+    # collected into the coil's condition regardless of gaps, so that
+    # contact was silently misattributed as the coil's condition instead
+    # of the block's own output. Reproduces that exact shape: contact,
+    # HLink, emptyCell (the real break), HLink starting at the block's own
+    # output edge, coil.
+    result, routine = _ld_routine('''
+    <typeLine><emptyCell nbCells="3"/>
+    <FFBBlock instanceName="HC" typeName="Heating" additionnalPinNumber="0" enEnO="true" width="16" height="5">
+    <objPosition posX="3" posY="0"/>
+    <descriptionFFB execAfter="">
+    <inputVariable invertedPin="false" formalParameter="EN"/>
+    <inputVariable invertedPin="false" formalParameter="X"/>
+    <outputVariable invertedPin="false" formalParameter="ENO"/>
+    <outputVariable invertedPin="false" formalParameter="A"/>
+    <outputVariable invertedPin="false" formalParameter="B"/>
+    </descriptionFFB></FFBBlock>
+    <emptyCell nbCells="6"/></typeLine>
+    <typeLine><emptyLine nbRows="1"/></typeLine>
+    <typeLine><contact typeContact="openContact" contactVariableName="Dummy"/>
+    <HLink nbCells="2"/><emptyCell nbCells="2"/><HLink nbCells="5"/>
+    <coil typeCoil="coil" coilVariableName="Y"/></typeLine>''')
+    rungs = [r for r in routine.ladder_rungs if r.number == 2]
+    assert len(rungs) == 1
+    elements = _instructions(rungs[0])
+    assert len(elements) == 2
+    assert elements[0].operation == LadderOperation.BLOCK_OUTPUT_REFERENCE
+    assert elements[0].operand == "HC.A"
+    assert elements[1].operation == LadderOperation.COIL
+    assert not any(e.operand == "Dummy" for e in elements)
+    assert sum(d.code == "ladder_disconnected_segment_discarded" for d in result.diagnostics) == 1
+
+
+def test_optional_real_ld_1_heating_coils_resolve_correctly():
+    path = Path("reference/control-expert/LD_1_Heating.xml")
+    if not path.exists():
+        pytest.skip("Local LD_1_Heating.xml reference unavailable")
+    from twinforge.parsers.control_expert.ladder import parse_ladder_rungs
+
+    def find_all(node, tag):
+        if node.tag == tag:
+            yield node
+        for child in node.ordered_children:
+            yield from find_all(child, tag)
+
+    captured = capture_file(path)
+    assert captured.section is not None
+    ld_source = next(find_all(captured.section, "LDSource"))
+    rungs, diagnostics = parse_ladder_rungs(ld_source)
+
+    def rung_by_row(row: int):
+        matches = [r for r in rungs if r.number == row]
+        assert len(matches) == 1
+        return _instructions(matches[0])
+
+    for row, pin, coil in (
+        (6, "plus_10_percent", "plus_10_percent"),
+        (7, "plus_5_percent", "plus_5_percent"),
+        (8, "plus_1_percent", "plus_1_percent"),
+        (9, "minus_1_percent", "minus_1_percent"),
+        (10, "minus_5_percent", "minus_5_percent"),
+        (11, "minus_10_percent", "minus_10_percent"),
+    ):
+        elements = rung_by_row(row)
+        assert len(elements) == 2
+        assert elements[0].operation == LadderOperation.BLOCK_OUTPUT_REFERENCE
+        assert elements[0].operand == f"Heating_control.{pin}"
+        assert elements[1].operation == LadderOperation.COIL
+        assert elements[1].operand == coil
+    assert sum(d.code == "ladder_disconnected_segment_discarded" for d in diagnostics) == 1
+
+
 def test_set_coil_resolves_like_reset_coil():
     # Real evidence: github.com/sayahali/conveyor-automation's M340 export
     # uses typeCoil="setCoil" (4 real occurrences) -- resetCoil's natural

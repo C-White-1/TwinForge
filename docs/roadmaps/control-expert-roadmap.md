@@ -252,22 +252,29 @@ visible. Initial values are lexical evidence, not promoted typed values.
       ali_conv.zef` rows 81/97) have no matching block nearby and stay
       unconditional, unchanged. See the block-output-fed coil checkpoint
       below.
+- [x] Resolve the `emptyCell`-gap question the block-output-fed coil fix
+      above deliberately left open: an `emptyCell` after at least one
+      contact has been seen in a row is now treated as a genuine break,
+      not decorative filler -- starts a fresh segment rather than folding
+      every contact in the row into the coil's condition regardless of
+      gaps. Checked the tracked corpus first: zero rows would change
+      behavior (the only two rows anywhere in it with this shape are
+      already a different, already-correctly-diagnosed case). Real
+      result: `LD_1_Heating.xml` row 10 (`Start_process` ahead of the
+      same block-output wire its five siblings resolve) now resolves
+      identically to those siblings instead of the previous wrong
+      `Start_process -> coil` reading; the discarded segment is recorded
+      via a new `ladder_disconnected_segment_discarded` diagnostic, not
+      silently dropped. See the `emptyCell`-gap checkpoint below.
 - [ ] Backlog, narrower still: the corpus's `inputs > outputs` shapes
       (`ADD`, `SR`, `INITCHART`, `SETSTEP`) remain unresolved -- the "+1"
       formula is ambiguous there against a competing formula, and no
-      fixture found so far (including the new `LD_1_Heating.xml` search)
+      fixture found so far (including the `LD_1_Heating.xml` search)
       wires one of their outputs via a drawn wire to test it. `R` (`SR`'s
       second wireable input, one row below `S1`) is also still
       unresolved -- genuinely unwired in all five real instances checked.
-      And a coil row mixing a real contact with a gap-separated,
-      block-fed wire (real example: `LD_1_Heating.xml`'s sixth,
-      `Start_process`-prefixed row, otherwise identical to its five now-
-      resolved siblings) still resolves via the pre-existing "every
-      element in the row is one series condition" reading, deliberately
-      left alone this pass -- a separate, more foundational question
-      about what a genuine `emptyCell` gap between two real elements
-      means, not yet investigated. See the output-edge, `effectiveParameter`
-      and block-output-fed coil checkpoints below
+      See the output-edge, `effectiveParameter`, block-output-fed coil
+      and `emptyCell`-gap checkpoints below
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
@@ -446,7 +453,7 @@ when shared contracts change. Use a fresh workspace-local `--basetemp` if the
 existing pytest artifact directory is locked. Recheck archive hashes after
 reference operations. Avoid making third-party archives mandatory CI inputs.
 
-The last full run of the command's test set passed 282 tests, including optional
+The last full run of the command's test set passed 284 tests, including optional
 local samples; Ruff and Pyright passed. This is a dated development checkpoint,
 not a substitute for running the checks after future changes.
 

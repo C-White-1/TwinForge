@@ -1996,3 +1996,46 @@ question, not introduced by this change and not fixed by it either,
 deliberately left alone rather than risk already-tested output on an
 unrelated, unverified semantic under time pressure. 282 tests pass
 (up from 280); Ruff and Pyright pass.
+
+`emptyCell`-gap checkpoint (2026-09-25): the user had originally gone
+looking for more SCADAPack evidence specifically hoping it would help
+close remaining Control Expert ladder gaps; once that detour ran its
+course, asked directly to come back and close this exact one, deferred at
+the end of the block-output-fed-coil checkpoint above.
+
+Checked the real risk before writing anything: scanned every tracked
+fixture for a row with an `emptyCell` strictly between two cell-bearing
+elements. Found exactly two, both in `sayahali_conveyor_ali_conv.zef`,
+and both a different, already-correctly-diagnosed shape (two coils on one
+row -- `ladder_series_unexpected_coil_position` already catches it
+regardless of gap handling). Zero rows in the tracked corpus would change
+behavior from this fix; the only known real-world case remains
+`LD_1_Heating.xml` row 10 (local-only, no license, copied into
+`reference/control-expert/` -- gitignored, confirmed never committed).
+
+Implemented: `parse_ladder_rungs` now treats an `emptyCell` after at least
+one contact has been seen as a genuine break -- starts a fresh segment,
+discarding the disconnected one, instead of folding every contact in the
+row into the coil's condition regardless of gaps. A leading run of
+`emptyCell`/`HLink` before any contact is unaffected (that's the
+already-confirmed "from the rail" case). First implementation reported
+the discard the moment the gap was seen; the real-fixture test caught
+that this fires prematurely on rows that are unresolved for *other*
+reasons entirely (a `shortCircuit` elsewhere in the same row, or no coil
+at all) -- `LD_1_Heating.xml` alone has several such rows, producing 5
+diagnostics where only 1 (row 10's genuine case) was expected. Fixed by
+deferring: the discard count is tracked through the row scan but only
+reported once the row is confirmed to resolve as an actual rung.
+
+Real corpus result: `LD_1_Heating.xml` row 10 (`Start_process` ahead of
+`Heating_control`'s block-output wire feeding `minus_5_percent`) now
+resolves identically to its five siblings -- `BLOCK_OUTPUT_REFERENCE`
+naming `Heating_control.minus_5_percent`, then the coil -- instead of the
+previous wrong `Start_process -> coil` reading, with the discarded
+segment recorded via a new `ladder_disconnected_segment_discarded`
+diagnostic rather than silently dropped. New real-fixture test calls
+`parse_ladder_rungs` directly against the file's `LDSource` node (its
+`LDExchangeFile` root is a per-section export shape this project's
+capture pipeline doesn't otherwise recognize), confirming all six coil
+rows and the exact discard count. Two new synthetic tests alongside it.
+284 tests pass (up from 282); Ruff and Pyright pass.
