@@ -223,6 +223,41 @@ variants alongside DNP3, not present in the second fixture at all). Its
 reading this file first got. Directly confirms, at the protocol-config
 level, the user's own description of that fixture as a DNP3 setup example.
 
+## `Station.apd`/`Station.apx`'s own binary framing: not a mystery format
+
+The framing wrapping each decompressed zlib stream's content
+(`STExchangeFile`/`STSource`, `FBDExchangeFile`, the `unity.*` settings
+tables) is not a proprietary, undocumented scheme either — it is **standard
+.NET `BinaryWriter`/`BinaryReader` primitive string encoding**: a `string`
+is written as a 7-bit-encoded length prefix (`.NET`'s `Write7BitEncodedInt`
+— each byte's top bit means "more bytes follow", low 7 bits contribute to
+the value) followed directly by that many UTF-8 bytes, no null terminator,
+no fixed width. Confirmed exactly, byte-for-byte, on three independent
+field names across both fixtures: the byte before `"STExchangeFile"`
+(14 chars) is `0x0e`; before `"STSource"` (8 chars) is `0x08`; before
+`"FBDExchangeFile"` (15 chars) is `0x0f`; before
+`"unity.variableNotUsed"` (21 chars) is `0x15`. A greedy walk of the full
+ST stream applying this rule recovers the entire comment and code text
+correctly, string boundary by string boundary, not just as one long
+printable run — including short strings a plain "run of 4+ printable
+bytes" scan would have split incorrectly or missed (single-character
+fields, `"0"`, `"1"`, etc., in what looks like a trailing position/offset
+table after the real source text).
+
+This means the fixed preamble bytes before the first real string in every
+stream (7-byte magic `\xe5\xe3\xd2\x9e\x02\x00\x00`, identical across both
+fixtures' `ST`/`FBD` streams, then a short run of what are very likely
+further 7-bit-encoded lengths/counts and raw primitive fields such as
+`Int32`/`Boolean`) is a **decodable .NET object-graph serialization**, not
+noise — just not yet fully mapped field-by-field without the original
+.NET type definitions. What remains genuinely unknown is the *shape* of
+that object graph (field order, which values are lengths vs. flags vs.
+counts, what the trailing numeric table after the real source text
+means) — the string-encoding rule alone does not hand over the whole
+grammar, and two fixtures sharing the same tool version's serialization
+layout is not enough evidence to assert the general schema with
+confidence.
+
 ## Open questions
 
 - Resolved by the second fixture: whether minimal content in the first
@@ -233,18 +268,22 @@ level, the user's own description of that fixture as a DNP3 setup example.
   file's `.NET BinaryFormatter` blobs could be read at all without a real
   deserializer. They can, reliably, via the embedded DataContract XML
   fragments.
-- The binary framing used inside `Station.apx`/`Station.apd` (short
-  length-prefixed strings/fields, distinct from `STATION.CTX`'s UTF-16
-  framing, and distinct again from `TA.xma`'s bare unframed zlib stream)
-  has only been sampled ad hoc across two files — there is no general
-  parser or documented grammar for it yet. Two example files is more than
-  one, but still not enough to generalize the framing rules with
-  confidence; more samples would help before this could be approached in a
-  specification-driven way per [AGENTS.md](../../AGENTS.md).
-- The first fixture's `.prj` blobs haven't been re-checked with the
-  DataContract-extraction method yet (see above) — only this second
-  fixture's `.PRJ` has. Its `TopologyRecord`-level blobs (as opposed to
-  the `DTM`-level ones covered above) also haven't been examined yet.
+- Partially resolved: the string-encoding rule for `Station.apx`/
+  `Station.apd`'s own binary framing (distinct from `STATION.CTX`'s UTF-16
+  framing, and distinct again from `TA.xma`'s bare unframed zlib stream) is
+  now known and confirmed (see above) — but the surrounding object-graph
+  structure (field order, non-string primitive values, the trailing
+  numeric table's meaning) is not. Two example files, both close in tool
+  version, is not enough to generalize the full grammar with confidence;
+  more samples, ideally from a different `APPLICATION LIBSET` version,
+  would help before this could be approached in a specification-driven way
+  per [AGENTS.md](../../AGENTS.md).
+- Both fixtures' `TopologyRecord`-level blobs (as opposed to the
+  `DTM`-level ones covered above, which is where all 17+27 DataContract
+  XML fragments came from) have been checked and yield no fragments at all
+  — they appear to be pure tree-position/linkage data (GUID references),
+  not further readable content, but this hasn't been confirmed beyond "the
+  generic extraction found nothing."
 - No relationship has been established yet between this format and
   TwinForge's existing [Control Expert XEF/ZEF capture
   work](control-expert-exchange-capture.md) beyond the shared Unity Pro
