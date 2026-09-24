@@ -266,13 +266,31 @@ visible. Initial values are lexical evidence, not promoted typed values.
       `Start_process -> coil` reading; the discarded segment is recorded
       via a new `ladder_disconnected_segment_discarded` diagnostic, not
       silently dropped. See the `emptyCell`-gap checkpoint below.
-- [ ] Backlog, narrower still: the corpus's `inputs > outputs` shapes
-      (`ADD`, `SR`, `INITCHART`, `SETSTEP`) remain unresolved -- the "+1"
-      formula is ambiguous there against a competing formula, and no
-      fixture found so far (including the `LD_1_Heating.xml` search)
-      wires one of their outputs via a drawn wire to test it. `R` (`SR`'s
-      second wireable input, one row below `S1`) is also still
-      unresolved -- genuinely unwired in all five real instances checked.
+- [ ] Backlog, narrower still, and actually two distinct unresolved
+      questions the corpus's `inputs > outputs` shapes split along
+      `enEnO` lines -- re-verified directly, not just recalled, after
+      being asked whether `sayahali_conveyor_ali_conv.zef`'s `SR`
+      instances already had the missing evidence (they don't, confirmed
+      precisely against the now-shipped `emptyCell`-gap logic: every
+      wired `SR`'s own `Q1` stub is separated from its row's coil by a
+      real gap, genuinely unwired, not a case this project missed):
+      - `ADD`/`INITCHART`/`SETSTEP` (`enEnO="true"`): the "+1 padding row"
+        formula is ambiguous against a competing formula for this
+        `inputs > outputs` shape, and no fixture found so far (including
+        the `LD_1_Heating.xml` search) wires one of their outputs via a
+        drawn wire to test it.
+      - `SR` (`enEnO="false"`): a different, not-yet-tested hypothesis --
+        since hidden `EN`/`ENO` already compacts the *input* side
+        (confirmed: `S1` lands at `posY+0`, not `+1`), does the *output*
+        side compact the same way (`Q1` at `posY+0`, same row as `S1`,
+        not `posY+1`)? Untested either way -- no fixture found so far
+        wires `SR.Q1` (or `S_SR.Q1`) via a drawn wire at all, and
+        `_block_output_origins()` as shipped only considers
+        `enEnO="true"` blocks, so it would not catch this shape even if
+        a wired example turned up without further work. `R` (`SR`'s
+        second wireable input, one row below `S1`) is also still
+        unresolved -- genuinely unwired in all five real instances
+        checked.
       See the output-edge, `effectiveParameter`, block-output-fed coil
       and `emptyCell`-gap checkpoints below
 - [x] Resolve multi-block/network order under link and override rules: explicit

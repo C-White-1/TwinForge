@@ -2039,3 +2039,28 @@ diagnostic rather than silently dropped. New real-fixture test calls
 capture pipeline doesn't otherwise recognize), confirming all six coil
 rows and the exact discard count. Two new synthetic tests alongside it.
 284 tests pass (up from 282); Ruff and Pyright pass.
+
+`SR.Q1` re-check, no code change (2026-09-25): asked directly whether
+`sayahali_conveyor_ali_conv.zef`'s `SR` instances already had the wired-
+output evidence the `ADD`/`INITCHART`/`SETSTEP` backlog item needs.
+Re-verified precisely rather than relying on the earlier summary: no --
+every one of the five wired `SR` instances (`SR_2`/`3`/`4`/`5`/`7`) has
+the identical shape (`shortCircuit(S1 landing) | HLink(1) | emptyCell(2)
+| HLink(1) | coil`), and `Q1`'s own one-cell stub is separated from the
+row's coil by that real gap -- genuinely disconnected, confirmed against
+the now-shipped `emptyCell`-gap logic, same conclusion as before.
+
+The question was still useful: it surfaced that the roadmap's
+`inputs > outputs` backlog item had been lumping `SR` in with
+`ADD`/`INITCHART`/`SETSTEP` as one open question, when it is actually
+two. `SR` is `enEnO="false"`; the others are `enEnO="true"`. The "+1
+padding row" ambiguity (a competing formula giving a different
+prediction) is specifically an `enEnO="true"` question and does not
+apply to `SR` at all. For `SR`, since hidden `EN`/`ENO` already compacts
+the *input* side (`S1` confirmed at `posY+0`), the natural, untested
+hypothesis is that the *output* side compacts the same way (`Q1` at
+`posY+0`, not `posY+1`) -- a different question from the `ADD`-style one,
+and one `_block_output_origins()` could not even detect yet regardless,
+since it is gated to `enEnO="true"` blocks only. Roadmap split into these
+two explicitly separate items so a future session (or this one) does not
+re-conflate them.
