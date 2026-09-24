@@ -165,12 +165,74 @@ block, empty of real content. Confirmed pattern, now 2/2: `Station.apx`'s
 own XML stream is always editor/feature configuration; the real program
 (ST/FBD sections) lives exclusively in `Station.apd`'s separate streams.
 
+## The `.PRJ`/`.prj` `.NET BinaryFormatter` blobs are not actually opaque
+
+Previously an open question (see below, before this pass): whether the
+`.prj`/`.PRJ` file's per-DTM `EngineeringData` and `InstanceDataRecord`
+values — base64 .NET `BinaryFormatter` blobs — held anything readable.
+They do, and reliably: `BinaryFormatter` here uses
+`System.UnitySerializationHolder`, a .NET remoting surrogate that embeds
+the *actual* object as a complete, self-contained WCF DataContract XML
+document (namespace `http://schemas.datacontract.org/2004/07/Fdt...`)
+inside the blob, after a short type-table preamble. No real
+`BinaryFormatter` deserializer, and no knowledge of the .NET type graph,
+is needed to reach it: a single generic regex —
+`<([A-Za-z][\w.]*)(?: [^>]*)?>.*?</\1>` (DOTALL) against the raw
+(non-UTF-16) bytes — reliably pulls out every complete embedded XML
+fragment, root tag name and all. Confirmed on `leadLagPumpCtrl_v02.RCZ`:
+17 distinct, well-formed fragments extracted this way from 5 top-level
+`EngineeringData` blobs and their nested `InstanceDataRecord` values, with
+zero false starts.
+
+What they contained, for this fixture: both DTMs in the project
+(`DTMDisplayName` read the same way as before, via `CustomAttributes`) are
+DNP3-related — "PC Communication Settings -DNP3 CommDTM" (the parent/PC
+comm channel) and "SCADAPack x70 Controller Settings -DeviceDTM" (the
+child field device) — each declaring the same four supported protocol
+variants (`DeviceTypeInfo/BusCategories`: DNP3 Serial Line, DNP3 TCP,
+DNP3 UDP, DNP3 USB, each with a stable `ProtocolId` GUID). Three
+`AddressInfo` fragments per DTM give the full connection parameters for
+each variant (DNP3 TCP: target address `1`, `127.0.0.1:8080`; DNP3
+Serial: target address `0`; DNP3 USB: `LocalConnection=true`), and an
+`ActiveProtocol` fragment names which one is actually selected for this
+project — DNP3 USB here, a local/direct connection, distinct from (and
+not to be confused with) `STATION.CTX`'s own separate `PLC ADDRESS`
+(the RemoteConnect IDE's own download/monitor connection, `10.2.3.4:504`,
+Modbus TCP) — two independent connection configurations coexist in one
+project: the IDE's own PLC link, and this DNP3 CommDTM's own test/runtime
+link. A `PersistentData`/`ChannelTopology` fragment on the parent DTM
+confirms the FDT device-tree parent/child relationship directly
+(`AddedChildDtms` naming the child DTM's GUID) — the comm DTM is the
+channel, the device DTM hangs off it, exactly the standard FDT/DTM model
+(IEC 62453).
+
+This generalizes past this one fixture: the technique needs nothing
+SCADAPack-specific (no schema, no field offsets), only "there is
+`System.UnitySerializationHolder`-wrapped data somewhere in this blob" —
+which the leading `System.UnitySerializationHolder` type-name string
+itself confirms cheaply before even attempting extraction.
+
+Immediately confirmed by revisiting the *first* fixture's `sp470_v04.prj`
+with the same method: 27 fragments this time (a richer project — its comm
+DTM, plainly named "SCADAPack CommDTM", supports `TeleBus` protocol
+variants alongside DNP3, not present in the second fixture at all). Its
+`ActiveProtocol`/`BusCategory` fragment names the active protocol as
+**DNP3 TCP**, with a real configured `AddressInfo` target of
+`172.16.1.200:20000` — a concrete, deliberately-set device address (not a
+`127.0.0.1` placeholder), not previously surfaced by the STATION.CTX-only
+reading this file first got. Directly confirms, at the protocol-config
+level, the user's own description of that fixture as a DNP3 setup example.
+
 ## Open questions
 
 - Resolved by the second fixture: whether minimal content in the first
   sample reflected the format's ceiling or just that file's narrow scope.
   It was the latter — real applications hold real, multi-section ST/FBD
   program logic with genuine authored comments.
+- Resolved by the second fixture (see above): whether the `.prj`/`.PRJ`
+  file's `.NET BinaryFormatter` blobs could be read at all without a real
+  deserializer. They can, reliably, via the embedded DataContract XML
+  fragments.
 - The binary framing used inside `Station.apx`/`Station.apd` (short
   length-prefixed strings/fields, distinct from `STATION.CTX`'s UTF-16
   framing, and distinct again from `TA.xma`'s bare unframed zlib stream)
@@ -179,9 +241,10 @@ own XML stream is always editor/feature configuration; the real program
   one, but still not enough to generalize the framing rules with
   confidence; more samples would help before this could be approached in a
   specification-driven way per [AGENTS.md](../../AGENTS.md).
-- The `.prj`/`.PRJ` file's per-DTM/TopologyRecord `.NET BinaryFormatter`
-  blobs have not been deserialized in either fixture; they may hold
-  DNP3/Modbus channel or device configuration but were not investigated.
+- The first fixture's `.prj` blobs haven't been re-checked with the
+  DataContract-extraction method yet (see above) — only this second
+  fixture's `.PRJ` has. Its `TopologyRecord`-level blobs (as opposed to
+  the `DTM`-level ones covered above) also haven't been examined yet.
 - No relationship has been established yet between this format and
   TwinForge's existing [Control Expert XEF/ZEF capture
   work](control-expert-exchange-capture.md) beyond the shared Unity Pro
