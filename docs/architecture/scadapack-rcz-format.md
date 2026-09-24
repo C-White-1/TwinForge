@@ -277,6 +277,68 @@ a claim about what the field is. Recorded as raw decoded values precisely
 so a future pass (or a third fixture) can test hypotheses against them
 without redoing this extraction.
 
+## A real third+ sample, and an official (non-reverse-engineered) path
+
+Searching externally for another real `.RCZ`, following the same
+methodology that has repeatedly found real Control Expert fixtures this
+project already relies on, found `apexsotjo-blip/remoteconnect-mcp` (no
+license declared, kept local-only, not committed) — an MCP server that
+automates SCADAPack RemoteConnect/Control Expert through the vendor's own
+COM API, not by parsing these formats from scratch. Two things from it are
+directly useful here, for different reasons.
+
+**`src/remoteconnect_mcp/logic_archive_bridge.py`** confirms an *official*
+mechanism exists for materializing an `.STA` archive's `BinAppli/
+Station.apx`/`Station.apd` payload into a full project: it calls into
+Schneider's own API (recorded in its own result dict as
+`"method": "UDE OpenAPX"`), not a custom parser -- and that call requires
+the real Control Expert/RemoteConnect installation to be present
+(`"headless": true` there refers to no UI automation needed, not to
+running without the vendor software at all). This calibrates what TwinForge's
+own from-scratch, offline extraction (zlib streams + .NET string decoding,
+documented above) is actually competing with: not a published spec, but a
+vendor API that needs the real software installed -- which is exactly the
+gap offline capture is for.
+
+**`examples/comprehensive_demo/RemoteConnect_All_Objects_Demo.stu`** (and
+its sibling `.prj`) is a genuine third real fixture, and a richer one: a
+"RemoteConnect comprehensive object and protocol-register demonstration"
+(`props.xml`: `ProductVersion=UnitySoControl 16.20`, newer than either
+prior fixture's 14.0/11.1), deliberately covering Modbus and DNP3 point
+types together with advanced DDT object families -- real ST source
+assigning through `DEMO_MB_COIL`, `DEMO_MB_DISCRETE`, `DEMO_MB_INPUT_DINT`,
+`DEMO_MB_HOLD_REAL` (Modbus scanner/register rows) and `DEMO_DNP_DO`,
+`DEMO_DNP_DI`, `DEMO_DNP_AO`, `DEMO_DNP_AI`, `DEMO_DNP_COUNTER` (all five
+DNP3 point classes) alongside `DEMO_ANALOG_INT`/`UINT` and
+`DEMO_ADV_DIGITAL`/`DEMO_ADV_ANALOG` (with both `.VALUE_ENG` and
+`.VALUE_RAW` members) -- real, concrete evidence of SCADAPack's own
+per-protocol tag/DDT vocabulary, useful well beyond this specific
+byte-framing question.
+
+Also `.STU` (not `.RCZ`) confirmed structurally exactly as the
+`jarocki/100daysOfYaraForOT` write-up described (see below): the same
+`STATION.CTX`/`BinAppli/Station.apx`/`Station.apd` core, plus `props.xml`
+and several `.db` files (`VariableManager.db`, `TypeManager.ODB`,
+`XRefManager.db`, `SLM.db`, etc.) that `.RCZ`/`.STA` do not carry -- `.STU`
+is the richer, full-project container; `.RCZ`'s `.STA` member is the
+lighter one, both sharing the same `BinAppli` core.
+
+**One real, honestly-flagged discrepancy, not smoothed over:** this
+fixture's own `STExchangeFile`/`STSource` stream does *not* use the
+length-prefixed `.NET` binary framing confirmed above -- it decompresses
+directly to plain XML (`<?xml version="1.0" standalone="yes"?>
+<STExchangeFile><STSource>...`), no `\xe5\xe3\xd2\x9e...` magic at all.
+The *other* streams in this exact same file (`Station.apd`'s settings
+tables) *do* still show that magic and the confirmed length-prefix rule
+(`"unity.variableNotUsed"` still preceded by `0x15`=21, exact). Since this
+demo project was built programmatically through `remoteconnect-mcp`'s own
+tools (`tools/bigtest/07_build.py` etc.), not authored interactively, the
+likeliest explanation is that this is how *that tool's write path*
+produces `STSource` content specifically, not a disproof of the binary
+framing found in the two interactively-authored fixtures -- but this is
+not confirmed either way, and is recorded as an open discrepancy rather
+than resolved in either direction.
+
 ## Open questions
 
 - Resolved by the second fixture: whether minimal content in the first
@@ -290,13 +352,21 @@ without redoing this extraction.
 - Partially resolved: the string-encoding rule for `Station.apx`/
   `Station.apd`'s own binary framing (distinct from `STATION.CTX`'s UTF-16
   framing, and distinct again from `TA.xma`'s bare unframed zlib stream) is
-  now known and confirmed (see above) — but the surrounding object-graph
-  structure (field order, non-string primitive values, the trailing
-  numeric table's meaning) is not. Two example files, both close in tool
-  version, is not enough to generalize the full grammar with confidence;
-  more samples, ideally from a different `APPLICATION LIBSET` version,
-  would help before this could be approached in a specification-driven way
-  per [AGENTS.md](../../AGENTS.md).
+  now known and confirmed on a *third*, newer-version (`16.20`) fixture too
+  (see above) — but the surrounding object-graph structure (field order,
+  non-string primitive values, the trailing numeric table's meaning) is
+  still not. More samples, especially ones confirmed interactively
+  authored rather than tool-generated, would help before this could be
+  approached in a specification-driven way per
+  [AGENTS.md](../../AGENTS.md).
+- New, not yet resolved: the third fixture's own `STSource` stream uses
+  plain XML instead of the confirmed binary framing, while every other
+  stream in that same file (including another `unity.*` settings table)
+  still uses the framing correctly. Likeliest explanation recorded above
+  (that fixture's `STSource` content was written by an automation tool's
+  own build path, not the interactive editor) is a hypothesis, not a
+  confirmed fact — an interactively-authored fixture on the same tool
+  version would settle it either way.
 - Both fixtures' `TopologyRecord`-level blobs (as opposed to the
   `DTM`-level ones covered above, which is where all 17+27 DataContract
   XML fragments came from) have been checked and yield no fragments at all
