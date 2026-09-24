@@ -1428,3 +1428,56 @@ at all*. Confirmed as the exact shape `sayahali_conveyor_ali_conv.zef`'s
 `TON_23`-`TON_28` use: `expression=None` on all three of `TON_23`'s output
 pins, ruling out a named-variable binding there. Real, but narrower and
 rarer than originally framed.
+
+## Block-output-fed coils are no longer silently "unconditional" (2026-09-24)
+
+Searching further for a drawn-wire example (per the previous section) to
+cross-check the row-formula found one, and it doubled as a genuine
+correctness fix, not just confirming evidence. `apexsotjo-blip/control-
+expert-mcp`'s own `LD_1_Heating.xml` test fixture (credited to "Stefan
+Probst", a project author independent of `sayahali`; kept local-only, no
+license declared, never committed) has a custom `Heating` DFB:
+`enEnO="true"`, 4 inputs, 7 outputs, `height="8"` (`= max(4,7)+1`, the same
+formula again). Verified directly through this project's own parser: its
+six real (non-`ENO`) outputs land at rows `posY+2` through `posY+7` --
+exactly `posY+1+i` for declaration index `i` -- each launching a drawn
+wire straight into its own coil. A second, independent, much denser
+confirmation of the same rule `sayahali`'s `TON` blocks gave one data
+point for.
+
+This is directly actionable specifically because these coils' own rows
+contain no `shortCircuit`/`VLink`/`FFBBlock` (the block lives in a
+separate row) -- meaning `parse_ladder_rungs` was already resolving them
+as ordinary "pure series" rows, just wrongly: a coil with no leading
+contact was always treated as unconditionally connected to the rail, with
+no way to notice the leading wire instead originates at a known block's
+output edge. Checked directly against the real corpus before changing
+anything: two other real cases with the identical shape (`Escalier_
+Mecanique.XEF` row 0, `sayahali_conveyor_ali_conv.zef` rows 81 and 97) have
+no block anywhere near the matching column and are genuinely unconditional
+-- confirmed to still resolve exactly as before after the fix.
+
+`_block_output_origins()` (`ladder.py`) precomputes, per network, every
+`(row, column) -> (type_name, instance_name, pin_name)` a block's output
+can originate a wire from, scoped to exactly the evidenced case
+(`enEnO="true"`, declared outputs >= declared inputs, so the "+1 padding"
+reading is unambiguous -- the corpus's `inputs > outputs` shapes still
+aren't attempted). `parse_ladder_rungs` checks every zero-contact coil row
+against it before accepting "unconditional"; a match produces a new
+`LadderOperation.BLOCK_OUTPUT_REFERENCE` instruction (`operand` =
+`"{instance}.{pin}"`, since there is no declared tag to name -- the value
+comes from another block's own pin) prepended to the rung's condition.
+
+Deliberately narrow, on purpose: only a coil with *zero* leading contacts
+in its own row. `LD_1_Heating.xml` itself has a sixth, near-identical row
+(`minus_5_percent`) with a `Start_process` contact ahead of the same
+block-output wire, separated from it by a genuine `emptyCell` gap -- and
+it still resolves as `Start_process -> coil`, unchanged, because a row
+with any real contact in it was never in scope for this fix. That's a
+separate, pre-existing question (what a genuine gap between two real
+elements means to `parse_ladder_rungs`'s "every element is one series
+condition" reading) that this pass deliberately did not touch, to avoid
+risking already-tested output on an unrelated, not-yet-investigated
+semantic. New tests: one reproducing the real fixed shape exactly, one
+confirming a near-miss column (off by one from the true output edge)
+correctly stays unconditional. 282 tests pass; Ruff and Pyright pass.

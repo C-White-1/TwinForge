@@ -1936,3 +1936,63 @@ pins of `TON_23`, ruling out any named-variable binding there). That is a
 real, narrower, and apparently rarer shape than originally framed, still
 open, still without a second `n_in > n_out` example to test the row
 formula against.
+
+Block-output-fed coil checkpoint (2026-09-24): told to keep pushing on the
+same drawn-wire question, `apexsotjo-blip/control-expert-mcp`'s
+`LD_1_Heating.xml` test fixture (no license declared; kept local-only,
+never committed) turned up a second, much denser confirmation of the
+`posY+1+i` output-row formula -- a custom `Heating` DFB with 4 inputs, 7
+outputs, six real outputs all wired to coils at rows `posY+2` through
+`posY+7`, exactly matching. Different author, different block type, from
+`sayahali`'s single `TON` data point.
+
+Unlike `sayahali`'s case, these coil rows contain no `shortCircuit`/`VLink`/
+`FFBBlock` directly -- the block lives in its own separate row -- meaning
+they were already being resolved by `parse_ladder_rungs` as ordinary
+"pure series" rungs, just wrongly: a coil with no leading contact has
+always been reported as unconditionally tied to the rail, with no check
+for whether its leading wire instead originates at a known block's own
+output edge. This is a real accuracy question about already-shipped
+output, not a hypothetical -- so before writing anything, checked the
+current corpus for rows with the identical shape (leading `emptyCell`,
+zero contacts, then a coil) and found two, `Escalier_Mecanique.XEF` row 0
+and `sayahali_conveyor_ali_conv.zef` rows 81/97 -- confirmed none of them
+sit near any block's output-edge column, so they're genuinely
+unconditional and needed to keep resolving exactly as before.
+
+Implemented `_block_output_origins()` in `ladder.py`: precomputes, per
+network, every `(row, column)` a block's output can originate a wire from,
+scoped to exactly the evidenced case (`enEnO="true"`, declared outputs >=
+declared inputs -- the corpus's `inputs > outputs` shapes, `ADD`/`SR`/
+`INITCHART`/`SETSTEP`, still aren't attempted, same as before).
+`parse_ladder_rungs` now checks every zero-contact coil row against it
+before accepting "unconditional". A new model operation,
+`LadderOperation.BLOCK_OUTPUT_REFERENCE`, represents a match -- `operand`
+is `"{instance}.{pin}"` rather than a declared tag name, since the value
+comes from another block's own output pin, not project data.
+
+Re-ran the full real corpus after the change: the two genuinely-
+unconditional cases above are byte-for-byte unaffected; no other real
+fixture in the corpus happens to contain the "isolated coil row, matching
+block nearby" shape at all (only `LD_1_Heating.xml`, local-only and thus
+outside `parse_projects`' currently-recognized `LDExchangeFile` root, does
+-- confirmed end to end by loading its `LDSource` node directly through
+`parse_ladder_rungs`: five of its six real coils now resolve to
+`block_output_reference`). Two new synthetic tests: one reproducing the
+real fixed shape, one confirming a near-miss column (one off from the true
+output edge) still resolves unconditional, unchanged.
+
+Scoped deliberately narrow, and said so in the docstring: only a coil with
+*zero* leading contacts in its own row. `LD_1_Heating.xml` itself has a
+sixth row (`minus_5_percent`) with a real contact (`Start_process`) ahead
+of the same block-output wire, separated from it by a genuine `emptyCell`
+gap -- and it still resolves as `Start_process -> coil`, unchanged, exactly
+as before this fix, because any row with a real contact in it was out of
+scope. That surfaced a separate, deeper, not-yet-investigated question:
+whether `parse_ladder_rungs`'s "every contact/coil in the row is one
+series condition" reading has always been too permissive whenever a
+genuine `emptyCell` gap sits between two real elements -- a pre-existing
+question, not introduced by this change and not fixed by it either,
+deliberately left alone rather than risk already-tested output on an
+unrelated, unverified semantic under time pressure. 282 tests pass
+(up from 280); Ruff and Pyright pass.

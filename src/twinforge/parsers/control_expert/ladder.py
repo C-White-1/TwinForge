@@ -13,6 +13,24 @@ wiring whose destination can span many rows to a distant block (observed in
 the corpus) or a branch merge -- neither rule is evidenced yet, so such rows
 are diagnosed by name and never guessed at.
 
+A coil with no contact before it in its own row is not automatically
+"unconditional" (connected straight to the rail): `_block_output_origins`
+checks it against every `enEnO="true"` block in the network whose declared
+outputs are at least as many as its inputs first. Real evidence (see that
+function) confirms such a block reserves one blank row on its output side,
+then lands output pin `i` at row `posY+1+i`, column `posX+width` -- exactly
+the row/column an unconditional-looking coil's leading wire can originate
+from instead of the rail. Confirmed twice, independently, in real fixtures
+(see the function's own docstring). Scoped deliberately narrow: only a coil
+with zero leading contacts in its own row -- a row mixing a real contact
+with a gap-separated, block-fed coil (real example: row 10 of
+`LD_1_Heating.xml`'s `Heating_control` block, otherwise identical to its
+five sibling rows this rule does resolve) is not handled by this rule and
+still resolves by the pre-existing (and, for that shape, questionable)
+"every element in the row is one series condition" reading -- a separate,
+not-yet-investigated question about what a genuine gap between two real
+elements means, independent of this fix.
+
 `resolve_ladder_pin_conditions` below resolves one further, narrower case
 from the same grid: a `shortCircuit`-marked vertical bus, continuing through
 bare `VLink` at the same column across further rows, that lands cleanly on
@@ -84,6 +102,50 @@ _COIL_OPERATIONS = {
 }
 
 
+def _block_output_origins(network: CapturedSection) -> dict[tuple[int, int], tuple[str, str, str]]:
+    # Real evidence (module docstring): an enEnO="true" block whose declared
+    # outputs are at least as many as its inputs (so height == outputs + 1,
+    # unambiguous) always reserves one blank leading row on its output side;
+    # output pin i (0-indexed, declaration order, i >= 1 -- ENO at i == 0 is
+    # never wired) sits at row posY+1+i, column posX+width. Confirmed twice,
+    # independently: sayahali_conveyor_ali_conv.zef's five TON instances
+    # (row posY+2 -> Q, user-identified against the vendor's own PDF) and
+    # control-expert-mcp's LD_1_Heating.xml Heating_control block (six
+    # consecutive outputs at posY+2 through posY+7, all wired to coils).
+    origins: dict[tuple[int, int], tuple[str, str, str]] = {}
+    for line in network.ordered_children:
+        if line.tag != "typeLine":
+            continue
+        for block in line.ordered_children:
+            if block.tag != "FFBBlock" or block.raw_attributes.get("enEnO") != "true":
+                continue
+            position_node = next((c for c in block.ordered_children if c.tag == "objPosition"), None)
+            posx = position_node.raw_attributes.get("posX") if position_node is not None else None
+            posy = position_node.raw_attributes.get("posY") if position_node is not None else None
+            if posx is None or not posx.isascii() or not posx.isdecimal():
+                continue
+            if posy is None or not posy.isascii() or not posy.isdecimal():
+                continue
+            description = next((c for c in block.ordered_children if c.tag == "descriptionFFB"), None)
+            if description is None:
+                continue
+            inputs = [c for c in description.ordered_children if c.tag == "inputVariable"]
+            outputs = [c for c in description.ordered_children if c.tag == "outputVariable"]
+            if len(outputs) < len(inputs) or len(outputs) < 2:
+                continue
+            if outputs[0].raw_attributes.get("formalParameter") != "ENO":
+                continue
+            instance_name = block.raw_attributes.get("instanceName", "")
+            type_name = block.raw_attributes.get("typeName", "")
+            column = int(posx) + _FFB_BLOCK_WIDTH
+            for index in range(1, len(outputs)):
+                pin_name = outputs[index].raw_attributes.get("formalParameter")
+                if pin_name is None:
+                    continue
+                origins[(int(posy) + 1 + index, column)] = (type_name, instance_name, pin_name)
+    return origins
+
+
 def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[Diagnostic]]:
     diagnostics: list[Diagnostic] = []
     rungs: list[LadderRung] = []
@@ -103,6 +165,7 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
     for network in source.ordered_children:
         if network.tag != "networkLD":
             continue
+        block_output_origins = _block_output_origins(network)
         row = 0
         for line in network.ordered_children:
             if line.tag == "textBox":
@@ -120,6 +183,7 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
                 continue
             column = 0
             elements: list[tuple[CapturedSection, int]] = []
+            hlink_starts: list[int] = []
             resolvable = True
             for child in children:
                 if child.tag in {"emptyCell", "HLink"}:
@@ -127,6 +191,8 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
                     if width is None:
                         resolvable = False
                     else:
+                        if child.tag == "HLink":
+                            hlink_starts.append(column)
                         column += width
                 elif child.tag in {"contact", "coil"}:
                     elements.append((child, column))
@@ -147,6 +213,24 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
                            "Row must have exactly one coil, as its last element", line)
                 else:
                     instructions = []
+                    if len(elements) == 1:
+                        # A coil with no leading contact was previously always
+                        # unconditional. Real evidence (see
+                        # _block_output_origins): when the wire feeding it
+                        # actually originates at a known block's output edge
+                        # rather than the rail, it is conditioned on that
+                        # pin instead -- checked before assuming "from rail".
+                        for candidate_column in (*hlink_starts, elements[0][1]):
+                            origin = block_output_origins.get((row, candidate_column))
+                            if origin is None:
+                                continue
+                            type_name, instance_name, pin_name = origin
+                            instructions.append(LadderInstruction(
+                                operation=LadderOperation.BLOCK_OUTPUT_REFERENCE,
+                                source_mnemonic=type_name, operand=f"{instance_name}.{pin_name}",
+                                position=LadderPosition(column=candidate_column, row=row),
+                            ))
+                            break
                     for node, node_column in elements:
                         attrs = node.raw_attributes
                         if node.tag == "contact":

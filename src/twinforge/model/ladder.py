@@ -14,6 +14,10 @@ class LadderOperation(str, Enum):
     COIL = "coil"
     SET_COIL = "set_coil"
     RESET_COIL = "reset_coil"
+    # A condition element whose value comes from a named function block's own
+    # output pin (a drawn ladder wire from the block's own grid position),
+    # not a declared tag read the way a contact is. See LadderInstruction.
+    BLOCK_OUTPUT_REFERENCE = "block_output_reference"
     UNSUPPORTED = "unsupported"
 
 
@@ -27,7 +31,14 @@ class LadderPosition:
 
 @dataclass(frozen=True)
 class LadderInstruction:
-    """One source instruction with optional portable semantics."""
+    """One source instruction with optional portable semantics.
+
+    `operand` is a declared tag/variable name for every operation except
+    `BLOCK_OUTPUT_REFERENCE`, where it is instead `"{instance_name}.
+    {pin_name}"` -- there is no declared tag to name, since the value comes
+    from another block's own output pin, not project data. `source_mnemonic`
+    holds that block's `typeName` in that case, not a vendor XML keyword.
+    """
 
     operation: LadderOperation
     source_mnemonic: str

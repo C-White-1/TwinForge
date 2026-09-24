@@ -94,6 +94,69 @@ def test_unconditional_coil_with_leading_wire_only_resolves():
     assert elements[0].position is not None and elements[0].position.column == 10
 
 
+def test_coil_fed_from_a_block_output_edge_is_not_unconditional():
+    # Real evidence (see _block_output_origins in ladder.py): confirmed
+    # twice, independently -- sayahali_conveyor_ali_conv.zef's five TON
+    # instances (posY+2 -> Q) and control-expert-mcp's LD_1_Heating.xml
+    # Heating_control block (six real outputs at posY+2 through posY+7,
+    # all wired to coils). This reproduces that second fixture's exact
+    # shape: an enEnO="true" block with more outputs than inputs, height
+    # reserving one blank leading row, wired via a drawn HLink starting
+    # exactly at the block's own output edge (posX + width).
+    _result, routine = _ld_routine('''
+    <typeLine><emptyCell nbCells="3"/>
+    <FFBBlock instanceName="HC" typeName="Heating" additionnalPinNumber="0" enEnO="true" width="16" height="5">
+    <objPosition posX="3" posY="0"/>
+    <descriptionFFB execAfter="">
+    <inputVariable invertedPin="false" formalParameter="EN"/>
+    <inputVariable invertedPin="false" formalParameter="X"/>
+    <outputVariable invertedPin="false" formalParameter="ENO"/>
+    <outputVariable invertedPin="false" formalParameter="A"/>
+    <outputVariable invertedPin="false" formalParameter="B"/>
+    </descriptionFFB></FFBBlock>
+    <emptyCell nbCells="6"/></typeLine>
+    <typeLine><emptyLine nbRows="1"/></typeLine>
+    <typeLine><emptyCell nbCells="5"/><HLink nbCells="5"/>
+    <coil typeCoil="coil" coilVariableName="Y"/></typeLine>''')
+    rungs = [r for r in routine.ladder_rungs if r.number == 2]
+    assert len(rungs) == 1
+    elements = _instructions(rungs[0])
+    assert len(elements) == 2
+    assert elements[0].operation == LadderOperation.BLOCK_OUTPUT_REFERENCE
+    assert elements[0].operand == "HC.A"
+    assert elements[0].source_mnemonic == "Heating"
+    assert elements[1].operation == LadderOperation.COIL
+    assert elements[1].operand == "Y"
+
+
+def test_coil_fed_from_an_unrelated_column_stays_unconditional():
+    # Real negative case: sayahali_conveyor_ali_conv.zef rows 81 and 97 have
+    # the identical grid shape (leading emptyCell, no contacts, a coil) with
+    # no block anywhere near the matching column -- genuinely unconditional,
+    # and must stay that way. Same block as above, but the coil sits one
+    # column short of the block's real output edge (col 4, not 5).
+    _result, routine = _ld_routine('''
+    <typeLine><emptyCell nbCells="3"/>
+    <FFBBlock instanceName="HC" typeName="Heating" additionnalPinNumber="0" enEnO="true" width="16" height="5">
+    <objPosition posX="3" posY="0"/>
+    <descriptionFFB execAfter="">
+    <inputVariable invertedPin="false" formalParameter="EN"/>
+    <inputVariable invertedPin="false" formalParameter="X"/>
+    <outputVariable invertedPin="false" formalParameter="ENO"/>
+    <outputVariable invertedPin="false" formalParameter="A"/>
+    <outputVariable invertedPin="false" formalParameter="B"/>
+    </descriptionFFB></FFBBlock>
+    <emptyCell nbCells="6"/></typeLine>
+    <typeLine><emptyLine nbRows="1"/></typeLine>
+    <typeLine><emptyCell nbCells="4"/><HLink nbCells="6"/>
+    <coil typeCoil="coil" coilVariableName="Y"/></typeLine>''')
+    rungs = [r for r in routine.ladder_rungs if r.number == 2]
+    assert len(rungs) == 1
+    elements = _instructions(rungs[0])
+    assert len(elements) == 1
+    assert elements[0].operation == LadderOperation.COIL
+
+
 def test_set_coil_resolves_like_reset_coil():
     # Real evidence: github.com/sayahali/conveyor-automation's M340 export
     # uses typeCoil="setCoil" (4 real occurrences) -- resetCoil's natural
