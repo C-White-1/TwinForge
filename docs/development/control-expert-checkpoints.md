@@ -1770,3 +1770,51 @@ placed in the grid -- a coincidence, not a connection. No fixture in the
 corpus provides real evidence of an `FFBBlock`'s own output pin feeding
 anything. The backlog item stays open; this was checked and ruled out, not
 skipped.
+
+`FFBBlock` output-edge evidence, real but inconclusive (2026-09-24): asked
+to keep digging the corpus for the same open question, this time with a
+precise, corpus-wide, corrected-width scan for any wire that appears to
+originate fresh at a block's own output edge (`posX + 2`, some row within
+`[posY, posY + max(inputs, outputs))`) with nothing marking that column in
+the row immediately above it -- a "birth" test, deliberately excluding the
+function15/function2 false positive above by construction (that wire had a
+marker one row up, so it fails this test and correctly does not appear
+here).
+
+Five real hits, all identical in shape: `TON_23`, `TON_24`, `TON_25`,
+`TON_26`, `TON_28` in `sayahali_conveyor_ali_conv.zef`, each a `TON`
+(`enEnO="true"`, declared `inputVariable` order `EN, IN, PT`;
+`outputVariable` order `ENO, Q, ET`). Every one launches a fresh one-cell
+`HLink` at exactly `posX + 2`, row `posY + 2`, immediately followed by a
+`resetCoil` (`M1_S1`, `M2_S1`, `M1_S1`, `M3_S1`, `M4_S1` respectively --
+distinct per instance, ruling out a shared/independent circuit
+coincidence the way the earlier false positive was ruled in). This is
+real, repeated, structurally clean evidence that a block's own output can
+originate a wire in exactly the way its own input side already does.
+
+What it does not establish: *which* output pin. Row offset 2 from `posY`
+is the third declared output in this evidenced case, `ET` -- a `TIME`
+value, which cannot legally drive a boolean `resetCoil` in Control Expert
+(IEC 61131-3 type-checked). Either the naive "row offset equals
+declaration-index" rule that already holds for input landing does not
+carry over unchanged to the output side (something else determines which
+of `ENO`/`Q`/`ET` gets which row, not yet evidenced), or something about
+this shape has been misread. No other block type in the corpus shows this
+"fresh birth at the output edge" shape at all (checked
+`Escalier_Mecanique.XEF`, `MultiGrafcet_Coordination_V1_2026.XEF`,
+`function15.zip`, `function2.zip`, `tsaii_multigrafcet_final_v1.zef`), so
+there is no cross-type case (e.g. an unambiguously-numeric block output
+feeding a numeric input) to disambiguate the row-to-pin rule the way
+having several block types helped confirm the row/`posY` correspondence
+and the column-width constant earlier today. One incidental near-miss:
+`MultiGrafcet_Coordination_V1_2026.XEF`/`tsaii_multigrafcet_final_v1.zef`'s
+`.3` (`SETSTEP`) shows the same "fresh birth" shape at its own output edge,
+but the wire dead-ends into nothing (`following=[]`) -- not useful as
+corroborating evidence either way.
+
+Not implemented. Attaching a specific output pin name to this connection
+without resolving the type-compatibility contradiction would be exactly
+the kind of guess this project does not make; the structural fact (a real
+wire, real per-instance targets, corpus-repeated 5/5) is recorded here for
+whoever picks this up next, separate from the unresolved pin-identity
+question.

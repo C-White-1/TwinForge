@@ -242,8 +242,16 @@ visible. Initial values are lexical evidence, not promoted typed values.
       alignment on closer trace, not real chaining evidence: that
       column's wire was independently fed by its own `shortCircuit` three
       rows earlier and merely happened to end at the same column as the
-      block's right edge. Still not attempted; the `setCoil` checkpoint
-      fixed only a smaller, unrelated bug the same fixture surfaced
+      block's right edge. A further, corpus-wide "fresh wire birth" scan
+      (see the output-edge checkpoint below) found real, repeated (5/5,
+      distinct targets each time) evidence that a block's output edge
+      genuinely can originate a wire -- `sayahali_conveyor_ali_conv.zef`'s
+      five `TON` blocks each launch one at row `posY+2` into a `resetCoil`
+      -- but not which declared pin it is: the naive row-offset reading
+      (`ET`, a `TIME` value) cannot legally drive a boolean coil, and no
+      other block type in the corpus shows this shape to cross-check
+      against. Still not attempted; the `setCoil` checkpoint fixed only a
+      smaller, unrelated bug the same fixture surfaced
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
