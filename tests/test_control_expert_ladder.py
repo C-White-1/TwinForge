@@ -245,6 +245,37 @@ def test_short_circuit_wire_does_not_bind_without_en_en_o():
     assert pin.ladder_condition is None
 
 
+def test_ffb_block_footprint_blocks_a_later_wire_landing():
+    # Real evidence (module docstring in ladder.py): an FFBBlock always spans
+    # exactly two columns, so scanning now continues past it instead of
+    # abandoning the row. That footprint must still obstruct any other wire
+    # trying to reach a second block further along the same row -- a shape
+    # that could never even be reached before this block width was known.
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    <contact typeContact="openContact" contactVariableName="A"/></shortCircuit>
+    <emptyCell nbCells="1"/>{_ffb(instance="B1", posx=2, posy=0, en_en_o="false")}
+    <emptyCell nbCells="1"/>{_ffb(instance="B2", posx=5, posy=0)}</typeLine>''')
+    assert _en_pin(routine, "B1").ladder_condition is None
+    assert _en_pin(routine, "B2").ladder_condition is None
+
+
+def test_wire_starting_after_an_ffb_block_still_resolves():
+    # Companion to the footprint-blocking test above: scanning must actually
+    # continue past the first block (not merely stop there), so a wire that
+    # starts to its right can still cleanly reach a second block. Before the
+    # block width was known, the row scan stopped at the first FFBBlock, so
+    # this shape was unreachable regardless of any obstruction logic.
+    _result, routine = _ld_routine(f'''
+    <typeLine>{_ffb(instance="B1", posx=0, posy=0, en_en_o="false")}
+    <shortCircuit><VLink/>
+    <contact typeContact="openContact" contactVariableName="A"/></shortCircuit>
+    <emptyCell nbCells="1"/>{_ffb(instance="B2", posx=4, posy=0)}</typeLine>''')
+    pin = _en_pin(routine, "B2")
+    assert pin.ladder_condition is not None
+    assert [e.operand for e in pin.ladder_condition.elements] == ["A"]  # type: ignore[union-attr]
+
+
 def test_malformed_short_circuit_shape_is_diagnosed_not_guessed():
     result, _routine = _ld_routine('''
     <typeLine><shortCircuit>

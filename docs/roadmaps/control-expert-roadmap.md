@@ -212,6 +212,11 @@ visible. Initial values are lexical evidence, not promoted typed values.
       Evaluation bypass semantics, which no fixture in the corpus proves
       applies here -- structural connectivity only, not synthesized
       bypass-and-passthrough execution.
+- [x] Determine an `FFBBlock`'s own grid column width, so row scanning need
+      not abandon the rest of a row once it meets one; see the block-width
+      checkpoint below. Confirmed constant (2 columns, independent of block
+      type or pin count -- pin count instead grows row span, already
+      resolved) across every real ladder network in the corpus.
 - [ ] Backlog: the remaining ambiguous `shortCircuit`/`VLink` shape -- a wire
       that keeps a `VLink` alive one row past a candidate landing (real
       example: `MBP_MSTR_7` in `function15.zip`/`function2.zip`), which may
@@ -229,9 +234,15 @@ visible. Initial values are lexical evidence, not promoted typed values.
       (`TON.Q` feeding an `SR.S1`), not from a second row of contacts as
       first assumed from the PDF alone -- and the PDF's own clearest
       example (`SR_33`) doesn't even exist in this specific file's XML (a
-      different project revision). Column/width semantics for a block's
-      output side are not yet verified against real evidence the way
-      row/`posY` now is. Still not attempted; the `setCoil` checkpoint
+      different project revision). Block column width is now known (see
+      above), but a second, separate corpus check specifically for
+      block-to-block output chaining (`function15.zip`/`function2.zip`'s
+      `resetnoe` program, `.5`/ADD's declared output column landing exactly
+      on an unrelated wire's column) found only a coincidental grid
+      alignment on closer trace, not real chaining evidence: that
+      column's wire was independently fed by its own `shortCircuit` three
+      rows earlier and merely happened to end at the same column as the
+      block's right edge. Still not attempted; the `setCoil` checkpoint
       fixed only a smaller, unrelated bug the same fixture surfaced
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
@@ -411,7 +422,7 @@ when shared contracts change. Use a fresh workspace-local `--basetemp` if the
 existing pytest artifact directory is locked. Recheck archive hashes after
 reference operations. Avoid making third-party archives mandatory CI inputs.
 
-The last full run of the command's test set passed 264 tests, including optional
+The last full run of the command's test set passed 275 tests, including optional
 local samples; Ruff and Pyright passed. This is a dated development checkpoint,
 not a substitute for running the checks after future changes.
 

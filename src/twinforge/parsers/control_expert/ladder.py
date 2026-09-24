@@ -31,6 +31,17 @@ function15/function2's MBP_MSTR_7 rung) shows this shape exists but its
 target is genuinely ambiguous -- it may be a multi-row block's second input,
 or merely the block's own border rendered with the same element, and
 nothing in the corpus disambiguates the two.
+
+An `FFBBlock` always occupies exactly two grid columns regardless of its
+type or pin count (pin count instead grows its row span, already handled
+via `objPosition posY`). Confirmed by measuring every real ladder network
+across six independent projects (Escalier_Mecanique.XEF, its ZEF sibling,
+MultiGrafcet_Coordination_V1_2026.XEF and its sibling, function15.zip and
+function2.zip): every row's leading-plus-trailing cell count around an
+`FFBBlock` sums to exactly `nbColumns - 2` for that network's declared
+`LDSource nbColumns`, for every block type observed (TON, SET, RESET, ADD,
+MBP_MSTR) and every pin count from 1 to 6. `nbColumns="11"` itself is
+identical across the whole corpus.
 """
 from twinforge.model import (
     LadderInstruction, LadderOperation, LadderPinCondition, LadderPosition, LadderRung, LadderSeries,
@@ -43,6 +54,10 @@ _CONTACT_OPERATIONS = {
     "openContact": LadderOperation.NORMALLY_OPEN_CONTACT,
     "closedContact": LadderOperation.NORMALLY_CLOSED_CONTACT,
 }
+# Real evidence: see the module docstring. Constant across every block type
+# and pin count observed; pin count grows row span, not column width.
+_FFB_BLOCK_WIDTH = 2
+
 _COIL_OPERATIONS = {
     "coil": LadderOperation.COIL,
     "resetCoil": LadderOperation.RESET_COIL,
@@ -197,8 +212,6 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
             pending_contacts: list[LadderInstruction] = []
             markers: set[int] = set()  # every column with a "real" element, for the clean-gap check
             continued: set[int] = set()  # columns whose wire is carried into the next row
-            ffb_column: int | None = None
-            target_column: int | None = None
 
             for child in children:
                 if child.tag in {"emptyCell", "HLink"}:
@@ -247,7 +260,7 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                         column += 1
                     pending_contacts = []
                 elif child.tag == "FFBBlock":
-                    ffb_column = column
+                    block_start = column
                     position_node = next((c for c in child.ordered_children if c.tag == "objPosition"), None)
                     posx = position_node.raw_attributes.get("posX") if position_node is not None else None
                     posy = position_node.raw_attributes.get("posY") if position_node is not None else None
@@ -269,18 +282,20 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                                     wire_column, row, LadderPosition(column=target_column, row=row),
                                     list(active[wire_column]), "EN",
                                 ))
-                    break
+                    # Real evidence (module docstring): a block always spans
+                    # exactly two columns, so scanning can continue past it
+                    # instead of abandoning the rest of the row. Its own
+                    # footprint is marked so a later element's clean-gap
+                    # check cannot jump across it.
+                    markers.add(block_start)
+                    pending_contacts = []
+                    column = block_start + _FFB_BLOCK_WIDTH
                 else:
                     pending_contacts = []
 
-            # A column not touched by a marker this row has died, unless it
-            # sits at or past a block we stopped scanning at -- its own grid
-            # width is not tracked, so what lies beyond it is unknown rather
-            # than dead (real evidence: the wire beside RESET in the corpus
-            # genuinely continues past it to SET two rows later).
-            boundary = target_column if target_column is not None else ffb_column
-            for wire_column in [c for c in active if c not in continued
-                                 and (boundary is None or c < boundary)]:
+            # A column not touched by a marker this row (including one
+            # carried through an FFBBlock's now-known footprint) has died.
+            for wire_column in [c for c in active if c not in continued]:
                 del active[wire_column]
             row_markers[row] = markers
             row += 1

@@ -1263,3 +1263,50 @@ fell through to `UNSUPPORTED` and `unresolved_ladder_instruction`. Fixed
 by adding the one missing dictionary entry; all 4 real rows now resolve
 correctly as `set_coil`-terminated series rows, and
 `unresolved_ladder_instruction` drops to zero for this fixture.
+
+## `FFBBlock` grid column width (2026-09-24)
+
+At the user's suggestion, re-checked the *existing*, already-trusted corpus
+(not new external material) specifically for evidence bearing on the
+`shortCircuit`/`VLink` backlog item's open "column/width semantics for a
+block's output side are not yet verified" gap. Two distinct outcomes:
+
+**Confirmed and fixed:** an `FFBBlock`'s own column width. Measured every
+row containing an `FFBBlock` across six independent real projects
+(`Escalier_Mecanique.XEF`, `escalier_mecanique.zef`,
+`MultiGrafcet_Coordination_V1_2026.XEF`, `tsaii_multigrafcet_final_v1.zef`,
+`function15.zip`, `function2.zip`) by summing each row's leading and
+trailing cell widths around the block. That sum is exactly `9` in every
+single case, regardless of block type or pin count (`TON`, `SET`, `RESET`,
+`ADD`, `MBP_MSTR`; 1 to 6 pins observed) or which side of the row the block
+sits on. Every one of those networks' `LDSource` also declares
+`nbColumns="11"` identically. `11 - 9 = 2`: an `FFBBlock` always occupies
+exactly two grid columns, full stop -- pin count instead grows the block's
+*row* span (already resolved via `objPosition posY`), never its column
+span. This was the one piece `resolve_ladder_pin_conditions` explicitly
+did not track (the code stopped scanning a row entirely at its first
+`FFBBlock`, treating anything beyond as of unknown width). Fixed in
+`ladder.py`: the row scan now continues past a block using this known
+width, marking the block's own start column so a later element's clean-gap
+check still cannot jump across it. Verified against the full real corpus
+(275 tests, `en_condition(...)` assertions in
+`test_optional_real_function15_short_circuit_conditions` unchanged) plus
+two new synthetic tests proving the change is load-bearing: one showing a
+wire that starts *after* a first block can still cleanly reach a second
+block on the same row (impossible before -- the row scan used to abandon
+everything past the first block), and one showing a block's own footprint
+correctly obstructs a wire trying to reach past it.
+
+**Investigated, not confirmed:** whether this also explains real
+block-to-block *output* chaining (the `TON.Q` → `SR.S1` hypothesis from the
+multi-pin investigation checkpoint below). In `function15.zip`/
+`function2.zip`'s `resetnoe` program, the `.5`/`ADD` block's right edge
+(column 2, width 2 → column 4) coincides exactly with a `VLink` at column 4
+that continues on to feed `.4`/`SET`'s `EN` pin unconditionally. Tracing it
+back row by row shows this is a coincidence, not causation: that column-4
+wire independently originates from its own `shortCircuit(VLink, HLink
+nbCells="4")` three rows earlier (an unconditional bridge), not from the
+`ADD` block's `ENO`/`OUT` pins at all -- it simply happens to land on the
+same column because of how the block was positioned in the grid. No
+fixture in the corpus provides real evidence of an `FFBBlock`'s own output
+pin feeding a wire. The backlog item stays open.
