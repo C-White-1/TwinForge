@@ -2,8 +2,9 @@
 
 Status: **investigation only.** No capture, parser or model support exists in
 TwinForge for this format. This document records what has been directly
-observed in one sample file so the next session does not need to rediscover
-it. Nothing here should be read as a commitment to build SCADAPack support.
+observed across four real sample files (three supplied locally by the user,
+one found externally) so the next session does not need to rediscover it.
+Nothing here should be read as a commitment to build SCADAPack support.
 
 ## Provenance
 
@@ -323,21 +324,83 @@ and several `.db` files (`VariableManager.db`, `TypeManager.ODB`,
 is the richer, full-project container; `.RCZ`'s `.STA` member is the
 lighter one, both sharing the same `BinAppli` core.
 
-**One real, honestly-flagged discrepancy, not smoothed over:** this
-fixture's own `STExchangeFile`/`STSource` stream does *not* use the
-length-prefixed `.NET` binary framing confirmed above -- it decompresses
-directly to plain XML (`<?xml version="1.0" standalone="yes"?>
-<STExchangeFile><STSource>...`), no `\xe5\xe3\xd2\x9e...` magic at all.
-The *other* streams in this exact same file (`Station.apd`'s settings
-tables) *do* still show that magic and the confirmed length-prefix rule
-(`"unity.variableNotUsed"` still preceded by `0x15`=21, exact). Since this
-demo project was built programmatically through `remoteconnect-mcp`'s own
-tools (`tools/bigtest/07_build.py` etc.), not authored interactively, the
-likeliest explanation is that this is how *that tool's write path*
-produces `STSource` content specifically, not a disproof of the binary
-framing found in the two interactively-authored fixtures -- but this is
-not confirmed either way, and is recorded as an open discrepancy rather
-than resolved in either direction.
+**A real discrepancy, initially misdiagnosed, then corrected by a fourth
+fixture (see below):** this fixture's own `STExchangeFile`/`STSource`
+stream does *not* use the length-prefixed `.NET` binary framing confirmed
+above -- it decompresses directly to plain XML (`<?xml version="1.0"
+standalone="yes"?><STExchangeFile><STSource>...`), no `\xe5\xe3\xd2\x9e...`
+magic at all. The *other* streams in this exact same file (`Station.apd`'s
+settings tables) *do* still show that magic and the confirmed
+length-prefix rule (`"unity.variableNotUsed"` still preceded by
+`0x15`=21, exact). First guess was that this was an artifact of this demo
+being built programmatically through `remoteconnect-mcp`'s own tools
+rather than authored interactively -- **wrong, corrected below.**
+
+## Fourth fixture: `RTU_Demo_Proj.RCZ` (2026-09-25) — settles the plain-XML question, and solves the trailing-table mystery
+
+The user supplied `reference/SCADAPack/SCADAPack 47xi NodeRED (Node
+Red).zip` (87,983,773 bytes; no license stated; kept local-only) --
+Schneider's own SCADAPack 47xi + Node-RED integration demo bundle
+(`Bundle_NodeRed.sh`, an `Appendix A - NodeRed Tips.docx`, a 107-node real
+Node-RED flow with a UI dashboard in `flows.json`, and an 87 MB
+`PackagedWorkspace.tgz` Node-RED deployment bundle -- not investigated
+further, out of scope for the `.RCZ` format itself). Inside it,
+`RTU_Demo_Proj.RCZ` is a fourth real fixture, and a fourth distinct
+hardware/version combination: `PROCESSOR=SCADAPack47x` (a model not seen
+before -- distinct from `x70` and `57x`), `APPLICATION LIBSET=V15.1`,
+`STU COMPATIBILITY LEVEL=107` (highest yet), `ProductVersion=UnitySoControl
+15.10`, dated 2022-11-01. Clearly an official Schneider training asset,
+not a tool-generated file -- its `RTU_Demo_Proj.STA` even carries a
+`props.xml` member directly (previously only seen inside the richer
+`.STU` container, per the third fixture above), and its ST source is a
+realistic simulated-process demo (a sine-wave/cosine load simulation, a
+motor-torque/pump-speed initialization block).
+
+**This settles the plain-XML discrepancy -- and corrects the earlier
+guess.** This fixture's own `STSource` stream is *also* plain XML, no
+binary framing, byte-for-byte the same shape as the third fixture's. Since
+this is definitely not a `remoteconnect-mcp`-built file, "tool write path"
+is ruled out. The real, better-supported pattern: **the two fixtures with
+binary-framed `STSource` are the two oldest** (`APPLICATION LIBSET`
+V11.1 and V14.0); **the two with plain-XML `STSource` are the two
+newest** (V15.1 and V16.20) -- while `Station.apd`'s settings-table
+streams use the *same* binary framing across all four fixtures,
+regardless of version. Four fixtures across four independent
+provenances (two different real applications, one demo bundle, one
+tool's own generated fixture) splitting cleanly along version lines is
+real, if still not certainty-grade, evidence: Control Expert /
+UnitySoControl most likely changed how it serializes `STSource`
+specifically somewhere between V14.0 and V15.1, while leaving the
+settings-table serialization on the older scheme.
+
+**This also solves the "trailing numeric table" mystery from the
+`sp470_v04`/`leadLagPumpCtrl_v02` section above.** Because this fixture's
+`STSource` is plain XML, the table that follows the source text in the
+binary-framed fixtures appears here in fully self-describing form:
+
+```xml
+<D1 c14="16">
+  <D0 k="8" O0="0"></D0>
+  <D0 k="10" O0="30" p="1" p1="1"></D0>
+  <D0 k="10" O0="38" p="1" p1="2"></D0>
+  <D0 k="10" O0="68" p="1" p1="3"></D0>
+  ...
+  <D0 k="20" O0="20c"></D0>
+</D1>
+```
+
+`O0` is a **hexadecimal byte offset into the ST source text** (`0x30`,
+`0x38`, `0x68`, ascending monotonically to `0x20c`, the length of the
+source) -- confirming, directly and no longer as a two-data-point
+hypothesis, that the binary-framed fixtures' trailing value sequences
+(`sp470_v04`: `..., 20, 0, 20, 28, 30, 38, ...`; `leadLagPumpCtrl_v02`:
+`..., 20, 0, 38, 60, 88, b0, d8, ...`) are the same kind of per-statement
+offset table, just serialized differently. `k` is almost certainly a
+statement/node kind code (`8` opens the table, `10` repeats once per real
+ST statement -- 20 times here, matching the 20 real assignment/`IF`
+statements in the source, `20` closes it); `p`/`p1` look like a
+parameter count and a sequential statement index respectively, but their
+exact meaning is not yet confirmed the way `O0` now is.
 
 ## Open questions
 
@@ -349,24 +412,34 @@ than resolved in either direction.
   file's `.NET BinaryFormatter` blobs could be read at all without a real
   deserializer. They can, reliably, via the embedded DataContract XML
   fragments.
-- Partially resolved: the string-encoding rule for `Station.apx`/
+- Mostly resolved: the string-encoding rule for `Station.apx`/
   `Station.apd`'s own binary framing (distinct from `STATION.CTX`'s UTF-16
   framing, and distinct again from `TA.xma`'s bare unframed zlib stream) is
-  now known and confirmed on a *third*, newer-version (`16.20`) fixture too
-  (see above) — but the surrounding object-graph structure (field order,
-  non-string primitive values, the trailing numeric table's meaning) is
-  still not. More samples, especially ones confirmed interactively
-  authored rather than tool-generated, would help before this could be
-  approached in a specification-driven way per
-  [AGENTS.md](../../AGENTS.md).
-- New, not yet resolved: the third fixture's own `STSource` stream uses
-  plain XML instead of the confirmed binary framing, while every other
-  stream in that same file (including another `unity.*` settings table)
-  still uses the framing correctly. Likeliest explanation recorded above
-  (that fixture's `STSource` content was written by an automation tool's
-  own build path, not the interactive editor) is a hypothesis, not a
-  confirmed fact — an interactively-authored fixture on the same tool
-  version would settle it either way.
+  confirmed across all four fixtures for every settings-table stream. The
+  `STSource`-specific trailing table's *fields* are now understood in
+  concept (`O0` = byte offset into the source, confirmed directly; `k` =
+  a statement/node kind code, `8`/`10`/`20` observed; `p`/`p1` still
+  unconfirmed) via the fourth fixture's plain-XML equivalent (see above).
+  What remains open is only the exact binary encoding of that same table
+  in the two older, binary-framed fixtures -- e.g. whether the flat
+  decoded value sequence documented above maps onto the same `k`/`O0`/
+  `p`/`p1` fields one-for-one, or a variable-width encoding depending on
+  which fields a given statement kind carries. Untested; would need a
+  byte-level replay against the confirmed schema to settle.
+- Resolved by the fourth fixture: the third fixture's plain-XML `STSource`
+  was *not* an artifact of being built by `remoteconnect-mcp`'s own
+  automation (that was the first guess, and it was wrong) -- the fourth
+  fixture, an official Schneider demo bundle with no tool involvement,
+  shows the identical plain-XML shape. The pattern that actually holds
+  across all four fixtures: plain XML on the two newest `APPLICATION
+  LIBSET` versions (V15.1, V16.20), the old binary framing on the two
+  oldest (V11.1, V14.0) -- most likely a genuine serializer change
+  somewhere in that version range, specific to `STSource` (every
+  fixture's settings-table streams stay on the old binary framing
+  regardless of version). Real, evidence-based, but still only four data
+  points from two version pairs -- a fixture from a version strictly
+  between V14.0 and V15.1 would pin down exactly where the change
+  happened.
 - Both fixtures' `TopologyRecord`-level blobs (as opposed to the
   `DTM`-level ones covered above, which is where all 17+27 DataContract
   XML fragments came from) have been checked and yield no fragments at all
