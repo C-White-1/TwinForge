@@ -252,11 +252,30 @@ further 7-bit-encoded lengths/counts and raw primitive fields such as
 noise — just not yet fully mapped field-by-field without the original
 .NET type definitions. What remains genuinely unknown is the *shape* of
 that object graph (field order, which values are lengths vs. flags vs.
-counts, what the trailing numeric table after the real source text
-means) — the string-encoding rule alone does not hand over the whole
+counts) — the string-encoding rule alone does not hand over the whole
 grammar, and two fixtures sharing the same tool version's serialization
 layout is not enough evidence to assert the general schema with
 confidence.
+
+Applying the confirmed string-decoding rule precisely (not the earlier
+ad hoc printable-run scan) to the bytes right after each `ST` stream's
+real source text gives, as a sequence of decoded string *values* (still
+of unknown meaning — recorded here as raw fact, not interpreted):
+
+- Fixture 1 (`sp470_v04`, 3-line source): `5, 8, 10, 10, 10, 20, 0, 20,
+  28, 30, 38, 1, 1, 1, 1, 2, 3`
+- Fixture 2 (`leadLagPumpCtrl_v02`, 6-line source incl. comment/blank):
+  `6, 8, 10, 10, 10, 10, 20, 0, 38, 60, 88, b0, d8, 1, 1, 1, 1, 3, 4, 5, 6`
+
+Both fixtures' first value equals their own source's line count exactly
+(3 real code lines read as `5` is a loose fit; 6 total lines — comment,
+blank, 4 code — matches `6` exactly), and several later values
+(`20, 28, 30, 38` / `38, 60, 88, b0, d8`) read as ascending hex byte
+offsets with a roughly constant stride, suggestive of a per-line offset
+table — but this is an unconfirmed *hypothesis* from two data points, not
+a claim about what the field is. Recorded as raw decoded values precisely
+so a future pass (or a third fixture) can test hypotheses against them
+without redoing this extraction.
 
 ## Open questions
 
