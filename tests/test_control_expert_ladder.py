@@ -11,14 +11,18 @@ _FFB_TEMPLATE = (
     'enEnO="{en_en_o}" width="10" height="3">'
     '<objPosition posX="{posx}" posY="{posy}"/>'
     '<descriptionFFB execAfter=""><inputVariable invertedPin="false" formalParameter="{first_input}"/>'
+    '{second_input_xml}'
     '</descriptionFFB></FFBBlock>'
 )
 
 
-def _ffb(instance="B1", type_name="TON", posx=2, posy=1, en_en_o="true", first_input="EN"):
+def _ffb(instance="B1", type_name="TON", posx=2, posy=1, en_en_o="true", first_input="EN", second_input=None):
+    second_input_xml = (
+        f'<inputVariable invertedPin="false" formalParameter="{second_input}"/>' if second_input else ""
+    )
     return _FFB_TEMPLATE.format(
         instance=instance, type_name=type_name, posx=posx, posy=posy,
-        en_en_o=en_en_o, first_input=first_input,
+        en_en_o=en_en_o, first_input=first_input, second_input_xml=second_input_xml,
     )
 
 
@@ -29,10 +33,14 @@ def _block(routine, instance="B1"):
     return matches[0]
 
 
-def _en_pin(routine, instance="B1"):
-    pins = [pin for pin in _block(routine, instance).pins if pin.name == "EN"]
+def _pin(routine, instance, pin_name):
+    pins = [pin for pin in _block(routine, instance).pins if pin.name == pin_name]
     assert len(pins) == 1
     return pins[0]
+
+
+def _en_pin(routine, instance="B1"):
+    return _pin(routine, instance, "EN")
 
 
 def _ld_routine(network_body: str):
@@ -245,6 +253,49 @@ def test_short_circuit_wire_does_not_bind_without_en_en_o():
     assert pin.ladder_condition is None
 
 
+def test_short_circuit_wraps_block_directly_lands_on_second_input_when_en_hidden():
+    # Real evidence: sayahali_conveyor_ali_conv.zef's SR_2/SR_3/SR_4/SR_5/SR_7
+    # (enEnO="false") each show <shortCircuit><VLink/><FFBBlock/></shortCircuit>
+    # landing on the block's own anchor row -- confirmed by the user against
+    # the vendor's own PDF rendering of SR_4: S1 and Q1 share the block's top
+    # row, no separate EN/ENO row exists at all when EN/ENO are hidden. EN is
+    # still declared (never rendered when enEnO="false"), so the wire lands
+    # on the second declared input instead.
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    {_ffb(posy=0, en_en_o="false", second_input="S1")}</shortCircuit></typeLine>''')
+    pin = _pin(routine, "B1", "S1")
+    assert pin.ladder_condition is not None
+    assert pin.ladder_condition.elements == ()
+
+
+def test_short_circuit_wraps_block_directly_with_a_leading_contact_condition():
+    _result, routine = _ld_routine(f'''
+    <typeLine><contact typeContact="openContact" contactVariableName="A"/>
+    <shortCircuit><VLink/>{_ffb(posy=0, en_en_o="false", second_input="S1")}</shortCircuit></typeLine>''')
+    pin = _pin(routine, "B1", "S1")
+    assert pin.ladder_condition is not None
+    assert [e.operand for e in pin.ladder_condition.elements] == ["A"]  # type: ignore[union-attr]
+
+
+def test_bare_block_without_short_circuit_wrapper_does_not_bind():
+    # Real negative case: sayahali_conveyor_ali_conv.zef's SR_8/SR_9 are bare
+    # FFBBlock elements with no shortCircuit wrapper at all -- structurally
+    # distinct from a genuinely wired block, not merely an unresolved wire.
+    _result, routine = _ld_routine(f'''
+    <typeLine><emptyCell nbCells="4"/>{_ffb(posy=0, en_en_o="false", second_input="S1")}</typeLine>''')
+    pin = _pin(routine, "B1", "S1")
+    assert pin.ladder_condition is None
+
+
+def test_short_circuit_wraps_block_without_a_second_declared_input_does_not_bind():
+    _result, routine = _ld_routine(f'''
+    <typeLine><shortCircuit><VLink/>
+    {_ffb(posy=0, en_en_o="false")}</shortCircuit></typeLine>''')
+    pin = _en_pin(routine)
+    assert pin.ladder_condition is None
+
+
 def test_ffb_block_footprint_blocks_a_later_wire_landing():
     # Real evidence (module docstring in ladder.py): an FFBBlock always spans
     # exactly two columns, so scanning now continues past it instead of
@@ -311,6 +362,33 @@ def test_optional_real_function15_short_circuit_conditions():
         assert en_condition("sendnoe", "TON_2") is None
         assert en_condition("resetnoe", ".3") is None               # RESET
         assert en_condition("resetnoe", "MBP_MSTR_7") is None
+
+
+def test_optional_real_sayahali_sr_block_s1_conditions():
+    # Real evidence: SR_2/SR_3/SR_4/SR_5/SR_7 (enEnO="false") each land
+    # unconditionally on S1 via <shortCircuit><VLink/><FFBBlock/></shortCircuit>
+    # -- confirmed against the vendor's own PDF rendering of SR_4 (S1/Q1 share
+    # the block's top row, no EN/ENO row at all). SR_8/SR_9 are bare
+    # FFBBlock elements with no shortCircuit wrapper -- structurally
+    # unconnected, not merely unresolved, and must stay that way.
+    path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
+    if not path.exists():
+        pytest.skip("Local sayahali/conveyor-automation reference unavailable")
+    result, = parse_projects(capture_file(path))
+    routine = result.controller.programs["prog"].main_routine
+    assert routine is not None
+
+    def s1_condition(instance: str) -> list[str | None] | None:
+        block = next(o for d in routine.graphical_diagrams for o in d.objects if o.instance_name == instance)
+        pin = next(p for p in block.pins if p.name == "S1")
+        if pin.ladder_condition is None:
+            return None
+        return [e.operand for e in pin.ladder_condition.elements]  # type: ignore[union-attr]
+
+    for instance in ("SR_2", "SR_3", "SR_4", "SR_5", "SR_7"):
+        assert s1_condition(instance) == []
+    for instance in ("SR_8", "SR_9"):
+        assert s1_condition(instance) is None
 
 
 @pytest.mark.parametrize("filename", ["MultiGrafcet_Coordination_V1_2026.XEF", "tsaii_multigrafcet_final_v1.zef"])

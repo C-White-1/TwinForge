@@ -55,14 +55,18 @@ class LadderParallel:
 class LadderPinCondition:
     """A grid-position-resolved vertical-wire condition feeding one block pin.
 
-    Evidenced only for the `EN` pin: a `shortCircuit`-originated vertical bus
-    (continuing through bare `VLink` rows at the same column) that lands
-    cleanly -- nothing but empty cells between the wire and the block, on the
-    block's own anchor row, with no further `VLink` continuing past it --
-    unambiguously targets the first (`EN`) pin, since that is always listed
-    first for an `enEnO="true"` block. Multi-row blocks where the wire keeps
-    a `VLink` alive past the anchor row are not resolved by this rule; the
-    row-to-pin mapping for additional input rows is not evidenced.
+    Evidenced only for a block's own anchor row (`objPosition posY`): a
+    `shortCircuit`-originated vertical bus (continuing through bare `VLink`
+    rows at the same column, or wrapping the block directly) that lands
+    cleanly there -- nothing but empty cells between the wire and the block,
+    with no further `VLink` continuing past it -- unambiguously targets the
+    block's first *wireable* input. That is `EN` when `enEnO="true"`
+    (Schneider always lists it first); when `enEnO="false"`, `EN`/`ENO` are
+    declared but never rendered, so the anchor row instead targets the
+    second declared input (e.g. `S1` for an `SR` block). Multi-row blocks
+    where the wire keeps a `VLink` alive past the anchor row are not
+    resolved by this rule; the row-to-pin mapping for additional input rows
+    is not evidenced.
     """
 
     network_index: int

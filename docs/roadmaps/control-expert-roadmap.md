@@ -217,41 +217,35 @@ visible. Initial values are lexical evidence, not promoted typed values.
       checkpoint below. Confirmed constant (2 columns, independent of block
       type or pin count -- pin count instead grows row span, already
       resolved) across every real ladder network in the corpus.
-- [ ] Backlog: the remaining ambiguous `shortCircuit`/`VLink` shape -- a wire
-      that keeps a `VLink` alive one row past a candidate landing (real
-      example: `MBP_MSTR_7` in `function15.zip`/`function2.zip`), which may
-      mean a second input row is fed the same way, or may just be a
-      multi-row block's own border rendered with the same element. Not
-      decidable from the grid alone; needs either more fixtures or vendor
-      documentation of the row-to-pin mapping for multi-row blocks. Real,
-      dense `SR`/`TON` evidence now exists (`sayahali/conveyor-automation`,
-      including a PDF of the same project's own ladder diagrams -- see the
-      `setCoil`/new-corpus checkpoint and the multi-pin investigation
-      checkpoint below), but it turned out to reshape the problem rather
-      than resolve it: the real shape is `<shortCircuit><VLink/>
-      <FFBBlock/></shortCircuit>` with no contacts of its own, meaning the
-      condition most likely chains from an *upstream block's own output*
-      (`TON.Q` feeding an `SR.S1`), not from a second row of contacts as
-      first assumed from the PDF alone -- and the PDF's own clearest
-      example (`SR_33`) doesn't even exist in this specific file's XML (a
-      different project revision). Block column width is now known (see
-      above), but a second, separate corpus check specifically for
-      block-to-block output chaining (`function15.zip`/`function2.zip`'s
-      `resetnoe` program, `.5`/ADD's declared output column landing exactly
-      on an unrelated wire's column) found only a coincidental grid
-      alignment on closer trace, not real chaining evidence: that
-      column's wire was independently fed by its own `shortCircuit` three
-      rows earlier and merely happened to end at the same column as the
-      block's right edge. A further, corpus-wide "fresh wire birth" scan
-      (see the output-edge checkpoint below) found real, repeated (5/5,
-      distinct targets each time) evidence that a block's output edge
-      genuinely can originate a wire -- `sayahali_conveyor_ali_conv.zef`'s
-      five `TON` blocks each launch one at row `posY+2` into a `resetCoil`
-      -- but not which declared pin it is: the naive row-offset reading
-      (`ET`, a `TIME` value) cannot legally drive a boolean coil, and no
-      other block type in the corpus shows this shape to cross-check
-      against. Still not attempted; the `setCoil` checkpoint fixed only a
-      smaller, unrelated bug the same fixture surfaced
+- [x] Resolve a `shortCircuit`/`VLink` wire landing on an `enEnO="false"`
+      block's own anchor row: `EN`/`ENO` are declared but never rendered,
+      so the anchor row lands on the second declared input instead (`S1`
+      for an `SR` block) -- confirmed against the vendor's own PDF
+      rendering of a real `SR` block, and against a `shortCircuit` wrapping
+      the block directly (`<shortCircuit><VLink/><FFBBlock/></shortCircuit>`,
+      previously unrecognized and diagnosed as malformed). See the
+      `enEnO="false"` landing checkpoint below. Real corpus result: all
+      five wired `SR` instances in `sayahali_conveyor_ali_conv.zef` now
+      resolve `S1` unconditionally; the two bare, unwrapped `SR_8`/`SR_9`
+      correctly stay unresolved.
+- [ ] Backlog: `R` (the second wireable input, one row below `S1`) is not
+      resolved -- genuinely unwired in all five real `SR` instances checked,
+      so there is no positive example to confirm the row-offset rule
+      against. The output side remains unresolved too: a corpus-wide "fresh
+      wire birth" scan found real, repeated (5/5, distinct targets each
+      time) evidence that a block's output edge can originate a wire --
+      `sayahali_conveyor_ali_conv.zef`'s five `TON` blocks each launch one
+      at row `posY+2` into a `resetCoil`, and the user identified it as `Q`
+      -- but the general row-to-pin rule for outputs still isn't fully
+      pinned down from grid structure alone (the naive declaration-order
+      reading gives `ET`, a `TIME` value that cannot legally drive a
+      boolean coil; the "+1 padding row" explanation fits all evidence
+      gathered so far but is confirmed only where competing formulas
+      coincide -- `TON`, `SET`, `RESET`, `MBP_MSTR` -- not for the corpus's
+      `n_in > n_out` shapes, `ADD`/`SR`/`INITCHART`/`SETSTEP`). Also,
+      representing a block-to-block output reference needs a model
+      addition (`LadderInstruction.operand` is a plain tag-name string
+      today); not started. See the output-edge checkpoint below
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
@@ -430,7 +424,7 @@ when shared contracts change. Use a fresh workspace-local `--basetemp` if the
 existing pytest artifact directory is locked. Recheck archive hashes after
 reference operations. Avoid making third-party archives mandatory CI inputs.
 
-The last full run of the command's test set passed 275 tests, including optional
+The last full run of the command's test set passed 280 tests, including optional
 local samples; Ruff and Pyright passed. This is a dated development checkpoint,
 not a substitute for running the checks after future changes.
 

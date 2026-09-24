@@ -16,21 +16,36 @@ are diagnosed by name and never guessed at.
 `resolve_ladder_pin_conditions` below resolves one further, narrower case
 from the same grid: a `shortCircuit`-marked vertical bus, continuing through
 bare `VLink` at the same column across further rows, that lands cleanly on
-an `FFBBlock`'s own anchor row (`objPosition posY`, `enEnO="true"`, nothing
-but empty cells between the wire and the block). That always targets the
-`EN` pin, since Schneider always lists it first. This is deliberately not
-the vendor's documented "Short Circuit Evaluation" bypass-and-passthrough
+an `FFBBlock`'s own anchor row (`objPosition posY`, nothing but empty cells
+between the wire and the block). That always targets the block's first
+*wireable* input: `EN` when `enEnO="true"` (Schneider always lists it
+first); when `enEnO="false"`, `EN`/`ENO` are declared but never rendered at
+all, so the anchor row instead lands on the second declared input (e.g.
+`S1` for an `SR` block) -- confirmed against the vendor's own PDF rendering
+of a real `SR` block (`S1`/`Q1` share the block's top row; no separate
+`EN`/`ENO` row exists when they are hidden). This is deliberately not the
+vendor's documented "Short Circuit Evaluation" bypass-and-passthrough
 semantics (product-help.se.com, "Parallel Branch", EIO0000002854.00): no
 fixture in the corpus shows that shape (parallel branches where one carries
 a block and another only contacts, merging to a shared point). Every real
 `shortCircuit` observed instead feeds one pin directly, evidenced by exact
-`objPosition` column/row matches recomputed from the grid. A wire that keeps
-a `VLink` alive at the same column one row past its candidate landing is
-left unresolved: real evidence (Escalier_Mecanique.XEF's escalator and
-function15/function2's MBP_MSTR_7 rung) shows this shape exists but its
-target is genuinely ambiguous -- it may be a multi-row block's second input,
-or merely the block's own border rendered with the same element, and
-nothing in the corpus disambiguates the two.
+`objPosition` column/row matches recomputed from the grid.
+
+A `shortCircuit` can also wrap an `FFBBlock` directly
+(`<shortCircuit><VLink/><FFBBlock/></shortCircuit>`) instead of a
+contact/`HLink`: the wire terminates on the block right there, in the same
+element, with no "does it continue past" ambiguity to confirm (unlike the
+far-arriving case above). Real evidence distinguishes this cleanly from an
+unconnected block: a bare, unwrapped `FFBBlock` (no `shortCircuit` at all)
+never binds (`sayahali_conveyor_ali_conv.zef`'s `SR_8`/`SR_9`), while every
+`shortCircuit`-wrapped one does (`SR_2`/`SR_3`/`SR_4`/`SR_5`/`SR_7`).
+
+A wire that keeps a `VLink` alive at the same column one row past its
+candidate landing is left unresolved: real evidence (Escalier_Mecanique.XEF's
+escalator and function15/function2's MBP_MSTR_7 rung) shows this shape
+exists but its target is genuinely ambiguous -- it may be a multi-row
+block's second input, or merely the block's own border rendered with the
+same element, and nothing in the corpus disambiguates the two.
 
 An `FFBBlock` always occupies exactly two grid columns regardless of its
 type or pin count (pin count instead grows its row span, already handled
@@ -174,6 +189,25 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
             return None
         return int(value)
 
+    def landing_pin_name(block: CapturedSection) -> str | None:
+        # Real evidence: an enEnO="true" block's own anchor row always lands
+        # on EN, since it is always listed first (already evidenced). New
+        # evidence (real corpus SR instances, cross-checked against the
+        # vendor's own PDF rendering of SR_4: S1 and Q1 share the block's
+        # top row, no separate EN/ENO row at all): when enEnO="false", EN
+        # is declared but never rendered, so the block's anchor row instead
+        # lands on the second declared input -- S1 for an SR block.
+        description = next((c for c in block.ordered_children if c.tag == "descriptionFFB"), None)
+        inputs = [c for c in description.ordered_children if c.tag == "inputVariable"] \
+            if description is not None else []
+        if not inputs or inputs[0].raw_attributes.get("formalParameter") != "EN":
+            return None
+        if block.raw_attributes.get("enEnO") == "true":
+            return "EN"
+        if block.raw_attributes.get("enEnO") == "false" and len(inputs) >= 2:
+            return inputs[1].raw_attributes.get("formalParameter")
+        return None
+
     def contact_instruction(node: CapturedSection, column: int, row: int) -> LadderInstruction:
         attrs = node.raw_attributes
         mnemonic = attrs.get("typeContact", "")
@@ -253,9 +287,28 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                             column += width
                         else:
                             column += 1
+                    elif len(vlinks) == 1 and len(others) == 1 and others[0].tag == "FFBBlock":
+                        # Real evidence: the wire terminates on the block
+                        # directly, wrapped in the same element -- not a
+                        # separate continuation to confirm past this row,
+                        # unlike the far-arriving VLink-chain case below.
+                        block = others[0]
+                        position_node = next((c for c in block.ordered_children if c.tag == "objPosition"), None)
+                        posx = position_node.raw_attributes.get("posX") if position_node is not None else None
+                        posy = position_node.raw_attributes.get("posY") if position_node is not None else None
+                        pin_name = landing_pin_name(block)
+                        if (pin_name is not None and posx is not None and posx.isascii() and posx.isdecimal()
+                                and posy is not None and posy.isascii() and posy.isdecimal() and int(posy) == row):
+                            bindings.append(LadderPinCondition(
+                                network_index=network_index,
+                                position=LadderPosition(column=int(posx), row=row),
+                                pin_name=pin_name, condition=LadderSeries(elements=tuple(pending_contacts)),
+                            ))
+                        markers.add(column)
+                        column += _FFB_BLOCK_WIDTH
                     else:
                         report("unresolved_ladder_short_circuit",
-                               "shortCircuit does not match the evidenced VLink+contact/HLink shape", child)
+                               "shortCircuit does not match the evidenced VLink+contact/HLink/FFBBlock shape", child)
                         markers.add(column)
                         column += 1
                     pending_contacts = []
@@ -264,14 +317,9 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                     position_node = next((c for c in child.ordered_children if c.tag == "objPosition"), None)
                     posx = position_node.raw_attributes.get("posX") if position_node is not None else None
                     posy = position_node.raw_attributes.get("posY") if position_node is not None else None
-                    description = next((c for c in child.ordered_children if c.tag == "descriptionFFB"), None)
-                    first_input = next((c for c in description.ordered_children if c.tag == "inputVariable"), None) \
-                        if description is not None else None
-                    is_en = (first_input is not None
-                             and first_input.raw_attributes.get("formalParameter") == "EN")
-                    if (posx is not None and posx.isascii() and posx.isdecimal()
-                            and posy is not None and posy.isascii() and posy.isdecimal()
-                            and int(posy) == row and child.raw_attributes.get("enEnO") == "true" and is_en):
+                    pin_name = landing_pin_name(child)
+                    if (pin_name is not None and posx is not None and posx.isascii() and posx.isdecimal()
+                            and posy is not None and posy.isascii() and posy.isdecimal() and int(posy) == row):
                         target_column = int(posx)
                         for wire_column in list(active):
                             if wire_column >= target_column:
@@ -280,7 +328,7 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                             if clean:
                                 pending.append((
                                     wire_column, row, LadderPosition(column=target_column, row=row),
-                                    list(active[wire_column]), "EN",
+                                    list(active[wire_column]), pin_name,
                                 ))
                     # Real evidence (module docstring): a block always spans
                     # exactly two columns, so scanning can continue past it

@@ -1818,3 +1818,80 @@ the kind of guess this project does not make; the structural fact (a real
 wire, real per-instance targets, corpus-repeated 5/5) is recorded here for
 whoever picks this up next, separate from the unresolved pin-identity
 question.
+
+`enEnO="false"` anchor-row landing checkpoint (2026-09-24): the user
+supplied a page from `sayahali_conveyor_ali_conv.zef`'s own PDF
+documentation showing `SR_4`'s real rendering -- `S1` (input) and `Q1`
+(output) share the block's top row, no separate `EN`/`ENO` row exists in
+the picture at all. That single image did what three rounds of XML-only
+analysis in this investigation could not: settle whether an
+`enEnO="false"` block's anchor row is `EN`'s row (just hidden, still
+reserved) or the first pin that's actually rendered. It's the latter.
+
+Implemented two things together in `ladder.py`. First, `shortCircuit` can
+wrap an `FFBBlock` directly (`<shortCircuit><VLink/><FFBBlock/></shortCircuit>`),
+not just a contact/`HLink` -- previously fell through to
+`unresolved_ladder_short_circuit` as a malformed shape. This terminates
+the wire on the block immediately, no "continues one row past" ambiguity
+to check (unlike the far-arriving VLink-chain case already shipped).
+Second, a new `landing_pin_name()` helper generalizes the anchor-row rule:
+`EN` when `enEnO="true"` (unchanged), or the block's second declared input
+when `enEnO="false"` -- used by both the new direct-wrap case and the
+existing far-arriving case, so a wire that reaches an `enEnO="false"`
+block's anchor row via a long `VLink` chain now also resolves correctly
+instead of being silently skipped.
+
+Rechecking the raw XML for `SR_8`/`SR_9` while implementing this turned up
+a cleaner explanation than the earlier "shortCircuit/FFBBlock-shaped but
+unconnected" description: they are not `shortCircuit`-wrapped at all --
+bare, unwrapped `FFBBlock` elements sitting alone in their row. That is a
+structurally distinct shape, not an edge case of the shape being
+implemented, so the new rule cannot land on them regardless of any
+`active`-wire bookkeeping; confirmed directly (both stay unresolved).
+
+Real corpus result, `sayahali_conveyor_ali_conv.zef`: all five wired `SR`
+instances (`SR_2`, `SR_3`, `SR_4`, `SR_5`, `SR_7`) now resolve `S1`
+unconditionally (`shortCircuit(VLink, HLink)`-style empty condition, same
+as the already-evidenced unconditional case); `SR_8`/`SR_9` correctly stay
+unresolved. `R` (the block's second wireable input, one row below `S1`)
+was checked directly against all five real instances and found genuinely
+unwired in every one -- a real, checked negative, not a gap in the
+implementation; there is simply no positive example in this fixture to
+confirm a row-offset rule for it.
+
+New tests: four synthetic (unconditional landing, landing with a leading
+contact condition, the bare-block negative case, and a malformed case with
+no second declared input) plus one real-fixture test asserting all seven
+`SR` instances' `S1` state exactly. 280 tests pass (up from 275); Ruff and
+Pyright pass.
+
+`FFBBlock` output-edge padding-row checkpoint (2026-09-24): same
+conversation, immediately after the anchor-row fix above. Asked the user
+directly why the earlier `TON` output-edge finding didn't fit the naive
+row-offset reading (`ET`, a `TIME` value, at `posY+2` -- type-incompatible
+with the `resetCoil` it fed), and got back two things: the wired pin is
+`Q`, and `ENO` is routinely left unconnected in real projects unless
+there's a specific reason to chain on it (general practice, not a
+Control-Expert-internal detail).
+
+That confirmed *what* the pin is but not *why* it sits at `posY+2` instead
+of `posY+1` (`Q`'s own declared index). Reconciling all four rows around
+`TON_23` (`posY+0` empty, `posY+1` empty, `posY+2` wired, `posY+3` empty)
+against a single rule: the output side reserves one blank row before its
+first pin, so output pin *i* sits at `posY + 1 + i`, not `posY + i` the
+way input pins do (`EN` confirmed at exactly `posY+0`, already shipped).
+Cross-checked against a corpus-wide structural fact with zero exceptions
+across all nine distinct block shapes in the corpus: `height ==
+max(inputs, outputs) + 1`, always -- consistent with exactly one spare row
+sitting specifically at the top of the output side.
+
+Not implemented, on purpose: the formula is only unambiguous where
+`outputs >= inputs` (`TON`, `SET`, `RESET`, `MBP_MSTR`); the corpus's four
+`inputs > outputs` shapes (`ADD`, `SR`, `INITCHART`, `SETSTEP`) make a
+different, untested prediction under a competing formula, and none of
+their real occurrences in the corpus show a wired output to check against
+(checked directly -- `ADD`/`MBP_MSTR` in `function15.zip`/`function2.zip`
+show no "fresh birth" output wire at all). Representing even the confirmed
+subset also needs a small model addition first (`LadderInstruction.operand`
+is a plain tag-name string today; a block-output reference is a different
+kind of evidence, not a variable name) -- not started this pass.
