@@ -100,22 +100,88 @@ This ties directly back to the `PIO_SP470_AI1` tag found in the `Station.apx`
 I/O table, confirming this is genuine project logic (an analog-input scaling
 rung), not vendor boilerplate.
 
+## Second fixture: `leadLagPumpCtrl_v02.RCZ` (2026-09-24), a real application
+
+`reference/SCADAPack/RC_ Lead Lag Pump_Project Files.zip` (114,379 bytes,
+containing one file, `leadLagPumpCtrl_v02.RCZ`) was supplied locally by the
+user, not downloaded by TwinForge; no license stated; kept local-only under
+the ignored `reference/` tree per the artifact policy. Unlike `sp470_v04`,
+this is a genuine small real-world application (alternating lead/lag pump
+control from tank-level thresholds), not a vendor tutorial, and it answers
+one of the open questions below directly: the first fixture's minimal
+content was that file's own narrow scope, not a ceiling on what this format
+can hold.
+
+Same container shape confirmed again (`.RCZ` → `.PRJ` + `.STA` →
+`Station.apd`/`Station.apx` + `STATION.CTX`), from a different hardware
+generation and tool version than the first fixture — direct evidence the
+structure generalizes, not a one-off: `PROCESSOR=SCADAPack57x` (not x70),
+`APPLICATION LIBSET=V11.1` (not V14.0), `STU COMPATIBILITY LEVEL=93` (not
+102), dated 2019-03-17, talking to a real Modbus/TCP address
+(`PLC ADDRESS=10.2.3.4:504`).
+
+One new top-level member this time: `TA.xma` (328 bytes) inside the `.STA`
+zip, alongside `Station.apd`/`Station.apx`. It is a **raw zlib stream with
+no framing at all** (starts directly with a `0x78 0xda` header, no
+`STATION.CTX`-style or length-prefixed wrapper around it) — decompresses
+straight to a `TABExchangeFile` (an animation-table / watch-window export)
+listing real tag references: `TankLevel`, `PumpLag.VALUE`,
+`PumpLead.VALUE`, `TankLevel.VALUE_ENG`.
+
+`Station.apd` this time holds **six** raw zlib streams (found the same way,
+by scanning for zlib header bytes, not markers), not four. Three are
+recognizable settings/preference tables as before. The other three are real
+program content, and together they tell a coherent, complete story:
+
+- One `STExchangeFile`/`STSource` stream, complete and self-contained (not
+  truncated the way the first fixture's felt on its own): four fully
+  commented lines of Structured Text copying tank-level threshold states
+  into lead/lag control flags:
+
+  ```st
+  (* copy Tank Level limit states to lead / lag control variables *)
+  LagPumpOn := TankLevel.H2_STATE;    (* 90 *)
+  LeadPumpOn := TankLevel.H1_STATE;   (* 80 *)
+  LagPumpOff := TankLevel.L1_STATE;   (* 30 *)
+  LeadPumpOff := TankLevel.L2_STATE;  (* 20 *)
+  ```
+
+  (the numeric comments read naturally as tank-level percentage setpoints).
+- Two `FBDExchangeFile` streams, a matched pair — one driving the lead pump,
+  one the lag pump, same structure, different tags. Each has two `MOVE`
+  blocks and one `AND` block (`EN`/`IN`/`ENO`/`OUT` and `EN`/`IN1`/`IN2`/
+  `ENO`/`OUT` pins, matching the pin-naming convention already established
+  from the Control Expert corpus), moving `LeadPumpOn`/`LeadPumpOff` (or the
+  `Lag` equivalents) into `PumpLead.VALUE`/`PumpLag.VALUE`, each block
+  carrying a real author comment: *"Control lead pump ON or OFF when limit
+  is exceeded."* and *"When neither limit is active, jump to end of
+  program."*
+
+`Station.apx`'s main zlib stream (still one stream, still marked by a
+literal `ZLIB` string beforehand) decompresses to the same
+`<PACKAGE>`/`<PROJECT>` shape as the first fixture, and its `<PROJECT>`
+section is *again* just the placeholder `<ProjectFunctionalities>` comment
+block, empty of real content. Confirmed pattern, now 2/2: `Station.apx`'s
+own XML stream is always editor/feature configuration; the real program
+(ST/FBD sections) lives exclusively in `Station.apd`'s separate streams.
+
 ## Open questions
 
+- Resolved by the second fixture: whether minimal content in the first
+  sample reflected the format's ceiling or just that file's narrow scope.
+  It was the latter — real applications hold real, multi-section ST/FBD
+  program logic with genuine authored comments.
 - The binary framing used inside `Station.apx`/`Station.apd` (short
   length-prefixed strings/fields, distinct from `STATION.CTX`'s UTF-16
-  framing) has only been sampled ad hoc — there is no general parser or
-  documented grammar for it. A single small example file is not enough to
-  generalize the framing rules; more samples would be needed before this
-  could be approached in a specification-driven way per
-  [AGENTS.md](../../AGENTS.md).
-- Whether this sample's minimal content (one ST rung, no populated
-  ladder/SFC networks found) reflects the format's normal ceiling or simply
-  this tutorial file's narrow scope is unknown.
-- The `.prj` file's per-DTM/TopologyRecord `.NET BinaryFormatter` blobs have
-  not been deserialized; they may hold DNP3 channel/device configuration
-  relevant to the RTU's stated purpose (a DNP3 setup example) but were not
-  investigated.
+  framing, and distinct again from `TA.xma`'s bare unframed zlib stream)
+  has only been sampled ad hoc across two files — there is no general
+  parser or documented grammar for it yet. Two example files is more than
+  one, but still not enough to generalize the framing rules with
+  confidence; more samples would help before this could be approached in a
+  specification-driven way per [AGENTS.md](../../AGENTS.md).
+- The `.prj`/`.PRJ` file's per-DTM/TopologyRecord `.NET BinaryFormatter`
+  blobs have not been deserialized in either fixture; they may hold
+  DNP3/Modbus channel or device configuration but were not investigated.
 - No relationship has been established yet between this format and
   TwinForge's existing [Control Expert XEF/ZEF capture
   work](control-expert-exchange-capture.md) beyond the shared Unity Pro
