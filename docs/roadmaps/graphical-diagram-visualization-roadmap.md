@@ -71,23 +71,46 @@ What is **not** yet true, and matters for scoping below:
   confirmed 100% consistent (`nbColumns="11"`) across every Control
   Expert LD fixture examined so far, but not currently retained on
   `GraphicalDiagram` itself.
+- `LadderRung` carries no network-index field, and `LadderRung.number`
+  (the row) resets to 0 for every `networkLD` the parser walks
+  (`parsers/control_expert/ladder.py::parse_ladder_rungs`) -- a routine
+  with two or more networks can produce rungs with duplicate `number`s
+  and nothing in the model itself distinguishes which network a given
+  rung belongs to. Confirmed real, not theoretical:
+  `Escalier_Mecanique.XEF` has a routine with multiple `networkLD`
+  siblings. Milestone 1's CLI works around this without a model change,
+  by grouping consecutive rungs that share the same parent
+  `SourceExtension.xml_path` -- correct because the parser always emits
+  one network's rungs contiguously -- but that workaround is
+  Control-Expert-specific CLI logic, not something `LadderSvgExporter`
+  itself (or any other model consumer) can rely on. A real fix is a
+  `network_index` field on `LadderRung`, not yet done.
 
 ## Milestone 1: LD grid rendering for pure-series rungs
 
-- [ ] Render a `LadderRung`'s series contacts and a trailing coil as
+- [x] Render a `LadderRung`'s series contacts and a trailing coil as
   standard IEC 61131-3 ladder symbols (open/closed contact, coil,
   reset/set coil) positioned by `LadderInstruction.position`, left rail
-  to right rail
-- [ ] Render `BLOCK_OUTPUT_REFERENCE` as a labeled wire back to the
-  originating block's own instance name, not a bare operand string
-- [ ] One `<svg>` per `networkLD`, laid out top-to-bottom by row; verify
-  against the `nbColumns="11"` constant already confirmed across the
-  whole real corpus
-- [ ] CLI surface: `twinforge control-expert render <file> --network N
-  --output out.svg` (exact flags TBD), consistent with the existing
-  `inspect`/`coverage` subcommands
-- [ ] Deterministic output: identical input always produces byte-identical
-  SVG, the same guarantee `aoi_plantuml.py` already provides
+  to right rail (`exporters/ladder_svg.py`, `LadderSvgExporter`)
+- [x] Render `BLOCK_OUTPUT_REFERENCE` as a labeled dashed box carrying the
+  originating block's own `"instance.pin"` name, not a bare operand
+  string. Still owed: an actual drawn wire back to the block symbol
+  itself -- deferred to Milestone 2, since Milestone 1 doesn't render
+  `FFBBlock`s at all yet, so there is no block symbol to wire back to
+- [x] One `<svg>` per `networkLD`, laid out top-to-bottom by row.
+  Confirmed against a real multi-network fixture
+  (`Escalier_Mecanique.XEF`, 3 `networkLD` elements across 2 routines):
+  `LadderRung` carries no network-index field, so the CLI derives
+  network boundaries from each rung's own `SourceExtension.xml_path`
+  (consecutive rungs sharing the same parent path are the same network)
+  rather than guessing from row-number resets alone
+- [x] CLI surface: `twinforge control-expert render <file> --output <dir>
+  [--routine NAME] [--network N]`, consistent with the existing
+  `inspect`/`coverage` subcommands -- writes one SVG per rendered
+  network (`cli/control_expert_render.py`)
+- [x] Deterministic output: identical input always produces byte-identical
+  SVG (`test_ladder_svg_export.py::test_export_is_deterministic`), the
+  same guarantee `aoi_plantuml.py` already provides
 
 ## Milestone 2: rows the model does not yet position
 

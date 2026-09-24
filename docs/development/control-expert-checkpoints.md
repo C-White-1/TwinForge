@@ -2064,3 +2064,39 @@ and one `_block_output_origins()` could not even detect yet regardless,
 since it is gated to `enEnO="true"` blocks only. Roadmap split into these
 two explicitly separate items so a future session (or this one) does not
 re-conflate them.
+
+Ladder SVG export, Milestone 1 (2026-09-25): shipped
+`LadderSvgExporter` (`exporters/ladder_svg.py`), the first implementation
+step of the new
+[graphical diagram visualization roadmap](../roadmaps/graphical-diagram-visualization-roadmap.md).
+Renders a `LadderRung`'s resolved series contacts/coils as standard
+IEC 61131-3 symbols (open/closed contact, coil, set/reset coil markers),
+`BLOCK_OUTPUT_REFERENCE` as a labeled dashed box, and any `LadderParallel`
+branch as an explicit "not yet rendered" placeholder rather than silently
+dropping it -- same never-guess posture as the rest of the parser. Output
+is plain deterministic SVG text, the same `aoi_plantuml.py`-style
+text-in/text-out contract, no raster/image-library dependency.
+
+New CLI surface: `twinforge control-expert render <file> --output <dir>
+[--routine NAME] [--network N]` (`cli/control_expert_render.py`), writing
+one SVG file per `networkLD`. Building this surfaced a real model gap not
+previously written down: `LadderRung` has no network-index field, and its
+`number` (row) resets to 0 for every `networkLD` the parser walks, so nothing
+in the model itself says which network a rung belongs to -- confirmed not
+theoretical, since `Escalier_Mecanique.XEF` has a routine with multiple
+`networkLD` siblings. Worked around at the CLI layer (not the model) by
+grouping consecutive rungs that share the same parent
+`SourceExtension.xml_path`, which is safe because the parser always emits
+one network's rungs contiguously; documented in the roadmap as a real,
+still-open modeling gap (`network_index` field) rather than treated as
+solved.
+
+Verified against the real corpus, not just synthetic rungs: rendering
+`Escalier_Mecanique.XEF` end-to-end produced two correct SVGs (`Init_Logic`,
+`Rising_Edge_Detection`) with the expected rung/operand structure; a third
+`networkLD` in the same file produced no rungs at all (fully
+`unresolved_ladder_row`), which the renderer correctly emits nothing for
+rather than guessing. 8 new exporter tests plus 3 new CLI tests. 1501 tests
+pass project-wide; Ruff and Pyright pass. Milestone 2 (unresolved-row and
+inline `FFBBlock` rendering) and Milestone 3 (FBD) remain open.
+re-conflate them.

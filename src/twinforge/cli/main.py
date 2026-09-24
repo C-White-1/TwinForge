@@ -70,6 +70,7 @@ from .report_bundle import (
 from .snmp_conversion import convert_walk_command
 from .control_expert import ControlExpertCommandError, inspect_control_expert
 from .control_expert_coverage import export_control_expert_coverage
+from .control_expert_render import render_control_expert_ladder
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -94,6 +95,23 @@ def build_parser() -> argparse.ArgumentParser:
     control_expert_coverage.add_argument(
         "--output", required=True, type=Path,
         help="Directory in which to write the coverage skeleton.",
+    )
+    control_expert_render = control_expert_commands.add_parser(
+        "render",
+        help="Render each LD network as an SVG diagram for offline viewing.",
+    )
+    control_expert_render.add_argument("path", type=Path)
+    control_expert_render.add_argument(
+        "--output", required=True, type=Path,
+        help="Directory in which to write one SVG file per rendered network.",
+    )
+    control_expert_render.add_argument(
+        "--routine", default=None,
+        help="Render only this routine's ladder networks (default: every routine).",
+    )
+    control_expert_render.add_argument(
+        "--network", type=int, default=None,
+        help="Render only this 0-indexed network within the routine (default: every network).",
     )
     inspect_l5x_command = commands.add_parser(
         "inspect",
@@ -743,6 +761,11 @@ def main(
         if arguments.command == "control-expert":
             if arguments.control_expert_command == "coverage":
                 export_control_expert_coverage(arguments.path, destination=arguments.output, stdout=output)
+            elif arguments.control_expert_command == "render":
+                render_control_expert_ladder(
+                    arguments.path, destination=arguments.output, stdout=output,
+                    routine=arguments.routine, network=arguments.network,
+                )
             else:
                 inspect_control_expert(arguments.path, output_format=arguments.format, stdout=output)
         elif arguments.command == "inspect":
