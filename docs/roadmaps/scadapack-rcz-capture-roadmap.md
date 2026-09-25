@@ -75,28 +75,33 @@ SCADAPack stream) doesn't change what a line of Structured Text *is*.
 
 ## Milestone 1: container + plain-XML `STSource` only
 
-- [ ] `parsers/scadapack/capture.py`: recursive ZIP walk (`.RCZ`/`.STA`),
+- [x] `parsers/scadapack/capture.py`: recursive ZIP walk (`.RCZ`/`.STA`),
   zlib-stream extraction and classification for `Station.apd`/`Station.apx`
   members, full byte preservation and diagnostics for every stream whether
   understood or not
-- [ ] Parse a plain-XML `STExchangeFile`/`STSource` stream into
+- [x] Parse a plain-XML `STExchangeFile`/`STSource` stream into
   `StructuredTextLine`s, gated strictly on detecting the `<?xml` declaration
   (never attempted against the binary-framed shape — retained as evidence,
-  diagnosed `unsupported_binary_framed_stexchangefile`, not guessed at)
-- [ ] Retain the `<D1>` per-statement offset table as evidence
+  diagnosed `unsupported_binary_framed_stream`, not guessed at). Also
+  gracefully handles a UTF-8 BOM before `<?xml` (real evidence: `.PRJ`
+  files carry one; a naive prefix check without stripping it would have
+  wrongly classified every `.prj`/`.PRJ` as opaque)
+- [x] Retain the `<D1>` per-statement offset table as evidence
   (`source_extensions`), not interpreted — `O0`/`k` are understood in
   concept only, `p`/`p1` not even that
-- [ ] `STATION.CTX` decoded into plain key/value metadata (RTU model,
-  `APPLICATION LIBSET` version, `STU COMPATIBILITY LEVEL`) — this is what
-  gates whether a given fixture's `STSource` is even attempted
-- [ ] Every non-`STExchangeFile` stream (settings tables, binary-framed
+- [x] `STATION.CTX` decoded into plain key/value metadata (RTU model,
+  `APPLICATION LIBSET` version, `STU COMPATIBILITY LEVEL`) — verified
+  byte-for-byte against real fixture bytes before coding, not just against
+  the investigation doc's prose summary
+- [x] Every non-`STExchangeFile` stream (settings tables, binary-framed
   content, unrecognized) explicitly retained and diagnosed, never silently
   dropped
-- [ ] Tests against synthetic fixtures (a real zlib-wrapped `.RCZ`/`.STA`
-  is buildable in a test purely from bytes, the same way existing tests
-  build minimal XEF/`.xdb` fixtures inline) plus a manual (uncommitted) run
-  against the real local corpus for confidence, matching the project's
-  established verification pattern
+- [x] Tests against synthetic fixtures (14 tests across
+  `test_scadapack_capture.py` and `test_scadapack_station.py`) plus a manual
+  (uncommitted) run against the real local corpus for confidence --
+  including the first genuinely real-world-scale fixture
+  (`LiftStationLib.RCZ`, 8 ST streams, zero diagnostics) alongside the
+  original small/trivial ones
 
 ## Explicit non-goals for Milestone 1
 
