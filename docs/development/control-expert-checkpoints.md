@@ -2143,3 +2143,21 @@ single- and multi-`FBProgram` bodies, FBD bodies through the shared
 graphical parser, crypted bodies, a missing-`FBSource` diagnostic, root
 rejection, and archive walking. 1509 tests pass project-wide; Ruff and
 Pyright pass.
+
+`control-expert inspect` CLI wired to standalone DFB libraries, same session:
+the previous entry landed the parsing but not the CLI surface -- pointing
+`inspect` at an `.xdb` file (or an archive containing one) produced
+`status: no_supported_projects` and a hard failure, since the command only
+ever called `parse_projects`. Fixed by also calling
+`parse_function_block_libraries` and adding a `function_block_libraries` key
+to both the JSON and text reports (a new `_function_block_library_summary`
+helper, sharing an extracted `_add_on_instruction_summary` with
+`_project_summary`'s own pre-existing `function_blocks` section -- no
+duplicated dict-building code). The exit-code check that used to read
+`if failures or not projects` now reads `not (projects or libraries)`, so an
+input that is *only* DFB libraries (the common case for a `.xdb` file, which
+never has a `program`/`dataBlock` of its own) no longer reports failure.
+Verified against the real 17-file Realflo archive end-to-end through the
+actual CLI entry point (`twinforge control-expert inspect`), both `--format
+text` and `--format json`; 3 new CLI tests. 1512 tests pass project-wide;
+Ruff and Pyright pass.

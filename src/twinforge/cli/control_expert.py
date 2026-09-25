@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from twinforge.analysis.tag_dependencies import tag_dependency_graph_data
+from twinforge.model.add_on_instruction import AddOnInstruction
 from twinforge.model.ladder import LadderInstruction, LadderPosition, LadderSeries
 from twinforge.model.routine import LadderRung
 from twinforge.model.sequential import SequentialElement
-from twinforge.parsers.control_expert import capture_file, parse_projects
+from twinforge.parsers.control_expert import capture_file, parse_function_block_libraries, parse_projects
 from twinforge.parsers.control_expert.capture import CapturedArtifact
 from twinforge.parsers.control_expert.project import ParsedProject
 
@@ -137,6 +138,37 @@ def _diagram_summary(diagram: Any) -> dict[str, Any]:
     }
 
 
+def _add_on_instruction_summary(aoi: AddOnInstruction) -> dict[str, Any]:
+    return {
+        "name": aoi.name, "description": aoi.description,
+        "parameters": [{
+            "name": p.name, "type": p.data_type, "usage": p.usage,
+            "resolved_datatype": p.data_type_definition.name if p.data_type_definition else None,
+        } for p in aoi.parameters.values()],
+        "local_tags": [{
+            "name": t.name, "type": t.data_type,
+            "resolved_datatype": t.data_type_definition.name if t.data_type_definition else None,
+        } for t in aoi.local_tags.values()],
+        "body": [{
+            "language": r.language, "structured_text_line_count": len(r.structured_text_lines),
+            "diagrams": [_diagram_summary(diagram) for diagram in r.graphical_diagrams],
+            "ladder_rung_count": len(r.ladder_rungs), "sequential_chart_count": len(r.sequential_charts),
+        } for r in aoi.routines.values()],
+        "encrypted_body": aoi.metadata.get("encrypted_body"),
+    }
+
+
+def _function_block_library_summary(result: ParsedProject) -> dict[str, Any]:
+    return {
+        "name": result.controller.name,
+        "source": asdict(result.artifact.source),
+        "sha256": result.artifact.sha256,
+        "function_blocks": [_add_on_instruction_summary(aoi)
+                            for aoi in result.controller.add_on_instructions.values()],
+        "diagnostics": [asdict(diagnostic) for diagnostic in result.diagnostics],
+    }
+
+
 def _project_summary(project: ParsedProject) -> dict[str, Any]:
     controller = project.controller
     programs = []
@@ -191,23 +223,7 @@ def _project_summary(project: ParsedProject) -> dict[str, Any]:
                 "description": m.description,
             } for m in dt.members],
         } for dt in controller.datatypes.values()],
-        "function_blocks": [{
-            "name": aoi.name, "description": aoi.description,
-            "parameters": [{
-                "name": p.name, "type": p.data_type, "usage": p.usage,
-                "resolved_datatype": p.data_type_definition.name if p.data_type_definition else None,
-            } for p in aoi.parameters.values()],
-            "local_tags": [{
-                "name": t.name, "type": t.data_type,
-                "resolved_datatype": t.data_type_definition.name if t.data_type_definition else None,
-            } for t in aoi.local_tags.values()],
-            "body": [{
-                "language": r.language, "structured_text_line_count": len(r.structured_text_lines),
-                "diagrams": [_diagram_summary(diagram) for diagram in r.graphical_diagrams],
-                "ladder_rung_count": len(r.ladder_rungs), "sequential_chart_count": len(r.sequential_charts),
-            } for r in aoi.routines.values()],
-            "encrypted_body": aoi.metadata.get("encrypted_body"),
-        } for aoi in controller.add_on_instructions.values()],
+        "function_blocks": [_add_on_instruction_summary(aoi) for aoi in controller.add_on_instructions.values()],
         "variables": [{
             "name": tag.name, "type": tag.data_type,
             "resolved_datatype": tag.data_type_definition.name if tag.data_type_definition else None,
@@ -246,6 +262,7 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
     try:
         captured = capture_file(path)
         projects = parse_projects(captured)
+        libraries = parse_function_block_libraries(captured)
     except (OSError, ValueError) as error:
         raise ControlExpertCommandError(f"could not inspect Control Expert input '{path}': {error}") from error
     artifacts = _artifacts(captured)
@@ -256,7 +273,8 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
     report: dict[str, Any] = {
         "report_version": "1.0", "report_type": "control_expert_inspection",
         "input": {"name": path.name, "sha256": captured.sha256},
-        "status": "incomplete_capture" if failures else "inspected" if projects else "no_supported_projects",
+        "status": ("incomplete_capture" if failures
+                   else "inspected" if (projects or libraries) else "no_supported_projects"),
         "native_validation": "not_performed",
         "artifacts": [{"name": a.name, "source": asdict(a.source), "kind": a.kind,
                        "sha256": a.sha256, "bytes_available": a.raw_bytes is not None,
@@ -264,6 +282,7 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                       for a in artifacts],
         "capture_diagnostics": [asdict(d) for d in diagnostics],
         "projects": [_project_summary(p) for p in projects],
+        "function_block_libraries": [_function_block_library_summary(lib) for lib in libraries],
     }
     if output_format == "json":
         stdout.write(json.dumps(report, indent=2, sort_keys=True) + "\n")
@@ -272,7 +291,24 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
                      f"SHA-256: {captured.sha256}\n"
                      f"Status: {report['status']}\n"
                      f"Projects: {len(projects)} (each exchange document is listed separately)\n"
+                     f"Standalone Function Block libraries: {len(libraries)}\n"
                      "Native validation: not performed\n")
+        for index, library in enumerate(report["function_block_libraries"]):
+            location = " / ".join(f"[{i}] {name}" for i, name in library["source"]["members"]) or path.name
+            for aoi in library["function_blocks"]:
+                stdout.write(f"\nFunction Block library {index + 1}: {aoi['name'] or '(unnamed)'}\n"
+                             f"  Source: {location}\n"
+                             f"  Parameters: {len(aoi['parameters'])}; local tags: {len(aoi['local_tags'])}; "
+                             f"body sections: {len(aoi['body'])}"
+                             + (" (encrypted)" if aoi["encrypted_body"] else "") + "\n")
+                for section in aoi["body"]:
+                    stdout.write(f"    Section: {section['language']}; "
+                                 f"ST lines: {section['structured_text_line_count']}; "
+                                 f"graphical objects: {sum(len(d['objects']) for d in section['diagrams'])}\n")
+            if not library["function_blocks"]:
+                stdout.write(f"\nFunction Block library {index + 1}: (no FBSource found)\n  Source: {location}\n")
+            if library["diagnostics"]:
+                stdout.write(f"  Diagnostics: {len(library['diagnostics'])}\n")
         for index, project in enumerate(report["projects"]):
             location = " / ".join(f"[{i}] {name}" for i, name in project["source"]["members"]) or path.name
             stdout.write(f"\nProject {index + 1}: {project['name'] or '(unnamed)'}\n"
@@ -329,7 +365,8 @@ def inspect_control_expert(path: Path, *, output_format: str, stdout: TextIO) ->
             for diagnostic in diagnostics:
                 location = " / ".join(f"[{i}] {name}" for i, name in diagnostic.source.members) or path.name
                 stdout.write(f"  {location}: {diagnostic.code}: {diagnostic.message}\n")
-    if failures or not projects:
+    if failures or not (projects or libraries):
         raise ControlExpertCommandError(
-            "inspection report emitted, but capture was incomplete or no supported exchange project was found"
+            "inspection report emitted, but capture was incomplete or no supported exchange "
+            "project or Function Block library was found"
         )
