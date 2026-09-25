@@ -71,10 +71,10 @@ def test_multiple_zlib_streams_in_one_member_are_all_found_and_deduplicated():
     apd_artifact = captured.members[0]
     assert apd_artifact.kind == "zlib_container"
     assert len(apd_artifact.members) == 2
-    texts = [
-        next(c for c in m.section.ordered_children if c.tag == "STSource").text
-        for m in apd_artifact.members
-    ]
+    texts = []
+    for member in apd_artifact.members:
+        assert member.section is not None
+        texts.append(next(c for c in member.section.ordered_children if c.tag == "STSource").text)
     assert texts == ["a := 1;", "b := 2;"]
 
 
