@@ -174,6 +174,17 @@ readable string inside the parent's `ChildList` record the way other
 cross-references in this format do, so it's likely raw 16-byte binary GUID
 form rather than text — not decoded, not guessed at.
 
+## CLI surface — done
+
+- [x] `twinforge scadapack inspect <file>` (`cli/scadapack.py`), text and
+  JSON output, mirroring the existing `control-expert inspect` shape:
+  station properties, every resolved routine (name + line count/text),
+  every `DeviceTypeManager` (catalog, configured protocols, which is
+  active), and diagnostics. Verified against every real fixture with a
+  `.prj`, including the DNP3-TCP-target and DNP3-USB-active fixtures
+  already reproduced exactly in Milestone 2's own verification. 4 new CLI
+  tests. 1536 tests pass project-wide; Ruff and Pyright pass.
+
 ## Milestone 3 and beyond (not scoped in detail yet)
 
 - FBD content, once a plain-XML sample is found or the binary-framed shape
@@ -182,9 +193,6 @@ form rather than text — not decoded, not guessed at.
   between V14.0 and V15.1 ever turns up to narrow the search
 - The DTM parent/child tree relationship, if the binary GUID encoding in
   `ChildList` (or an equivalent record) gets decoded
-- CLI surface (`twinforge scadapack inspect <file>`), now that there is a
-  real parsed model worth inspecting on both fronts (ST routines and DTM
-  protocol configuration)
 
 ## Verification
 

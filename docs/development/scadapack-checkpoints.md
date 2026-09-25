@@ -117,3 +117,14 @@ readable-looking `InstanceDataRecord` content but not decoded; the DTM
 parent/child tree relationship remains unconfirmed (the child's GUID
 doesn't appear as a readable string in the parent's `ChildList` record --
 checked directly, not assumed; likely raw binary GUID form, not text).
+
+CLI surface checkpoint, same day: `twinforge scadapack inspect <file>`
+(`cli/scadapack.py`), mirroring `control-expert inspect`'s shape (text and
+JSON, station properties + routines + `DeviceTypeManager`s + diagnostics).
+Success is "found at least one of station properties, routines, or DTMs";
+a fully-empty result is a clean CLI failure, not a silent success with
+nothing to show. Verified through the actual CLI entry point against the
+real corpus: `sp470_v04.RCZ` prints its active `DNP3 TCP ->
+172.16.1.200:20000` line correctly, and the newer SNMP fixture prints its
+one resolved ST routine and active `DNP3 USB` selection correctly. 4 new
+CLI tests. 1536 tests pass project-wide; Ruff and Pyright pass.

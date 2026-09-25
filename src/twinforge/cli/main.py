@@ -71,6 +71,7 @@ from .snmp_conversion import convert_walk_command
 from .control_expert import ControlExpertCommandError, inspect_control_expert
 from .control_expert_coverage import export_control_expert_coverage
 from .control_expert_render import render_control_expert_ladder
+from .scadapack import ScadaPackCommandError, inspect_scadapack
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -113,6 +114,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--network", type=int, default=None,
         help="Render only this 0-indexed network within the routine (default: every network).",
     )
+    scadapack = commands.add_parser(
+        "scadapack", help="Inspect SCADAPack RTU .RCZ/.STA exports offline.",
+    )
+    scadapack_commands = scadapack.add_subparsers(dest="scadapack_command", required=True)
+    scadapack_inspect = scadapack_commands.add_parser(
+        "inspect", help="Inspect ST routines and .prj protocol configuration independently.",
+    )
+    scadapack_inspect.add_argument("path", type=Path)
+    scadapack_inspect.add_argument("--format", choices=("text", "json"), default="text")
     inspect_l5x_command = commands.add_parser(
         "inspect",
         help="Inspect a Rockwell L5X document without changing it.",
@@ -768,6 +778,8 @@ def main(
                 )
             else:
                 inspect_control_expert(arguments.path, output_format=arguments.format, stdout=output)
+        elif arguments.command == "scadapack":
+            inspect_scadapack(arguments.path, output_format=arguments.format, stdout=output)
         elif arguments.command == "inspect":
             inspect_l5x(
                 arguments.path,
@@ -1096,6 +1108,7 @@ def main(
         L5XEdsCatalogCommandError,
         CCWProjectCommandError,
         ControlExpertCommandError,
+        ScadaPackCommandError,
     ) as error:
         errors.write(f"error: {error}\n")
         return 1
