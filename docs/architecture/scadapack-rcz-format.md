@@ -452,3 +452,62 @@ exact meaning is not yet confirmed the way `O0` now is.
   lineage confirmed above — SCADAPack's `.RCZ`/`.STA` container is a
   different on-disk shape from a standalone XEF/ZEF export, not just a
   renamed one.
+
+## Real capture support now exists, and the `.prj` DTM structure is far more legible than first assumed (2026-09-25)
+
+Status update: this document was "investigation only" through the section
+above. Real capture code now exists (`parsers/scadapack/`), covering
+container navigation, zlib stream classification, plain-XML `STSource`
+parsing, and `.prj` DTM/protocol-configuration mapping — see
+[the capture roadmap](../roadmaps/scadapack-rcz-capture-roadmap.md) for
+scope and [the checkpoint journal](../development/scadapack-checkpoints.md)
+for what was verified against the real corpus.
+
+While implementing the DTM mapping, reading the `.prj` XML tree directly
+(not just its raw bytes) turned up a much cleaner structure than the
+earlier "generic regex across an opaque blob" characterization above
+suggested:
+
+- `FdtDtmProject/DTMs/DTM[@Id]` is a **plain, readable outer tree** —
+  `Id`, then `EngineeringData` (one small blob), `CustomAttributes`
+  (its own escaped-XML text, not base64: a `DTMDisplayName` custom item
+  is directly readable after reversing .NET's `_xHHHH_` name-escaping,
+  e.g. `_x0020_` for a literal space), and `InstanceData/
+  InstanceDataRecord[@Key]` — a whole **list** of records, not the single
+  blob per DTM this document previously assumed.
+- **Each `InstanceDataRecord`'s own `Key` attribute names its semantic
+  content and, for protocol-specific records, the exact protocol GUID it
+  belongs to** — `AddressInfo-<protocol-guid>`, `ActiveProtocol-<protocol-
+  guid>`, `NetworkDataInfo-<protocol-guid>`, alongside many still-undecoded
+  ones (`Dnp3LayerSettingsControlGroup`, `Modbus Settings`,
+  `SerialPortModemSettingsPageControlGroup`, `Iec60870104MasterPageControlGroup`,
+  ...). This is a far more reliable way to find and classify a record's
+  content than scanning raw bytes for embedded tag names with no idea what
+  they belong to — the earlier approach still works, but the `Key`
+  attribute makes it unnecessary for these two record kinds.
+- **`ActiveProtocol-<guid>`'s own decoded content is a `BusCategory`
+  fragment with `<CommunicationType>Required</CommunicationType>`** (not
+  `Supported`, which is what the DTM's own declared catalog in
+  `EngineeringData`'s `DeviceTypeInfo` uses for every variant it merely
+  supports) — the presence of an `ActiveProtocol-<guid>` record at all is
+  itself the "this one is selected" signal, confirmed directly rather than
+  inferred from a generic "ActiveProtocol" tag search.
+- **A protocol's catalog entry and its configured address can live on
+  different DTMs.** In `leadLagPumpCtrl_v02.RCZ`, the comm DTM ("PC
+  Communication Settings -DNP3 CommDTM") declares the DNP3 protocol
+  catalog; the device DTM ("SCADAPack x70 Controller Settings -DeviceDTM")
+  holds the actual `AddressInfo`/`ActiveProtocol` records. They're
+  cross-referenced only by the shared protocol GUID, not by any visible
+  parent/child pointer between the two DTM elements.
+- **The DTM parent/child relationship itself is still not decoded.** The
+  child DTM's own GUID does not appear as a readable ASCII or UTF-16LE
+  string inside the parent's `ChildList` `InstanceDataRecord` — checked
+  directly, not assumed. Either the linkage uses raw 16-byte binary GUID
+  form (not text), or it lives somewhere else entirely (the
+  project-level, as opposed to DTM-level, `EngineeringData`/`TopologyRecord`
+  data this document already flagged as yielding no fragments).
+- Re-verified the byte-for-byte claims already in this document while
+  implementing, not just trusted them: `STATION.CTX`'s framing, and that
+  `sp470_v04.RCZ`'s active protocol really is DNP3 TCP at
+  `172.16.1.200:20000` — both reproduced exactly through the new
+  structured code path, not just the original ad hoc script.

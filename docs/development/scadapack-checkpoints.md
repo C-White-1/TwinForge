@@ -67,3 +67,53 @@ confirming Milestone 1 holds up on real production-scale content, not just
 small demos. 14 new synthetic tests (`test_scadapack_capture.py`,
 `test_scadapack_station.py`). 1526 tests pass project-wide; Ruff and
 Pyright pass.
+
+Pyright-scope fix, same day: CI runs bare `pyright` (repo-wide, `tests/`
+included); local verification had only run `pyright src`, missing that
+`CapturedArtifact.section` is `Optional` and one test accessed
+`.ordered_children` on it without narrowing first. Fixed; re-verified
+against the exact CI command set (`ruff check src tests examples`, bare
+`pyright`, bare `pytest`) going forward, not a `src`-only subset.
+
+Milestone 2 checkpoint (2026-09-25, same day): shipped `.prj`
+`FdtDtmProject` -> `DeviceTypeManager` mapping
+(`model/fdt_dtm.py`, `parsers/scadapack/dtm.py`). Originally scoped in the
+roadmap as "likely `LibraryInterface`-adjacent" -- wrong on investigation,
+before any code was written: `CommunicationInterface`/`Connection` are
+Rockwell/CIP-shaped (packet intervals, `unicast`, CIP object/instance/
+attribute services) and none of it applies to DNP3/TeleBus protocol-
+variant-with-one-active-selection data, so a small new model
+(`DeviceTypeManager`/`ProtocolVariant`/`ConfiguredProtocolAddress`) was
+added instead of forcing a fit.
+
+Re-reading the real `.prj` XML tree directly (not just trusting the
+existing investigation doc's byte-level summary) turned up a much more
+structured signal than expected: each `InstanceDataRecord`'s own `Key`
+attribute names its content type and, for protocol records, the exact
+protocol GUID (`AddressInfo-<guid>`, `ActiveProtocol-<guid>`) -- no need to
+blind-scan raw bytes for embedded tags the way the original investigation
+did. One genuinely tricky real case, caught by testing against
+`leadLagPumpCtrl_v02.RCZ` specifically rather than only synthetic
+fixtures: a protocol's catalog name and its configured address can live on
+*different* DTMs (the comm DTM declares the catalog, the device DTM holds
+the address), cross-referenced only by the shared protocol GUID -- fixed
+with a two-pass resolution (collect every DTM's declared protocol names
+project-wide before finalizing any DTM's configured list).
+
+Verified against every real fixture with a `.prj`: `sp470_v04.RCZ`
+reproduces its documented real DNP3-TCP target (`172.16.1.200:20000`)
+exactly; `leadLagPumpCtrl_v02.RCZ` reproduces its documented active
+DNP3-USB-local selection exactly, now with the previously-unresolved
+inactive variants' own names filled in from the other DTM's catalog; the
+two newer fixtures (`RTU_Demo_Proj_SNMP (v2).RCZ`, `LiftStationLib.RCZ`)
+resolve cleanly with zero new diagnostics, the latter despite a 2.9MB
+`.PRJ` (81ms capture, 6ms mapping -- no performance concern). 6 new
+synthetic tests (`test_scadapack_dtm.py`). 1532 tests pass project-wide;
+Ruff and Pyright pass.
+
+Explicit non-goals held to: the deeper per-protocol settings groups
+(`Dnp3LayerSettingsControlGroup`, `Modbus Settings`, ...) are real,
+readable-looking `InstanceDataRecord` content but not decoded; the DTM
+parent/child tree relationship remains unconfirmed (the child's GUID
+doesn't appear as a readable string in the parent's `ChildList` record --
+checked directly, not assumed; likely raw binary GUID form, not text).

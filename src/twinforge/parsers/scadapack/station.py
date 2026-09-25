@@ -1,21 +1,26 @@
 """Map captured SCADAPack content into vendor-neutral model objects.
 
-Milestone 1 only (docs/roadmaps/scadapack-rcz-capture-roadmap.md): a
-plain-XML `STExchangeFile`/`STSource` stream becomes an ordinary `Routine`
+Milestone 1 (docs/roadmaps/scadapack-rcz-capture-roadmap.md): a plain-XML
+`STExchangeFile`/`STSource` stream becomes an ordinary `Routine`
 (`language="ST"`) -- the same `StructuredTextLine` model Control Expert's
 own ST bodies already use, since what container the source came from
-doesn't change what a line of Structured Text is. Everything else this
-format's capture layer recognizes (binary-framed streams, FBD, `.prj`
-DTM/comm-channel content, the `D1` per-statement offset table) is retained
-as capture evidence but not interpreted here.
+doesn't change what a line of Structured Text is.
+
+Milestone 2: a `.prj`'s `FdtDtmProject` tree (already captured generically
+as XML by `capture.py`) becomes `DeviceTypeManager` objects via `dtm.py`.
+Everything else this format's capture layer recognizes (binary-framed
+streams, FBD, the `D1` per-statement offset table, DTM `InstanceDataRecord`
+keys beyond `AddressInfo-*`/`ActiveProtocol-*`) is retained as capture
+evidence but not interpreted here.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from twinforge.model import Routine, StructuredTextLine
+from twinforge.model import DeviceTypeManager, Routine, StructuredTextLine
 
 from .capture import CapturedArtifact, Diagnostic
+from .dtm import parse_dtms
 from .evidence import source_extension as _extension
 
 
@@ -24,6 +29,7 @@ class ParsedStation:
     artifact: CapturedArtifact
     station_properties: dict[str, str] = field(default_factory=dict)
     routines: list[Routine] = field(default_factory=list)
+    device_type_managers: list[DeviceTypeManager] = field(default_factory=list)
     diagnostics: list[Diagnostic] = field(default_factory=list)
 
     def report(self, code: str, message: str, source_artifact: CapturedArtifact) -> None:
@@ -63,6 +69,10 @@ def _walk(artifact: CapturedArtifact, result: ParsedStation) -> None:
         if not any(line.text.strip() for line in routine.structured_text_lines):
             result.report("empty_structured_text_stream", "STExchangeFile stream has no source text", artifact)
         result.routines.append(routine)
+    elif artifact.kind == "xml" and artifact.content_label == "FdtDtmProject" and artifact.section is not None:
+        managers, diagnostics = parse_dtms(artifact.section, artifact.source)
+        result.device_type_managers.extend(managers)
+        result.diagnostics.extend(diagnostics)
     for member in artifact.members:
         _walk(member, result)
 

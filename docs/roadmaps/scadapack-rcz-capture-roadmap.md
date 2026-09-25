@@ -124,17 +124,67 @@ SCADAPack stream) doesn't change what a line of Structured Text *is*.
   separate file from program logic?) — not decided here, deferred until
   there is real ST content to hang a decision on.
 
-## Milestone 2 and beyond (not scoped in detail yet)
+## Milestone 2: `.prj` DTM/comm-channel mapping — done
+
+Scoped mid-session after direct investigation showed the original plan
+("likely `LibraryInterface`-adjacent") was wrong on two counts: what the
+data represents, and what model it fits.
+
+- [x] Confirmed, byte-for-byte, that a project's `STATION.CTX` `PLC
+  ADDRESS` (the IDE's own download/monitor link) and its `.prj`'s DTM
+  `AddressInfo` are different protocols at different addresses in the same
+  real fixture — genuinely independent configurations, not the same
+  connection recorded twice
+- [x] New vendor-neutral model (`model/fdt_dtm.py`:
+  `DeviceTypeManager`/`ProtocolVariant`/`ConfiguredProtocolAddress`), not a
+  force-fit into `CommunicationInterface`/`Connection` — those are
+  Rockwell/CIP-shaped (packet intervals, `unicast`, CIP object/instance/
+  attribute services) and none of it applies to DNP3/TeleBus protocol-
+  variant-with-one-active-selection data
+- [x] `parsers/scadapack/dtm.py`: maps every `<DTM>` in a captured
+  `FdtDtmProject` tree — display name (decoding `.NET`'s `_xHHHH_` name
+  escaping), product identity, declared protocol catalog
+  (`DeviceTypeInfo`/`BusCategories`), and every actually-configured
+  protocol variant with full addressing detail and which one is active
+  (`InstanceDataRecord` entries keyed `AddressInfo-<guid>`/
+  `ActiveProtocol-<guid>` — a much more structured, reliable signal than
+  the original investigation's unstructured "regex-scan the whole blob"
+  approach, found only by re-reading the real `.prj` XML tree directly
+  rather than trusting the earlier byte-level summary)
+- [x] Two-pass resolution for a real cross-DTM case: a protocol's catalog
+  name and its configured address can live on *different* DTMs (confirmed
+  in `leadLagPumpCtrl_v02.RCZ` — the comm DTM declares the DNP3 catalog,
+  the device DTM holds the actual addresses), so protocol names are
+  collected project-wide before any `DeviceTypeManager` is finalized
+- [x] Verified against all four real fixtures with a `.prj`: the original
+  DNP3-TCP-tutorial fixture reproduces its documented real target
+  (`172.16.1.200:20000`) exactly; the lead/lag pump fixture reproduces its
+  documented active DNP3-USB-local selection exactly; two newer fixtures
+  (including the real-world-scale one) resolve cleanly with zero
+  diagnostics
+- [x] 6 new synthetic tests (`test_scadapack_dtm.py`)
+
+Deliberately not attempted: the deeper per-protocol settings groups also
+visible as `InstanceDataRecord` keys (`Dnp3LayerSettingsControlGroup`,
+`Modbus Settings`, `SerialPortModemSettingsPageControlGroup`, ...) — real,
+readable-looking data, but its content is not decoded. The DTM
+parent/child tree relationship (which comm DTM a device DTM hangs off of)
+also remains unconfirmed: the child DTM's own GUID does not appear as a
+readable string inside the parent's `ChildList` record the way other
+cross-references in this format do, so it's likely raw 16-byte binary GUID
+form rather than text — not decoded, not guessed at.
+
+## Milestone 3 and beyond (not scoped in detail yet)
 
 - FBD content, once a plain-XML sample is found or the binary-framed shape
   is solved (whichever comes first)
-- `.prj` DTM/comm-channel mapping into the model (likely `LibraryInterface`-
-  adjacent, not `Controller` hardware — an RCZ's own comm DTM is protocol
-  config, not a rack/module)
 - The binary-framed older-version `STSource` shape, if a fixture strictly
   between V14.0 and V15.1 ever turns up to narrow the search
-- CLI surface (`twinforge scadapack inspect <file>`), once there is a real
-  parsed model worth inspecting
+- The DTM parent/child tree relationship, if the binary GUID encoding in
+  `ChildList` (or an equivalent record) gets decoded
+- CLI surface (`twinforge scadapack inspect <file>`), now that there is a
+  real parsed model worth inspecting on both fronts (ST routines and DTM
+  protocol configuration)
 
 ## Verification
 

@@ -39,6 +39,7 @@ from .gateway import (
     GatewayTagBinding,
     GatewayTagBindingRole,
 )
+from .fdt_dtm import ConfiguredProtocolAddress, DeviceTypeManager, ProtocolVariant
 from .identity import Identity, VendorIdentity
 from .graphical import (
     BinaryExpression,
@@ -156,6 +157,9 @@ __all__ = [
     "DeviceModuleBinding",
     "DeviceModuleRole",
     "DeviceType",
+    "ConfiguredProtocolAddress",
+    "DeviceTypeManager",
+    "ProtocolVariant",
     "ElectronicKey",
     "EngineeringRangeEvidence",
     "EngineeringUnitConfidence",
