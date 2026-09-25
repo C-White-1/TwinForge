@@ -1088,3 +1088,45 @@ def parse_projects(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPP
     for member in artifact.members:
         projects.extend(parse_projects(member, spec=spec))
     return projects
+
+
+def parse_function_block_library(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPING) -> ParsedProject:
+    """Map one standalone Derived Function Block export (.xdb/.XDB).
+
+    Reuses `_function_blocks` unchanged -- the same mapping already applied
+    to a project-embedded `FBSource` (docs/architecture/control-expert-
+    exchange-capture.md, "DFB (user-defined Function Block) grammar and
+    capture") -- confirmed the standalone export uses the identical
+    FBSource/FBProgram/STSource/FBDSource/inputParameters/outputParameters/
+    privateLocalVariables shape, just at the document root instead of nested
+    in a project. A standalone DFB has none of a project's own concepts (no
+    tags, hardware, programs), so the `Controller` envelope here carries only
+    the DFB's own identity -- `known_datatypes` is empty because an .xdb
+    carries no `DDTSource` of its own; the shared device DDT catalog is still
+    available, the same as for a full project.
+    """
+    root = artifact.section
+    if root is None or root.tag not in spec.function_block_library_roots:
+        raise ValueError("Expected a captured Function Block exchange XML artifact; select a member explicitly")
+    sources = _select(root, spec.function_blocks)
+    name = sources[0].raw_attributes.get(spec.function_block_name_attribute, "") if len(sources) == 1 else ""
+    controller = Controller(name=name, identity=Identity(), source_extensions=[_extension(root)])
+    result = ParsedProject(controller, artifact, list(artifact.diagnostics))
+    if not name:
+        result.report("missing_function_block_name",
+                       "Function Block name missing or ambiguous; expected exactly one FBSource", root)
+    catalog_datatypes = device_ddt_catalog.datatypes()
+    _function_blocks(result, root, spec, {}, catalog_datatypes)
+    return result
+
+
+def parse_function_block_libraries(
+    artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPING,
+) -> list[ParsedProject]:
+    """Map every standalone Derived Function Block export independently, in archive order."""
+    libraries = []
+    if artifact.section is not None and artifact.section.tag in spec.function_block_library_roots:
+        libraries.append(parse_function_block_library(artifact, spec=spec))
+    for member in artifact.members:
+        libraries.extend(parse_function_block_libraries(member, spec=spec))
+    return libraries

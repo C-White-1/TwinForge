@@ -2099,4 +2099,47 @@ Verified against the real corpus, not just synthetic rungs: rendering
 rather than guessing. 8 new exporter tests plus 3 new CLI tests. 1501 tests
 pass project-wide; Ruff and Pyright pass. Milestone 2 (unresolved-row and
 inline `FFBBlock` rendering) and Milestone 3 (FBD) remain open.
-re-conflate them.
+
+Standalone DFB export (`.xdb`/`.XDB`) capture support (2026-09-25): user
+supplied three more SCADAPack zips (`Realflo-Related DFBs v1.zip`,
+`SCADAPack 47xi Lift Station Libraries.zip`, `SNMP_Polling_Zip_Files.zip`);
+exploring them surfaced a real, well-scoped capture gap rather than a
+parsing failure -- `capture_file`/`capture_bytes` never even looked at
+`.xdb`/`.XDB` (suffix not in the recognized set), even though the content is
+plain XML in the same DTD generation (`DTDVersion="41"`) as every XEF
+fixture already supported, and its interior grammar (`FBSource`/
+`FBProgram`/`STSource`/`FBDSource`/`inputParameters`/`outputParameters`/
+`privateLocalVariables`) is *identical* to the already-mapped
+project-embedded DFB case documented in
+[the exchange capture spec](../architecture/control-expert-exchange-capture.md#standalone-dfb-export-xdbxdb-the-same-grammar-a-different-root-2026-09-25).
+
+Fixed with a small, targeted change, not a parallel capture path: a new
+`FB_EXCHANGE_SPEC` (root `FBExchangeFile`, genuinely a different document
+shape from `FEFExchangeFile` -- no `program`/`logicConf`/`dataBlock` at
+all -- so it is its own spec, not an alias entry like `ZEFExchangeFile`);
+`capture_bytes`/`capture_file` now try a tuple of root specs
+(`CONTROL_EXPERT_SPECS = (EXCHANGE_SPEC, FB_EXCHANGE_SPEC)`) instead of one,
+a three-line change to `_inspect`'s root-matching, fully backward compatible
+for every existing caller. Two new entry points,
+`parse_function_block_library`/`parse_function_block_libraries`
+(`parsers/control_expert/project.py`), reuse `_function_blocks`/
+`_function_block_routine` completely unchanged -- zero new mapping code,
+since that logic was already proven against 83 real project-embedded DFB
+definitions. The `Controller` envelope these return is deliberately minimal
+(name = the DFB's own `nameOfFBType`, everything else empty) rather than
+pretending a standalone DFB has tags/hardware/programs it doesn't.
+
+Verified against all 17 real `.xdb` files in
+`reference/SCADAPack/Realflo-Related DFBs v1.zip` (gitignored, local-only --
+not part of the committed test corpus): every one resolves to an
+`AddOnInstruction` with populated parameters and routines, including the
+`getregfloat5.xdb`/`GetRegFloatv6.XDB` pair (the same block, two real
+versions, v2.00 and v2.04). `unresolved_type` diagnostics on locals typed as
+another library block are expected -- a standalone DFB's `known_datatypes`
+is empty by construction, same honest gap a project-embedded DFB has for a
+type outside this project's own DDT/EFB catalog. 8 new synthetic tests
+(`test_control_expert_function_block_library.py`) cover the capture root,
+single- and multi-`FBProgram` bodies, FBD bodies through the shared
+graphical parser, crypted bodies, a missing-`FBSource` diagnostic, root
+rejection, and archive walking. 1509 tests pass project-wide; Ruff and
+Pyright pass.

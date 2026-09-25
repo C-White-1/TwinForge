@@ -69,3 +69,21 @@ EXCHANGE_SPEC = ElementSpec(
     _EXCHANGE_SPEC.name, _EXCHANGE_SPEC.attributes, _EXCHANGE_SPEC.children,
     root_aliases=("ZEFExchangeFile",),
 )
+
+# A standalone Derived Function Block export (.xdb/.XDB): one `FBSource` at
+# the document root instead of embedded as a sibling of `program`/`DDTSource`
+# inside a project. Confirmed the same `fileHeader`/`contentHeader` attribute
+# shape as FEFExchangeFile (both carry DTDVersion="41" -- the same DTD
+# generation, not merely a similarly-named format) and the identical
+# FBSource/FBProgram/STSource/FBDSource grammar the embedded-DFB mapping in
+# project.py already parses -- so this is a distinct root, not an alias of
+# EXCHANGE_SPEC: an .xdb document has no program/logicConf/dataBlock/hardware
+# content at all, unlike ZEFExchangeFile, which really is just a zipped
+# repackaging of the identical FEFExchangeFile shape.
+FB_EXCHANGE_SPEC = ElementSpec(
+    "FBExchangeFile", frozenset(), (
+        element("fileHeader", "company product dateTime content DTDVersion"),
+        element("contentHeader", "name version dateTime"),
+        element("FBSource", "nameOfFBType version dateTime"),
+    ),
+)

@@ -14,7 +14,13 @@ import xml.etree.ElementTree as ET
 import zipfile
 import zlib
 
-from twinforge.schema.control_expert import EXCHANGE_SPEC, ElementSpec
+from twinforge.schema.control_expert import EXCHANGE_SPEC, FB_EXCHANGE_SPEC, ElementSpec
+
+# Every recognized root shape tried in order, e.g. a project (FEFExchangeFile/
+# ZEFExchangeFile) or a standalone Derived Function Block export
+# (FBExchangeFile) -- callers that pass their own single ElementSpec still
+# work unchanged (_inspect normalizes to a tuple either way).
+CONTROL_EXPERT_SPECS: tuple[ElementSpec, ...] = (EXCHANGE_SPEC, FB_EXCHANGE_SPEC)
 
 
 @dataclass(frozen=True)
@@ -125,7 +131,7 @@ def _capture_section(
 
 def _inspect(
     artifact: CapturedArtifact, limits: CaptureLimits, budget: _Budget,
-    depth: int, spec: ElementSpec,
+    depth: int, spec: ElementSpec | tuple[ElementSpec, ...],
 ) -> None:
     data = artifact.raw_bytes
     if data is None or artifact.directory:
@@ -171,11 +177,12 @@ def _inspect(
                         member.report("member_read_error", str(error))
         except (zipfile.BadZipFile, OSError, EOFError) as error:
             artifact.report("archive_read_error", str(error))
-    elif suffix in {".xef", ".xml", ".xpdf"}:
+    elif suffix in {".xef", ".xml", ".xpdf", ".xdb"}:
         artifact.kind = "xml"
         try:
             root = ET.fromstring(data, parser=ET.XMLParser(target=_BoundedTreeBuilder(limits)))
-            matching = spec if root.tag in (spec.name, *spec.root_aliases) else None
+            specs = spec if isinstance(spec, tuple) else (spec,)
+            matching = next((s for s in specs if root.tag in (s.name, *s.root_aliases)), None)
             source = SourceLocation(artifact.source.input_sha256, artifact.source.members, f"/{root.tag}")
             artifact.section = _capture_section(root, matching, source)
             if matching is None:
@@ -202,7 +209,7 @@ def _inspect(
 
 def capture_bytes(
     data: bytes, *, name: str = "project.zef", limits: CaptureLimits | None = None,
-    spec: ElementSpec = EXCHANGE_SPEC,
+    spec: ElementSpec | tuple[ElementSpec, ...] = CONTROL_EXPERT_SPECS,
 ) -> CapturedArtifact:
     """Capture one input, retaining bytes even when inspection is unsupported."""
     limits = limits or CaptureLimits()
@@ -217,7 +224,7 @@ def capture_bytes(
 
 def capture_file(
     path: str | Path, *, limits: CaptureLimits | None = None,
-    spec: ElementSpec = EXCHANGE_SPEC,
+    spec: ElementSpec | tuple[ElementSpec, ...] = CONTROL_EXPERT_SPECS,
 ) -> CapturedArtifact:
     """Read a bounded file. Oversized files raise before loading; source is untouched."""
     limits = limits or CaptureLimits()

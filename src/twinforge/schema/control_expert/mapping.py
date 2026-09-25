@@ -44,6 +44,12 @@ class MappingSpec:
     function_block_public_locals: PathSpec = ("publicLocalVariables", "variables")
     function_block_private_locals: PathSpec = ("privateLocalVariables", "variables")
     roots: tuple[str, ...] = ("FEFExchangeFile", "ZEFExchangeFile")
+    # A standalone Derived Function Block export (.xdb/.XDB): one FBSource at
+    # the document root, not embedded inside a project. Deliberately a
+    # separate set from `roots` -- an .xdb is not a project (no tags,
+    # hardware, programs), so parse_function_block_library never accepts one
+    # of these roots and parse_project never accepts an FBExchangeFile.
+    function_block_library_roots: tuple[str, ...] = ("FBExchangeFile",)
     header: PathSpec = ("fileHeader",)
     content: PathSpec = ("contentHeader",)
     variables: PathSpec = ("dataBlock", "variables")

@@ -1023,6 +1023,63 @@ ones -- a materially worse failure mode than leaving them unresolved. Left
 as a separate, explicitly scoped next step, not a small extension of the
 existing passes.
 
+## Standalone DFB export (`.xdb`/`.XDB`): the same grammar, a different root (2026-09-25)
+
+Everything above this point describes a `FBSource` *embedded* inside a
+project (`FEFExchangeFile`/`ZEFExchangeFile`, a sibling of `program`/
+`DDTSource`). Control Expert also exports a single Derived Function Block on
+its own, as a `.xdb`/`.XDB` file -- e.g. Schneider's own "Realflo" DFB
+library (AGA3/7/8/9/11 gas-flow-measurement wrappers, Modbus register/float
+conversion blocks) is distributed this way, one file per block. Confirmed
+against 17 real files, not assumed from one sample.
+
+The document root is `FBExchangeFile`, not `FEFExchangeFile` -- and unlike
+`ZEFExchangeFile` (a real alias: the identical project shape, just zipped),
+`FBExchangeFile` is a genuinely different document: no `program`/`logicConf`/
+`dataBlock`/hardware content at all, only `fileHeader`/`contentHeader`/
+`FBSource` at the top level. So it gets its own `ElementSpec`
+(`FB_EXCHANGE_SPEC`, `schema/control_expert/exchange.py`) rather than an
+alias entry on the project's own spec. `capture_bytes`/`capture_file` now
+try a tuple of root specs in order (`CONTROL_EXPERT_SPECS = (EXCHANGE_SPEC,
+FB_EXCHANGE_SPEC)`) instead of a single one, so recognizing a second document
+family cost a three-line change in `_inspect`, not a parallel capture path.
+
+Confirmed the *same DTD generation*, not merely a similarly-named format:
+every `.xdb` sampled carries `DTDVersion="41"`, identical to every XEF
+fixture already in the reference corpus. And confirmed the internal grammar
+is identical to the already-mapped embedded case: `FBSource
+nameOfFBType="..." version="..." dateTime="...">`, `inputParameters`/
+`outputParameters`/`privateLocalVariables` holding `variables` elements
+directly (never `crypted`+`ExternalToolsOnly` in the 17 sampled -- every
+`.xdb` here has a real, unencrypted body), one or more `<FBProgram
+name="...">` sections each wrapping exactly one `STSource`/`FBDSource` body.
+A multi-`FBProgram` DFB (`Get_Reg_Float`/`Set_EnronFloat`: `GetSystemData`,
+`RegisterCondition`, `ModMastReg`, `ModConversion`, `Read_Me`) even keeps a
+human-readable `Read_Me` section as one more `STSource`-language routine,
+its "code" being the author's own prose documentation -- retained as
+ordinary ST source text, not specially interpreted.
+
+New entry points reuse `_function_blocks`/`_function_block_routine`
+unchanged (`parse_function_block_library`/`parse_function_block_libraries`,
+`parsers/control_expert/project.py`) -- no new mapping code, since the
+interface/body shape was already proven against 83 real embedded
+definitions. The `Controller` envelope these return carries only the DFB's
+own identity (`name` = `FBSource`'s own `nameOfFBType`, not the generic
+`contentHeader name="Project"` every `.xdb` sampled carries) -- a standalone
+DFB has no tags, hardware or programs of its own, so pretending it does
+would be a fiction, not evidence.
+
+Verified against the real corpus: all 17 `.xdb` files in
+`reference/SCADAPack/Realflo-Related DFBs v1.zip` resolve to an
+`AddOnInstruction` with populated parameters and routines (including the
+`getregfloat5.xdb`/`GetRegFloatv6.XDB` pair -- two real versions, v2.00 and
+v2.04, of the same block). `unresolved_type` diagnostics on locals typed as
+another library block (`MB_IP_MASTER`, `OBJ_NameToID`, ...) are expected and
+correct: a standalone DFB's `known_datatypes` is empty by construction (no
+`DDTSource` of its own to build it from), the same honest gap a project-
+embedded DFB would have for a type this project's own DDT/EFB catalog
+doesn't happen to cover.
+
 ## FB-local pin binding: an isolated namespace per DFB
 
 The deferred step above is now implemented, not with a new pass bolted onto
