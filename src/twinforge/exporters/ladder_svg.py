@@ -503,6 +503,24 @@ class LadderSvgExporter:
             # row_end_columns lookup, and no dot (a plain elbow, not a
             # junction where multiple wires actually meet).
             self._render_vlink(parts, x, y_top, dot=False)
-            self._render_block(parts, objects[cell.wrapped_object_index], x, row, row_y, shortcircuit_wrapped=True)
+            obj = objects[cell.wrapped_object_index]
+            self._render_block(parts, obj, x, row, row_y, shortcircuit_wrapped=True)
+            # The continuing HLink sits on the block's own ANCHOR row (it
+            # is declared as a sibling of the shortCircuit in the same
+            # source row), but the block's own first shown output pin is
+            # rendered `offset` rows below that anchor -- confirmed by the
+            # original PIL verification session's own reference render
+            # (sr2_ton23_zoom.png): an explicit dogleg bridges the two, not
+            # a straight horizontal line. Drawn only when they are
+            # genuinely on different rows (offset != 0) and the block
+            # actually has a shown output to dogleg from.
+            _, _, shown_outputs, offset = self._block_span(obj, shortcircuit_wrapped=True)
+            if shown_outputs and offset != 0:
+                box_w = _BLOCK_WIDTH_COLUMNS * _CELL_W
+                corner_x = x + box_w + _PIN_STUB
+                anchor_yc = y_top + _CELL_H // 2
+                output_yc = row_y(row + offset) + _CELL_H // 2
+                parts.append(f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" '
+                              'stroke="black" stroke-width="2"/>')
         else:
             self._render_unsupported(parts, x + _CELL_W // 2, yc, "shortCircuit", "unresolved")

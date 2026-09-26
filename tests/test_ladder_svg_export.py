@@ -372,6 +372,50 @@ def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():
     assert svg.count('stroke="blue" stroke-width="2"') == 3
 
 
+def test_export_diagram_short_circuit_wraps_block_draws_output_dogleg():
+    # Real evidence (SR_2.Q1 -> TON_23.IN, confirmed against the original
+    # PIL verification session's own reference render, sr2_ton23_zoom.png):
+    # the continuing HLink after a shortCircuit-wraps-block shape sits on
+    # the block's own ANCHOR row (it is a sibling of the shortCircuit in
+    # the same source row), but the block's first shown output pin renders
+    # `offset` rows below that anchor -- an explicit dogleg bridges them,
+    # not a straight line, since they are genuinely on different rows.
+    block = _block("SR_2", "SR", [
+        _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
+        _pin("ENO", "output"), _pin("Q1", "output"),
+    ], en_en_o=False)
+    diagram = GraphicalDiagram(
+        language="LD", objects=[block],
+        grid_rows=[LadderGridRow(row=0, cells=[
+            LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                           wrapped_width=2, wrapped_object_index=0),
+        ])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    corner_x = 60 + 2 * 70 + 6  # block's right edge (column 2) + _PIN_STUB
+    anchor_yc = 30 + 35  # row 0's own center
+    output_yc = 30 + 70 + 35  # row 1's center (offset 1, shortCircuit-wrapped enEnO=false)
+    assert f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" stroke="black" stroke-width="2"/>' in svg
+
+
+def test_export_diagram_short_circuit_wraps_block_no_dogleg_without_a_shown_output():
+    # The dogleg above is specific to a block with a shown output pin to
+    # bridge from -- a block with none (e.g. only EN shown) has nothing to
+    # dogleg, so none should be drawn.
+    block = _block("B1", "TON", [_pin("EN", "input")], en_en_o=True)
+    diagram = GraphicalDiagram(
+        language="LD", objects=[block],
+        grid_rows=[LadderGridRow(row=0, cells=[
+            LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                           wrapped_width=2, wrapped_object_index=0),
+        ])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    # A vertical dogleg line would have identical x1/x2; none should exist
+    # beyond the block's own rect border (a closed loop, not a line).
+    assert not re.search(r'<line x1="(\d+)" y1="\d+" x2="\1" y2="\d+" stroke="black"', svg)
+
+
 def test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_chain():
     # Real evidence (sayahali_conveyor_ali_conv.zef, rows 12-14, confirmed
     # against the user's own rendered screenshot): a shortCircuit's target

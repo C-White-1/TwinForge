@@ -2751,3 +2751,26 @@ by tracing code instead of opening that ground truth first. When a
 confirmed visual reference for the exact question at hand already exists
 on disk, consult it before reasoning from connectivity-model internals --
 code correctness is not the same evidence as a rendering fact.
+
+Round 12, same day: the noted dogleg gap addressed. `_render_short_circuit`'s
+`wraps == "block"` branch now checks the wrapped block's own `shown_outputs`
+and `offset` (from `_block_span`, already computed for `_render_block`'s own
+use); when there is at least one shown output and its offset is nonzero
+(the block's own anchor row and its first shown output's row genuinely
+differ -- true for every `enEnO=False` block, matching every real corpus
+occurrence), a vertical connector bridges the pin's own stub end (`x + 2 *
+_CELL_W + _PIN_STUB`) up to the anchor row's own height, at the exact
+column where the continuing `HLink` (a sibling of the `shortCircuit` in the
+same source row) already runs. A block with no shown output (nothing to
+dogleg from) draws none, confirmed by a synthetic negative test alongside
+the positive one.
+
+Verified directly on the real fixture: the `SR_2.Q1 -> TON_23.IN` wire now
+has an explicit corner (`x=486` from `y=1465` to `y=1535`, i.e. row 21's
+own height down to row 22's, where `Q1`'s own pin stub already ends),
+matching the original PIL verification session's own reference render
+(`sr2_ton23_zoom.png`) instead of two disconnected horizontal segments. 2
+new tests
+(`test_export_diagram_short_circuit_wraps_block_draws_output_dogleg`,
+`test_export_diagram_short_circuit_wraps_block_no_dogleg_without_a_shown_
+output`); 1563 tests pass; Ruff and Pyright pass.
