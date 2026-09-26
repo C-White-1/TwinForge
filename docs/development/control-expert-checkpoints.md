@@ -2606,3 +2606,51 @@ the same as confirmed evidence about the intended visual result -- round
 6 fixed a symptom the user never reported (the earlier screenshot's own
 region of interest didn't include row 97) based on an assumption that
 then had to be reverted once a wider view proved it wrong.
+
+Round 9, same day: SR_2's own pin ROW placement -- a correctness question
+this roadmap's own non-goal explicitly does NOT cover, unlike wire
+routing -- had a real, confirmed bug. `_block_span`'s offset for a
+shortCircuit-wrapped `enEnO="false"` block was 1 (the first shown pin one
+row below the anchor), but two ALREADY-SHIPPED, INDEPENDENT pieces of
+evidence say otherwise: `landing_pin_name` (`ladder.py`) resolves `S1`'s
+own condition landing at the block's own `posY` (an empty/unconditional
+series, since nothing precedes it on that row), and the block-output
+connectivity resolves `SR_2.Q1`'s own origin at that SAME row (the real
+wire feeding `TON_23.IN`). Both facts say `S1` and `Q1` share the anchor
+row -- but the renderer's own offset formula put Q1 one row BELOW its own
+connectivity-confirmed origin, so Q1's rendered pin/label sat one row away
+from the very wire that originates from it: a real, internally
+inconsistent bug (the same object's Q1 had two different row values used
+in two different places in this project's own code), not a styling
+question.
+
+This directly contradicted an earlier "confirmed" checkpoint claim (round
+2 of the rendering feature: "SR_2's rendered box height matches its
+confirmed 3-row span exactly") -- that confirmation was real for the BOX
+HEIGHT as an independently-measured visual fact from the original PIL
+verification session, but the INTERNAL pin placement within that height
+was never itself cross-checked against the connectivity model, and turned
+out to not survive that check. Asked the user directly rather than guess
+further, given the conflict between two pieces of internal evidence,
+with `AskUserQuestion`; confirmed: "S1 pin and Q1 pin are on the same
+line. R pin is one line down from S1 pin." Fixed by changing
+`_block_span`'s offset from 1 to 0 for the shortCircuit-wrapped
+`enEnO=False` case only (the free-standing case, offset 2, has no
+corpus example with real content on such a block's own anchor row to
+test either way, so left unchanged, not guessed at). Span recalculates to
+2 rows (not 3) for SR_2's specific pin counts (2 shown inputs, 1 shown
+output).
+
+Verified directly: `S1`'s pin stub and `Q1`'s pin stub now render at the
+identical row (21); `Q1`'s stub now aligns exactly with the real
+`SR_2.Q1 -> TON_23.IN` wire (both at row 21's own y-coordinate, where
+before they were one row apart); `R` renders one row below, at row 22;
+SR_2's box now spans exactly 2 rows. 1 real-fixture test strengthened
+(`test_optional_real_sayahali_export_diagram_matches_confirmed_positions`,
+replacing a claim never actually cross-checked with concrete y-coordinate
+assertions); 1560 tests pass; Ruff and Pyright pass. Per the user's own
+explicit sequencing ("Let's fix this first and take care of the vlink
+next"), the still-open question of drawing an actual connecting wire from
+`capteur_2`/`capteur_3` up to `S1`/`R` (currently unresolved by the
+connectivity model, same open gap as `SR_8`) is deliberately deferred to
+a following pass, not attempted here.

@@ -450,10 +450,17 @@ def test_export_diagram_is_deterministic():
 
 
 def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
-    # Cross-checked directly against the confirmed real offsets from this
-    # project's own ladder-rendering verification session: SR_2 (enEnO=
-    # "false", shortCircuit-wrapped) spans exactly 3 rows (header, S1, R);
-    # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22.
+    # SR_2 (enEnO="false", shortCircuit-wrapped): S1 and Q1 share the
+    # block's own anchor row (row 21) -- confirmed both by the already-
+    # shipped `landing_pin_name` connectivity rule (S1's own resolved
+    # condition is an empty/unconditional series landing at the block's
+    # own posY) and directly by the user against the real rendering ("S1
+    # pin and Q1 pin are on the same line. R pin is one line down from S1
+    # pin"); an earlier offset (1, not 0) put Q1's own rendered position
+    # one row below its own real connectivity-confirmed origin, visibly
+    # disconnecting it from the SR_2.Q1 -> TON_23.IN wire drawn at row 21.
+    # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22 --
+    # unrelated to SR_2 (enEnO="true" uses a different, unaffected offset).
     path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
     if not path.exists():
         pytest.skip("Local sayahali/conveyor-automation reference unavailable")
@@ -469,3 +476,12 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
     row_labels = {row: f'>{row}</text>' for row in (19, 20, 21, 22)}
     for row, marker in row_labels.items():
         assert marker in svg, f"row {row} label missing"
+
+    def row_y(row: int) -> int:
+        return 30 + (row - 1) * 70  # min_row is 1 (SR_8's own row)
+
+    row21_center, row22_center = row_y(21) + 35, row_y(22) + 35
+    assert f'<text x="344" y="{row21_center + 4}">S1</text>' in svg
+    assert f'<text x="476" y="{row21_center + 4}" text-anchor="end">Q1</text>' in svg
+    assert f'<line x1="480" y1="{row21_center}" x2="550" y2="{row21_center}" stroke="black"/>' in svg
+    assert f'<text x="344" y="{row22_center + 4}">R</text>' in svg

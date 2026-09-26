@@ -359,23 +359,31 @@ class LadderSvgExporter:
     def _block_span(
         self, obj: GraphicalObject, *, shortcircuit_wrapped: bool,
     ) -> tuple[int, list[GraphicalPin], list[GraphicalPin], int]:
-        """(span, shown_inputs, shown_outputs, row_offset), the confirmed real
+        """(span, shown_inputs, shown_outputs, row_offset).
 
-        rule (docs/architecture/control-expert-exchange-capture.md, and this
-        project's own ladder-rendering verification session): `enEnO=False`
-        hides EN/ENO's OWN label entirely (not merely unwired) and starts
-        the first shown pin one row later for a free-standing block than a
-        shortCircuit-wrapped one, since a wrapped block's own anchor row
-        already carries other real content instead of a dedicated blank
-        header. Both sides use the SAME offset (confirmed: `enEnO=False`'s
-        output side compacts away the hidden ENO slot exactly like the
-        input side does, not the enEnO=True convention of reserving it).
+        `enEnO=False` hides EN/ENO's OWN label entirely (not merely
+        unwired). For a shortCircuit-wrapped block, the first shown input
+        AND the first shown output share the block's own anchor row --
+        confirmed directly against `SR_2` (real fixture): the already-
+        shipped `landing_pin_name` connectivity rule (`ladder.py`) resolves
+        S1's condition at the block's own `posY` (an empty/unconditional
+        series, since nothing precedes it on that row) and the block-output
+        connectivity resolves `Q1`'s own origin at that identical row too
+        (used by the real `SR_2.Q1 -> TON_23.IN` wire) -- both independent
+        of and unrelated to this renderer's own offset math, so a mismatch
+        between them is a real bug, not a style choice. The user's own
+        direct confirmation on this exact block: "S1 pin and Q1 pin are on
+        the same line. R pin is one line down from S1 pin" -- offset 0,
+        not 1. A free-standing (non-wrapped) `enEnO=False` block keeps
+        offset 2 (a dedicated blank header row, unconfirmed to have
+        changed -- no real corpus example has content on such a block's
+        own anchor row to test it either way, so this is left as before).
         """
         inputs = [p for p in obj.pins if p.direction == "input"]
         outputs = [p for p in obj.pins if p.direction == "output"]
         if obj.en_en_o is False:
             shown_inputs, shown_outputs = inputs[1:], outputs[1:]
-            offset = 1 if shortcircuit_wrapped else 2
+            offset = 0 if shortcircuit_wrapped else 2
         else:
             shown_inputs, shown_outputs = inputs, outputs
             offset = 1
