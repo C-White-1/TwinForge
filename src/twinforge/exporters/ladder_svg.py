@@ -362,36 +362,25 @@ class LadderSvgExporter:
         """(span, shown_inputs, shown_outputs, row_offset).
 
         `enEnO=False` hides EN/ENO's OWN label entirely (not merely
-        unwired). Ground truth is the original ad hoc PIL verification
-        session's own reference renderings (kept in this session's own
-        scratchpad, cross-checked against the vendor PDF at the time --
-        `rows_0_19.png`/`nocollapse_rows_17_39.png`), not this renderer's
-        own connectivity-model bookkeeping: `SR_2` (shortCircuit-wrapped,
-        real posY 21) has its title on row 21, `S1`/`Q1` sharing row 22,
-        `R` on row 23 -- offset 1. `SR_8` (free-standing, real posY 1) has
-        its title on row 1, `S1` on row 3, `R` on row 4 -- offset 2. Both
-        confirmed images independently agree with the user's own relative
-        description of `SR_2` ("S1 pin and Q1 pin are on the same line, R
-        pin is one line down from S1 pin") -- what was wrong was reading
-        that as "on the block's own anchor row" (offset 0) rather than one
-        row below it (offset 1).
-
-        A same-session detour got this wrong twice before checking these
-        reference images: `ladder.py`'s connectivity model records `Q1`'s
-        own *bookkeeping* position using the row currently being scanned
-        (the block's own anchor row) purely to identify which instance a
-        wire originates from for matching purposes -- that internal
-        position is not a claim about which row a human sees `Q1`'s own
-        label drawn on, and treating the two as the same thing produced an
-        offset (0) that visibly disagreed with both real reference images.
-        `shortcircuit_wrapped` genuinely does change the offset (1 vs 2) --
-        confirmed by two independent real blocks, not an assumption.
+        unwired). Every `enEnO=False` block renders at the SAME offset (2)
+        and therefore the SAME height for the same pin count, regardless
+        of whether it is shortCircuit-wrapped or free-standing -- explicit
+        product decision, not a vendor-accuracy claim: this exporter's own
+        roadmap already disclaims pixel-perfect replication of Control
+        Expert's own rendering, and a same-session attempt to match two
+        reference renderings that showed `SR_2` (wrapped) one row shorter
+        than `SR_8`/`SR_9` (free-standing) for the identical block type was
+        rejected directly by the user ("All SR blocks should be the same
+        heights as per SR_8"). `shortcircuit_wrapped` is kept as a
+        parameter (every call site still passes it) in case a future,
+        different block shape genuinely needs to distinguish the two, but
+        it no longer changes this offset.
         """
         inputs = [p for p in obj.pins if p.direction == "input"]
         outputs = [p for p in obj.pins if p.direction == "output"]
         if obj.en_en_o is False:
             shown_inputs, shown_outputs = inputs[1:], outputs[1:]
-            offset = 1 if shortcircuit_wrapped else 2
+            offset = 2
         else:
             shown_inputs, shown_outputs = inputs, outputs
             offset = 1
@@ -532,25 +521,5 @@ class LadderSvgExporter:
                               f'y2="{output_yc}" stroke="black" stroke-width="2"/>')
                 parts.append(f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" '
                               'stroke="black" stroke-width="2"/>')
-            # User-confirmed real evidence (SR_2, this fixture): EACH shown
-            # input pin of a shortCircuit-wrapped block gets its own
-            # condition from the row immediately below its own row (S1 from
-            # capteur_2, R from capteur_3) -- the same one-row-below OR-tap
-            # convention already used elsewhere (e.g. SR_8.R/ARRET_MOT), but
-            # here applied per input pin rather than via an explicit
-            # wrapping shortCircuit around each contact. This is a
-            # DIFFERENT wiring shape than a free-standing block's inputs
-            # (SR_8/SR_9's own R is fed by a same-row condition ORed with a
-            # one-row-below one via an explicit shortCircuit -- not this
-            # per-pin pattern), so it is scoped to shortCircuit-wrapped
-            # blocks only, not generalized to every block.
-            _, shown_inputs, _, input_offset = self._block_span(obj, shortcircuit_wrapped=True)
-            for i in range(len(shown_inputs)):
-                pin_row = row + input_offset + i
-                target_col = row_end_columns.get(pin_row + 1)
-                if target_col is None:
-                    continue
-                connector_x = _MARGIN_LEFT + target_col * _CELL_W
-                self._render_vlink(parts, connector_x, row_y(pin_row), dot=True, dots=dots)
         else:
             self._render_unsupported(parts, x + _CELL_W // 2, yc, "shortCircuit", "unresolved")

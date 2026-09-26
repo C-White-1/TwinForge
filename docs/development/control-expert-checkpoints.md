@@ -2820,3 +2820,57 @@ dogleg's corner now sits at `x=515` (the middle of the one-cell gap), not
 below`), 2 existing tests updated for the corrected corner position and
 strengthened with the new taps' exact coordinates; 1564 tests pass; Ruff
 and Pyright pass.
+
+Round 14, same day: the user rejected the whole premise of round 11's
+revert, twice, forcefully: "All SR blocks should be the same heights as
+per SR_8. Please fix that first." Round 11 had made `SR_2` (shortCircuit-
+wrapped) one row shorter than `SR_8`/`SR_9` (free-standing) because two
+reference renderings from the original PIL verification session showed
+exactly that difference -- but matching a vendor-rendering quirk is not
+this project's own goal (the visualization roadmap's own explicit non-
+goal: "Pixel-perfect replication of Control Expert's own rendering... is
+not the goal"), and consistent sizing across the same block type is a
+reasonable, explicitly-requested product decision that overrides it.
+
+`_block_span`'s offset for `enEnO=False` is now unconditionally 2,
+regardless of `shortcircuit_wrapped` (the parameter itself is kept on
+every call site, in case a genuinely different future block shape needs
+it, but no longer affects this specific offset). `SR_2`'s span grows from
+3 rows to 4, matching `SR_8`/`SR_9` exactly for the same pin count.
+
+This has a real, direct consequence for round 13's per-input-pin one-row-
+below taps (`S1` from `capteur_2`, `R` from `capteur_3`): with the new
+offset, `S1` (now row 23) and `R` (now row 24) land on the EXACT SAME
+rows as `capteur_2`/`capteur_3` respectively (previously one row above
+them) -- the taps are no longer one-row-below OR-merges at all, just
+ordinary same-row wire continuations, identical in kind to how `SR_8.R`
+is already fed by `selec_auto` on its own same row. Round 13's explicit
+per-pin connector-drawing loop is removed entirely as now-redundant (and
+would have misfired, connecting `S1`'s new row down into `R`'s row
+instead of aligning with `capteur_2`); the existing per-row wire dispatch
+already handles same-row pin/contact alignment for free, matching every
+other plain contact-to-pin connection in this exporter.
+
+The `SR_2.Q1 -> TON_23.IN` dogleg (round 12-13) needed no code changes at
+all: its own vertical span is computed from `_block_span`'s own `offset`
+dynamically (`row_y(row + offset)`), so it automatically grew to match
+Q1's new row without any special-casing.
+
+Verified directly on the real fixture: `SR_8`, `SR_9` and `SR_2` all
+render at height 276 (4 rows); `S1`/`Q1` now share row 23, `R` is on row
+24; `capteur_2` (row 23) and `capteur_3` (row 24) connect via plain
+same-row wiring with no separate vertical tap; the dogleg now spans row
+21 to row 23 (was row 21 to row 22). 4 tests updated (one inverted from
+"differs" to "is identical," one rewritten from "each input taps the row
+below" to "inputs align with same-row conditions," two others' row
+numbers and assertions corrected); 1564 tests pass; Ruff and Pyright
+pass.
+
+Standing lesson, recorded once more: this project's own roadmap already
+disclaimed pixel-perfect vendor replication as a non-goal, and this round
+is a direct instance of that non-goal actually mattering in practice --
+when a real vendor-rendering fact (confirmed by reference images) and an
+explicit user product decision conflict, the user's product decision
+wins, and the vendor fact is not "more true," just differently scoped
+evidence answering a different question (what does Control Expert draw,
+not what should this exporter draw).

@@ -307,21 +307,18 @@ def test_export_diagram_hides_en_eno_for_en_en_o_false_block():
     assert "no EN/ENO" in svg
 
 
-def test_export_diagram_en_en_o_false_block_offset_differs_free_standing_vs_wrapped():
-    # Ground truth: the original ad hoc PIL verification session's own
-    # reference renderings (cross-checked against the vendor PDF at the
-    # time, kept in this session's own scratchpad as
-    # rows_0_19.png/nocollapse_rows_17_39.png), not this renderer's own
-    # connectivity-model bookkeeping. SR_8 (free-standing, real posY 1):
-    # title on row 1, S1 on row 3, R on row 4 -- offset 2. SR_2
-    # (shortCircuit-wrapped, real posY 21): title on row 21, S1/Q1 sharing
-    # row 22, R on row 23 -- offset 1. A same-session detour tried offset 0
-    # for both (reasoning from ladder.py's connectivity-model bookkeeping
-    # position, which identifies a wire's origin block for matching
-    # purposes but is not a claim about which row a human sees the pin's
-    # own label drawn on) and shipped it without checking these already-
-    # available reference images first -- caught immediately once actually
-    # compared against them.
+def test_export_diagram_en_en_o_false_block_offset_is_identical_free_standing_or_wrapped():
+    # Explicit product decision, not a vendor-accuracy claim: every
+    # enEnO=False block renders at the SAME offset (2), so SR_8 (free-
+    # standing) and SR_2 (shortCircuit-wrapped) -- the same block type,
+    # identical pin counts -- render at the SAME size. Two reference
+    # renderings from the original ad hoc PIL verification session
+    # (rows_0_19.png/nocollapse_rows_17_39.png) actually showed SR_2 one
+    # row shorter than SR_8/SR_9 for this exact pin count; the user
+    # directly rejected matching that ("All SR blocks should be the same
+    # heights as per SR_8"), overriding vendor-rendering fidelity in favor
+    # of consistent block sizing -- this exporter's own roadmap already
+    # disclaims pixel-perfect replication as a goal.
     pins = [
         _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
         _pin("ENO", "output"), _pin("Q1", "output"),
@@ -342,8 +339,7 @@ def test_export_diagram_en_en_o_false_block_offset_differs_free_standing_vs_wrap
     svg = LadderSvgExporter().export_diagram(diagram)
     heights = re.findall(r'<rect x="\d+" y="\d+" width="136" height="(\d+)" fill="white" stroke="black"', svg)
     assert len(heights) == 2
-    free_standing_height, wrapped_height = (int(h) for h in heights)
-    assert free_standing_height == wrapped_height + 70  # one extra row (offset 2 vs 1)
+    assert heights[0] == heights[1]
 
 
 def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():
@@ -399,20 +395,18 @@ def test_export_diagram_short_circuit_wraps_block_draws_output_dogleg():
     box_right = 60 + 2 * 70  # block's right edge (column 2)
     corner_x = box_right + 35  # the middle of the one-cell gap past the block
     anchor_yc = 30 + 35  # row 0's own center
-    output_yc = 30 + 70 + 35  # row 1's center (offset 1, shortCircuit-wrapped enEnO=false)
+    output_yc = 30 + 2 * 70 + 35  # row 2's center (offset 2, every enEnO=false block)
     assert f'<line x1="{box_right + 6}" y1="{output_yc}" x2="{corner_x}" y2="{output_yc}" stroke="black" stroke-width="2"/>' in svg
     assert f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" stroke="black" stroke-width="2"/>' in svg
 
 
-def test_export_diagram_short_circuit_wraps_block_each_input_taps_the_row_below():
-    # User-confirmed real evidence (SR_2, this fixture): S1 is fed by
-    # capteur_2 one row below S1's own row, and R is fed by capteur_3 one
-    # row below R's own row -- each shown input pin of a shortCircuit-
-    # wrapped block gets its OWN one-row-below OR-tap, not just the first.
-    # A free-standing block's inputs (SR_8/SR_9) follow a different,
-    # already-evidenced shape (a same-row condition ORed with a one-row-
-    # below one via an explicit shortCircuit), so this is scoped to
-    # shortCircuit-wrapped blocks only.
+def test_export_diagram_short_circuit_wraps_block_inputs_align_with_same_row_conditions():
+    # User-confirmed real evidence (SR_2, this fixture): with every
+    # enEnO=False block now sharing the same offset (2), S1 and R land on
+    # the SAME rows as capteur_2 and capteur_3 respectively (rows 23 and
+    # 24 of the real fixture) -- ordinary same-row wiring connects them,
+    # exactly like any other plain contact-to-pin connection, with no
+    # separate vertical tap needed.
     block = _block("SR_2", "SR", [
         _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
         _pin("ENO", "output"), _pin("Q1", "output"),
@@ -422,7 +416,7 @@ def test_export_diagram_short_circuit_wraps_block_each_input_taps_the_row_below(
         objects=[block, _contact("capteur_2"), _contact("capteur_3")],
         grid_rows=[
             LadderGridRow(row=0, cells=[
-                LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                LadderGridCell(column=2, kind="short_circuit", width=2, wraps="block",
                                wrapped_width=2, wrapped_object_index=0),
             ]),
             LadderGridRow(row=2, cells=[
@@ -436,12 +430,16 @@ def test_export_diagram_short_circuit_wraps_block_each_input_taps_the_row_below(
         ],
     )
     svg = LadderSvgExporter().export_diagram(diagram)
-    connector_x = 60 + 2 * 70  # both S1 and R land at the block's own left edge (column 2)
-    s1_yc, r_yc, capteur_2_yc, capteur_3_yc = (30 + row * 70 + 35 for row in (1, 2, 2, 3))
-    assert f'<line x1="{connector_x}" y1="{s1_yc}" x2="{connector_x}" y2="{capteur_2_yc}" stroke="blue" stroke-width="2"/>' in svg
-    assert f'<line x1="{connector_x}" y1="{r_yc}" x2="{connector_x}" y2="{capteur_3_yc}" stroke="blue" stroke-width="2"/>' in svg
-    assert svg.count(f'<circle cx="{connector_x}" cy="{s1_yc}" r="3" fill="blue"/>') == 1
-    assert svg.count(f'<circle cx="{connector_x}" cy="{r_yc}" r="3" fill="blue"/>') == 1
+    pin_x = 60 + 2 * 70  # S1/R's own column (2), matching capteur_2/capteur_3's own row end
+    s1_yc = 30 + 2 * 70 + 35  # row 2's center (offset 2, i=0)
+    r_yc = 30 + 3 * 70 + 35  # row 3's center (offset 2, i=1)
+    assert f'<line x1="{pin_x - 6}" y1="{s1_yc}" x2="{pin_x}" y2="{s1_yc}" stroke="black" stroke-width="2"/>' in svg
+    assert f'<line x1="60" y1="{s1_yc}" x2="{pin_x - 70}" y2="{s1_yc}" stroke="black"/>' in svg
+    assert f'<line x1="{pin_x - 6}" y1="{r_yc}" x2="{pin_x}" y2="{r_yc}" stroke="black" stroke-width="2"/>' in svg
+    assert f'<line x1="60" y1="{r_yc}" x2="{pin_x - 70}" y2="{r_yc}" stroke="black"/>' in svg
+    # No separate vertical tap between S1's row and R's row is needed --
+    # they land directly on their own real conditions' rows now.
+    assert not re.search(rf'<line x1="{pin_x}" y1="{s1_yc}" x2="{pin_x}" y2="{r_yc}" stroke="blue"', svg)
 
 
 def test_export_diagram_short_circuit_wraps_block_no_dogleg_without_a_shown_output():
@@ -580,24 +578,22 @@ def test_export_diagram_is_deterministic():
 
 
 def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
-    # Ground truth: the original ad hoc PIL verification session's own
-    # reference renderings, cross-checked against the vendor PDF at the
-    # time (kept in this session's own scratchpad:
-    # nocollapse_rows_17_39.png for SR_2, rows_0_19.png for SR_8/SR_9,
-    # sr2_ton23_zoom.png for the SR_2->TON_23 wire shape). SR_2 (enEnO=
-    # "false", shortCircuit-wrapped, real posY 21): title on row 21, S1
-    # and Q1 sharing row 22, R on row 23 -- a same-session detour tried
-    # placing S1/Q1 on row 21 itself (offset 0), reasoning from
-    # ladder.py's own connectivity-model bookkeeping position (which
-    # identifies a wire's origin block for matching purposes, not a claim
-    # about which row a human sees the pin's own label drawn on) --
-    # shipped without checking these already-available reference images
-    # first, caught immediately once actually compared against them.
+    # SR_2 (enEnO="false", shortCircuit-wrapped, real posY 21) renders at
+    # the SAME offset (2) as every other enEnO=False block (SR_8/SR_9,
+    # free-standing) -- an explicit product decision (see
+    # test_export_diagram_en_en_o_false_block_offset_is_identical_free_
+    # standing_or_wrapped), not a claim about the vendor's own rendering:
+    # two reference renderings from the original PIL verification session
+    # showed SR_2 one row shorter than SR_8/SR_9 for the identical block
+    # type, and the user directly rejected that inconsistency. S1 and Q1
+    # share row 23 (offset 2, i=0); R is on row 24 (i=1) -- one row below
+    # the blank spacer row 22. capteur_2 (row 23) and capteur_3 (row 24)
+    # now land on the SAME rows as S1 and R respectively, connecting via
+    # ordinary same-row wiring, no separate vertical tap needed.
     # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22 --
     # enEnO="true" uses a different, unaffected offset. The SR_2.Q1 ->
-    # TON_23.IN dogleg and each shown input's own one-row-below OR-tap
-    # (S1 fed by capteur_2 at row 23, R fed by capteur_3 at row 24) are
-    # both user-confirmed against this exact real fixture.
+    # TON_23.IN dogleg (corner in the middle of the one-cell gap) is
+    # user-confirmed against this exact real fixture.
     path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
     if not path.exists():
         pytest.skip("Local sayahali/conveyor-automation reference unavailable")
@@ -617,22 +613,22 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
     def row_y(row: int) -> int:
         return 30 + (row - 1) * 70  # min_row is 1 (SR_8's own row)
 
-    row21_center, row22_center, row23_center, row24_center = (
-        row_y(r) + 35 for r in (21, 22, 23, 24)
-    )
-    assert f'<text x="344" y="{row22_center + 4}">S1</text>' in svg
-    assert f'<text x="476" y="{row22_center + 4}" text-anchor="end">Q1</text>' in svg
-    assert f'<text x="344" y="{row23_center + 4}">R</text>' in svg
+    row21_center, row23_center, row24_center = (row_y(r) + 35 for r in (21, 23, 24))
+    assert f'<text x="344" y="{row23_center + 4}">S1</text>' in svg
+    assert f'<text x="476" y="{row23_center + 4}" text-anchor="end">Q1</text>' in svg
+    assert f'<text x="344" y="{row24_center + 4}">R</text>' in svg
 
     sr2_left_edge = 60 + 4 * 70  # SR_2's own column (4)
-    assert f'<line x1="{sr2_left_edge}" y1="{row22_center}" x2="{sr2_left_edge}" y2="{row23_center}" ' \
-           'stroke="blue" stroke-width="2"/>' in svg
-    assert f'<line x1="{sr2_left_edge}" y1="{row23_center}" x2="{sr2_left_edge}" y2="{row24_center}" ' \
-           'stroke="blue" stroke-width="2"/>' in svg
+    # No vertical tap needed -- S1/R land directly on capteur_2/capteur_3's
+    # own rows.
+    assert not re.search(
+        rf'<line x1="{sr2_left_edge}" y1="{row23_center}" x2="{sr2_left_edge}" y2="{row24_center}" stroke="blue"',
+        svg,
+    )
 
     ton23_left_edge = 60 + 7 * 70  # TON_23's own column (7)
     corner_x = sr2_left_edge + 2 * 70 + 35  # SR_2's right edge (2 columns wide) + half the 1-cell gap
-    assert f'<line x1="{corner_x}" y1="{row21_center}" x2="{corner_x}" y2="{row22_center}" ' \
+    assert f'<line x1="{corner_x}" y1="{row21_center}" x2="{corner_x}" y2="{row23_center}" ' \
            'stroke="black" stroke-width="2"/>' in svg
     assert f'<line x1="{sr2_left_edge + 2 * 70}" y1="{row21_center}" x2="{ton23_left_edge}" y2="{row21_center}" ' \
            'stroke="black"/>' in svg
