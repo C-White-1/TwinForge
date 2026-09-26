@@ -2161,3 +2161,50 @@ Verified against the real 17-file Realflo archive end-to-end through the
 actual CLI entry point (`twinforge control-expert inspect`), both `--format
 text` and `--format json`; 3 new CLI tests. 1512 tests pass project-wide;
 Ruff and Pyright pass.
+
+Block-to-block ladder chaining checkpoint (2026-09-26): closed the
+"block-to-block chaining" half of the multi-pin `SR`/`TON` puzzle left open
+in the exchange capture spec's own `shortCircuit`/`VLink` section (see
+["Block-to-block chaining through a shortCircuit-wrapped block's own output
+edge"](../architecture/control-expert-exchange-capture.md#block-to-block-chaining-through-a-shortcircuit-wrapped-blocks-own-output-edge-2026-09-26)
+for the full evidence and rule). `SR_2.Q1 -> TON_23.IN` and four
+structurally identical pairs in `sayahali_conveyor_ali_conv.zef` now
+resolve end to end, via two new narrowly-scoped rules
+(`_block_input_landings` for a later declared input at `posY+1+i`,
+`_first_wireable_output` for an `enEnO="false"` block's second declared
+output) added to `ladder.py`.
+
+Evidence originated from an independent diagnostic PIL renderer (not
+committed, session scratchpad only) built to visually cross-check this same
+fixture against the user's own Control Expert domain knowledge -- a
+genuinely different verification method than this project's usual raw-XML
+byte-level analysis. That renderer's own row-numbering assumption (a
+bare-`VLink`-only typeLine doesn't consume its own row) was checked
+directly against `ladder.py`'s already-shipped, tested row model before
+trusting any evidence from it: disabling the assumption and counting every
+typeLine as its own row (this project's existing, unchanged model) makes
+every one of the fixture's 12 real `FFBBlock`s match their own declared
+`objPosition posY` exactly. The renderer's assumption was retracted as a
+rendering-only artifact of a different, since-identified bug (a `VLink`
+needing full-row height, not a genuinely skipped row); `ladder.py` needed no
+change to its row-counting.
+
+One existing-code fix required along the way, caught before shipping:
+`LadderPinCondition.position` was always implicitly a target block's own
+declared anchor, since every prior rule lands exactly at `row == posY`.
+This new rule's landing row (`posY+1+i`) is not the block's own row, and
+`_apply_ladder_pin_conditions` (`project.py`) matches the target graphical
+object by `obj.position == binding.position` -- so the new registry now
+carries the block's true anchor position separately from the row used only
+for the wire search. Also fixed a real double-binding bug caught directly
+against the fixture: a landed wire was not being consumed, so `SR_2.Q1`
+"landed" a second time on `TON_23.PT` (genuinely fed by its own literal, not
+a wire) one row past its real landing on `IN`.
+
+Verified end to end through the full parse pipeline (not just the
+lower-level resolver): all five real `SR.Q1 -> TON.IN` pairs resolve with
+zero `unresolved_ladder_pin_condition` diagnostics. 5 new tests (2
+real-fixture, 3 synthetic covering the consumed-wire bug and both scope
+guards -- an `enEnO="true"` block does not also originate an output wire,
+and a block with more than one wireable output is left unresolved). 1541
+tests pass project-wide; Ruff and Pyright pass.

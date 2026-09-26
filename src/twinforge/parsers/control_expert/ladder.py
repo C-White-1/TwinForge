@@ -299,6 +299,78 @@ def parse_ladder_rungs(source: CapturedSection) -> tuple[list[LadderRung], list[
     return rungs, diagnostics
 
 
+def _block_input_landings(network: CapturedSection) -> dict[tuple[int, int], tuple[str, LadderPosition]]:
+    # Real evidence: sayahali_conveyor_ali_conv.zef's SR_2 -> TON_23 wire
+    # (SR_2's own Q1 output, see _first_wireable_output below, reaches
+    # TON_23's IN pin). TON_23 is enEnO="true" with declared inputs
+    # `EN, IN, PT` (indices 0, 1, 2); EN's own landing (index 0, posY+0) is
+    # already evidenced and handled by `landing_pin_name`. The wire lands
+    # on IN at row posY+1+1 = 21, column posX = 7 -- exactly TON_23's own
+    # posY (19) + 1 + 1, mirroring the already-shipped OUTPUT-side formula
+    # (`_block_output_origins`, `posY+1+i`) applied to the input side
+    # instead. Unlike an output landing (column posX+width, the block's
+    # right edge), an input landing is at column posX itself, the block's
+    # left edge -- confirmed directly: EN's own already-evidenced landing
+    # is also at column posX, not posX+width.
+    #
+    # The registry value's own `LadderPosition` is the BLOCK's real anchor
+    # (posX, posY) -- not the landing row/column (the dict key) -- because
+    # `_apply_ladder_pin_conditions` (project.py) looks up the target
+    # graphical object by its own recorded `objPosition`, which for this
+    # shape is a DIFFERENT row than where the wire lands. Every other
+    # landing rule in this module keeps row == the block's own posY, so
+    # this distinction was never needed until now; real bug caught
+    # directly (an "unresolved_ladder_pin_condition" diagnostic on a
+    # synthetic test) before this fix, not assumed.
+    landings: dict[tuple[int, int], tuple[str, LadderPosition]] = {}
+    for line in network.ordered_children:
+        if line.tag != "typeLine":
+            continue
+        for block in line.ordered_children:
+            if block.tag != "FFBBlock" or block.raw_attributes.get("enEnO") != "true":
+                continue
+            position_node = next((c for c in block.ordered_children if c.tag == "objPosition"), None)
+            posx = position_node.raw_attributes.get("posX") if position_node is not None else None
+            posy = position_node.raw_attributes.get("posY") if position_node is not None else None
+            if posx is None or not posx.isascii() or not posx.isdecimal():
+                continue
+            if posy is None or not posy.isascii() or not posy.isdecimal():
+                continue
+            description = next((c for c in block.ordered_children if c.tag == "descriptionFFB"), None)
+            if description is None:
+                continue
+            inputs = [c for c in description.ordered_children if c.tag == "inputVariable"]
+            if len(inputs) < 2 or inputs[0].raw_attributes.get("formalParameter") != "EN":
+                continue
+            anchor = LadderPosition(column=int(posx), row=int(posy))
+            for index in range(1, len(inputs)):
+                pin_name = inputs[index].raw_attributes.get("formalParameter")
+                if pin_name is None:
+                    continue
+                key = (int(posy) + 1 + index, int(posx))
+                landings[key] = (pin_name, anchor)
+    return landings
+
+
+def _first_wireable_output(block: CapturedSection) -> str | None:
+    # Real evidence: an enEnO="false" block's ENO is declared but never
+    # wireable (the same non-rendering rule already evidenced for its EN,
+    # see `landing_pin_name`) -- its own output-edge wire is the SECOND
+    # declared output. Confirmed against all 5 real wired SR instances in
+    # sayahali_conveyor_ali_conv.zef (SR_2/3/4/5/7), every one declaring
+    # exactly `ENO, Q1` -- scoped exactly to that shape (enEnO="false",
+    # exactly 2 declared outputs); a block with more outputs than that has
+    # no positive example in the corpus and is not attempted.
+    if block.raw_attributes.get("enEnO") != "false":
+        return None
+    description = next((c for c in block.ordered_children if c.tag == "descriptionFFB"), None)
+    outputs = [c for c in description.ordered_children if c.tag == "outputVariable"] \
+        if description is not None else []
+    if len(outputs) != 2 or outputs[0].raw_attributes.get("formalParameter") != "ENO":
+        return None
+    return outputs[1].raw_attributes.get("formalParameter")
+
+
 def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderPinCondition], list[Diagnostic]]:
     diagnostics: list[Diagnostic] = []
     bindings: list[LadderPinCondition] = []
@@ -345,6 +417,7 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                                   position=LadderPosition(column=column, row=row))
 
     for network_index, network in enumerate(c for c in source.ordered_children if c.tag == "networkLD"):
+        input_landings = _block_input_landings(network)
         row = 0
         # column -> condition accumulated so far for a still-alive vertical wire.
         active: dict[int, list[LadderInstruction]] = {}
@@ -431,6 +504,28 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                             ))
                         markers.add(column)
                         column += _FFB_BLOCK_WIDTH
+                        # Real evidence (SR_2.Q1 -> TON_23.IN): the SAME
+                        # shortCircuit that lands an incoming wire on this
+                        # block's own input can ALSO carry a wire OUT of the
+                        # block's own output edge -- these are independent
+                        # signals sharing one grid element, not a
+                        # contradiction: pending_contacts (used above) is
+                        # this row's own leading condition feeding IN to the
+                        # block; this is the block's own output continuing
+                        # ON, picked up wherever it next reaches a landing
+                        # (checked once per row below, or in a later row via
+                        # the ordinary `active`/`continued` survival
+                        # already used for every other vertical wire).
+                        output_pin = _first_wireable_output(block)
+                        if output_pin is not None:
+                            active[column] = [LadderInstruction(
+                                operation=LadderOperation.BLOCK_OUTPUT_REFERENCE,
+                                source_mnemonic=block.raw_attributes.get("typeName", ""),
+                                operand=f"{block.raw_attributes.get('instanceName', '')}.{output_pin}",
+                                position=LadderPosition(column=column, row=row),
+                            )]
+                            markers.add(column)
+                            continued.add(column)
                     else:
                         report("unresolved_ladder_short_circuit",
                                "shortCircuit does not match the evidenced VLink+contact/HLink/FFBBlock shape", child)
@@ -465,6 +560,42 @@ def resolve_ladder_pin_conditions(source: CapturedSection) -> tuple[list[LadderP
                     column = block_start + _FFB_BLOCK_WIDTH
                 else:
                     pending_contacts = []
+
+            # A currently-alive wire landing on some OTHER block's later
+            # input row (posY+1+i, i >= 1 -- see _block_input_landings),
+            # not just a block encountered directly in this row's own scan.
+            # Checked once per row, using this row's own fully-built
+            # `active`/`markers` -- covers both a same-row origin (SR_2's
+            # own output edge landing on TON_23.IN, both on row 21 here)
+            # and a wire that survived several rows via the ordinary
+            # `active`/`continued` mechanism before reaching its landing.
+            for (target_row, target_column), (pin_name, anchor) in input_landings.items():
+                if target_row != row:
+                    continue
+                for wire_column in list(active):
+                    if wire_column >= target_column:
+                        continue
+                    clean = not any(wire_column < marker < target_column for marker in markers)
+                    if not clean:
+                        continue
+                    bindings.append(LadderPinCondition(
+                        network_index=network_index, position=anchor,
+                        pin_name=pin_name, condition=LadderSeries(elements=tuple(active[wire_column])),
+                    ))
+                    # Consumed: a landed wire stops here, the same as a wire
+                    # reaching the far-arriving-VLink-chain landing below
+                    # does not keep going. Without this, `continued` (set
+                    # when the wire originated, to survive INTO this row)
+                    # would keep it alive past its own landing, incorrectly
+                    # matching some OTHER block's later input row too --
+                    # real bug caught directly against the fixture: SR_2.Q1
+                    # landed correctly on TON_23.IN (row 21) but then
+                    # "landed" again on TON_23.PT (row 22), which is
+                    # actually fed by its own literal, not a wire, and was
+                    # never touched by this mechanism before it was fixed.
+                    del active[wire_column]
+                    continued.discard(wire_column)
+                    break
 
             # A column not touched by a marker this row (including one
             # carried through an FFBBlock's now-known footprint) has died.

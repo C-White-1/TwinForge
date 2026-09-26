@@ -5,6 +5,7 @@ import pytest
 
 from twinforge.model import LadderInstruction, LadderOperation, LadderRung
 from twinforge.parsers.control_expert import capture_bytes, capture_file, parse_project, parse_projects
+from twinforge.parsers.control_expert.capture import CapturedSection
 
 _FFB_TEMPLATE = (
     '<FFBBlock instanceName="{instance}" typeName="{type_name}" additionnalPinNumber="0" '
@@ -435,6 +436,119 @@ def test_short_circuit_wraps_block_without_a_second_declared_input_does_not_bind
     assert pin.ladder_condition is None
 
 
+_SR_LIKE_BLOCK = '''
+<FFBBlock instanceName="{instance}" typeName="SR" additionnalPinNumber="0" enEnO="false" width="10" height="3">
+<objPosition posX="{posx}" posY="{posy}"/>
+<descriptionFFB execAfter="">
+<inputVariable invertedPin="false" formalParameter="EN"/>
+<inputVariable invertedPin="false" formalParameter="S1"/>
+<outputVariable invertedPin="false" formalParameter="ENO"/>
+<outputVariable invertedPin="false" formalParameter="Q1"/>
+</descriptionFFB></FFBBlock>'''
+
+_TON_LIKE_BLOCK = '''
+<FFBBlock instanceName="{instance}" typeName="TON" additionnalPinNumber="0" enEnO="true" width="10" height="4">
+<objPosition posX="{posx}" posY="{posy}"/>
+<descriptionFFB execAfter="">
+<inputVariable invertedPin="false" formalParameter="EN"/>
+<inputVariable invertedPin="false" formalParameter="IN"/>
+<inputVariable invertedPin="false" formalParameter="PT"/>
+</descriptionFFB></FFBBlock>'''
+
+
+def test_short_circuit_wraps_block_carries_its_own_output_onward():
+    # Real evidence: sayahali_conveyor_ali_conv.zef's SR_2.Q1 feeds
+    # TON_23.IN directly -- the SAME <shortCircuit><VLink/><FFBBlock/>
+    # </shortCircuit> element that lands an incoming wire on the block's
+    # own input (S1, tested above) also carries the block's own output
+    # edge onward to whatever it next reaches. B2 (TON-shaped, enEnO=
+    # "true") declares its own anchor on row 0; its IN pin lands at
+    # posY+1+1 = row 2, which is where B1 (SR-shaped) sits, wrapped
+    # inline in a shortCircuit whose sibling HLink/emptyCell cleanly
+    # reaches B2's own posX.
+    _result, routine = _ld_routine(f'''
+    <typeLine><emptyCell nbCells="7"/>{_TON_LIKE_BLOCK.format(instance="B2", posx=7, posy=0)}</typeLine>
+    <typeLine><emptyLine nbRows="1"/></typeLine>
+    <typeLine><shortCircuit><VLink/>{_SR_LIKE_BLOCK.format(instance="B1", posx=2, posy=2)}</shortCircuit>
+    <HLink nbCells="1"/><emptyCell nbCells="2"/></typeLine>''')
+    in_pin = _pin(routine, "B2", "IN")
+    assert in_pin.ladder_condition is not None
+    assert len(in_pin.ladder_condition.elements) == 1
+    instruction = in_pin.ladder_condition.elements[0]
+    assert isinstance(instruction, LadderInstruction)
+    assert instruction.operation == LadderOperation.BLOCK_OUTPUT_REFERENCE
+    assert instruction.operand == "B1.Q1"
+    assert instruction.source_mnemonic == "SR"
+    # The block's own S1 input, resolved by the pre-existing rule, is
+    # unaffected by also carrying its output onward.
+    assert _pin(routine, "B1", "S1").ladder_condition is not None
+    assert _pin(routine, "B1", "S1").ladder_condition.elements == ()  # type: ignore[union-attr]
+
+
+def test_block_output_wire_is_consumed_and_does_not_also_land_on_a_later_input():
+    # Real bug caught directly against the fixture while implementing the
+    # test above: SR_2.Q1 landed correctly on TON_23.IN (row posY+2) but
+    # then ALSO "landed" on TON_23.PT (row posY+3), since the wire stayed
+    # marked as surviving into the next row. PT is genuinely fed by its
+    # own literal (`effectiveParameter`), never a wire -- a landed wire
+    # must stop at its own landing, not keep matching later rows too.
+    _result, routine = _ld_routine(f'''
+    <typeLine><emptyCell nbCells="7"/>{_TON_LIKE_BLOCK.format(instance="B2", posx=7, posy=0)}</typeLine>
+    <typeLine><emptyLine nbRows="1"/></typeLine>
+    <typeLine><shortCircuit><VLink/>{_SR_LIKE_BLOCK.format(instance="B1", posx=2, posy=2)}</shortCircuit>
+    <HLink nbCells="1"/><emptyCell nbCells="2"/></typeLine>''')
+    assert _pin(routine, "B2", "PT").ladder_condition is None
+
+
+def _captured_ffb_block(xml: str) -> CapturedSection:
+    data = f'''<FEFExchangeFile><logicConf><resource><taskDesc task="MAST" taskType="cyclic">
+    <sectionDesc name="Rungs"/></taskDesc></resource></logicConf>
+    <program><identProgram name="Rungs" task="MAST"/>
+    <LDSource nbColumns="11"><networkLD><typeLine>{xml}</typeLine></networkLD></LDSource>
+    </program></FEFExchangeFile>'''
+    captured = capture_bytes(data.encode(), name="ladder.xef")
+    section = captured.section
+    assert section is not None
+
+    def find_all(node: CapturedSection, tag: str):
+        if node.tag == tag:
+            yield node
+        for c in node.ordered_children:
+            yield from find_all(c, tag)
+
+    return next(find_all(section, "FFBBlock"))
+
+
+def test_enable_block_does_not_carry_an_output_onward():
+    # Scope guard: `_first_wireable_output` is evidenced only for
+    # enEnO="false" blocks declaring exactly ENO + one output (every real
+    # SR instance in the corpus). An enEnO="true" block must not ALSO
+    # originate a block-output wire from this mechanism -- that shape has
+    # no positive example anywhere in the corpus.
+    from twinforge.parsers.control_expert.ladder import _first_wireable_output
+    block = _captured_ffb_block(_ffb(posy=0))
+    assert _first_wireable_output(block) is None
+
+
+def test_block_with_more_than_one_wireable_output_does_not_originate_a_wire():
+    # Scope guard: only the exact evidenced shape (enEnO="false", exactly
+    # ENO + one other output) is trusted. A block with two or more
+    # wireable outputs has no positive example in the corpus to confirm
+    # which one (if any) a passing shortCircuit would carry.
+    from twinforge.parsers.control_expert.ladder import _first_wireable_output
+    block = _captured_ffb_block('''
+    <FFBBlock instanceName="B1" typeName="SR" additionnalPinNumber="0" enEnO="false" width="10" height="3">
+    <objPosition posX="2" posY="0"/>
+    <descriptionFFB execAfter="">
+    <inputVariable invertedPin="false" formalParameter="EN"/>
+    <inputVariable invertedPin="false" formalParameter="S1"/>
+    <outputVariable invertedPin="false" formalParameter="ENO"/>
+    <outputVariable invertedPin="false" formalParameter="Q1"/>
+    <outputVariable invertedPin="false" formalParameter="Q2"/>
+    </descriptionFFB></FFBBlock>''')
+    assert _first_wireable_output(block) is None
+
+
 def test_ffb_block_footprint_blocks_a_later_wire_landing():
     # Real evidence (module docstring in ladder.py): an FFBBlock always spans
     # exactly two columns, so scanning now continues past it instead of
@@ -528,6 +642,39 @@ def test_optional_real_sayahali_sr_block_s1_conditions():
         assert s1_condition(instance) == []
     for instance in ("SR_8", "SR_9"):
         assert s1_condition(instance) is None
+
+
+def test_optional_real_sayahali_sr_output_feeds_ton_in():
+    # Real evidence: the same fixture's SR_2/SR_3/SR_4/SR_5/SR_7 each feed
+    # their own Q1 output directly into a TON block's IN pin (SR_2 ->
+    # TON_23, SR_3 -> TON_24, SR_4 -> TON_25, SR_5 -> TON_26, SR_7 ->
+    # TON_28) -- the SAME <shortCircuit><VLink/><FFBBlock/></shortCircuit>
+    # element already resolving S1 (tested above) also carries the block's
+    # own output edge onward. Confirmed end to end through the full parse
+    # pipeline, not just the lower-level resolver.
+    path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
+    if not path.exists():
+        pytest.skip("Local sayahali/conveyor-automation reference unavailable")
+    result, = parse_projects(capture_file(path))
+    routine = result.controller.programs["prog"].main_routine
+    assert routine is not None
+
+    def in_condition_operand(instance: str) -> str | None:
+        block = next(o for d in routine.graphical_diagrams for o in d.objects if o.instance_name == instance)
+        pin = next(p for p in block.pins if p.name == "IN")
+        if pin.ladder_condition is None or not pin.ladder_condition.elements:
+            return None
+        (element,) = pin.ladder_condition.elements
+        assert isinstance(element, LadderInstruction)
+        assert element.operation == LadderOperation.BLOCK_OUTPUT_REFERENCE
+        return element.operand
+
+    assert in_condition_operand("TON_23") == "SR_2.Q1"
+    assert in_condition_operand("TON_24") == "SR_3.Q1"
+    assert in_condition_operand("TON_25") == "SR_4.Q1"
+    assert in_condition_operand("TON_26") == "SR_5.Q1"
+    assert in_condition_operand("TON_28") == "SR_7.Q1"
+    assert not any(d.code == "unresolved_ladder_pin_condition" for d in result.diagnostics)
 
 
 @pytest.mark.parametrize("filename", ["MultiGrafcet_Coordination_V1_2026.XEF", "tsaii_multigrafcet_final_v1.zef"])

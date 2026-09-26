@@ -1583,3 +1583,93 @@ coil rows resolve identically now, `Start_process` included, plus exactly
 one `ladder_disconnected_segment_discarded` diagnostic for the whole
 file. Two new synthetic tests alongside it. 284 tests pass; Ruff and
 Pyright pass.
+
+## Block-to-block chaining through a `shortCircuit`-wrapped block's own output edge (2026-09-26)
+
+Closes the "block-to-block chaining" half of the multi-pin `SR`/`TON`
+puzzle left open above ("the block's own `Q1` output feeding... another
+block's `IN` input... needs its own row-to-pin mapping... plus
+block-to-block chaining. Not attempted in this pass."). Evidence came from
+an independent diagnostic PIL renderer built to visually cross-check this
+same fixture's grid layout against the user's own Control Expert domain
+knowledge (`sayahali_conveyor_ali_conv.zef`, an iterative pixel-level
+review, not new source material) -- confirming `SR_2.Q1 -> TON_23.IN` and
+four structurally identical pairs (`SR_3->TON_24`, `SR_4->TON_25`,
+`SR_5->TON_26`, `SR_7->TON_28`) as real, visually-verified wiring, not
+merely a plausible hypothesis.
+
+That renderer's own row-numbering (a "bare-`VLink`-only typeLine doesn't
+consume its own row" collapse rule, adopted mid-session for a visual bug)
+was checked directly against this file's already-shipped, tested
+`resolve_ladder_pin_conditions` model before trusting any of its output:
+disabling the collapse rule and counting every typeLine as its own row
+(this file's existing model, unchanged) makes *every one* of the
+fixture's 12 real `FFBBlock`s match their own declared `objPosition
+posY` exactly, with the collapse rule producing systematic mismatches for
+several. The collapse rule was retracted as a rendering-only artifact (its
+real fix was giving a `VLink` full-row height, not skipping the row
+entirely); this file's own flat row-counting was correct all along and
+needed no change.
+
+Two new, narrowly-scoped rules, both gated on the exact shape evidenced,
+following this module's existing discipline of extending only to what a
+positive example proves:
+
+- **`_block_input_landings`**: a wire landing on an `enEnO="true"` block's
+  *later* declared input (index >= 1 -- `EN` at index 0 already has its
+  own `posY+0` rule) resolves at row `posY+1+i`, column `posX` -- mirroring
+  the already-shipped output-side formula (`_block_output_origins`,
+  `posY+1+i`) applied to inputs instead. Confirmed directly: `TON_23`'s
+  `IN` (index 1) lands at exactly `posY(19)+1+1 = 21`, the row `SR_2`'s own
+  output wire actually reaches. Unlike an output landing (column
+  `posX+width`, the block's right edge), an input landing is at column
+  `posX` itself, the block's left edge -- confirmed already-consistent
+  with `EN`'s own long-shipped landing column.
+- **`_first_wireable_output`**: an `enEnO="false"` block's `ENO` is
+  declared but never wireable (the same non-rendering rule already
+  evidenced for its `EN`) -- its own output-edge wire is the *second*
+  declared output. Scoped exactly to the evidenced shape: `enEnO="false"`
+  with exactly two declared outputs (`ENO` plus one other) -- every real
+  wired `SR` instance in the corpus. A block with more outputs has no
+  positive example and is not attempted.
+
+The existing `<shortCircuit><VLink/><FFBBlock/></shortCircuit>` handling
+(landing an incoming wire on the wrapped block's own input) and this new
+output-origination rule share one grid element without contradiction:
+`pending_contacts` (the row's own leading condition) still feeds the
+block's *input*; the new rule separately marks the block's *output* as a
+live wire in the same `active`/`continued` tracking every other vertical
+wire already uses, picked up by a per-row check against
+`_block_input_landings` (same-row and multi-row-later landings both
+covered by the existing wire-survival mechanism, unchanged). A landed wire
+is now explicitly consumed (removed from `active`) rather than left to
+`continued`'s normal per-row liveness check -- a real bug caught directly
+against the fixture before this shipped: `SR_2.Q1` landed correctly on
+`TON_23.IN` but then *also* "landed" on `TON_23.PT` one row later (`PT` is
+genuinely fed by its own literal `effectiveParameter`, never a wire).
+
+One existing-code fix required: `LadderPinCondition.position` was always
+implicitly the target block's own anchor (`objPosition`), since every
+prior rule lands exactly at `row == posY`. This new rule's landing row
+(`posY+1+i`) is NOT the block's own row, but
+`_apply_ladder_pin_conditions` (`project.py`) looks up the target
+graphical object by matching `obj.position == binding.position` exactly
+-- so `_block_input_landings`' registry now carries the block's true
+anchor position separately from the landing row/column used only for the
+wire search, and every binding this module produces continues to name the
+correct block. Caught directly (an `unresolved_ladder_pin_condition`
+diagnostic on a new synthetic test) before shipping, not assumed correct.
+
+Verified against the real corpus through the full parse pipeline, not
+just the lower-level resolver: all five real `SR.Q1 -> TON.IN` pairs
+resolve end to end with zero `unresolved_ladder_pin_condition`
+diagnostics. 5 new tests (2 real-fixture, 3 synthetic covering the
+consumed-wire bug and both scope guards). 1541 tests pass project-wide;
+Ruff and Pyright pass.
+
+Deliberately not attempted, no positive example: the reverse direction
+(an `enEnO="true"` block's output feeding a *different* block's input,
+rather than a coil); `enEnO="false"` blocks with more than one wireable
+output; an `enEnO="true"` block's own output *also* originating a
+`_block_input_landings`-style wire (only `enEnO="false"` sources are
+evidenced).

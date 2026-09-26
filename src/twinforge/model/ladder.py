@@ -74,10 +74,15 @@ class LadderPinCondition:
     block's first *wireable* input. That is `EN` when `enEnO="true"`
     (Schneider always lists it first); when `enEnO="false"`, `EN`/`ENO` are
     declared but never rendered, so the anchor row instead targets the
-    second declared input (e.g. `S1` for an `SR` block). Multi-row blocks
-    where the wire keeps a `VLink` alive past the anchor row are not
-    resolved by this rule; the row-to-pin mapping for additional input rows
-    is not evidenced.
+    second declared input (e.g. `S1` for an `SR` block).
+
+    A block's later declared inputs (index >= 1, `enEnO="true"` only) are
+    also resolved, at row `posY+1+i` -- mirroring the already-evidenced
+    output-side formula (`posY+1+i`) applied to inputs instead (real
+    evidence: `sayahali_conveyor_ali_conv.zef`'s `SR_2.Q1 -> TON_23.IN`).
+    `position` is always the TARGET block's own anchor (`posX`, `posY`),
+    never the row the wire actually lands on -- those differ for this
+    later-input case, unlike every other rule here.
     """
 
     network_index: int
