@@ -324,33 +324,27 @@ class LadderSvgExporter:
                     # own -- draw it at the resolved chain-end column (see
                     # row_end_columns above), not its own raw grid column,
                     # so it lines up with the shortCircuit above it and the
-                    # real wire it ultimately reaches below; it always
-                    # continues downward, since a lone VLink's only purpose
-                    # is that continuation. A VLink mixed with a real
-                    # element on its own row (the ARRET_MOT reset bus: each
-                    # row's VLink feeds that row's own resetCoil directly)
-                    # is a genuine tap, not a pass-through -- row_end_columns
-                    # already resolves that shape to the VLink's own column
-                    # plus its width (touching the coil it feeds). Such a
-                    # tap only continues downward if the NEXT row also
-                    # carries the bus (its own VLink, lone or mixed) -- the
-                    # real fixture's bus stops at row 96 (M4_S1), since
-                    # row 97 (M4_S2) has no VLink of its own at all; drawing
-                    # the descending line one row too far there was a real
-                    # regression the user caught (an unconditional bridge
-                    # to "the next row" doesn't hold once a tap is the
-                    # bus's own last stop) -- the dot still belongs on a
-                    # terminal tap, just with no further line below it.
+                    # real wire it ultimately reaches below. A VLink mixed
+                    # with a real element on its own row (the ARRET_MOT
+                    # reset bus and the mode_auto/capteur_livraison reset
+                    # bus: each row's VLink feeds that row's own resetCoil
+                    # directly) is a genuine tap, not a pass-through --
+                    # row_end_columns already resolves that shape to the
+                    # VLink's own column plus its width (touching the coil
+                    # it feeds). Every VLink, lone or mixed, always
+                    # continues one row down: a real, evidenced shape has
+                    # the LAST coil in such a chain (M4_S1 in the
+                    # mode_auto/capteur_livraison bus, M4_S2 in the
+                    # ARRET_MOT bus) fed by the PREVIOUS row's own VLink
+                    # with no VLink declared in its own row at all -- an
+                    # earlier attempt to stop the line whenever the next
+                    # row had no VLink of its own broke exactly this shape,
+                    # caught directly by the user ("the vlink is missing
+                    # from line 96 to line 97 ... same case ... line 80 to
+                    # line 81").
                     is_lone = len(grid_row.cells) == 1
                     vlink_x = _MARGIN_LEFT + row_end_columns[grid_row.row] * _CELL_W
-                    next_row = rows_by_number.get(grid_row.row + 1)
-                    continues = is_lone or (next_row is not None
-                                            and any(c.kind == "vlink" for c in next_row.cells))
-                    if continues:
-                        self._render_vlink(parts, vlink_x, y_top, dot=not is_lone, dots=row_dots)
-                    else:
-                        top = y_top + _CELL_H // 2
-                        row_dots.append(f'<circle cx="{vlink_x}" cy="{top}" r="3" fill="blue"/>')
+                    self._render_vlink(parts, vlink_x, y_top, dot=not is_lone, dots=row_dots)
                 elif cell.kind == "block" and cell.object_index is not None:
                     self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y,
                                        shortcircuit_wrapped=False)

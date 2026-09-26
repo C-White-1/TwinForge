@@ -2568,3 +2568,41 @@ its coil's own lead-in line, not before. 1 test extended
 (`test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap`,
 added a document-order assertion); 1560 tests pass; Ruff and Pyright
 pass.
+
+Round 8, same day: round 6's own "stop the bus once the next row has no
+VLink" rule -- introduced as MY OWN inference, never something the user
+had actually flagged as wrong at the time -- was itself incorrect, caught
+directly: "the vlink is missing from line 96 to line 97. Same case
+missing vlink line 80 to line 81." Both real reset buses in the fixture
+(ARRET_MOT's, rows 90-97; a second one at rows 78-81 conditioned on
+`mode_auto`/`capteur_livraison`) have their own LAST coil (`M4_S2` and
+`M4_S1` respectively) fed by the PREVIOUS row's own `VLink`, with no
+`VLink` declared in the final row's own grid data at all -- exactly the
+shape round 6 mistook for "not part of the bus." Notably, the user's own
+round-6 wording ("Vlinks lines 91-**97**...") already said the chain
+should include the final row; that was misread as approximate at the
+time instead of literal.
+
+Reverted the conditional "continues" check entirely: a `VLink`, lone or
+mixed, now always draws its descending segment exactly one row down,
+regardless of whether the row below declares a `VLink` of its own. The
+final coil in such a chain still gets no junction dot (correctly -- it
+declares no `VLink`, so nothing triggers one), but the line now reaches
+it. The round-7 dot-deferral fix (paint every dot last within its own
+row) needed no changes -- it already covers this case unconditionally,
+not only the now-removed "terminal tap" case.
+
+Verified directly on the real fixture: the descending line now reaches
+row 97 (from row 96) and row 81 (from row 80) in both real chains, with
+no junction dot at either final coil. 1 test rewritten
+(`test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_reaches_the_last_one`,
+replacing its own "stops at the last tap" assertion with the opposite);
+1560 tests pass; Ruff and Pyright pass.
+
+Lesson recorded for [[control_expert_ld_rendering]] and this session's
+memory: a "the connector shouldn't reach that far" inference drawn from
+the source XML's own shape (no `VLink` element declared in a row) is not
+the same as confirmed evidence about the intended visual result -- round
+6 fixed a symptom the user never reported (the earlier screenshot's own
+region of interest didn't include row 97) based on an assumption that
+then had to be reverted once a wider view proved it wrong.

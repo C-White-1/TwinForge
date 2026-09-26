@@ -364,19 +364,24 @@ def test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_ch
     assert f'<line x1="{60 + 3 * 70}" y1="135"' not in svg
 
 
-def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap():
-    # Real evidence (sayahali_conveyor_ali_conv.zef, rows 90-97, the
-    # ARRET_MOT reset bus): a shortCircuit feeds a chain of rows where each
-    # row's own VLink sits immediately next to that row's own resetCoil
-    # (VLink at column 2, coil at column 3) -- a genuine tap into that
-    # row's own wire, not a pass-through. The user caught two real bugs
-    # here: (1) the connector was landing at the row's far-right extent
-    # (past a trailing HLink, at the right rail) instead of at the coil's
-    # own column, one column over from the VLink's raw position; (2) the
-    # bus was drawn one row too far, into the final row (here row 2 /
-    # "M4_S2"), which has no VLink of its own at all and isn't part of the
-    # bus -- confirming a tap only continues downward if the next row
-    # genuinely carries the bus onward.
+def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_reaches_the_last_one():
+    # Real evidence (sayahali_conveyor_ali_conv.zef, rows 90-97 and again at
+    # rows 78-81): a shortCircuit feeds a chain of rows where each row's
+    # own VLink sits immediately next to that row's own resetCoil (VLink at
+    # column 2, coil at column 3) -- a genuine tap into that row's own
+    # wire, not a pass-through. The user caught two real bugs: (1) the
+    # connector was landing at the row's far-right extent (past a trailing
+    # HLink, at the right rail) instead of at the coil's own column, one
+    # column over from the VLink's raw position. (2) An earlier attempt at
+    # this fix stopped the bus one row short whenever the FINAL row had no
+    # VLink of its own -- but that is exactly the evidenced shape of the
+    # bus's own last coil in both real occurrences (row 97 / "M4_S2" here,
+    # and again at row 81 / "M4_S1"): the previous row's own VLink feeds it
+    # directly, with no VLink declared in the final row's own grid data at
+    # all. The user caught this directly ("the vlink is missing from line
+    # 96 to line 97 ... same case ... line 80 to line 81") -- a VLink
+    # always continues exactly one row down, whether or not that row
+    # happens to declare a VLink of its own.
     diagram = GraphicalDiagram(
         language="LD",
         objects=[_contact("ARRET_MOT"), _coil("M1_S1", kind="resetCoil"),
@@ -393,8 +398,8 @@ def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_las
                 LadderGridCell(column=3, kind="coil", object_index=2),
                 LadderGridCell(column=4, kind="hlink", width=7),
             ]),
-            # The bus's last participating row: still a tap, but nothing
-            # below it carries the VLink onward.
+            # The bus's last coil: fed by row 1's own VLink, but declares
+            # no VLink of its own -- the real evidenced final-row shape.
             LadderGridRow(row=2, cells=[
                 LadderGridCell(column=3, kind="coil", object_index=3),
                 LadderGridCell(column=4, kind="hlink", width=7),
@@ -404,23 +409,22 @@ def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_las
     svg = LadderSvgExporter().export_diagram(diagram)
     coil_column_x = 60 + 3 * 70  # the coil's own column (3), not the VLink's raw column (2) or row end (11)
     assert svg.count(f'<line x1="{coil_column_x}" y1="65" x2="{coil_column_x}" y2="135"') == 1  # row 0 -> row 1
+    assert svg.count(f'<line x1="{coil_column_x}" y1="135" x2="{coil_column_x}" y2="205"') == 1  # row 1 -> row 2
     assert 'x1="830"' not in svg  # never lands at the row's far-right extent past the trailing HLink
-    # Two junction dots (row 0's shortCircuit tap, row 1's own tap) -- both
-    # genuine taps, not pass-throughs.
+    # Two junction dots (row 0's shortCircuit tap, row 1's own tap) -- the
+    # bus's own last coil (row 2) gets no dot of its own, since it declares
+    # no VLink -- the line simply reaches it, matching the real fixture.
     assert svg.count(f'<circle cx="{coil_column_x}" cy="65" r="3" fill="blue"/>') == 1
     assert svg.count(f'<circle cx="{coil_column_x}" cy="135" r="3" fill="blue"/>') == 1
-    # No line descends from row 1 into row 2 -- row 2 has no VLink of its
-    # own, so the bus stops at row 1's own tap.
-    assert f'x2="{coil_column_x}" y2="205"' not in svg
-    # A terminal tap's dot sits at the SAME column as the coil it feeds
-    # (real bug: with no reinforcing vertical line below it, a dot drawn
-    # BEFORE that coil's own lead-in line -- which spans its whole cell,
-    # starting at that same column -- gets painted over and all but
-    # disappears). The dot must come after the coil's own lead-in line in
-    # document order so it paints on top, not under it.
+    assert f'<circle cx="{coil_column_x}" cy="205" r="3" fill="blue"/>' not in svg
+    # A tap's dot sits at the SAME column as the coil it feeds on its own
+    # row (real bug: a dot drawn BEFORE that coil's own lead-in line --
+    # which spans its whole cell, starting at that same column -- gets
+    # painted over and all but disappears). The dot must come after the
+    # coil's own lead-in line in document order so it paints on top.
     coil_lead_in = f'<line x1="{coil_column_x}" y1="135" x2="{coil_column_x + 70}" y2="135" stroke="black"/>'
-    terminal_dot = f'<circle cx="{coil_column_x}" cy="135" r="3" fill="blue"/>'
-    assert svg.index(coil_lead_in) < svg.index(terminal_dot)
+    tap_dot = f'<circle cx="{coil_column_x}" cy="135" r="3" fill="blue"/>'
+    assert svg.index(coil_lead_in) < svg.index(tap_dot)
 
 
 def test_export_diagram_unresolved_short_circuit_shape_renders_placeholder():
