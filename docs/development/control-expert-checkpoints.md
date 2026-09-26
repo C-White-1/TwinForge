@@ -2424,3 +2424,44 @@ constant. Verified directly on the real fixture: `%M12`'s coil now renders
 the bars exactly. 2 new tests (`test_export_diagram_marks_pcoil_with_p`,
 `test_export_diagram_contact_and_coil_wires_reach_the_symbol_edge`); 1558
 tests pass project-wide; Ruff and Pyright pass.
+
+Round 4, same day: the user flagged a visible zigzag between rows 12 and
+14 in the real fixture. The round-2 `row_end_columns` fix (round 2 entry
+above) computed every row's connector column as `max(column + width)`
+across that row's own cells -- correct for a genuine wire-bearing row
+(contacts/coils/HLinks), where that is the wire's real rightmost extent,
+but wrong for a row that is itself just a lone bare `VLink` pass-through
+(an intermediate hop of a taller bus, e.g. row 13 between rows 12 and 14):
+a `VLink` is a single point on the bus, not a span with a rightward end,
+and `column + width` shifts one column past where that row's own
+`_render_vlink` call actually draws its connector (at the `VLink`'s own
+column). Row 12's shortCircuit (wraps an `HLink`, landing on row 13) was
+therefore computed one column to the right of row 13's own vlink,
+producing exactly the visible zigzag reported. Fixed by special-casing a
+row whose only grid cell is a `vlink`: its connector column is that cell's
+own column, not `column + width`; every other row shape is unchanged.
+Also corrected a wrong claim in this file's own round-2 entry and the
+adjacent code comment -- ladder.py's real connectivity algorithm has no
+"row_end_columns" lookup at all; its `tie_column = column + width - 1` is
+computed from the shortCircuit's OWN row, never from a target-row lookup,
+so the two were never actually the same mechanism as claimed.
+
+Verified directly on the real fixture: row 12's connector and row 13's own
+`VLink` now both land at column 3 (x=270), one continuous straight line
+through row 14, matching the user's own screenshot comparison; the earlier
+SR_8/ARRET_MOT case (row 4 to row 5, a genuine wire-bearing target row) is
+unaffected, still x=200. 1 new regression test
+(`test_export_diagram_short_circuit_connector_aligns_to_a_lone_vlink_target_row`);
+1559 tests pass; Ruff and Pyright pass.
+
+Left open, not attempted this pass: a second, differently-shaped potential
+misalignment was noticed but not confirmed while investigating this one --
+`SR_2`'s own shortCircuit-wraps-block connector (row 21, landing at the
+block's own left edge, column 4) versus that block's own `S1` input pin
+row's separate bare `VLink` cell one row below (row 22, at column 5, one
+column to the right) are not visually aligned either. Unlike the row
+12-14 case, there is no confirmed evidence yet for what the vendor's own
+rendering actually shows here -- it may be a real dogleg in the source
+grid, not a rendering bug -- so it is called out here rather than
+"fixed" without evidence, per this project's own discipline against
+guessing at unconfirmed shapes.

@@ -225,17 +225,29 @@ class LadderSvgExporter:
         min_row = min((r.row for r in rows), default=0)
         max_row = min_row
         max_column = 0
-        # Real evidence (this project's own ladder-rendering verification
-        # session, and already-shipped in ladder.py's own `tie_column`/
-        # `row_end_columns`): a shortCircuit's own vertical connector lands
-        # at whatever column the TARGET row's own wire genuinely ends at --
-        # not a fixed offset computed from the source row alone. That
-        # offset only coincidentally matches the target when the wrapped
-        # HLink's own width happens to equal the gap (confirmed real
-        # counterexample already found once: a 2-cell-wide wrapped HLink
-        # whose target row actually ends 3 columns over, not 2).
+        # A shortCircuit's own vertical connector needs to land at whatever
+        # column the TARGET row's own wire genuinely presents at -- not a
+        # fixed offset computed from the source row alone (confirmed real
+        # counterexample: a 2-cell-wide wrapped HLink whose target row does
+        # not end 2 columns over). Two real shapes need different answers:
+        # a row with real wire content (contacts/coils/HLinks) presents at
+        # its rightmost extent, one column past its last cell -- the shape
+        # confirmed against the real fixture's SR_8.R (row 4's shortCircuit
+        # landing on ARRET_MOT's row 5, which ends at column 2, matching
+        # the vendor PDF). A row that is itself just a lone bare `VLink`
+        # pass-through (no wire of its own -- an intermediate hop of a
+        # taller bus, e.g. row 13 between rows 12 and 14) presents at that
+        # VLink's OWN column, not one past it: a VLink is a single point on
+        # the bus, not a span with a rightward end, and `_render_vlink`
+        # itself always draws that row's own connector at the cell's own
+        # column -- using column+width here would misalign the two segments
+        # into a visible zigzag instead of one straight vertical line.
         row_end_columns: dict[int, int] = {
-            grid_row.row: max((c.column + c.width for c in grid_row.cells), default=0)
+            grid_row.row: (
+                next(c.column for c in grid_row.cells if c.kind == "vlink")
+                if len(grid_row.cells) == 1 and grid_row.cells[0].kind == "vlink"
+                else max((c.column + c.width for c in grid_row.cells), default=0)
+            )
             for grid_row in rows
         }
         for grid_row in rows:
