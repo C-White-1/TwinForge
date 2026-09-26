@@ -513,14 +513,44 @@ class LadderSvgExporter:
             # (sr2_ton23_zoom.png): an explicit dogleg bridges the two, not
             # a straight horizontal line. Drawn only when they are
             # genuinely on different rows (offset != 0) and the block
-            # actually has a shown output to dogleg from.
+            # actually has a shown output to dogleg from. The corner sits
+            # at the MIDDLE of the gap between the block's own right edge
+            # and whatever it continues into (SR_2 -> TON_23: a single
+            # HLink nbCells="1", one cell wide) -- user-confirmed against
+            # the real fixture, not flush against the block's own edge.
             _, _, shown_outputs, offset = self._block_span(obj, shortcircuit_wrapped=True)
             if shown_outputs and offset != 0:
                 box_w = _BLOCK_WIDTH_COLUMNS * _CELL_W
-                corner_x = x + box_w + _PIN_STUB
+                corner_x = x + box_w + _CELL_W // 2
                 anchor_yc = y_top + _CELL_H // 2
                 output_yc = row_y(row + offset) + _CELL_H // 2
+                # The pin's own short stub only reaches box_w + _PIN_STUB;
+                # extend it to the corner before turning, so the dogleg is
+                # one continuous path (horizontal, vertical, horizontal),
+                # not a vertical line floating past the stub's own end.
+                parts.append(f'<line x1="{x + box_w + _PIN_STUB}" y1="{output_yc}" x2="{corner_x}" '
+                              f'y2="{output_yc}" stroke="black" stroke-width="2"/>')
                 parts.append(f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" '
                               'stroke="black" stroke-width="2"/>')
+            # User-confirmed real evidence (SR_2, this fixture): EACH shown
+            # input pin of a shortCircuit-wrapped block gets its own
+            # condition from the row immediately below its own row (S1 from
+            # capteur_2, R from capteur_3) -- the same one-row-below OR-tap
+            # convention already used elsewhere (e.g. SR_8.R/ARRET_MOT), but
+            # here applied per input pin rather than via an explicit
+            # wrapping shortCircuit around each contact. This is a
+            # DIFFERENT wiring shape than a free-standing block's inputs
+            # (SR_8/SR_9's own R is fed by a same-row condition ORed with a
+            # one-row-below one via an explicit shortCircuit -- not this
+            # per-pin pattern), so it is scoped to shortCircuit-wrapped
+            # blocks only, not generalized to every block.
+            _, shown_inputs, _, input_offset = self._block_span(obj, shortcircuit_wrapped=True)
+            for i in range(len(shown_inputs)):
+                pin_row = row + input_offset + i
+                target_col = row_end_columns.get(pin_row + 1)
+                if target_col is None:
+                    continue
+                connector_x = _MARGIN_LEFT + target_col * _CELL_W
+                self._render_vlink(parts, connector_x, row_y(pin_row), dot=True, dots=dots)
         else:
             self._render_unsupported(parts, x + _CELL_W // 2, yc, "shortCircuit", "unresolved")

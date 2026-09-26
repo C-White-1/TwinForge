@@ -2774,3 +2774,49 @@ new tests
 (`test_export_diagram_short_circuit_wraps_block_draws_output_dogleg`,
 `test_export_diagram_short_circuit_wraps_block_no_dogleg_without_a_shown_
 output`); 1563 tests pass; Ruff and Pyright pass.
+
+Round 13, same day: two more real findings on a closer look. (1) The
+dogleg's own corner sat flush against `SR_2`'s right edge (`x + box_w +
+_PIN_STUB`) -- the user's own words: "vline should be in middle between
+SR and TON." Corrected to the MIDDLE of the gap between the block's own
+right edge and what it continues into (`x + box_w + _CELL_W // 2`, since
+the real gap is a single `HLink nbCells="1"`, one cell wide); the pin's
+own short stub is now explicitly extended to that corner first, so the
+dogleg is one continuous path (horizontal, vertical, horizontal), not a
+vertical line floating past the stub's own end.
+
+(2) A direct conflict between two sources of evidence, resolved by asking
+the user rather than picking one: the original reference render
+(`nocollapse_rows_17_39.png`) shows `R` fed by `capteur_2` on the SAME
+row (23), `S1` unconditional, `capteur_3` (row 24) unconnected -- but the
+user's current, explicit instruction said the opposite: `S1` fed by
+`capteur_2` one row below `S1`'s own row (22->23), `R` fed by `capteur_3`
+one row below `R`'s own row (23->24). Asked directly via
+`AskUserQuestion`; confirmed the user's current statement is correct, not
+the older reference render (which may reflect an earlier or different
+revision of this rung, or a limitation of the original ad hoc script in
+this specific spot -- not itself re-verified against the vendor PDF a
+second time here).
+
+Implemented as a new, narrowly-scoped rule: EACH shown input pin of a
+shortCircuit-wraps-block shape (not every block -- `SR_8`/`SR_9`,
+free-standing, already have a confirmed DIFFERENT shape: a same-row
+condition ORed with a one-row-below one via an explicit wrapping
+`shortCircuit`, not this per-pin pattern) gets its own one-row-below
+OR-tap, reusing the same `row_end_columns` resolution and `_render_vlink`
+dot convention already proven for every other connector shape in this
+exporter. `S1`'s own tap happens to coincide with an already-existing
+grid-level `VLink` (row 22) that independently produces the identical
+line; the new per-pin loop does not special-case that away, accepting a
+harmless duplicate identical line rather than adding coupling between two
+otherwise-independent code paths for a purely cosmetic gain.
+
+Verified directly on the real fixture: `S1`'s connector spans row
+22->23 (`capteur_2`), `R`'s spans row 23->24 (`capteur_3`), both landing
+at `SR_2`'s own left edge (column 4) with their own junction dot; the
+dogleg's corner now sits at `x=515` (the middle of the one-cell gap), not
+`x=486`. 1 new test
+(`test_export_diagram_short_circuit_wraps_block_each_input_taps_the_row_
+below`), 2 existing tests updated for the corrected corner position and
+strengthened with the new taps' exact coordinates; 1564 tests pass; Ruff
+and Pyright pass.

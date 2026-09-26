@@ -378,8 +378,12 @@ def test_export_diagram_short_circuit_wraps_block_draws_output_dogleg():
     # the continuing HLink after a shortCircuit-wraps-block shape sits on
     # the block's own ANCHOR row (it is a sibling of the shortCircuit in
     # the same source row), but the block's first shown output pin renders
-    # `offset` rows below that anchor -- an explicit dogleg bridges them,
-    # not a straight line, since they are genuinely on different rows.
+    # `offset` rows below that anchor -- an explicit dogleg (horizontal,
+    # vertical, horizontal) bridges them, not a straight line, since they
+    # are genuinely on different rows. The corner sits at the MIDDLE of
+    # the gap between the block's own right edge and what it continues
+    # into, not flush against the block's own edge -- user-confirmed
+    # against the real fixture.
     block = _block("SR_2", "SR", [
         _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
         _pin("ENO", "output"), _pin("Q1", "output"),
@@ -392,10 +396,52 @@ def test_export_diagram_short_circuit_wraps_block_draws_output_dogleg():
         ])],
     )
     svg = LadderSvgExporter().export_diagram(diagram)
-    corner_x = 60 + 2 * 70 + 6  # block's right edge (column 2) + _PIN_STUB
+    box_right = 60 + 2 * 70  # block's right edge (column 2)
+    corner_x = box_right + 35  # the middle of the one-cell gap past the block
     anchor_yc = 30 + 35  # row 0's own center
     output_yc = 30 + 70 + 35  # row 1's center (offset 1, shortCircuit-wrapped enEnO=false)
+    assert f'<line x1="{box_right + 6}" y1="{output_yc}" x2="{corner_x}" y2="{output_yc}" stroke="black" stroke-width="2"/>' in svg
     assert f'<line x1="{corner_x}" y1="{anchor_yc}" x2="{corner_x}" y2="{output_yc}" stroke="black" stroke-width="2"/>' in svg
+
+
+def test_export_diagram_short_circuit_wraps_block_each_input_taps_the_row_below():
+    # User-confirmed real evidence (SR_2, this fixture): S1 is fed by
+    # capteur_2 one row below S1's own row, and R is fed by capteur_3 one
+    # row below R's own row -- each shown input pin of a shortCircuit-
+    # wrapped block gets its OWN one-row-below OR-tap, not just the first.
+    # A free-standing block's inputs (SR_8/SR_9) follow a different,
+    # already-evidenced shape (a same-row condition ORed with a one-row-
+    # below one via an explicit shortCircuit), so this is scoped to
+    # shortCircuit-wrapped blocks only.
+    block = _block("SR_2", "SR", [
+        _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
+        _pin("ENO", "output"), _pin("Q1", "output"),
+    ], en_en_o=False)
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[block, _contact("capteur_2"), _contact("capteur_3")],
+        grid_rows=[
+            LadderGridRow(row=0, cells=[
+                LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                               wrapped_width=2, wrapped_object_index=0),
+            ]),
+            LadderGridRow(row=2, cells=[
+                LadderGridCell(column=0, kind="hlink", width=1),
+                LadderGridCell(column=1, kind="contact", object_index=1),
+            ]),
+            LadderGridRow(row=3, cells=[
+                LadderGridCell(column=0, kind="hlink", width=1),
+                LadderGridCell(column=1, kind="contact", object_index=2),
+            ]),
+        ],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    connector_x = 60 + 2 * 70  # both S1 and R land at the block's own left edge (column 2)
+    s1_yc, r_yc, capteur_2_yc, capteur_3_yc = (30 + row * 70 + 35 for row in (1, 2, 2, 3))
+    assert f'<line x1="{connector_x}" y1="{s1_yc}" x2="{connector_x}" y2="{capteur_2_yc}" stroke="blue" stroke-width="2"/>' in svg
+    assert f'<line x1="{connector_x}" y1="{r_yc}" x2="{connector_x}" y2="{capteur_3_yc}" stroke="blue" stroke-width="2"/>' in svg
+    assert svg.count(f'<circle cx="{connector_x}" cy="{s1_yc}" r="3" fill="blue"/>') == 1
+    assert svg.count(f'<circle cx="{connector_x}" cy="{r_yc}" r="3" fill="blue"/>') == 1
 
 
 def test_export_diagram_short_circuit_wraps_block_no_dogleg_without_a_shown_output():
@@ -548,10 +594,10 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
     # shipped without checking these already-available reference images
     # first, caught immediately once actually compared against them.
     # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22 --
-    # enEnO="true" uses a different, unaffected offset. The reference
-    # image shows an explicit dogleg connecting SR_2.Q1 (row 22) up to
-    # TON_23.IN (row 21) -- not yet drawn by this renderer, a separate,
-    # known gap, not asserted here.
+    # enEnO="true" uses a different, unaffected offset. The SR_2.Q1 ->
+    # TON_23.IN dogleg and each shown input's own one-row-below OR-tap
+    # (S1 fed by capteur_2 at row 23, R fed by capteur_3 at row 24) are
+    # both user-confirmed against this exact real fixture.
     path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
     if not path.exists():
         pytest.skip("Local sayahali/conveyor-automation reference unavailable")
@@ -571,7 +617,22 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
     def row_y(row: int) -> int:
         return 30 + (row - 1) * 70  # min_row is 1 (SR_8's own row)
 
-    row22_center, row23_center = row_y(22) + 35, row_y(23) + 35
+    row21_center, row22_center, row23_center, row24_center = (
+        row_y(r) + 35 for r in (21, 22, 23, 24)
+    )
     assert f'<text x="344" y="{row22_center + 4}">S1</text>' in svg
     assert f'<text x="476" y="{row22_center + 4}" text-anchor="end">Q1</text>' in svg
     assert f'<text x="344" y="{row23_center + 4}">R</text>' in svg
+
+    sr2_left_edge = 60 + 4 * 70  # SR_2's own column (4)
+    assert f'<line x1="{sr2_left_edge}" y1="{row22_center}" x2="{sr2_left_edge}" y2="{row23_center}" ' \
+           'stroke="blue" stroke-width="2"/>' in svg
+    assert f'<line x1="{sr2_left_edge}" y1="{row23_center}" x2="{sr2_left_edge}" y2="{row24_center}" ' \
+           'stroke="blue" stroke-width="2"/>' in svg
+
+    ton23_left_edge = 60 + 7 * 70  # TON_23's own column (7)
+    corner_x = sr2_left_edge + 2 * 70 + 35  # SR_2's right edge (2 columns wide) + half the 1-cell gap
+    assert f'<line x1="{corner_x}" y1="{row21_center}" x2="{corner_x}" y2="{row22_center}" ' \
+           'stroke="black" stroke-width="2"/>' in svg
+    assert f'<line x1="{sr2_left_edge + 2 * 70}" y1="{row21_center}" x2="{ton23_left_edge}" y2="{row21_center}" ' \
+           'stroke="black"/>' in svg
