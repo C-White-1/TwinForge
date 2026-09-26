@@ -2489,3 +2489,48 @@ own wire end, matching the user's request. 1 test updated
 (`test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_chain`,
 extended with a real third row so the resolution has somewhere real to
 land); 1559 tests pass; Ruff and Pyright pass.
+
+Round 6, same day: a third real shape, the fixture's ARRET_MOT reset bus
+(rows 90-96: `M1_S1`, `M1_S2`, `M2_S1`, `M2_S2`, `M3_S1`, `M3_S2`,
+`M4_S1`'s `resetCoil`s, all conditioned on `ARRET_MOT`). Here each row's
+own `VLink` sits immediately next to that SAME row's own `resetCoil` (a
+genuine tap feeding a real element on its own row), not a pass-through
+and not a plain wire-end -- neither of round 5's two rules fit: the
+existing `max(column + width)` fallback landed at the row's far-right
+extent past a trailing `HLink` (the right rail, confirmed visually: the
+connector was drawn at the top-right corner instead of over the coils),
+and round 5's lone-`VLink` chain rule doesn't apply since these rows are
+not lone (they carry a real coil too). Added a third case to
+`_resolve_row_end_column`: when a row (lone or not) contains a `VLink`
+cell, resolve to that cell's own column plus its width -- i.e. touching
+the very next cell, which in every real occurrence of this shape is
+exactly the coil it feeds. User's own words: "Vlinks lines 91-97 need to
+be moved across 1 column and dots added. Move vlink on line 90 so it
+joins beginning of the vlink start of line 91" -- matches exactly: the
+shortCircuit's own connector (row 90) and every subsequent tap (rows
+91-96) now land on the same column as each row's own coil, one column
+over from the `VLink`'s raw position.
+
+A second, more subtle bug surfaced applying this: with every tap now on
+the same column, a mixed-row `VLink`'s own downward line was still drawn
+unconditionally to "the next row" (round 5's assumption, correct for a
+lone pass-through, which always continues somewhere) -- but row 96's own
+`VLink` has no partner in row 97 (`M4_S2`'s `resetCoil`, unconditional,
+genuinely not part of this bus, confirmed in the source: no `VLink`
+element in that row at all), so the line was extending one row too far,
+past the bus's own real last tap. Fixed by only drawing a mixed tap's
+downward line when the row below also carries a `VLink` of its own (lone
+or mixed) -- a lone pass-through still always continues, since that is
+its only purpose; a terminal mixed tap gets its junction dot with no
+further line below it. Junction dots also added at every genuine tap
+(previously only shortCircuit-originated connectors got one); a lone
+pass-through still gets none, since no branch actually happens there.
+
+Verified directly on the real fixture: rows 90 through 96 all land on
+column 3 (the coils' own column, x=270 -- previously x=830, the right
+rail); 7 junction dots (rows 90-96); the descending line stops after row
+95->96, with no further segment into row 97, and row 97's own `M4_S2`
+coil is undisturbed (no dot, no incoming line, matching the source having
+no `VLink` there). 1 new regression test
+(`test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap`);
+1560 tests pass; Ruff and Pyright pass.

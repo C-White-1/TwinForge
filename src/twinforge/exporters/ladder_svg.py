@@ -226,22 +226,23 @@ class LadderSvgExporter:
         max_row = min_row
         max_column = 0
         # A shortCircuit's own vertical connector needs to land at whatever
-        # column the TARGET row's own wire genuinely ends at -- confirmed
-        # against two real shapes: the fixture's SR_8.R (row 4's
-        # shortCircuit landing on ARRET_MOT's row 5, ending at column 2,
-        # matching the vendor PDF) and, after a user-caught regression, a
-        # chain through row 13 (a lone bare `VLink` pass-through with no
-        # wire of its own -- an intermediate hop of a taller bus between
-        # rows 12 and 14) that must resolve all the way through to row 14's
-        # own real wire end (column 4), not stop at row 13's own raw grid
-        # column (a coordinate that positions row 13's OWN `VLink` glyph in
-        # the source grid, but is not itself a wire's end -- a `VLink` is a
-        # single point on a bus, not a span). `_resolve_row_end_column`
-        # follows a chain of consecutive lone-`VLink` rows forward to the
-        # first row with real wire content, so both the shortCircuit above
-        # the chain and the lone `VLink` rows within it land on the exact
-        # same column, one continuous straight line down to where the wire
-        # actually ends -- not a zigzag through an intermediate waypoint.
+        # column the TARGET row's own wire genuinely presents at -- three
+        # real shapes confirmed so far, each needing a different answer:
+        # (1) a row with real wire content and no `VLink` of its own (the
+        # fixture's ARRET_MOT/row 5) presents at its rightmost extent, one
+        # column past its last cell. (2) a row that is itself just a lone
+        # bare `VLink` pass-through (row 13, an intermediate hop of a
+        # taller bus with no wire of its own) presents wherever the chain
+        # of such rows eventually reaches real wire content (row 14) -- its
+        # own raw grid column only positions its own glyph, not a wire's
+        # end. (3) a row where a `VLink` sits alongside a real element it
+        # feeds directly on the SAME row (the fixture's ARRET_MOT reset bus,
+        # rows 90-96: each row's `VLink` is immediately followed by that
+        # row's own resetCoil, one column over) presents at the `VLink`'s
+        # own column plus its width -- i.e. touching the very next cell,
+        # not the row's far-right extent past a trailing `HLink` (a real
+        # regression the user caught: the connector was landing at the
+        # right rail instead of at each coil's own column).
         rows_by_number = {grid_row.row: grid_row for grid_row in rows}
 
         def _resolve_row_end_column(start_row: int) -> int:
@@ -256,6 +257,9 @@ class LadderSvgExporter:
                     visited.add(current)
                     current += 1
                     continue
+                vlink_cell = next((c for c in cells if c.kind == "vlink"), None)
+                if vlink_cell is not None:
+                    return vlink_cell.column + vlink_cell.width
                 return max((c.column + c.width for c in cells), default=0)
 
         row_end_columns: dict[int, int] = {grid_row.row: _resolve_row_end_column(grid_row.row) for grid_row in rows}
@@ -319,10 +323,33 @@ class LadderSvgExporter:
                     # own -- draw it at the resolved chain-end column (see
                     # row_end_columns above), not its own raw grid column,
                     # so it lines up with the shortCircuit above it and the
-                    # real wire it ultimately reaches below.
+                    # real wire it ultimately reaches below; it always
+                    # continues downward, since a lone VLink's only purpose
+                    # is that continuation. A VLink mixed with a real
+                    # element on its own row (the ARRET_MOT reset bus: each
+                    # row's VLink feeds that row's own resetCoil directly)
+                    # is a genuine tap, not a pass-through -- row_end_columns
+                    # already resolves that shape to the VLink's own column
+                    # plus its width (touching the coil it feeds). Such a
+                    # tap only continues downward if the NEXT row also
+                    # carries the bus (its own VLink, lone or mixed) -- the
+                    # real fixture's bus stops at row 96 (M4_S1), since
+                    # row 97 (M4_S2) has no VLink of its own at all; drawing
+                    # the descending line one row too far there was a real
+                    # regression the user caught (an unconditional bridge
+                    # to "the next row" doesn't hold once a tap is the
+                    # bus's own last stop) -- the dot still belongs on a
+                    # terminal tap, just with no further line below it.
                     is_lone = len(grid_row.cells) == 1
-                    vlink_x = _MARGIN_LEFT + row_end_columns[grid_row.row] * _CELL_W if is_lone else x
-                    self._render_vlink(parts, vlink_x, y_top)
+                    vlink_x = _MARGIN_LEFT + row_end_columns[grid_row.row] * _CELL_W
+                    next_row = rows_by_number.get(grid_row.row + 1)
+                    continues = is_lone or (next_row is not None
+                                            and any(c.kind == "vlink" for c in next_row.cells))
+                    if continues:
+                        self._render_vlink(parts, vlink_x, y_top, dot=not is_lone)
+                    else:
+                        top = y_top + _CELL_H // 2
+                        parts.append(f'<circle cx="{vlink_x}" cy="{top}" r="3" fill="blue"/>')
                 elif cell.kind == "block" and cell.object_index is not None:
                     self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y,
                                        shortcircuit_wrapped=False)

@@ -364,6 +364,56 @@ def test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_ch
     assert f'<line x1="{60 + 3 * 70}" y1="135"' not in svg
 
 
+def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap():
+    # Real evidence (sayahali_conveyor_ali_conv.zef, rows 90-97, the
+    # ARRET_MOT reset bus): a shortCircuit feeds a chain of rows where each
+    # row's own VLink sits immediately next to that row's own resetCoil
+    # (VLink at column 2, coil at column 3) -- a genuine tap into that
+    # row's own wire, not a pass-through. The user caught two real bugs
+    # here: (1) the connector was landing at the row's far-right extent
+    # (past a trailing HLink, at the right rail) instead of at the coil's
+    # own column, one column over from the VLink's raw position; (2) the
+    # bus was drawn one row too far, into the final row (here row 2 /
+    # "M4_S2"), which has no VLink of its own at all and isn't part of the
+    # bus -- confirming a tap only continues downward if the next row
+    # genuinely carries the bus onward.
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[_contact("ARRET_MOT"), _coil("M1_S1", kind="resetCoil"),
+                 _coil("M1_S2", kind="resetCoil"), _coil("M4_S2", kind="resetCoil")],
+        grid_rows=[
+            LadderGridRow(row=0, cells=[
+                LadderGridCell(column=1, kind="contact", object_index=0),
+                LadderGridCell(column=2, kind="short_circuit", wraps="hlink", wrapped_width=1),
+                LadderGridCell(column=3, kind="coil", object_index=1),
+                LadderGridCell(column=4, kind="hlink", width=7),
+            ]),
+            LadderGridRow(row=1, cells=[
+                LadderGridCell(column=2, kind="vlink"),
+                LadderGridCell(column=3, kind="coil", object_index=2),
+                LadderGridCell(column=4, kind="hlink", width=7),
+            ]),
+            # The bus's last participating row: still a tap, but nothing
+            # below it carries the VLink onward.
+            LadderGridRow(row=2, cells=[
+                LadderGridCell(column=3, kind="coil", object_index=3),
+                LadderGridCell(column=4, kind="hlink", width=7),
+            ]),
+        ],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    coil_column_x = 60 + 3 * 70  # the coil's own column (3), not the VLink's raw column (2) or row end (11)
+    assert svg.count(f'<line x1="{coil_column_x}" y1="65" x2="{coil_column_x}" y2="135"') == 1  # row 0 -> row 1
+    assert 'x1="830"' not in svg  # never lands at the row's far-right extent past the trailing HLink
+    # Two junction dots (row 0's shortCircuit tap, row 1's own tap) -- both
+    # genuine taps, not pass-throughs.
+    assert svg.count(f'<circle cx="{coil_column_x}" cy="65" r="3" fill="blue"/>') == 1
+    assert svg.count(f'<circle cx="{coil_column_x}" cy="135" r="3" fill="blue"/>') == 1
+    # No line descends from row 1 into row 2 -- row 2 has no VLink of its
+    # own, so the bus stops at row 1's own tap.
+    assert f'x2="{coil_column_x}" y2="205"' not in svg
+
+
 def test_export_diagram_unresolved_short_circuit_shape_renders_placeholder():
     diagram = GraphicalDiagram(
         language="LD", objects=[],
