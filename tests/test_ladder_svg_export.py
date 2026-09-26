@@ -412,6 +412,15 @@ def test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_las
     # No line descends from row 1 into row 2 -- row 2 has no VLink of its
     # own, so the bus stops at row 1's own tap.
     assert f'x2="{coil_column_x}" y2="205"' not in svg
+    # A terminal tap's dot sits at the SAME column as the coil it feeds
+    # (real bug: with no reinforcing vertical line below it, a dot drawn
+    # BEFORE that coil's own lead-in line -- which spans its whole cell,
+    # starting at that same column -- gets painted over and all but
+    # disappears). The dot must come after the coil's own lead-in line in
+    # document order so it paints on top, not under it.
+    coil_lead_in = f'<line x1="{coil_column_x}" y1="135" x2="{coil_column_x + 70}" y2="135" stroke="black"/>'
+    terminal_dot = f'<circle cx="{coil_column_x}" cy="135" r="3" fill="blue"/>'
+    assert svg.index(coil_lead_in) < svg.index(terminal_dot)
 
 
 def test_export_diagram_unresolved_short_circuit_shape_renders_placeholder():

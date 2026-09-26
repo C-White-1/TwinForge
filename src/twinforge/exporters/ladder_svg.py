@@ -291,6 +291,7 @@ class LadderSvgExporter:
         for grid_row in rows:
             y_top = row_y(grid_row.row)
             parts.append(f'<text x="8" y="{y_top + _CELL_H // 2 + 4}" fill="#666">{grid_row.row}</text>')
+            row_dots: list[str] = []
             for cell in grid_row.cells:
                 x = _MARGIN_LEFT + cell.column * _CELL_W
                 if cell.kind == "contact" and cell.object_index is not None:
@@ -346,15 +347,17 @@ class LadderSvgExporter:
                     continues = is_lone or (next_row is not None
                                             and any(c.kind == "vlink" for c in next_row.cells))
                     if continues:
-                        self._render_vlink(parts, vlink_x, y_top, dot=not is_lone)
+                        self._render_vlink(parts, vlink_x, y_top, dot=not is_lone, dots=row_dots)
                     else:
                         top = y_top + _CELL_H // 2
-                        parts.append(f'<circle cx="{vlink_x}" cy="{top}" r="3" fill="blue"/>')
+                        row_dots.append(f'<circle cx="{vlink_x}" cy="{top}" r="3" fill="blue"/>')
                 elif cell.kind == "block" and cell.object_index is not None:
                     self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y,
                                        shortcircuit_wrapped=False)
                 elif cell.kind == "short_circuit":
-                    self._render_short_circuit(parts, cell, objects, x, grid_row.row, y_top, row_y, row_end_columns)
+                    self._render_short_circuit(parts, cell, objects, x, grid_row.row, y_top, row_y,
+                                               row_end_columns, row_dots)
+            parts.extend(row_dots)
 
         parts.append("</svg>")
         return "\n".join(parts)
@@ -419,7 +422,9 @@ class LadderSvgExporter:
             parts.append(f'<text x="{x + box_w // 2}" y="{y_bottom - 8}" text-anchor="middle" fill="#a00">'
                           'no EN/ENO</text>')
 
-    def _render_vlink(self, parts: list[str], x: int, y_top: int, *, dot: bool = False) -> None:
+    def _render_vlink(
+        self, parts: list[str], x: int, y_top: int, *, dot: bool = False, dots: list[str] | None = None,
+    ) -> None:
         """Bridge THIS row's own center to the NEXT row's center -- not this
 
         row's own top-to-bottom, which undershoots by half a row. Real bug,
@@ -432,16 +437,29 @@ class LadderSvgExporter:
         script (never committed) already needed and made, for the identical
         reason -- reintroduced here because this SVG exporter was written
         from scratch rather than by reusing that script's own logic.
+
+        `dots`, when given, collects the junction dot's own markup instead
+        of appending it to `parts` immediately: a dot drawn inline can end
+        up UNDER a same-row element rendered right after it in document
+        order (a coil's own lead-in line, drawn flush across its whole
+        cell, passes directly through a tap sitting at that coil's own
+        left edge) -- real bug, caught on the user's own screenshot of the
+        real fixture's ARRET_MOT reset bus, where a terminal tap's dot
+        (with no reinforcing vertical line to keep it visible) all but
+        disappeared under the coil's own black line. Deferring every dot to
+        the end of its own row's rendering keeps them on top of everything
+        else in that row.
         """
         top = y_top + _CELL_H // 2
         bottom = y_top + _CELL_H + _CELL_H // 2
         parts.append(f'<line x1="{x}" y1="{top}" x2="{x}" y2="{bottom}" stroke="blue" stroke-width="2"/>')
         if dot:
-            parts.append(f'<circle cx="{x}" cy="{top}" r="3" fill="blue"/>')
+            circle = f'<circle cx="{x}" cy="{top}" r="3" fill="blue"/>'
+            (dots if dots is not None else parts).append(circle)
 
     def _render_short_circuit(
         self, parts: list[str], cell: LadderGridCell, objects: list[GraphicalObject], x: int, row: int,
-        y_top: int, row_y: Callable[[int], int], row_end_columns: dict[int, int],
+        y_top: int, row_y: Callable[[int], int], row_end_columns: dict[int, int], dots: list[str],
     ) -> None:
         yc = y_top + _CELL_H // 2
         if cell.wraps == "contact" and cell.wrapped_object_index is not None:
@@ -456,7 +474,7 @@ class LadderSvgExporter:
             # known (e.g. it's the diagram's last row).
             target_col = row_end_columns.get(row + 1)
             connector_x = _MARGIN_LEFT + target_col * _CELL_W if target_col is not None else x + _CELL_W
-            self._render_vlink(parts, connector_x, y_top, dot=True)
+            self._render_vlink(parts, connector_x, y_top, dot=True, dots=dots)
             obj = objects[cell.wrapped_object_index]
             parts.append(f'<line x1="{x}" y1="{yc}" x2="{x + _CELL_W}" y2="{yc}" stroke="black"/>')
             self._render_contact(parts, x + _CELL_W // 2, yc, obj.operand or "?",
@@ -465,7 +483,7 @@ class LadderSvgExporter:
             target_col = row_end_columns.get(row + 1)
             width = (cell.wrapped_width or 1) * _CELL_W
             connector_x = _MARGIN_LEFT + target_col * _CELL_W if target_col is not None else x + width
-            self._render_vlink(parts, connector_x, y_top, dot=True)
+            self._render_vlink(parts, connector_x, y_top, dot=True, dots=dots)
             parts.append(f'<line x1="{x}" y1="{yc}" x2="{x + width}" y2="{yc}" stroke="black"/>')
         elif cell.wraps == "block" and cell.wrapped_object_index is not None:
             # Different shape, real evidence (SR_2.Q1 -> TON_23.IN): this is

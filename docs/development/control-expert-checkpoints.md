@@ -2534,3 +2534,37 @@ coil is undisturbed (no dot, no incoming line, matching the source having
 no `VLink` there). 1 new regression test
 (`test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap`);
 1560 tests pass; Ruff and Pyright pass.
+
+Round 7, same day: "Missing the last vlink old chap." Row 96's dot really
+was in the emitted SVG (confirmed by reading the raw output directly, not
+just re-deriving the arithmetic again) -- the bug was document ORDER, not
+absence. Every intermediate tap (rows 91-95) draws a dot AND a
+reinforcing vertical `VLink` line through the same point, so the dot
+stays visually legible even sitting under a same-row element rendered
+after it. Row 96's dot, having no such line (it is the bus's own last
+stop, per round 6), was drawn immediately by the `vlink` cell's own
+dispatch -- but that row's `coil` cell (M4_S1) is processed right after
+it in the SAME row's left-to-right cell order, and its own lead-in line
+(added in round 3, spanning the coil's whole cell starting at that exact
+column) paints on top of the dot in document order, all but erasing it
+with no line color to compensate.
+
+Fixed generally, not just for this one row: `_render_vlink` now accepts
+an optional `dots: list[str]` output list, appending a dot's own markup
+there instead of directly to `parts` when given; `_render_short_circuit`
+takes the same list, threaded through both its `dot=True` call sites.
+`export_diagram`'s per-row loop collects a `row_dots` list across all of
+that row's cells and extends `parts` with it only after the row's normal
+cell loop finishes, so every dot -- terminal-tap or not -- always paints
+after every other element on its own row, regardless of cell order. This
+also fixes a second, previously unnoticed instance of the identical bug:
+row 90's own shortCircuit dot lands at the same column as its own
+`M1_S1` coil, so it had the same latent risk; not separately reported by
+the user, found and fixed as the same class of bug while implementing
+this.
+
+Verified directly: row 96's dot circle now appears in the SVG text AFTER
+its coil's own lead-in line, not before. 1 test extended
+(`test_export_diagram_multi_tap_reset_bus_aligns_to_coils_and_stops_at_the_last_tap`,
+added a document-order assertion); 1560 tests pass; Ruff and Pyright
+pass.
