@@ -307,21 +307,21 @@ def test_export_diagram_hides_en_eno_for_en_en_o_false_block():
     assert "no EN/ENO" in svg
 
 
-def test_export_diagram_en_en_o_false_block_offset_is_identical_free_standing_or_wrapped():
-    # Real evidence (this project's own SR_2/SR_8/SR_9, sayahali_conveyor_
-    # ali_conv.zef): `landing_pin_name` (ladder.py) resolves an enEnO=false
-    # block's first shown input landing on the block's own anchor row from
-    # BOTH the shortCircuit-wraps-FFBBlock branch AND the plain top-level
-    # FFBBlock branch -- the same evidenced rule either way, since it is a
-    # property of the block itself, not of how it happens to be wired in.
-    # A free-standing block (SR_8/SR_9) never resolves an actual binding
-    # only because nothing precedes it on its own row, not because its own
-    # anchor row works differently -- so a free-standing and a shortCircuit
-    # -wrapped enEnO=false block with the same pins must render at the
-    # SAME size. User caught a real regression here: an earlier version
-    # used a taller offset for the free-standing case with no evidence
-    # behind it, so SR_2 (wrapped) rendered smaller than SR_8/SR_9
-    # (free-standing) despite being the identical block type.
+def test_export_diagram_en_en_o_false_block_offset_differs_free_standing_vs_wrapped():
+    # Ground truth: the original ad hoc PIL verification session's own
+    # reference renderings (cross-checked against the vendor PDF at the
+    # time, kept in this session's own scratchpad as
+    # rows_0_19.png/nocollapse_rows_17_39.png), not this renderer's own
+    # connectivity-model bookkeeping. SR_8 (free-standing, real posY 1):
+    # title on row 1, S1 on row 3, R on row 4 -- offset 2. SR_2
+    # (shortCircuit-wrapped, real posY 21): title on row 21, S1/Q1 sharing
+    # row 22, R on row 23 -- offset 1. A same-session detour tried offset 0
+    # for both (reasoning from ladder.py's connectivity-model bookkeeping
+    # position, which identifies a wire's origin block for matching
+    # purposes but is not a claim about which row a human sees the pin's
+    # own label drawn on) and shipped it without checking these already-
+    # available reference images first -- caught immediately once actually
+    # compared against them.
     pins = [
         _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
         _pin("ENO", "output"), _pin("Q1", "output"),
@@ -342,7 +342,8 @@ def test_export_diagram_en_en_o_false_block_offset_is_identical_free_standing_or
     svg = LadderSvgExporter().export_diagram(diagram)
     heights = re.findall(r'<rect x="\d+" y="\d+" width="136" height="(\d+)" fill="white" stroke="black"', svg)
     assert len(heights) == 2
-    assert heights[0] == heights[1]
+    free_standing_height, wrapped_height = (int(h) for h in heights)
+    assert free_standing_height == wrapped_height + 70  # one extra row (offset 2 vs 1)
 
 
 def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():
@@ -489,17 +490,24 @@ def test_export_diagram_is_deterministic():
 
 
 def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
-    # SR_2 (enEnO="false", shortCircuit-wrapped): S1 and Q1 share the
-    # block's own anchor row (row 21) -- confirmed both by the already-
-    # shipped `landing_pin_name` connectivity rule (S1's own resolved
-    # condition is an empty/unconditional series landing at the block's
-    # own posY) and directly by the user against the real rendering ("S1
-    # pin and Q1 pin are on the same line. R pin is one line down from S1
-    # pin"); an earlier offset (1, not 0) put Q1's own rendered position
-    # one row below its own real connectivity-confirmed origin, visibly
-    # disconnecting it from the SR_2.Q1 -> TON_23.IN wire drawn at row 21.
+    # Ground truth: the original ad hoc PIL verification session's own
+    # reference renderings, cross-checked against the vendor PDF at the
+    # time (kept in this session's own scratchpad:
+    # nocollapse_rows_17_39.png for SR_2, rows_0_19.png for SR_8/SR_9,
+    # sr2_ton23_zoom.png for the SR_2->TON_23 wire shape). SR_2 (enEnO=
+    # "false", shortCircuit-wrapped, real posY 21): title on row 21, S1
+    # and Q1 sharing row 22, R on row 23 -- a same-session detour tried
+    # placing S1/Q1 on row 21 itself (offset 0), reasoning from
+    # ladder.py's own connectivity-model bookkeeping position (which
+    # identifies a wire's origin block for matching purposes, not a claim
+    # about which row a human sees the pin's own label drawn on) --
+    # shipped without checking these already-available reference images
+    # first, caught immediately once actually compared against them.
     # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22 --
-    # unrelated to SR_2 (enEnO="true" uses a different, unaffected offset).
+    # enEnO="true" uses a different, unaffected offset. The reference
+    # image shows an explicit dogleg connecting SR_2.Q1 (row 22) up to
+    # TON_23.IN (row 21) -- not yet drawn by this renderer, a separate,
+    # known gap, not asserted here.
     path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
     if not path.exists():
         pytest.skip("Local sayahali/conveyor-automation reference unavailable")
@@ -519,8 +527,7 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
     def row_y(row: int) -> int:
         return 30 + (row - 1) * 70  # min_row is 1 (SR_8's own row)
 
-    row21_center, row22_center = row_y(21) + 35, row_y(22) + 35
-    assert f'<text x="344" y="{row21_center + 4}">S1</text>' in svg
-    assert f'<text x="476" y="{row21_center + 4}" text-anchor="end">Q1</text>' in svg
-    assert f'<line x1="480" y1="{row21_center}" x2="550" y2="{row21_center}" stroke="black"/>' in svg
-    assert f'<text x="344" y="{row22_center + 4}">R</text>' in svg
+    row22_center, row23_center = row_y(22) + 35, row_y(23) + 35
+    assert f'<text x="344" y="{row22_center + 4}">S1</text>' in svg
+    assert f'<text x="476" y="{row22_center + 4}" text-anchor="end">Q1</text>' in svg
+    assert f'<text x="344" y="{row23_center + 4}">R</text>' in svg

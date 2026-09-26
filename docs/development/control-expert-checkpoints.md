@@ -2695,3 +2695,59 @@ underlying evidence. Recorded as a standing lesson: when writing a
 docstring/comment that cites "confirmed" or "evidenced" behavior, verify
 the SPECIFIC claim being cited applies to the SPECIFIC case at hand, not
 just that some related fact was validated once elsewhere.
+
+Round 11, same day: rounds 9 and 10 were themselves both wrong, and both
+should have been caught immediately -- the ORIGINAL ad hoc PIL
+verification session's own reference renderings, cross-checked against
+the vendor PDF at the time, were sitting in this session's own scratchpad
+the whole time (`rows_0_19.png`, `nocollapse_rows_17_39.png`,
+`sr2_ton23_zoom.png`) and were never actually opened before rounds 9/10
+shipped an offset change based purely on tracing `ladder.py`'s
+connectivity code. Opening them directly: `SR_2` (shortCircuit-wrapped,
+real posY 21) has its title on row 21, `S1` and `Q1` sharing row 22, `R`
+on row 23 -- offset 1, not 0. `SR_8` (free-standing, real posY 1) has its
+title on row 1, `S1` on row 3, `R` on row 4 -- offset 2, not 0. Both
+independently confirm the ORIGINAL, pre-session offset formula
+(`1 if shortcircuit_wrapped else 2`) was correct all along, and BOTH of
+today's changes to it were regressions.
+
+The root error: `ladder.py`'s connectivity model records `SR_2.Q1`'s own
+`LadderPosition` using the row currently being scanned (the block's own
+declared anchor row, 21) purely as a BOOKKEEPING identifier -- enough to
+say "this wire originates from the block anchored at row 21" for matching
+purposes (e.g. against `TON_23.IN`'s condition). It is not a claim about
+which row a human sees `Q1`'s own pin label drawn on in the real
+rendering, which is one row below (22) per the confirmed reference image.
+Treating an internal matching identifier as if it were a rendering-row
+fact produced an offset that visibly disagreed with two independently
+confirmed real reference images -- and did so on a second attempt (round
+10) that doubled down on the same wrong offset instead of re-deriving it
+from primary evidence.
+
+Reverted `_block_span`'s offset formula and the `shortcircuit_wrapped`
+parameter (on both `_block_span` and `_render_block`, and every call
+site) exactly back to their pre-round-9 form. Strengthened two tests
+against the ACTUAL reference-image evidence this time, not inference:
+`test_optional_real_sayahali_export_diagram_matches_confirmed_positions`
+now asserts `S1`/`Q1` at row 22 and `R` at row 23 (not row 21/21/22);
+`test_export_diagram_en_en_o_false_block_offset_differs_free_standing_
+vs_wrapped` (replacing round 10's now-inverted claim) asserts the
+free-standing case is genuinely one row taller than the wrapped case, not
+equal. 1561 tests pass; Ruff and Pyright pass.
+
+Noted but deliberately not fixed this pass: the reference image
+(`sr2_ton23_zoom.png`) shows an explicit dogleg wire connecting `SR_2.Q1`
+(row 22) up to `TON_23.IN` (row 21) -- this renderer currently draws no
+such connector at all (`SR_2`'s own output pin stub and the row 21
+`HLink` continuing to `M1_S1` are two disconnected segments on different
+rows), a separate, pre-existing gap independent of today's offset
+question, called out here rather than silently left unmentioned.
+
+Lesson for [[control_expert_ld_rendering]]: this project already had
+directly-confirmed ground truth available in its own scratchpad
+(reference renderings from the original verification session) for
+exactly this question, and two consecutive rounds of changes were made
+by tracing code instead of opening that ground truth first. When a
+confirmed visual reference for the exact question at hand already exists
+on disk, consult it before reasoning from connectivity-model internals --
+code correctness is not the same evidence as a rendering fact.
