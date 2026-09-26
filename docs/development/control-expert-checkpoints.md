@@ -2654,3 +2654,44 @@ next"), the still-open question of drawing an actual connecting wire from
 `capteur_2`/`capteur_3` up to `S1`/`R` (currently unresolved by the
 connectivity model, same open gap as `SR_8`) is deliberately deferred to
 a following pass, not attempted here.
+
+Round 10, same day: "Why is SR_2 not the same size as SR_8 and SR_9?" --
+a direct question that exposed the round-9 fix was still incomplete.
+`_block_span`'s free-standing offset (2, unchanged since before this
+session) was never actually evidenced -- it rested on the SAME
+unvalidated assumption round 9 already found wrong for the wrapped case
+("a free-standing block needs a dedicated blank header row"). Re-checking
+`ladder.py` directly: `landing_pin_name` is called identically from BOTH
+the shortCircuit-wraps-FFBBlock branch AND the plain top-level FFBBlock
+branch -- the anchor-row landing on the first shown input is a property
+of the BLOCK ITSELF (`enEnO=False`), never of how it happens to be wired
+in. `SR_8`/`SR_9` (free-standing, real fixture) never resolve an actual
+S1 binding only because nothing precedes them on their own row to supply
+one -- not because their own anchor row works any differently than
+`SR_2`'s. Removed the `shortcircuit_wrapped`-conditional offset entirely:
+`enEnO=False` now always uses offset 0, regardless of wrapping. The
+now-unused `shortcircuit_wrapped` parameter was removed from
+`_block_span`/`_render_block` and every call site, rather than left as
+dead plumbing.
+
+Verified directly: `SR_8`, `SR_9` and `SR_2` (all `SR`, all
+`enEnO="false"`, identical pin counts) now render at the identical box
+height (136px, 2 rows) in the real fixture -- previously `SR_2` was 136px
+and `SR_8`/`SR_9` were 206px (3 rows), an unexplained inconsistency
+between three instances of the exact same block type that the user's own
+question caught. 1 new regression test
+(`test_export_diagram_en_en_o_false_block_offset_is_identical_free_standing_or_wrapped`,
+free-standing and shortCircuit-wrapped blocks with identical pins in one
+diagram, asserting equal rendered heights); 1561 tests pass; Ruff and
+Pyright pass.
+
+This is the third time in this same rendering feature that a comment or
+checkpoint entry stated something as "confirmed real evidence" when it
+was actually an unvalidated assumption dressed in confident language (see
+also round 6's reverted termination rule, and [[feedback_verify_before_
+claiming_mirrors]]) -- in every case, the phrasing survived unchallenged
+until a user question or screenshot forced a re-check against the actual
+underlying evidence. Recorded as a standing lesson: when writing a
+docstring/comment that cites "confirmed" or "evidenced" behavior, verify
+the SPECIFIC claim being cited applies to the SPECIFIC case at hand, not
+just that some related fact was validated once elsewhere.

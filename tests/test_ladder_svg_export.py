@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -304,6 +305,44 @@ def test_export_diagram_hides_en_eno_for_en_en_o_false_block():
     assert ">EN<" not in svg
     assert ">ENO<" not in svg
     assert "no EN/ENO" in svg
+
+
+def test_export_diagram_en_en_o_false_block_offset_is_identical_free_standing_or_wrapped():
+    # Real evidence (this project's own SR_2/SR_8/SR_9, sayahali_conveyor_
+    # ali_conv.zef): `landing_pin_name` (ladder.py) resolves an enEnO=false
+    # block's first shown input landing on the block's own anchor row from
+    # BOTH the shortCircuit-wraps-FFBBlock branch AND the plain top-level
+    # FFBBlock branch -- the same evidenced rule either way, since it is a
+    # property of the block itself, not of how it happens to be wired in.
+    # A free-standing block (SR_8/SR_9) never resolves an actual binding
+    # only because nothing precedes it on its own row, not because its own
+    # anchor row works differently -- so a free-standing and a shortCircuit
+    # -wrapped enEnO=false block with the same pins must render at the
+    # SAME size. User caught a real regression here: an earlier version
+    # used a taller offset for the free-standing case with no evidence
+    # behind it, so SR_2 (wrapped) rendered smaller than SR_8/SR_9
+    # (free-standing) despite being the identical block type.
+    pins = [
+        _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
+        _pin("ENO", "output"), _pin("Q1", "output"),
+    ]
+    free_standing = _block("SR_8", "SR", pins, en_en_o=False)
+    wrapped = _block("SR_2", "SR", pins, en_en_o=False)
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[free_standing, wrapped],
+        grid_rows=[
+            LadderGridRow(row=0, cells=[LadderGridCell(column=0, kind="block", width=2, object_index=0)]),
+            LadderGridRow(row=5, cells=[
+                LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                               wrapped_width=2, wrapped_object_index=1),
+            ]),
+        ],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    heights = re.findall(r'<rect x="\d+" y="\d+" width="136" height="(\d+)" fill="white" stroke="black"', svg)
+    assert len(heights) == 2
+    assert heights[0] == heights[1]
 
 
 def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():

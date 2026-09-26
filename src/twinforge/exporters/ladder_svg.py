@@ -267,10 +267,10 @@ class LadderSvgExporter:
             for cell in grid_row.cells:
                 max_column = max(max_column, cell.column + cell.width)
                 if cell.kind == "block" and cell.object_index is not None:
-                    span, *_ = self._block_span(objects[cell.object_index], shortcircuit_wrapped=False)
+                    span, *_ = self._block_span(objects[cell.object_index])
                     max_row = max(max_row, grid_row.row + span - 1)
                 elif cell.kind == "short_circuit" and cell.wraps == "block" and cell.wrapped_object_index is not None:
-                    span, *_ = self._block_span(objects[cell.wrapped_object_index], shortcircuit_wrapped=True)
+                    span, *_ = self._block_span(objects[cell.wrapped_object_index])
                     max_row = max(max_row, grid_row.row + span - 1)
                 else:
                     max_row = max(max_row, grid_row.row)
@@ -346,8 +346,7 @@ class LadderSvgExporter:
                     vlink_x = _MARGIN_LEFT + row_end_columns[grid_row.row] * _CELL_W
                     self._render_vlink(parts, vlink_x, y_top, dot=not is_lone, dots=row_dots)
                 elif cell.kind == "block" and cell.object_index is not None:
-                    self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y,
-                                       shortcircuit_wrapped=False)
+                    self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y)
                 elif cell.kind == "short_circuit":
                     self._render_short_circuit(parts, cell, objects, x, grid_row.row, y_top, row_y,
                                                row_end_columns, row_dots)
@@ -356,34 +355,42 @@ class LadderSvgExporter:
         parts.append("</svg>")
         return "\n".join(parts)
 
-    def _block_span(
-        self, obj: GraphicalObject, *, shortcircuit_wrapped: bool,
-    ) -> tuple[int, list[GraphicalPin], list[GraphicalPin], int]:
+    def _block_span(self, obj: GraphicalObject) -> tuple[int, list[GraphicalPin], list[GraphicalPin], int]:
         """(span, shown_inputs, shown_outputs, row_offset).
 
         `enEnO=False` hides EN/ENO's OWN label entirely (not merely
-        unwired). For a shortCircuit-wrapped block, the first shown input
-        AND the first shown output share the block's own anchor row --
-        confirmed directly against `SR_2` (real fixture): the already-
-        shipped `landing_pin_name` connectivity rule (`ladder.py`) resolves
-        S1's condition at the block's own `posY` (an empty/unconditional
-        series, since nothing precedes it on that row) and the block-output
-        connectivity resolves `Q1`'s own origin at that identical row too
-        (used by the real `SR_2.Q1 -> TON_23.IN` wire) -- both independent
-        of and unrelated to this renderer's own offset math, so a mismatch
-        between them is a real bug, not a style choice. The user's own
-        direct confirmation on this exact block: "S1 pin and Q1 pin are on
-        the same line. R pin is one line down from S1 pin" -- offset 0,
-        not 1. A free-standing (non-wrapped) `enEnO=False` block keeps
-        offset 2 (a dedicated blank header row, unconfirmed to have
-        changed -- no real corpus example has content on such a block's
-        own anchor row to test it either way, so this is left as before).
+        unwired). The first shown input AND the first shown output share
+        the block's own anchor row -- confirmed directly against `SR_2`
+        (real fixture): the already-shipped `landing_pin_name`
+        connectivity rule (`ladder.py`) resolves S1's condition at the
+        block's own `posY` (an empty/unconditional series, since nothing
+        precedes it on that row), and the block-output connectivity
+        resolves `Q1`'s own origin at that identical row too (used by the
+        real `SR_2.Q1 -> TON_23.IN` wire). The user's own direct
+        confirmation on this exact block: "S1 pin and Q1 pin are on the
+        same line. R pin is one line down from S1 pin" -- offset 0.
+
+        This is NOT specific to a shortCircuit-wrapped block: `ladder.py`
+        calls the identical `landing_pin_name` from BOTH the shortCircuit-
+        wraps-FFBBlock branch and the plain top-level FFBBlock branch (a
+        free-standing block, e.g. `SR_8`/`SR_9`) -- the anchor row landing
+        on S1 is a property of the BLOCK ITSELF (`enEnO=False`), not of how
+        it happens to be wired into. `SR_8`/`SR_9` never resolve an actual
+        S1 binding only because nothing precedes them on their own row to
+        supply one, not because their own anchor row works differently.
+        An earlier version of this offset used 2 for the free-standing
+        case, based on an unvalidated assumption ("a wrapped block's own
+        row already carries other content, a free-standing one needs a
+        blank header") that was never actually cross-checked against this
+        same evidence -- caught when the user asked why `SR_2` wasn't the
+        same size as `SR_8`/`SR_9`, which it should be (both `enEnO=False`
+        SR blocks with identical pin counts).
         """
         inputs = [p for p in obj.pins if p.direction == "input"]
         outputs = [p for p in obj.pins if p.direction == "output"]
         if obj.en_en_o is False:
             shown_inputs, shown_outputs = inputs[1:], outputs[1:]
-            offset = 0 if shortcircuit_wrapped else 2
+            offset = 0
         else:
             shown_inputs, shown_outputs = inputs, outputs
             offset = 1
@@ -395,9 +402,8 @@ class LadderSvgExporter:
 
     def _render_block(
         self, parts: list[str], obj: GraphicalObject, x: int, anchor_row: int, row_y: Callable[[int], int],
-        *, shortcircuit_wrapped: bool,
     ) -> None:
-        span, shown_inputs, shown_outputs, offset = self._block_span(obj, shortcircuit_wrapped=shortcircuit_wrapped)
+        span, shown_inputs, shown_outputs, offset = self._block_span(obj)
         box_w = _BLOCK_WIDTH_COLUMNS * _CELL_W
         y_top = row_y(anchor_row)
         y_bottom = row_y(anchor_row + span - 1) + _CELL_H
@@ -495,6 +501,6 @@ class LadderSvgExporter:
             # row_end_columns lookup, and no dot (a plain elbow, not a
             # junction where multiple wires actually meet).
             self._render_vlink(parts, x, y_top, dot=False)
-            self._render_block(parts, objects[cell.wrapped_object_index], x, row, row_y, shortcircuit_wrapped=True)
+            self._render_block(parts, objects[cell.wrapped_object_index], x, row, row_y)
         else:
             self._render_unsupported(parts, x + _CELL_W // 2, yc, "shortCircuit", "unresolved")
