@@ -86,7 +86,8 @@ MBP_MSTR) and every pin count from 1 to 6. `nbColumns="11"` itself is
 identical across the whole corpus.
 """
 from twinforge.model import (
-    LadderInstruction, LadderOperation, LadderPinCondition, LadderPosition, LadderRung, LadderSeries,
+    LadderGridCell, LadderGridRow, LadderInstruction, LadderOperation, LadderPinCondition, LadderPosition,
+    LadderRung, LadderSeries,
 )
 
 from .capture import CapturedSection, Diagnostic
@@ -109,6 +110,135 @@ _COIL_OPERATIONS = {
     # existed in the model but this mnemonic was simply missing here.
     "setCoil": LadderOperation.SET_COIL,
 }
+
+# The four graphical.py `GraphicalSpec.objects` tags, in the exact order
+# `parse_diagrams`'s own recursive walk (`objects()`, containers = typeLine/
+# shortCircuit) appends them to `GraphicalDiagram.objects` -- needed here so
+# `compute_ld_grid` can assign the SAME index to the SAME contact/coil/block/
+# textBox a consumer would already find at `diagram.objects[index]`, without
+# importing graphical.py's own walker (LD-specific column/row tracking has
+# no FBD/SFC equivalent, so it stays a separate function, not a shared one).
+_GRAPHICAL_OBJECT_TAGS = frozenset({"contact", "coil", "FFBBlock", "textBox"})
+
+
+def _count_objects(node: CapturedSection) -> int:
+    """How many `GraphicalObject`s `parse_diagrams` appends from `node`'s
+
+    own subtree, recursing the identical container set (`typeLine`,
+    `shortCircuit`) it does. Used only to keep `compute_ld_grid`'s object
+    index counter correctly synchronized across a shortCircuit shape this
+    module doesn't otherwise interpret (an FFBBlock/textBox/multiple
+    contacts inside a malformed shortCircuit still gets counted by
+    `parse_diagrams`, so this function must count it too, or every later
+    index in the row/network would be wrong).
+    """
+    count = 1 if node.tag in _GRAPHICAL_OBJECT_TAGS else 0
+    if node.tag in {"typeLine", "shortCircuit"}:
+        for child in node.ordered_children:
+            count += _count_objects(child)
+    return count
+
+
+def compute_ld_grid(network: CapturedSection) -> list[LadderGridRow]:
+    """Every occupied LD grid cell, positioned, for a renderer or other
+
+    consumer that needs the actual layout -- not a connectivity claim (see
+    `LadderGridCell`'s own docstring). Uses the identical row/column rules
+    already established and tested elsewhere in this module (`emptyLine`
+    advances the row counter without occupying one; `emptyCell`/`HLink`
+    consume their `nbCells`; a contact, coil or bare `VLink` consumes
+    exactly one column; an `FFBBlock` consumes `_FFB_BLOCK_WIDTH`), so a
+    caller with BOTH this and `resolve_ladder_pin_conditions`/
+    `parse_ladder_rungs` output never sees the two disagree.
+
+    `object_index` on a returned cell matches `parse_diagrams`'s own
+    `GraphicalDiagram.objects` order exactly (see `_count_objects`) -- a
+    caller can already look up a `GraphicalObject`'s resolved pins/
+    bindings/diagnostics from that same list by index, rather than this
+    function duplicating any of it.
+    """
+    rows: list[LadderGridRow] = []
+    row = 0
+    object_index = 0
+    for line in network.ordered_children:
+        if line.tag == "textBox":
+            object_index += 1
+            continue
+        if line.tag != "typeLine":
+            continue
+        children = line.ordered_children
+        if len(children) == 1 and children[0].tag == "emptyLine":
+            skip = children[0].raw_attributes.get("nbRows", "")
+            if skip.isascii() and skip.isdecimal():
+                row += int(skip)
+            continue
+        column = 0
+        grid_cells: list[LadderGridCell] = []
+        for child in children:
+            if child.tag == "emptyCell":
+                width = child.raw_attributes.get("nbCells", "")
+                column += int(width) if width.isascii() and width.isdecimal() else 0
+            elif child.tag == "HLink":
+                width_str = child.raw_attributes.get("nbCells", "")
+                width = int(width_str) if width_str.isascii() and width_str.isdecimal() else 1
+                grid_cells.append(LadderGridCell(column=column, kind="hlink", width=width))
+                column += width
+            elif child.tag == "VLink":
+                grid_cells.append(LadderGridCell(column=column, kind="vlink"))
+                column += 1
+            elif child.tag == "contact":
+                grid_cells.append(LadderGridCell(column=column, kind="contact", object_index=object_index))
+                object_index += 1
+                column += 1
+            elif child.tag == "coil":
+                grid_cells.append(LadderGridCell(column=column, kind="coil", object_index=object_index))
+                object_index += 1
+                column += 1
+            elif child.tag == "FFBBlock":
+                grid_cells.append(LadderGridCell(
+                    column=column, kind="block", width=_FFB_BLOCK_WIDTH, object_index=object_index))
+                object_index += 1
+                column += _FFB_BLOCK_WIDTH
+            elif child.tag == "shortCircuit":
+                grandchildren = child.ordered_children
+                vlinks = [g for g in grandchildren if g.tag == "VLink"]
+                others = [g for g in grandchildren if g.tag != "VLink"]
+                cell = LadderGridCell(column=column, kind="short_circuit", width=1)
+                if len(vlinks) == 1 and len(others) == 1 and others[0].tag == "contact":
+                    cell.wraps = "contact"
+                    cell.wrapped_width = 1
+                    cell.wrapped_object_index = object_index
+                    object_index += 1
+                elif len(vlinks) == 1 and len(others) == 1 and others[0].tag == "HLink":
+                    width_str = others[0].raw_attributes.get("nbCells", "")
+                    width = int(width_str) if width_str.isascii() and width_str.isdecimal() else 1
+                    cell.wraps = "hlink"
+                    cell.wrapped_width = width
+                    cell.width = width
+                elif len(vlinks) == 1 and len(others) == 1 and others[0].tag == "FFBBlock":
+                    cell.wraps = "block"
+                    cell.wrapped_width = _FFB_BLOCK_WIDTH
+                    cell.wrapped_object_index = object_index
+                    object_index += 1
+                    cell.width = _FFB_BLOCK_WIDTH
+                else:
+                    # Not one of the three evidenced shapes (matches
+                    # ladder.py's own `unresolved_ladder_short_circuit`) --
+                    # still count whatever real objects are in here so
+                    # later indices in this network stay correct.
+                    for grandchild in grandchildren:
+                        object_index += _count_objects(grandchild)
+                grid_cells.append(cell)
+                column += cell.width
+            elif child.tag == "textBox":
+                object_index += 1
+            # "emptyLine" cannot appear here (only as a typeLine's sole
+            # child, handled above); any other/unknown tag has no width
+            # convention and is silently skipped for grid-layout purposes,
+            # matching parse_ladder_rungs's own permissive column walk.
+        rows.append(LadderGridRow(row=row, cells=grid_cells))
+        row += 1
+    return rows
 
 
 def _block_output_origins(network: CapturedSection) -> dict[tuple[int, int], tuple[str, str, str]]:

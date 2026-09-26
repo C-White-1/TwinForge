@@ -50,6 +50,8 @@ from .graphical import (
     GraphicalObject,
     GraphicalPin,
     GraphicalVariableReferences,
+    LadderGridCell,
+    LadderGridRow,
     MemberPath,
 )
 from .ladder import (
@@ -132,6 +134,8 @@ __all__ = [
     "GraphicalObject",
     "GraphicalPin",
     "GraphicalVariableReferences",
+    "LadderGridCell",
+    "LadderGridRow",
     "MemberPath",
     "AddOnInstruction",
     "AddOnInstructionDependency",

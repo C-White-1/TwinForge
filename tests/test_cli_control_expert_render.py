@@ -36,7 +36,7 @@ def test_cli_renders_one_svg_per_network(tmp_path: Path):
     assert svg.startswith("<svg ")
     assert ">A<" in svg
     assert ">Out<" in svg
-    assert "1 rungs ->" in output.getvalue()
+    assert "2 objects ->" in output.getvalue()
 
 
 def test_cli_render_filters_by_routine_name(tmp_path: Path):

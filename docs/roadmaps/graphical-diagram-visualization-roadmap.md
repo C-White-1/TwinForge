@@ -55,12 +55,12 @@ roadmap, not assumed from memory:
 
 What is **not** yet true, and matters for scoping below:
 
-- Contacts and coils only get a `LadderPosition` when they resolve as part
-  of a *pure-series* `LadderRung`. A row diagnosed `unresolved_ladder_row`
-  (`shortCircuit`/`VLink`/`FFBBlock` present) carries no per-element
-  position in the model today -- only the raw retained source extension.
-  Rendering such a row faithfully needs either new model fields or a
-  fallback to source-extension-derived position, not yet decided here.
+- ~~Contacts and coils only get a `LadderPosition` when they resolve as
+  part of a *pure-series* `LadderRung`.~~ Resolved by Milestone 2:
+  `GraphicalDiagram.grid_rows`/`LadderGridCell` now positions every
+  contact/coil/block and every `HLink`/`VLink`/`shortCircuit` in an LD
+  network, independent of whether the row also resolves as a
+  `LadderRung`.
 - FBD's `objPosition posX`/`posY` are free-canvas pixel offsets, not LD's
   grid cells -- the same `LadderPosition` dataclass currently holds both,
   which is a real semantic overload worth deciding on (a distinct pixel-
@@ -71,20 +71,16 @@ What is **not** yet true, and matters for scoping below:
   confirmed 100% consistent (`nbColumns="11"`) across every Control
   Expert LD fixture examined so far, but not currently retained on
   `GraphicalDiagram` itself.
-- `LadderRung` carries no network-index field, and `LadderRung.number`
-  (the row) resets to 0 for every `networkLD` the parser walks
-  (`parsers/control_expert/ladder.py::parse_ladder_rungs`) -- a routine
-  with two or more networks can produce rungs with duplicate `number`s
-  and nothing in the model itself distinguishes which network a given
-  rung belongs to. Confirmed real, not theoretical:
-  `Escalier_Mecanique.XEF` has a routine with multiple `networkLD`
-  siblings. Milestone 1's CLI works around this without a model change,
-  by grouping consecutive rungs that share the same parent
-  `SourceExtension.xml_path` -- correct because the parser always emits
-  one network's rungs contiguously -- but that workaround is
-  Control-Expert-specific CLI logic, not something `LadderSvgExporter`
-  itself (or any other model consumer) can rely on. A real fix is a
-  `network_index` field on `LadderRung`, not yet done.
+- `LadderRung` still carries no network-index field (`LadderRung.number`,
+  the row, resets to 0 for every `networkLD` the parser walks). This no
+  longer matters for rendering: Milestone 2's CLI renders
+  `Routine.graphical_diagrams` directly, and each `GraphicalDiagram`
+  already knows which network it is, so the Milestone 1 workaround
+  (grouping consecutive rungs by shared `SourceExtension.xml_path`) was
+  removed rather than kept alongside the new path. The underlying gap
+  would still matter to a *different* consumer of `LadderRung` directly
+  (not through a `GraphicalDiagram`) -- not fixed at the model level,
+  just no longer on this roadmap's own critical path.
 
 ## Milestone 1: LD grid rendering for pure-series rungs
 
@@ -112,19 +108,39 @@ What is **not** yet true, and matters for scoping below:
   SVG (`test_ladder_svg_export.py::test_export_is_deterministic`), the
   same guarantee `aoi_plantuml.py` already provides
 
-## Milestone 2: rows the model does not yet position
+## Milestone 2: rows the model does not yet position -- done
 
-- [ ] Decide and implement how an `unresolved_ladder_row` (branch/link/
-  block wiring not evidenced) is rendered -- likely as its retained
-  source extension's raw grid coordinates recovered on demand, or by
-  extending the model to carry per-element position generally, not only
-  for resolved pure-series rows
-- [ ] Render `FFBBlock`s inline using `GraphicalObject.position`/`width`/
-  `height` and their `GraphicalPin`s, reusing the confirmed 2-column
-  width and `posY+1+i` output-row math from the block-output-reference
-  work where it applies, and leaving pins it does not resolve (`R` on an
-  `enEnO="false"` block, `inputs > outputs` shapes' outputs) visibly
-  unresolved rather than guessed at
+- [x] Decided and implemented: extended the model generally, not a
+  source-extension fallback. `GraphicalDiagram.grid_rows`/`LadderGridCell`
+  (`model/graphical.py`) positions every contact/coil/block AND every
+  `HLink`/`VLink`/`shortCircuit` in an LD network, computed by a new
+  `compute_ld_grid()` (`parsers/control_expert/ladder.py`) that reuses the
+  identical row/column rules already tested elsewhere in that module. See
+  the LD grid geometry checkpoint
+  (`docs/development/control-expert-checkpoints.md`).
+- [x] `FFBBlock`s render inline (`LadderSvgExporter.export_diagram`,
+  `exporters/ladder_svg.py`), reusing the confirmed 2-column width and
+  `posY+1+i` pin-row math -- generalized to inputs too (already shipped
+  separately for `TON.IN`-style later inputs, see the block-to-block
+  chaining checkpoint) and to `enEnO="false"`'s own hidden-EN/ENO offset
+  (free-standing vs shortCircuit-wrapped). Numerically verified against
+  the real fixture, not just visually: `TON_23.IN`'s rendered Y position
+  matches `posY+1+1` exactly, `SR_2`'s rendered box height matches its
+  confirmed 3-row span exactly. Per this roadmap's own non-goal below,
+  wire routing for `shortCircuit`/bare `VLink` is deliberately simple (one
+  vertical connector per row, not the precise multi-segment corner
+  placement a real ad hoc verification script worked out) -- pin ROW
+  placement is not a styling choice and is not simplified.
+- [x] CLI switched to render `Routine.graphical_diagrams` directly
+  (`cli/control_expert_render.py`) -- each `GraphicalDiagram` already
+  knows which network it is, so the Milestone 1 `_group_rungs_by_network`/
+  `_network_key` workaround this roadmap flagged as fragile is gone
+  entirely, not just left in place alongside the new path.
+- Still open, not attempted this pass: `R` on an `enEnO="false"` block
+  and `inputs > outputs` shapes' outputs remain genuinely unresolved (no
+  positive example in the corpus) -- rendered as declared-but-unwired
+  pins with no drawn condition, same honesty as the connectivity model
+  itself, not hidden or guessed at.
 
 ## Milestone 3: FBD rendering
 

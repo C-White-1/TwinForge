@@ -2208,3 +2208,189 @@ real-fixture, 3 synthetic covering the consumed-wire bug and both scope
 guards -- an `enEnO="true"` block does not also originate an output wire,
 and a block with more than one wireable output is left unresolved). 1541
 tests pass project-wide; Ruff and Pyright pass.
+
+LD grid geometry checkpoint, first step toward a rendering feature
+(2026-09-26): the user asked for a real LD diagram-rendering capability,
+building on the same visual review that produced the SR/TON chaining work
+above. Before writing any rendering code, checked what the existing
+captured model actually holds: `GraphicalObject.position` is set only from
+an explicit `objPosition` (`FFBBlock`/`textBox`), never for `contact`/
+`coil` (no such element exists for them in the source XML), and
+`HLink`/`VLink`/`shortCircuit` grid wiring is not exposed as objects at
+all -- a deliberate prior scope limit (`docs/architecture/control-expert-
+exchange-capture.md`'s graphical-object-evidence section: "Their implicit
+grid positions... are not inferred"), correct as a statement about what
+existed then, now superseded.
+
+Two new model types (`model/graphical.py`): `LadderGridCell` (column,
+kind, width, and an `object_index` into the OWNING `GraphicalDiagram.
+objects` for contact/coil/block cells) and `LadderGridRow`, collected on a
+new `GraphicalDiagram.grid_rows` field (LD only, empty for FBD/SFC). A new
+`compute_ld_grid()` (`parsers/control_expert/ladder.py`) populates it,
+reusing the identical row/column rules already established and tested
+elsewhere in that module (`emptyLine` advances the row counter without
+occupying one, `emptyCell`/`HLink` consume `nbCells`, a contact/coil/bare
+`VLink` consumes one column, `FFBBlock` consumes `_FFB_BLOCK_WIDTH`) --
+deliberately a separate function, not a shared refactor of
+`parse_ladder_rungs`/`resolve_ladder_pin_conditions`, since LD's row/column
+concept has no FBD/SFC equivalent and refactoring well-tested connectivity
+code carried more regression risk than the geometry work needed.
+
+The real risk in a second, independent walker: keeping its own
+`object_index` counter synchronized with `parse_diagrams`'s own recursive
+walk (`objects()`, `graphical.py`), which appends a `GraphicalObject` for
+*every* contact/coil/block/textBox it finds, including inside a malformed
+`shortCircuit` shape this module doesn't otherwise interpret. A new
+`_count_objects()` helper mirrors that exact recursion for the
+"don't-know-this-shape" fallback, so a later index in the same network
+can't drift. Verified directly against the real fixture, not assumed: for
+every contact/coil this produces, `diagram.objects[cell.object_index]` is
+the exact same object a caller would already find there (checked against
+`SR_2`/`M1_S1` by name, not just index arithmetic).
+
+`parse_diagrams` now calls `compute_ld_grid()` for LD networks only, right
+after building `diagram.objects`, and backfills `GraphicalObject.position`
+for every contact/coil (and a contact wrapped directly inside a
+`shortCircuit`) using the same computed cells -- blocks are left alone,
+since they already carry an explicit, never-overwritten `objPosition`.
+One existing test asserted the OLD limitation as a design guarantee
+(`test_ladder_contacts_do_not_receive_invented_positions_or_semantics`);
+updated (renamed
+`test_ladder_contacts_receive_real_grid_positions_but_no_invented_semantics`)
+to assert the new, intentional computed position instead of `None`, since
+it was encoding a since-closed gap, not a regression.
+
+8 new tests (`test_control_expert_ladder.py`): three shortCircuit shapes
+via `compute_ld_grid` directly, bare `VLink`/`FFBBlock` width, the
+malformed-shortCircuit and interspersed-`textBox` object-index-sync
+guards, and a real-fixture test cross-checking `SR_2`'s grid cell against
+its own resolved object identity. 1549 tests pass project-wide; Ruff and
+Pyright pass. This is geometry only -- no rendering output yet; that's the
+next step, not part of this checkpoint.
+
+LD rendering, Milestone 2 of the visualization roadmap (2026-09-26, same
+day): with the LD grid geometry checkpoint above in place, implemented the
+actual rendering it was for -- `FFBBlock`s and `shortCircuit`/`VLink`/
+bare-wire rows, which `LadderSvgExporter`'s original Milestone 1 export
+(`export()`, pure-series `LadderRung` only) could not draw at all. New
+`export_diagram()` renders a full `GraphicalDiagram` directly from
+`grid_rows`, reusing `_render_contact`/`_render_coil` for the already-
+covered element kinds.
+
+One small, necessary model gap closed first: `GraphicalObject` had no
+`enEnO` field at all -- needed to decide whether to hide a block's EN/ENO
+pins and which row offset applies, and not previously captured because
+nothing had needed it before. Added as `en_en_o: bool | None`, following
+the same raw-attribute-to-`bool` convention `GraphicalPin.inverted`
+already uses; confirmed directly against the real fixture (`SR_2.en_en_o
+is False`, `TON_23.en_en_o is True`) before relying on it.
+
+Block pin row placement reuses the confirmed real offsets from this
+project's own ladder-rendering verification session (an ad hoc PIL
+renderer, never committed, built purely to eyeball-verify parser output
+against a vendor PDF): `enEnO="false"` hides EN/ENO's own label entirely
+(not merely unwired) and starts the first shown pin at `posY+1`
+(shortCircuit-wrapped) or `posY+2` (free-standing); `enEnO="true"` shows
+every pin starting at `posY+1`, generalizing the already-shipped
+`posY+1+i` output-row formula to a block's own later inputs too (already
+shipped for connectivity, see the block-to-block chaining checkpoint --
+this is the same formula now also driving where the LABEL is drawn).
+Verified numerically against the real fixture, not just visually:
+`TON_23.IN`'s rendered Y position matches `posY+1+1` exactly, `SR_2`'s
+rendered box height matches its confirmed 3-row span exactly.
+
+Per the roadmap's own explicit non-goal (not pixel-perfect replication of
+Control Expert's own rendering), `shortCircuit`/bare `VLink` wire routing
+is deliberately simple: one vertical connector through the row it's on,
+not the precise multi-segment corner placement the verification session
+worked out for a from-scratch visual clone. This is a real, considered
+scope reduction, not a shortcut that skipped evidence -- pin ROW
+placement above is not simplified the same way, since getting a pin's row
+wrong would show it on a genuinely incorrect row, not just a less
+faithful wire path.
+
+CLI (`cli/control_expert_render.py`) switched from grouping
+`Routine.ladder_rungs` by inferred network boundaries to iterating
+`Routine.graphical_diagrams` directly -- each `GraphicalDiagram` already
+knows which network it is, so the fragile `_group_rungs_by_network`/
+`_network_key` workaround the roadmap itself had flagged is gone
+entirely, not left in place alongside the new path. One existing CLI test
+updated for the new stdout wording (object count, not rung count -- a
+rendered network can now contain blocks with no `LadderRung` at all).
+
+7 new tests (`test_ladder_svg_export.py`): contact/coil rows, `enEnO`
+offset math for both `enEnO="true"`/`"false"`, all three `shortCircuit`
+shapes, the unresolved-shape placeholder, determinism, and a real-fixture
+test asserting the exact confirmed positions above. 1556 tests pass
+project-wide; Ruff and Pyright pass.
+
+Deliberately not attempted, no positive example: `R` on an `enEnO="false"`
+block and `inputs > outputs` shapes' own outputs still render as
+declared-but-unwired pins with no drawn condition -- the same honest gap
+the connectivity model itself already has, not hidden or guessed at by
+the renderer.
+
+Connector fix, same day: the user's first look at real output (`SR_8`, the
+project's own opening real fixture from the very start of the whole
+rendering-verification session) caught a real regression immediately --
+the vertical connector only spanned its own row's top-to-bottom, visibly
+stopping at the row boundary instead of reaching the row below's own wire.
+This is the *exact* bug the original ad hoc PIL script fixed as its very
+first correction this project ever made in that verification session
+(`SR_8`'s own `R` input, fed by `selec_auto` ORed with `ARRET_MOT` one row
+below) -- reintroduced here because `export_diagram` was written fresh
+rather than reusing that script's own proven `draw_vlink_full_row` logic.
+Fixed the same way: a connector now bridges THIS row's own center to the
+NEXT row's center, not top-to-bottom of one row. Added a junction dot for
+a genuine split (wraps a contact/HLink) that the original simplification
+had dropped entirely, matching the confirmed real distinction from the
+same verification session (an elbow carrying a block's own single output
+onward gets no dot; an actual OR-merge/bus-tap does). Verified
+numerically, not visually, against the real fixture this time: the
+connector at `SR_8.R` now spans y=275 to y=345 exactly, matching row 4's
+and row 5's own drawn centers, with `ARRET_MOT`'s own wire starting at the
+identical point (130, 345). 1556 tests still pass; Ruff and Pyright pass.
+
+Round 2 connector/wire fixes, same day: a second look at real output found
+two more real bugs, reported by the user in the same direct style ("Where
+are the lines between the contacts / device? Why is the vlink not at the
+end of line 5"). (1) `export_diagram` never drew a horizontal lead between
+series contacts/coils -- `_render_contact`/`_render_coil` only draw the
+narrow symbol glyph itself; Milestone 1's own `export()` relied on a
+separate whole-row background line (`_render_rung_wire`) that
+`export_diagram()` had no equivalent of, so every contact/coil appeared
+visually disconnected from its neighbors. Fixed by drawing a full-cell-width
+horizontal line before each contact/coil symbol, both in `export_diagram`'s
+main dispatch and inside `_render_short_circuit`'s `wraps="contact"`
+branch. (2) The `shortCircuit` connector's column used the cell's own start
+column (offset by the wrapped width), not the TARGET row's real end
+column -- the exact rule already proven in the original PIL script and
+already shipped in `ladder.py`'s own connectivity code, but not ported into
+the renderer the first time. Confirmed by direct computation on the real
+fixture: row 5's real end column is 2, but the connector was drawn at
+column 1 (x=130 instead of x=200) -- visibly short of "the end of line 5",
+exactly as the user described. Fixed by precomputing
+`row_end_columns: dict[int, int]` once per `export_diagram` call (row ->
+`max(cell.column + cell.width)`, the same concept already used elsewhere)
+and passing it into `_render_short_circuit`, which now looks up
+`row_end_columns.get(row + 1)` for the `wraps="contact"`/`"hlink"` shapes
+(falling back to the wrapped-width offset only if that row has no other
+cells); `wraps="block"` is unchanged, since a block's own output
+continuing on the same row is a materially different shape (no row-below
+lookup, no junction dot).
+
+Verified numerically on both the original case and the harder one that
+first proved a naive width-based formula insufficient: `SR_8.R`'s wire now
+runs continuously from the contact (x=60) through to the connector
+(x=200), matching row 5's real end column exactly; separately, row 12's
+`shortCircuit` (a 2-cell-wide wrapped `HLink`) now lands its connector at
+x=340, matching row 13's real end column (4) via the `row_end_columns`
+lookup -- confirmed by locating the exact SVG line (`y1=835, y2=905`,
+matching row 12/13's own computed centers) and checking its x-coordinate
+against `_MARGIN_LEFT + row13.end_column * _CELL_W`. In this specific
+row12/13 case the old width-based fallback would have coincidentally
+produced the same x-coordinate (`wrapped_width=2` happens to equal the
+needed column offset), so this case alone would not have caught the bug --
+the lookup is correct by construction for any row shape, not by
+coincidence, which is what actually matters. 1556 tests still pass;
+Ruff and Pyright pass.

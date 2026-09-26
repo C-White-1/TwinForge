@@ -1,6 +1,6 @@
 # Control Expert / Unity Pro import roadmap
 
-Updated: 2026-09-23.
+Updated: 2026-09-26.
 
 Objective: turn XEF/ZEF project evidence into useful vendor-neutral engineering
 models while preserving all original content and explicitly reporting unresolved
@@ -266,33 +266,27 @@ visible. Initial values are lexical evidence, not promoted typed values.
       `Start_process -> coil` reading; the discarded segment is recorded
       via a new `ladder_disconnected_segment_discarded` diagnostic, not
       silently dropped. See the `emptyCell`-gap checkpoint below.
-- [ ] Backlog, narrower still, and actually two distinct unresolved
-      questions the corpus's `inputs > outputs` shapes split along
-      `enEnO` lines -- re-verified directly, not just recalled, after
-      being asked whether `sayahali_conveyor_ali_conv.zef`'s `SR`
-      instances already had the missing evidence (they don't, confirmed
-      precisely against the now-shipped `emptyCell`-gap logic: every
-      wired `SR`'s own `Q1` stub is separated from its row's coil by a
-      real gap, genuinely unwired, not a case this project missed):
-      - `ADD`/`INITCHART`/`SETSTEP` (`enEnO="true"`): the "+1 padding row"
-        formula is ambiguous against a competing formula for this
-        `inputs > outputs` shape, and no fixture found so far (including
-        the `LD_1_Heating.xml` search) wires one of their outputs via a
-        drawn wire to test it.
-      - `SR` (`enEnO="false"`): a different, not-yet-tested hypothesis --
-        since hidden `EN`/`ENO` already compacts the *input* side
-        (confirmed: `S1` lands at `posY+0`, not `+1`), does the *output*
-        side compact the same way (`Q1` at `posY+0`, same row as `S1`,
-        not `posY+1`)? Untested either way -- no fixture found so far
-        wires `SR.Q1` (or `S_SR.Q1`) via a drawn wire at all, and
-        `_block_output_origins()` as shipped only considers
-        `enEnO="true"` blocks, so it would not catch this shape even if
-        a wired example turned up without further work. `R` (`SR`'s
-        second wireable input, one row below `S1`) is also still
-        unresolved -- genuinely unwired in all five real instances
-        checked.
-      See the output-edge, `effectiveParameter`, block-output-fed coil
-      and `emptyCell`-gap checkpoints below
+- [x] `SR` (`enEnO="false"`) output-edge chaining: the hypothesis this
+      item used to leave open -- does the *output* side compact the same
+      way the input side does (`Q1` originating at the block's own row,
+      not one row below)? -- is now confirmed and shipped, via a real
+      fixture: `sayahali_conveyor_ali_conv.zef`'s `SR_2.Q1` (and four
+      structurally identical pairs) feeds directly into a `TON` block's
+      `IN` pin, both resolved by a new `_first_wireable_output()`
+      (mirrors `EN`/`S1`'s own non-rendering rule to the output side,
+      scoped to `enEnO="false"` + exactly two declared outputs) and a new
+      `_block_input_landings()` (generalizes the already-shipped output
+      formula, `posY+1+i`, to a block's *later* declared inputs, e.g.
+      `TON.IN`). See the block-to-block chaining checkpoint below. `R`
+      (`SR`'s second wireable input) remains unresolved -- still
+      genuinely unwired in all five real instances.
+- [ ] Backlog, still open: `ADD`/`INITCHART`/`SETSTEP` (`enEnO="true"`,
+      `inputs > outputs`) -- the "+1 padding row" formula is ambiguous
+      against a competing formula for this shape, and no fixture found so
+      far (including the `LD_1_Heating.xml` search) wires one of their
+      outputs via a drawn wire to test it. See the output-edge,
+      `effectiveParameter`, block-output-fed coil and `emptyCell`-gap
+      checkpoints below
 - [x] Resolve multi-block/network order under link and override rules: explicit
       links are covered above; `execAfter` is now an extra dependency edge, an
       inference not vendor-documented -- see the `execAfter` checkpoint below
@@ -471,7 +465,7 @@ when shared contracts change. Use a fresh workspace-local `--basetemp` if the
 existing pytest artifact directory is locked. Recheck archive hashes after
 reference operations. Avoid making third-party archives mandatory CI inputs.
 
-The last full run of the command's test set passed 284 tests, including optional
+The last full run of the command's test set passed 289 tests, including optional
 local samples; Ruff and Pyright passed. This is a dated development checkpoint,
 not a substitute for running the checks after future changes.
 

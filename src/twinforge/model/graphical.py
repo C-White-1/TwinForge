@@ -146,6 +146,54 @@ class GraphicalObject:
     target_step_name: str | None = None
     operand_member_path: "MemberPath | None" = None
     operand_binary_expression: "BinaryExpression | None" = None
+    # A "block" object's own declared `enEnO` (block-only; unset otherwise).
+    # Confirmed real meaning (docs/architecture/control-expert-exchange-
+    # capture.md's `enEnO="false"` landing checkpoint): when False, EN/ENO
+    # are still declared pins (present in `pins` above) but never rendered
+    # at all -- not merely unwired. A consumer that shows every declared
+    # pin unconditionally would draw a pin the vendor's own tool never
+    # draws; this lets one tell the two cases apart without guessing from
+    # pin names alone.
+    en_en_o: bool | None = None
+
+
+@dataclass
+class LadderGridCell:
+    """One occupied grid cell in an LD network's row, positioned but not
+
+    resolved into a rung or wire condition -- that stays the job of
+    `LadderRung`/`LadderPinCondition` (`analysis`/`parsers.control_expert.
+    ladder`). This exists purely so a consumer (e.g. a renderer) can lay
+    out every contact/coil/block and every HLink/VLink/shortCircuit
+    exactly where the grid puts it, without re-walking raw captured XML --
+    `object_index` names a real project pin, but drawing a diagram from
+    this data alone asserts nothing about execution.
+    """
+
+    column: int
+    kind: str  # "contact" | "coil" | "block" | "hlink" | "vlink" | "short_circuit"
+    width: int = 1
+    # Index into the OWNING GraphicalDiagram.objects, for "contact"/"coil"/
+    # "block" cells (unset for "hlink"/"vlink"/pure wiring cells).
+    object_index: int | None = None
+    # For a "short_circuit" cell only: the kind of its one non-VLink sibling
+    # ("contact" | "hlink" | "block" -- the three shapes evidenced in
+    # docs/architecture/control-expert-exchange-capture.md's `shortCircuit`/
+    # `VLink` section), that sibling's own width, and -- when it's a
+    # contact or block -- its own object_index. `None` here (with `kind`
+    # left as "short_circuit") means a shape not matching any of the three,
+    # same as `ladder.py`'s own `unresolved_ladder_short_circuit`.
+    wraps: str | None = None
+    wrapped_width: int | None = None
+    wrapped_object_index: int | None = None
+
+
+@dataclass
+class LadderGridRow:
+    """Every occupied cell of one LD grid row, in column order."""
+
+    row: int
+    cells: list[LadderGridCell] = field(default_factory=list)
 
 
 @dataclass
@@ -166,3 +214,7 @@ class GraphicalDiagram:
     execution_order: list[int] = field(default_factory=list)
     execution_order_basis: str | None = None
     shared_variables: list[GraphicalVariableReferences] = field(default_factory=list)
+    # LD only (empty for FBD/SFC): every occupied grid row, in row order,
+    # skipped rows (emptyLine) simply absent. See LadderGridRow/
+    # LadderGridCell.
+    grid_rows: list[LadderGridRow] = field(default_factory=list)

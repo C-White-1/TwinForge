@@ -704,4 +704,113 @@ def test_optional_real_sayahali_conveyor_set_coil_rows():
     set_coil_rungs = [rung for rung in routine.ladder_rungs
                       if any(e.operation == LadderOperation.SET_COIL for e in _instructions(rung))]
     assert len(set_coil_rungs) == 4
+
+
+def _network_ld(body: str) -> CapturedSection:
+    data = f'<FEFExchangeFile><program><identProgram name="P" task="MAST"/>' \
+           f'<LDSource nbColumns="11"><networkLD>{body}</networkLD></LDSource></program></FEFExchangeFile>'
+    captured = capture_bytes(data.encode(), name="grid.xef")
+    section = captured.section
+    assert section is not None
+
+    def find_all(node: CapturedSection, tag: str):
+        if node.tag == tag:
+            yield node
+        for c in node.ordered_children:
+            yield from find_all(c, tag)
+
+    return next(find_all(section, "networkLD"))
+
+
+def test_compute_ld_grid_positions_contacts_and_coils():
+    from twinforge.parsers.control_expert.ladder import compute_ld_grid
+    network = _network_ld('''
+    <typeLine><emptyLine nbRows="2"/></typeLine>
+    <typeLine><contact typeContact="openContact" contactVariableName="A"/>
+    <emptyCell nbCells="2"/><coil typeCoil="coil" coilVariableName="Q"/></typeLine>''')
+    rows = compute_ld_grid(network)
+    assert [r.row for r in rows] == [2]
+    cells = rows[0].cells
+    assert [(c.column, c.kind, c.object_index) for c in cells] == [(0, "contact", 0), (3, "coil", 1)]
+
+
+def test_compute_ld_grid_bare_vlink_and_block_width():
+    from twinforge.parsers.control_expert.ladder import compute_ld_grid
+    network = _network_ld('''
+    <typeLine><VLink/><emptyCell nbCells="3"/>
+    <FFBBlock instanceName="B1" typeName="TON"><objPosition posX="1" posY="0"/></FFBBlock></typeLine>''')
+    rows = compute_ld_grid(network)
+    assert [(c.column, c.kind, c.width, c.object_index) for c in rows[0].cells] == [
+        (0, "vlink", 1, None), (4, "block", 2, 0)]
+
+
+@pytest.mark.parametrize(("body", "expected_wraps", "expected_width"), [
+    ('<contact typeContact="openContact" contactVariableName="A"/>', "contact", 1),
+    ('<HLink nbCells="3"/>', "hlink", 3),
+    ('<FFBBlock instanceName="B1" typeName="SR"><objPosition posX="0" posY="0"/></FFBBlock>', "block", 2),
+])
+def test_compute_ld_grid_all_three_short_circuit_shapes(body, expected_wraps, expected_width):
+    from twinforge.parsers.control_expert.ladder import compute_ld_grid
+    network = _network_ld(f'<typeLine><shortCircuit><VLink/>{body}</shortCircuit></typeLine>')
+    rows = compute_ld_grid(network)
+    (cell,) = rows[0].cells
+    assert cell.kind == "short_circuit"
+    assert cell.wraps == expected_wraps
+    assert cell.width == expected_width
+    assert cell.wrapped_width == expected_width
+
+
+def test_compute_ld_grid_malformed_short_circuit_still_syncs_object_index():
+    # Real risk this guards: parse_diagrams's own recursive walk appends
+    # EVERY contact/coil/block/textBox it finds inside a shortCircuit,
+    # even one that doesn't match any of the three evidenced shapes --
+    # compute_ld_grid's object_index counter must still advance past both
+    # contacts here, or the FFBBlock on the next row would be assigned the
+    # wrong index against GraphicalDiagram.objects.
+    from twinforge.parsers.control_expert.ladder import compute_ld_grid
+    network = _network_ld('''
+    <typeLine><shortCircuit>
+    <contact typeContact="openContact" contactVariableName="A"/>
+    <contact typeContact="openContact" contactVariableName="B"/>
+    </shortCircuit></typeLine>
+    <typeLine><FFBBlock instanceName="B1" typeName="TON"><objPosition posX="0" posY="1"/></FFBBlock></typeLine>''')
+    rows = compute_ld_grid(network)
+    assert rows[0].cells[0].kind == "short_circuit"
+    assert rows[0].cells[0].wraps is None
+    assert rows[1].cells[0].object_index == 2
+
+
+def test_compute_ld_grid_text_box_advances_object_index():
+    from twinforge.parsers.control_expert.ladder import compute_ld_grid
+    network = _network_ld('''
+    <typeLine><contact typeContact="openContact" contactVariableName="A"/></typeLine>
+    <textBox>Note</textBox>
+    <typeLine><coil typeCoil="coil" coilVariableName="Q"/></typeLine>''')
+    rows = compute_ld_grid(network)
+    assert rows[0].cells[0].object_index == 0
+    assert rows[1].cells[0].object_index == 2
+
+
+def test_optional_real_sayahali_grid_rows_match_known_sr_2_shape():
+    # Cross-checked directly against parse_projects's own resolved objects
+    # (see test_optional_real_sayahali_sr_output_feeds_ton_in): SR_2 sits
+    # inline in a shortCircuit-wrapped block cell, immediately followed by
+    # M1_S1's own coil on the same row.
+    path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
+    if not path.exists():
+        pytest.skip("Local sayahali/conveyor-automation reference unavailable")
+    result, = parse_projects(capture_file(path))
+    routine = result.controller.programs["prog"].main_routine
+    assert routine is not None
+    diagram = routine.graphical_diagrams[0]
+    assert diagram.grid_rows, "LD diagram should carry computed grid rows"
+    sr_2_index = next(i for i, o in enumerate(diagram.objects) if o.instance_name == "SR_2")
+    row_21 = next(r for r in diagram.grid_rows if r.row == 21)
+    short_circuit_cells = [c for c in row_21.cells if c.kind == "short_circuit"]
+    assert len(short_circuit_cells) == 1
+    assert short_circuit_cells[0].wraps == "block"
+    assert short_circuit_cells[0].wrapped_object_index == sr_2_index
+    # SR_2's own backfilled position was NOT set (blocks keep their
+    # already-explicit objPosition-derived position, never overwritten).
+    assert diagram.objects[sr_2_index].position is not None
     assert not any(d.code == "unresolved_ladder_instruction" for d in result.diagnostics)

@@ -4,6 +4,7 @@ from twinforge.schema.control_expert.graphical import GRAPHICAL_SPEC, GraphicalS
 
 from .capture import CapturedSection, Diagnostic
 from .evidence import source_extension as _extension
+from .ladder import compute_ld_grid
 
 
 def parse_diagrams(
@@ -25,13 +26,14 @@ def parse_diagrams(
 
     def object_from(node: CapturedSection, kind: str) -> GraphicalObject:
         attrs = node.raw_attributes
+        en_en_o = {"true": True, "false": False}.get(attrs.get("enEnO") or "") if kind == "block" else None
         obj = GraphicalObject(
             kind=kind, instance_name=attrs.get("instanceName"),
             type_name=(attrs.get("typeName") if kind == "block" else
                        attrs.get("typeCoil") if kind == "coil" else attrs.get("typeContact")),
             operand=attrs.get("coilVariableName") if kind == "coil" else attrs.get("contactVariableName"),
             text=node.text if kind == "annotation" else None,
-            width=number(node, "width"), height=number(node, "height"),
+            width=number(node, "width"), height=number(node, "height"), en_en_o=en_en_o,
             source_extensions=[_extension(node)],
         )
         for child in node.ordered_children:
@@ -124,6 +126,28 @@ def parse_diagrams(
         diagnostic_start = len(diagnostics)
         pending_links: list[CapturedSection] = []
         objects(network, diagram, pending_links)
+        if diagram.language == "LD":
+            # Real grid positions for every contact/coil/block in this
+            # network -- computed by a dedicated LD-only walker
+            # (`compute_ld_grid`) that assigns `object_index` in the exact
+            # same order this function's own `objects()` walk just
+            # appended them, so both agree without either duplicating the
+            # other's logic. Backfills `GraphicalObject.position`, unset
+            # until now for contact/coil (only FFBBlock/textBox carry an
+            # explicit `objPosition` in the source XML).
+            diagram.grid_rows = compute_ld_grid(network)
+            for grid_row in diagram.grid_rows:
+                for cell in grid_row.cells:
+                    if cell.object_index is not None and cell.kind != "block":
+                        diagram.objects[cell.object_index].position = LadderPosition(
+                            column=cell.column, row=grid_row.row)
+                    elif cell.wraps == "contact" and cell.wrapped_object_index is not None:
+                        # A contact wrapped directly inside a shortCircuit
+                        # (rare but real -- an OR-merge's own gating
+                        # contact) occupies the shortCircuit's own column,
+                        # same as its unwrapped counterpart would.
+                        diagram.objects[cell.wrapped_object_index].position = LadderPosition(
+                            column=cell.column, row=grid_row.row)
         for link in pending_links:
             diagram.links.append(GraphicalLink(
                 source=resolve_endpoint(link, diagram, "source", spec.link_source),

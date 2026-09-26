@@ -1,5 +1,14 @@
+from pathlib import Path
+
+import pytest
+
 from twinforge.exporters import LadderSvgExporter
 from twinforge.model import (
+    GraphicalDiagram,
+    GraphicalObject,
+    GraphicalPin,
+    LadderGridCell,
+    LadderGridRow,
     LadderInstruction,
     LadderOperation,
     LadderParallel,
@@ -7,6 +16,7 @@ from twinforge.model import (
     LadderRung,
     LadderSeries,
 )
+from twinforge.parsers.control_expert import capture_file, parse_projects
 
 
 def _instruction(
@@ -173,3 +183,152 @@ def test_multi_rung_layout_sizes_by_max_row_and_column():
     width_attr = svg.split('width="', 1)[1].split('"', 1)[0]
     height_attr = svg.split('height="', 1)[1].split('"', 1)[0]
     assert int(width_attr) > int(height_attr)
+
+
+# --- Milestone 2: export_diagram (GraphicalDiagram, including blocks and ---
+# --- shortCircuit/VLink/bare-wire rows the pure-series exporter can't). ---
+
+def _pin(name: str, direction: str, expression: str | None = None) -> GraphicalPin:
+    return GraphicalPin(name=name, direction=direction, expression=expression)
+
+
+def _block(instance: str, type_name: str, pins: list[GraphicalPin], *, en_en_o: bool | None) -> GraphicalObject:
+    return GraphicalObject(kind="block", instance_name=instance, type_name=type_name, pins=pins, en_en_o=en_en_o)
+
+
+def _contact(operand: str, *, closed: bool = False) -> GraphicalObject:
+    return GraphicalObject(kind="contact", operand=operand,
+                            type_name="closedContact" if closed else "openContact")
+
+
+def _coil(operand: str, *, kind: str | None = None) -> GraphicalObject:
+    return GraphicalObject(kind="coil", operand=operand, type_name=kind)
+
+
+def test_export_diagram_renders_contact_and_coil_rows():
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[_contact("A"), _coil("Out")],
+        grid_rows=[LadderGridRow(row=0, cells=[
+            LadderGridCell(column=0, kind="contact", object_index=0),
+            LadderGridCell(column=3, kind="coil", object_index=1),
+        ])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    assert svg.startswith("<svg ") and svg.endswith("</svg>")
+    assert ">A<" in svg
+    assert ">Out<" in svg
+
+
+def test_export_diagram_positions_ton_like_block_pins_at_posy_plus_1_plus_i():
+    # Real evidence: TON_23's IN (declared index 1) lands one row below its
+    # own EN, ET one row below that -- the confirmed enEnO="true" offset
+    # (block's own top row is a blank header; EN/ENO share row+1, IN/Q
+    # row+2, PT/ET row+3), independent of shortCircuit wrapping.
+    block = _block("B1", "TON", [
+        _pin("EN", "input"), _pin("IN", "input"), _pin("PT", "input", "t#3s"),
+        _pin("ENO", "output"), _pin("Q", "output"), _pin("ET", "output"),
+    ], en_en_o=True)
+    diagram = GraphicalDiagram(
+        language="LD", objects=[block],
+        grid_rows=[LadderGridRow(row=5, cells=[LadderGridCell(column=2, kind="block", width=2, object_index=0)])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    # Row 5 is the header (blank); EN/ENO at row 6, IN/Q at row 7, PT/ET at
+    # row 8. Only row 5 appears in grid_rows, so min_row == 5; Y is
+    # _MARGIN_TOP + (row - min_row) * _CELL_H, matching the exporter itself.
+    def y_for(row: int) -> int:
+        return 30 + (row - 5) * 70
+
+    assert f'y="{y_for(6) + 35 + 4}">EN</text>' in svg
+    assert f'y="{y_for(7) + 35 + 4}">IN</text>' in svg
+    assert f'y="{y_for(8) + 35 + 4}">PT</text>' in svg
+    assert "t#3s" in svg
+
+
+def test_export_diagram_hides_en_eno_for_en_en_o_false_block():
+    block = _block("SR_1", "SR", [
+        _pin("EN", "input"), _pin("S1", "input"), _pin("R", "input"),
+        _pin("ENO", "output"), _pin("Q1", "output"),
+    ], en_en_o=False)
+    diagram = GraphicalDiagram(
+        language="LD", objects=[block],
+        grid_rows=[LadderGridRow(row=0, cells=[LadderGridCell(column=0, kind="block", width=2, object_index=0)])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    assert ">S1<" in svg
+    assert ">R<" in svg
+    assert ">Q1<" in svg
+    assert ">EN<" not in svg
+    assert ">ENO<" not in svg
+    assert "no EN/ENO" in svg
+
+
+def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():
+    contact_block = _block("B1", "TON", [_pin("EN", "input")], en_en_o=True)
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[_contact("Gate"), contact_block],
+        grid_rows=[
+            LadderGridRow(row=0, cells=[
+                LadderGridCell(column=0, kind="short_circuit", wraps="contact",
+                                wrapped_width=1, wrapped_object_index=0),
+            ]),
+            LadderGridRow(row=1, cells=[
+                LadderGridCell(column=0, kind="short_circuit", wraps="hlink", width=3, wrapped_width=3),
+            ]),
+            LadderGridRow(row=2, cells=[
+                LadderGridCell(column=0, kind="short_circuit", width=2, wraps="block",
+                                wrapped_width=2, wrapped_object_index=1),
+            ]),
+        ],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    assert ">Gate<" in svg
+    assert "B1 (TON)" in svg
+    # Three vertical connectors, one per shortCircuit row.
+    assert svg.count('stroke="blue" stroke-width="2"') == 3
+
+
+def test_export_diagram_unresolved_short_circuit_shape_renders_placeholder():
+    diagram = GraphicalDiagram(
+        language="LD", objects=[],
+        grid_rows=[LadderGridRow(row=0, cells=[LadderGridCell(column=0, kind="short_circuit")])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    assert "shortCircuit" in svg
+    assert 'fill="#a00"' in svg
+
+
+def test_export_diagram_is_deterministic():
+    diagram = GraphicalDiagram(
+        language="LD", objects=[_contact("A"), _coil("Out")],
+        grid_rows=[LadderGridRow(row=0, cells=[
+            LadderGridCell(column=0, kind="contact", object_index=0),
+            LadderGridCell(column=3, kind="coil", object_index=1),
+        ])],
+    )
+    exporter = LadderSvgExporter()
+    assert exporter.export_diagram(diagram, title="x") == exporter.export_diagram(diagram, title="x")
+
+
+def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
+    # Cross-checked directly against the confirmed real offsets from this
+    # project's own ladder-rendering verification session: SR_2 (enEnO=
+    # "false", shortCircuit-wrapped) spans exactly 3 rows (header, S1, R);
+    # TON_23's IN lands on row 21 (posY 19 + 1 + 1), PT on row 22.
+    path = Path("reference/control-expert/sayahali_conveyor_ali_conv.zef")
+    if not path.exists():
+        pytest.skip("Local sayahali/conveyor-automation reference unavailable")
+    result, = parse_projects(capture_file(path))
+    routine = result.controller.programs["prog"].main_routine
+    assert routine is not None
+    diagram = routine.graphical_diagrams[0]
+    svg = LadderSvgExporter().export_diagram(diagram, title="prog")
+    assert svg.startswith("<svg ") and svg.endswith("</svg>")
+    assert "SR_2 (SR)" in svg
+    assert "TON_23 (TON)" in svg
+    assert "t#3s" in svg
+    row_labels = {row: f'>{row}</text>' for row in (19, 20, 21, 22)}
+    for row, marker in row_labels.items():
+        assert marker in svg, f"row {row} label missing"

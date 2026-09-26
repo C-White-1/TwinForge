@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from twinforge.model import LadderPosition
 from twinforge.parsers.control_expert import capture_bytes, capture_file, parse_projects
 from twinforge.parsers.control_expert.graphical import parse_diagrams
 
@@ -38,7 +39,13 @@ def test_pin_direction_bindings_and_position_without_inferred_edges():
     assert diagnostics[0].code == "unresolved_graphical_connections"
 
 
-def test_ladder_contacts_do_not_receive_invented_positions_or_semantics():
+def test_ladder_contacts_receive_real_grid_positions_but_no_invented_semantics():
+    # A contact's grid position is now computed (see `compute_ld_grid` in
+    # ladder.py -- the same cell-width-summing convention already tested
+    # and shipped for rung/pin-condition resolution), not left None the
+    # way it deliberately was before that existed. Nothing else about a
+    # contact is invented: no execution semantics, and unknown sibling
+    # content (`FutureWire`) is still retained as evidence, not guessed.
     results, diagnostics = diagrams('''<LDSource><networkLD>
       <typeLine><emptyLine nbRows="3"/></typeLine>
       <typeLine><contact typeContact="PContact" contactVariableName="trigger"/>
@@ -49,7 +56,7 @@ def test_ladder_contacts_do_not_receive_invented_positions_or_semantics():
     diagram = results[0]
     assert [o.kind for o in diagram.objects] == ["contact", "block"]
     assert diagram.objects[0].type_name == "PContact"
-    assert diagram.objects[0].position is None
+    assert diagram.objects[0].position == LadderPosition(column=0, row=3)
     assert diagram.objects[0].operand == "trigger"
     assert diagram.source_extensions[0].root.children[-1].name == "FutureWire"
     assert any(d.code == "unclassified_graphical_object" for d in diagnostics)
