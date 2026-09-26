@@ -2394,3 +2394,33 @@ needed column offset), so this case alone would not have caught the bug --
 the lookup is correct by construction for any row shape, not by
 coincidence, which is what actually matters. 1556 tests still pass;
 Ruff and Pyright pass.
+
+Round 3, same day: two more real findings on a closer look at rendered
+output. (1) `sayahali_conveyor_ali_conv.zef`'s `SR_8` network has
+`<coil typeCoil="PCoil" coilVariableName="%M12"/>` -- Schneider's own IEC
+61131-3 "P" (pulse/rising-edge) coil, a real, already-captured
+`GraphicalObject.type_name` value (`object_from` sets `type_name` straight
+from the raw `typeCoil` attribute, so this needed no new parser work) that
+`export_diagram`'s coil-mark lookup simply didn't include yet, unlike
+`resetCoil`/`setCoil`'s existing "R"/"S". Added `"PCoil": "P"` to that same
+mark dict, following the identical evidenced-from-the-vendor-attribute
+pattern already used for the other two marks -- no unevidenced `"NCoil"`
+guess added alongside it. (2) `_render_contact`/`_render_coil` each paint a
+white background rect behind the symbol -- deliberately, so an open
+contact's own gap doesn't look like a solid connected wire -- but that rect
+erases the row's own wire line under its *entire* footprint, including the
+lead-in/lead-out segments outside the actual bars/circle, not just the gap
+between them. With no stub reconnecting the rect's own edge back to the
+symbol's own edge, the wire visibly stopped short of the device instead of
+meeting it, exactly the "small pins on the coils and contacts so the lines
+meet the devices" the user asked for. Fixed by drawing a short stub line
+from each side of the background rect to the symbol's own edge (the bar at
+`cx +/- _CONTACT_GAP` for a contact, the circle at `cx +/- r` for a coil),
+appended after the rect so it paints on top, using the same padding values
+the rect already had (6px for a contact, 4px for a coil) rather than a new
+constant. Verified directly on the real fixture: `%M12`'s coil now renders
+`>P<` between its stub lines; a contact's own left/right stubs run from
+`cx-8-6` to `cx-8` and `cx+8` to `cx+8+6`, matching the rect's own edges to
+the bars exactly. 2 new tests (`test_export_diagram_marks_pcoil_with_p`,
+`test_export_diagram_contact_and_coil_wires_reach_the_symbol_edge`); 1558
+tests pass project-wide; Ruff and Pyright pass.

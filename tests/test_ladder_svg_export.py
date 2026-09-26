@@ -220,6 +220,48 @@ def test_export_diagram_renders_contact_and_coil_rows():
     assert ">Out<" in svg
 
 
+def test_export_diagram_marks_pcoil_with_p():
+    # Real evidence: sayahali_conveyor_ali_conv.zef's SR_8 network has
+    # <coil typeCoil="PCoil" coilVariableName="%M12"/> -- Schneider's own
+    # IEC 61131-3 "P" (pulse/rising-edge) coil, distinct from a plain coil
+    # and from resetCoil/setCoil, which already get their own mark.
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[_coil("%M12", kind="PCoil")],
+        grid_rows=[LadderGridRow(row=0, cells=[LadderGridCell(column=0, kind="coil", object_index=0)])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    assert '>P</text>' in svg
+
+
+def test_export_diagram_contact_and_coil_wires_reach_the_symbol_edge():
+    # The background rect behind a contact/coil symbol erases the row's own
+    # wire line under its whole footprint (deliberately, so an open
+    # contact's gap stays blank) -- but without a stub reconnecting the
+    # rect's own edge to the symbol's own edge, the wire visibly stops short
+    # of the device instead of meeting it.
+    diagram = GraphicalDiagram(
+        language="LD",
+        objects=[_contact("A"), _coil("Out")],
+        grid_rows=[LadderGridRow(row=0, cells=[
+            LadderGridCell(column=0, kind="contact", object_index=0),
+            LadderGridCell(column=1, kind="coil", object_index=1),
+        ])],
+    )
+    svg = LadderSvgExporter().export_diagram(diagram)
+    yc = 30 + 35
+    contact_cx = 60 + 35
+    coil_cx = 60 + 70 + 35
+    # Contact: stub from the rect's own left/right edge to its own bars
+    # (cx +/- _CONTACT_GAP == 8).
+    assert f'<line x1="{contact_cx - 8 - 6}" y1="{yc}" x2="{contact_cx - 8}" y2="{yc}"' in svg
+    assert f'<line x1="{contact_cx + 8}" y1="{yc}" x2="{contact_cx + 8 + 6}" y2="{yc}"' in svg
+    # Coil: stub from the rect's own left/right edge to the circle's own
+    # edge (cx +/- r == 14).
+    assert f'<line x1="{coil_cx - 14 - 4}" y1="{yc}" x2="{coil_cx - 14}" y2="{yc}"' in svg
+    assert f'<line x1="{coil_cx + 14}" y1="{yc}" x2="{coil_cx + 14 + 4}" y2="{yc}"' in svg
+
+
 def test_export_diagram_positions_ton_like_block_pins_at_posy_plus_1_plus_i():
     # Real evidence: TON_23's IN (declared index 1) lands one row below its
     # own EN, ET one row below that -- the confirmed enEnO="true" offset

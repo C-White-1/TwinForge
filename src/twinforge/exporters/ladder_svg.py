@@ -158,8 +158,17 @@ class LadderSvgExporter:
     def _render_contact(self, parts: list[str], cx: int, y: int, label: str, *, closed: bool) -> None:
         top, bottom = y - 14, y + 14
         left_bar, right_bar = cx - _CONTACT_GAP, cx + _CONTACT_GAP
-        parts.append(f'<rect x="{left_bar - 6}" y="{top - 6}" width="{2 * _CONTACT_GAP + 12}" '
+        box_left, box_right = left_bar - 6, right_bar + 6
+        parts.append(f'<rect x="{box_left}" y="{top - 6}" width="{box_right - box_left}" '
                       f'height="{bottom - top + 12}" fill="white"/>')
+        # The background rect above erases the row's own wire line under the
+        # whole symbol footprint (deliberately -- an open contact's own gap
+        # must stay blank, not look like a solid connected wire). Without
+        # these stubs, the wire visibly stops at the rect's edge instead of
+        # reaching the contact's own bars, looking disconnected from the
+        # device it represents.
+        parts.append(f'<line x1="{box_left}" y1="{y}" x2="{left_bar}" y2="{y}" stroke="black" stroke-width="2"/>')
+        parts.append(f'<line x1="{right_bar}" y1="{y}" x2="{box_right}" y2="{y}" stroke="black" stroke-width="2"/>')
         parts.append(f'<line x1="{left_bar}" y1="{top}" x2="{left_bar}" y2="{bottom}" stroke="black" stroke-width="2"/>')
         parts.append(f'<line x1="{right_bar}" y1="{top}" x2="{right_bar}" y2="{bottom}" stroke="black" stroke-width="2"/>')
         if closed:
@@ -169,7 +178,14 @@ class LadderSvgExporter:
 
     def _render_coil(self, parts: list[str], cx: int, y: int, label: str, mark: str) -> None:
         r = 14
-        parts.append(f'<rect x="{cx - r - 4}" y="{y - r - 4}" width="{2 * r + 8}" height="{2 * r + 8}" fill="white"/>')
+        box_left, box_right = cx - r - 4, cx + r + 4
+        parts.append(f'<rect x="{box_left}" y="{y - r - 4}" width="{box_right - box_left}" '
+                      f'height="{2 * r + 8}" fill="white"/>')
+        # Same reconnection as _render_contact: the rect erases the wire
+        # under the whole circle footprint, so a stub is needed to bridge
+        # the rect's own edge back to the circle's own edge.
+        parts.append(f'<line x1="{box_left}" y1="{y}" x2="{cx - r}" y2="{y}" stroke="black" stroke-width="2"/>')
+        parts.append(f'<line x1="{cx + r}" y1="{y}" x2="{box_right}" y2="{y}" stroke="black" stroke-width="2"/>')
         parts.append(f'<circle cx="{cx}" cy="{y}" r="{r}" fill="none" stroke="black" stroke-width="2"/>')
         if mark:
             parts.append(f'<text x="{cx}" y="{y + 4}" text-anchor="middle">{mark}</text>')
@@ -270,7 +286,7 @@ class LadderSvgExporter:
                     obj = objects[cell.object_index]
                     yc = y_top + _CELL_H // 2
                     parts.append(f'<line x1="{x}" y1="{yc}" x2="{x + _CELL_W}" y2="{yc}" stroke="black"/>')
-                    mark = {"resetCoil": "R", "setCoil": "S"}.get(obj.type_name or "", "")
+                    mark = {"resetCoil": "R", "setCoil": "S", "PCoil": "P"}.get(obj.type_name or "", "")
                     self._render_coil(parts, x + _CELL_W // 2, yc, obj.operand or "?", mark)
                 elif cell.kind == "hlink":
                     yc = y_top + _CELL_H // 2
