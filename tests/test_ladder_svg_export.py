@@ -332,28 +332,36 @@ def test_export_diagram_short_circuit_wraps_contact_hlink_and_block():
     assert svg.count('stroke="blue" stroke-width="2"') == 3
 
 
-def test_export_diagram_short_circuit_connector_aligns_to_a_lone_vlink_target_row():
-    # Real evidence (sayahali_conveyor_ali_conv.zef, rows 12-14): a
-    # shortCircuit's target row can itself be just a lone bare `VLink`
-    # pass-through (an intermediate hop of a taller bus), not a row with
-    # real wire content. Using that row's "column + width" (meaningful for
-    # a genuine wire's rightmost extent) instead of the VLink's own column
-    # misaligns the two segments into a visible zigzag; using the VLink's
-    # own column keeps them as one straight vertical line, matching where
-    # that row's own `_render_vlink` call draws its own connector.
+def test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_chain():
+    # Real evidence (sayahali_conveyor_ali_conv.zef, rows 12-14, confirmed
+    # against the user's own rendered screenshot): a shortCircuit's target
+    # row can itself be just a lone bare `VLink` pass-through (an
+    # intermediate hop of a taller bus, here row 1), not a row with real
+    # wire content -- its own raw grid column positions ITS OWN glyph in
+    # the source grid but is not itself where the bus's wire actually
+    # ends. Both the shortCircuit above the chain (row 0) and the lone
+    # VLink row within it (row 1) must resolve all the way through to the
+    # real wire-bearing row's own end column (row 2, ending at column 4),
+    # landing as one continuous straight line -- not stopping at row 1's
+    # own raw column (3), which only produces a shorter zigzag.
     diagram = GraphicalDiagram(
-        language="LD", objects=[],
+        language="LD", objects=[_contact("Gate")],
         grid_rows=[
             LadderGridRow(row=0, cells=[
                 LadderGridCell(column=2, kind="short_circuit", width=2, wraps="hlink", wrapped_width=2),
             ]),
             LadderGridRow(row=1, cells=[LadderGridCell(column=3, kind="vlink")]),
+            LadderGridRow(row=2, cells=[
+                LadderGridCell(column=0, kind="hlink", width=3),
+                LadderGridCell(column=3, kind="contact", object_index=0),
+            ]),
         ],
     )
     svg = LadderSvgExporter().export_diagram(diagram)
-    target_x = 60 + 3 * 70  # the lone VLink's own column (3), not column + width (4)
-    assert svg.count(f'<line x1="{target_x}" y1="65" x2="{target_x}" y2="135"') == 1
-    assert f'<line x1="{60 + 4 * 70}"' not in svg
+    target_x = 60 + 4 * 70  # row 2's real wire end (column 4), not row 1's own raw column (3)
+    assert svg.count(f'<line x1="{target_x}" y1="65" x2="{target_x}" y2="135"') == 1  # row 0 -> row 1
+    assert svg.count(f'<line x1="{target_x}" y1="135" x2="{target_x}" y2="205"') == 1  # row 1 -> row 2
+    assert f'<line x1="{60 + 3 * 70}" y1="135"' not in svg
 
 
 def test_export_diagram_unresolved_short_circuit_shape_renders_placeholder():

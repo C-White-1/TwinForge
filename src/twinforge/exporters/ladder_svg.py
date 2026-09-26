@@ -226,30 +226,39 @@ class LadderSvgExporter:
         max_row = min_row
         max_column = 0
         # A shortCircuit's own vertical connector needs to land at whatever
-        # column the TARGET row's own wire genuinely presents at -- not a
-        # fixed offset computed from the source row alone (confirmed real
-        # counterexample: a 2-cell-wide wrapped HLink whose target row does
-        # not end 2 columns over). Two real shapes need different answers:
-        # a row with real wire content (contacts/coils/HLinks) presents at
-        # its rightmost extent, one column past its last cell -- the shape
-        # confirmed against the real fixture's SR_8.R (row 4's shortCircuit
-        # landing on ARRET_MOT's row 5, which ends at column 2, matching
-        # the vendor PDF). A row that is itself just a lone bare `VLink`
-        # pass-through (no wire of its own -- an intermediate hop of a
-        # taller bus, e.g. row 13 between rows 12 and 14) presents at that
-        # VLink's OWN column, not one past it: a VLink is a single point on
-        # the bus, not a span with a rightward end, and `_render_vlink`
-        # itself always draws that row's own connector at the cell's own
-        # column -- using column+width here would misalign the two segments
-        # into a visible zigzag instead of one straight vertical line.
-        row_end_columns: dict[int, int] = {
-            grid_row.row: (
-                next(c.column for c in grid_row.cells if c.kind == "vlink")
-                if len(grid_row.cells) == 1 and grid_row.cells[0].kind == "vlink"
-                else max((c.column + c.width for c in grid_row.cells), default=0)
-            )
-            for grid_row in rows
-        }
+        # column the TARGET row's own wire genuinely ends at -- confirmed
+        # against two real shapes: the fixture's SR_8.R (row 4's
+        # shortCircuit landing on ARRET_MOT's row 5, ending at column 2,
+        # matching the vendor PDF) and, after a user-caught regression, a
+        # chain through row 13 (a lone bare `VLink` pass-through with no
+        # wire of its own -- an intermediate hop of a taller bus between
+        # rows 12 and 14) that must resolve all the way through to row 14's
+        # own real wire end (column 4), not stop at row 13's own raw grid
+        # column (a coordinate that positions row 13's OWN `VLink` glyph in
+        # the source grid, but is not itself a wire's end -- a `VLink` is a
+        # single point on a bus, not a span). `_resolve_row_end_column`
+        # follows a chain of consecutive lone-`VLink` rows forward to the
+        # first row with real wire content, so both the shortCircuit above
+        # the chain and the lone `VLink` rows within it land on the exact
+        # same column, one continuous straight line down to where the wire
+        # actually ends -- not a zigzag through an intermediate waypoint.
+        rows_by_number = {grid_row.row: grid_row for grid_row in rows}
+
+        def _resolve_row_end_column(start_row: int) -> int:
+            current = start_row
+            visited: set[int] = set()
+            while True:
+                grid_row = rows_by_number.get(current)
+                if grid_row is None:
+                    return 0
+                cells = grid_row.cells
+                if len(cells) == 1 and cells[0].kind == "vlink" and current not in visited:
+                    visited.add(current)
+                    current += 1
+                    continue
+                return max((c.column + c.width for c in cells), default=0)
+
+        row_end_columns: dict[int, int] = {grid_row.row: _resolve_row_end_column(grid_row.row) for grid_row in rows}
         for grid_row in rows:
             for cell in grid_row.cells:
                 max_column = max(max_column, cell.column + cell.width)
@@ -305,7 +314,15 @@ class LadderSvgExporter:
                     parts.append(f'<line x1="{x}" y1="{yc}" x2="{x + cell.width * _CELL_W}" y2="{yc}" '
                                   'stroke="black"/>')
                 elif cell.kind == "vlink":
-                    self._render_vlink(parts, x, y_top)
+                    # A lone VLink (nothing else on its row) is an
+                    # intermediate hop of a taller bus, not a wire of its
+                    # own -- draw it at the resolved chain-end column (see
+                    # row_end_columns above), not its own raw grid column,
+                    # so it lines up with the shortCircuit above it and the
+                    # real wire it ultimately reaches below.
+                    is_lone = len(grid_row.cells) == 1
+                    vlink_x = _MARGIN_LEFT + row_end_columns[grid_row.row] * _CELL_W if is_lone else x
+                    self._render_vlink(parts, vlink_x, y_top)
                 elif cell.kind == "block" and cell.object_index is not None:
                     self._render_block(parts, objects[cell.object_index], x, grid_row.row, row_y,
                                        shortcircuit_wrapped=False)

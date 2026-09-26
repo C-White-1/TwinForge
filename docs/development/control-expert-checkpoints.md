@@ -2454,14 +2454,38 @@ unaffected, still x=200. 1 new regression test
 (`test_export_diagram_short_circuit_connector_aligns_to_a_lone_vlink_target_row`);
 1559 tests pass; Ruff and Pyright pass.
 
-Left open, not attempted this pass: a second, differently-shaped potential
-misalignment was noticed but not confirmed while investigating this one --
-`SR_2`'s own shortCircuit-wraps-block connector (row 21, landing at the
-block's own left edge, column 4) versus that block's own `S1` input pin
-row's separate bare `VLink` cell one row below (row 22, at column 5, one
-column to the right) are not visually aligned either. Unlike the row
-12-14 case, there is no confirmed evidence yet for what the vendor's own
-rendering actually shows here -- it may be a real dogleg in the source
-grid, not a rendering bug -- so it is called out here rather than
-"fixed" without evidence, per this project's own discipline against
-guessing at unconfirmed shapes.
+Round 5, same day: the round-4 fix above was still wrong, caught by the
+user's very next screenshot ("Vlink Needs to be at end of line 14"). It
+aligned row 12's connector to row 13's own raw `VLink` column (3) --
+consistent internally, but row 13's raw column positions ITS OWN glyph in
+the source grid, not where the bus actually terminates. The real target,
+row 14, is a genuine wire-bearing row (`HLink`, two contacts, another
+`HLink`) whose own real end is column 4 -- one column further right than
+row 13's raw position. Two independent, user-confirmed data points now
+agree the correct rule is "resolve to the real wire-bearing row's own
+end," never an intermediate pass-through row's own raw column: this one,
+and the earlier SR_8/ARRET_MOT case (row 4 to row 5, no intermediate hop
+needed since row 5 already is the real wire row).
+
+Fixed by replacing the single-row lookup with `_resolve_row_end_column`,
+which follows a chain of consecutive lone-`VLink` rows forward (row 13 to
+row 14, and further if there were more hops) until it reaches a row with
+real wire content, then uses that row's own end column for every segment
+in the chain -- the originating shortCircuit AND every intermediate lone
+`VLink`'s own render call, which previously used its own raw column
+unconditionally. This closes the round-4 entry's own left-open item as a
+side effect, without separate investigation: `SR_2`'s own `S1` input pin
+row (row 22, a lone `VLink` at raw column 5) now also resolves forward to
+`capteur_2`'s row (row 23, ending at column 4) -- which happens to equal
+the block's own left edge (column 4), so that connector and the
+shortCircuit-wraps-block connector above it (which already used the
+block's own edge) now land on the same column too. This was not
+separately verified against the vendor PDF -- flagged as a side effect
+observed while testing this fix, not a claim of its own.
+
+Verified directly on the real fixture: rows 12, 13 and 14 now all land at
+column 4 (x=340), one continuous straight line ending exactly at row 14's
+own wire end, matching the user's request. 1 test updated
+(`test_export_diagram_short_circuit_connector_resolves_through_a_lone_vlink_chain`,
+extended with a real third row so the resolution has somewhere real to
+land); 1559 tests pass; Ruff and Pyright pass.
