@@ -44,6 +44,7 @@ maintained relationships; the SVG files are derived viewing artifacts.
 - [Neutral model JSON contract](architecture/model-json-contract.md)
 - [CCW project interchange boundary](architecture/ccw-project-interchange.md)
 - [Control Expert exchange capture: provisional specification](architecture/control-expert-exchange-capture.md)
+- [Machine Expert – Basic `.smbp` project format: provisional specification](architecture/machine-expert-basic-smbp-format.md)
 
 ### Native OpenPLC
 
