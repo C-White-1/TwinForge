@@ -54,7 +54,7 @@ but are never mapped into the model.
 Build `LadderRung.network` (`LadderSeries`/`LadderParallel` of
 `LadderInstruction`) from grid cells using the rules verified against IL in
 the format specification. Planned acceptance check: every rung's network
-must be equivalent to its IL, as `reference/machine-expert/check_grid_vs_il.py`
+must be equivalent to its IL, as `examples/check_smbp_grid_vs_il.py`
 already shows for the wiring. Rungs whose grid is not series-parallel, or
 that contain elements without a portable `LadderOperation`, get a
 diagnostic and no network rather than a guessed one.

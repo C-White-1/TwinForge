@@ -17,16 +17,17 @@ into the ignored `reference/machine-expert/smbp/`. Repository URLs and
 licences are recorded in `reference/machine-expert/SOURCES.md`; most of the
 source repositories carry no licence, so the files stay local-only under the
 [artifact policy](../artifact-policy.md) and must not be copied into
-`tests/` or `examples/`.
+`tests/` or `examples/`. The research scripts below live in `examples/` and
+take the sample directory as an argument.
 
 SHA-256 hashes, sizes and every count quoted below are reproduced by:
 
 ```powershell
-python reference/machine-expert/inventory_smbp.py
+python examples/analyze_smbp_corpus.py reference/machine-expert/smbp reference/machine-expert/smbp_inventory.json
 ```
 
-which writes `reference/machine-expert/smbp_inventory.json`. It is a local
-research aid, not a production capture implementation. No two files have
+The script is tracked; the samples it reads are not. It is a research aid,
+not a production capture implementation. No two files have
 identical content.
 
 The corpus is weak in specific ways; read every observation in that light:
@@ -217,7 +218,7 @@ The rules below were checked against the IL of **every one of the 264 rungs
 that have grid cells**, with no exceptions:
 
 ```powershell
-python reference/machine-expert/check_grid_vs_il.py
+python examples/check_smbp_grid_vs_il.py reference/machine-expert/smbp
 ```
 
 The script evaluates each grid as a power-flow network and runs a small IL
