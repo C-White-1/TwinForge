@@ -198,17 +198,30 @@ conversion or native Control Expert compatibility.
 - [ ] Add optional PLCopen Common Behaviour wrappers after underlying AOI
   translation is semantically validated
 - [ ] Produced/consumed and physical I/O binding strategies
-- [ ] Export the IEC 61131-3 transition contacts and negated coil
-  (`POSITIVE_TRANSITION_CONTACT`, `NEGATIVE_TRANSITION_CONTACT`,
-  `NEGATED_COIL`, added to the neutral model on 2026-10-09). PLCopen TC6
-  expresses them natively as `contact`/`coil` with `edge="rising|falling"`
-  and `negated="true"`, but this exporter cannot reach them yet: it reads
-  only `LadderRung.text` (Logix RLL, via `plcopen_rll.py`) and never
-  `LadderRung.network`, so rungs that exist only as networks (Control
-  Expert, Machine Expert – Basic) are not exported at all. Consuming
-  `network` is the prerequisite. Waiting on a user-supplied fixture to
-  verify the emitted XML imports into CODESYS; see the matching CCW/CODESYS
-  item above.
+- [x] Export neutral ladder networks directly (2026-10-09). A rung with a
+  `LadderRung.network` and no RLL `text` (Control Expert, Machine Expert –
+  Basic) is emitted as an LD connection graph: nested parallels, output
+  fan-out, and the IEC 61131-3 transition contacts and negated coil via
+  TC6's own `edge="rising|falling"`, `negated` and `storage` attributes
+  (`exporters/plcopen_network.py`). Previously such rungs were not exported
+  at all. Networks containing an element with no LD encoding yet
+  (`UNSUPPORTED`, `BLOCK_OUTPUT_REFERENCE`) are kept as a comment with an
+  `unsupported_network_rung` diagnostic. Tests evaluate the emitted graph
+  as power flow and require it to match the network for every input; the
+  `.smbp` fixtures validate against the local TC6 XSD.
+  - [ ] Verify a generated project imports into CODESYS (waiting on a
+    user-supplied fixture; see the CCW/CODESYS item above)
+  - [ ] Declare variables for tags with no `data_type`: Machine Expert –
+    Basic tags get `unsupported_variable_type` (a type is implied by the
+    address, `%M` bit, `%MW` word, but that mapping is not yet evidenced),
+    and unnamed direct addresses such as `%I0.1` are emitted verbatim, not
+    IEC `%IX0.1` syntax
+  - [ ] Retire CCW's network-to-RLL bridge (`targets/codesys/ccw_project.py`
+    `_serialize_network`) in favour of this path, once its coverage report
+    is reproduced without it
+  - [ ] Fix variable emission that already fails TC6 validation for
+    Control Expert `STRING` variables (`Escalier_Mecanique.XEF`, reference
+    corpus); present before network export and unrelated to it
 
 This section describes the portable PLCopen XML exporter. Native OpenPLC
 project generation is a separate target path because the observed OpenPLC

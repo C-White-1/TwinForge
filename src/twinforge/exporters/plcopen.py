@@ -10,7 +10,7 @@ from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, LadderRung, Program, Tag, Task
+from twinforge.model import Controller, LadderParallel, LadderRung, LadderSeries, Program, Tag, Task
 
 from .plcopen_codesys import CodesysProfileSupport
 from .plcopen_instructions import (
@@ -32,6 +32,9 @@ from .plcopen_operands import (
     PLCopenOperandPlan,
     PLCopenOperandPlanner,
 )
+from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
+from .plcopen_network import describe as describe_network
+from .plcopen_network import unsupported_reason as network_unsupported_reason
 from .plcopen_project import PLCopenProjectOrchestrator
 from .plcopen_types import (
     PLCOPEN_201_NAMESPACE,
@@ -319,6 +322,11 @@ class PLCopenExporter:
         codesys: bool,
     ) -> None:
         ns = self.profile.namespace
+        # A structured network with no Logix RLL text (Control Expert,
+        # Machine Expert - Basic): emit it directly as an LD connection graph.
+        if rung.text is None and rung.network is not None:
+            self._network_rung(ld, rung, program_name)
+            return
         if rung.text and _NOP_INSTRUCTION.fullmatch(rung.text):
             self._comment(
                 ld,
@@ -452,6 +460,57 @@ class PLCopenExporter:
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
 
+    def _network_rung(self, ld: ET.Element, rung: LadderRung, program_name: str) -> None:
+        assert rung.network is not None
+        reason = network_unsupported_reason(rung.network)
+        if reason is not None:
+            text = describe_network(rung.network)
+            self._diagnostic(
+                "unsupported_network_rung",
+                f"rung was emitted as a non-executable comment: {reason}",
+                program_name,
+                raw_value=text,
+            )
+            self._comment(ld, f"Unsupported ladder network: {text}")
+            return
+        ns = self.profile.namespace
+        rail_id = self._id()
+        rail = ET.SubElement(ld, _q(ns, "leftPowerRail"), {"localId": str(rail_id)})
+        self._position(rail)
+        ET.SubElement(rail, _q(ns, "connectionPointOut"), {"formalParameter": "none"})
+        if rung.comment:
+            self._comment(ld, rung.comment)
+        self._emit_series(ld, rung.network, [rail_id])
+        right = ET.SubElement(ld, _q(ns, "rightPowerRail"), {"localId": str(self._id())})
+        self._position(right)
+        ET.SubElement(right, _q(ns, "connectionPointIn"))
+
+    def _emit_series(self, ld: ET.Element, series: LadderSeries, inputs: list[int]) -> list[int]:
+        """Emit one series left to right; return the localIds its end is wired from.
+
+        A parallel section's output is every branch's output together (a
+        wired OR); an empty branch is a bare wire, so it passes its input on.
+        """
+        current = inputs
+        for element in series.elements:
+            if isinstance(element, LadderParallel):
+                joined: list[int] = []
+                for branch in element.branches:
+                    for local_id in self._emit_series(ld, branch, current):
+                        if local_id not in joined:
+                            joined.append(local_id)
+                current = joined
+                continue
+            encoding = NETWORK_ENCODINGS[element.operation]
+            operand = element.operand or ""
+            if encoding.element == "contact":
+                current = [self._contact(ld, "XIO" if encoding.negated else "XIC", operand, current,
+                                         edge=encoding.edge)]
+            else:
+                opcode = {"set": "OTL", "reset": "OTU"}.get(encoding.storage or "", "OTE")
+                current = [self._coil(ld, opcode, operand, current, negated=encoding.negated)]
+        return current
+
     def _instruction_registry(self) -> PLCopenInstructionRegistry:
         """Bind supported opcodes to their focused emission strategies."""
 
@@ -473,12 +532,16 @@ class PLCopenExporter:
         opcode: str,
         operand: str,
         condition_ids: list[int],
+        *,
+        edge: str | None = None,
     ) -> int:
         ns = self.profile.namespace
         local_id = self._id()
         attributes = {"localId": str(local_id)}
         if opcode == "XIO":
             attributes["negated"] = "true"
+        if edge is not None:
+            attributes["edge"] = edge
         contact = ET.SubElement(ld, _q(ns, "contact"), attributes)
         self._position(contact)
         point_in = ET.SubElement(contact, _q(ns, "connectionPointIn"))
@@ -497,10 +560,13 @@ class PLCopenExporter:
         condition_ids: list[int],
         *,
         formal_parameter: str | None = None,
+        negated: bool = False,
     ) -> int:
         ns = self.profile.namespace
         local_id = self._id()
         attributes = {"localId": str(local_id)}
+        if negated:
+            attributes["negated"] = "true"
         if opcode == "OTL":
             attributes["storage"] = "set"
         elif opcode == "OTU":
