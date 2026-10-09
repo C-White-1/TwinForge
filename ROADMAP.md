@@ -46,6 +46,36 @@ the same commit.
 The current fixture converts all 134 rungs and 474 instruction occurrences.
 That is a project-specific result, not universal Logix coverage.
 
+## Immediate next
+
+In priority order (agreed 2026-10-09). Details live in the sections and
+roadmaps linked from each item.
+
+1. [ ] **Machine Expert – Basic timers and counters.** Convert `%TM`
+   (TON/TOF/TP with time base and preset) to IEC `TON`/`TOF`/`TP`, and
+   `%C` as far as it maps, replacing the `UNSUPPORTED` block-pin sinks.
+   The largest remaining `UNSUPPORTED` source in `.smbp` networks.
+   Semantics from Schneider's Generic Functions Library Guide
+   (EIO0000003289.04, installed locally); timers map cleanly, while `%C`
+   (R/S/CU/CD to E/D/F) is not a 1:1 match for IEC `CTUD` and must be
+   checked against the guide before mapping. See the
+   [Machine Expert – Basic roadmap](docs/roadmaps/machine-expert-basic-roadmap.md),
+   group D.
+2. [ ] **Expressions.** A neutral representation for Machine Expert – Basic
+   `Comparison` (80 sample cells) and `Operation` (56) boxes, by parsing
+   Schneider expression syntax, so they stop being `UNSUPPORTED` and can
+   be exported. Group C in the Machine Expert – Basic roadmap.
+3. [ ] **Physical address binding.** Translate Schneider addresses
+   (`%I0.0`) on typed tags and surrogates to CODESYS located variables.
+   Waiting on a user-supplied fixture or CODESYS evidence; see "PLCopen
+   conversion".
+4. [ ] **Retire CCW's network-to-RLL bridge** in favour of direct network
+   export, removing its single-flat-parallel limit, once its coverage
+   report is reproduced. See "PLCopen conversion".
+5. [ ] **Full Machine Expert (CODESYS-based): PLCopen XML import.** A new
+   input format; 13 Logic Builder exports are already in the local
+   `reference/machine-expert/plcopen/`.
+
 ## Next: broaden offline engineering value
 
 ### Compatibility corpus
@@ -235,9 +265,11 @@ conversion or native Control Expert compatibility.
   - [ ] Retire CCW's network-to-RLL bridge (`targets/codesys/ccw_project.py`
     `_serialize_network`) in favour of this path, once its coverage report
     is reproduced without it
-  - [ ] Fix variable emission that already fails TC6 validation for
-    Control Expert `STRING` variables (`Escalier_Mecanique.XEF`, reference
-    corpus); present before network export and unrelated to it
+  - [x] Fix variable emission that failed TC6 validation (2026-10-09). The
+    emitter wrote the IEC type name as the element, but TC6 names four
+    elementary types differently: `STRING`/`WSTRING` are `string`/`wstring`,
+    `DATE_AND_TIME`/`TIME_OF_DAY` are `DT`/`TOD`. All seven Control Expert
+    reference exports now validate (`Escalier_Mecanique.XEF` failed before)
 
 This section describes the portable PLCopen XML exporter. Native OpenPLC
 project generation is a separate target path because the observed OpenPLC

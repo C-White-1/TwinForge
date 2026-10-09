@@ -14,7 +14,7 @@ from twinforge.exporters.plcopen import PLCopenExporter
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
 from twinforge.model import (
     Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
-    Routine,
+    Routine, Tag,
 )
 from twinforge.parsers.machine_expert_basic import capture_file, parse_project
 
@@ -359,3 +359,25 @@ def test_unconverted_instruction_list_is_kept_readable_in_the_comment():
 
     assert [d.code for d in result.diagnostics] == ["instruction_list_rung_not_converted"]
     assert "Instruction List: LD %I0.0; RISING0; ST %Q0.0" in result.xml
+
+
+# --- elementary type element names ------------------------------------------
+
+@pytest.mark.parametrize(("data_type", "element"), [
+    ("STRING", "string"), ("WSTRING", "wstring"), ("DATE_AND_TIME", "DT"), ("TIME_OF_DAY", "TOD"),
+    ("BOOL", "BOOL"), ("TIME", "TIME"),
+])
+def test_type_elements_use_the_tc6_names(data_type: str, element: str):
+    plc = controller(series(i(Op.NORMALLY_OPEN_CONTACT, "A"), i(Op.COIL, "Y")))
+    plc.add_tag(Tag(name="Value", data_type=data_type))
+
+    assert _declared(export(plc).xml)["Value"] == element
+
+
+@pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
+def test_string_and_date_time_variables_validate_against_tc6():
+    plc = controller(series(i(Op.NORMALLY_OPEN_CONTACT, "A"), i(Op.COIL, "Y")))
+    for name, data_type in (("Text", "STRING"), ("Wide", "WSTRING"), ("Stamp", "DATE_AND_TIME"), ("Clock", "TIME_OF_DAY")):
+        plc.add_tag(Tag(name=name, data_type=data_type))
+
+    validate_plcopen_xml(export(plc).xml, XSD)

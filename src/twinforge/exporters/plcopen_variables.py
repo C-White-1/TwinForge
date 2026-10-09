@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
 
-from .plcopen_operands import PLCOPEN_PRIMITIVE_TYPES
+from .plcopen_operands import PLCOPEN_PRIMITIVE_TYPES, plcopen_type_element
 from .plcopen_xml import (
     plcopen_scalar_value,
     qualified_name,
@@ -139,7 +139,7 @@ class PLCopenVariableEmitter:
                 type_element,
                 qualified_name(
                     self._namespace,
-                    self._tag_export_type(tag),
+                    plcopen_type_element(self._tag_export_type(tag)),
                 ),
             )
 

@@ -27,6 +27,23 @@ from .plcopen_xml import (
 )
 
 
+# TC6 names four elementary-type elements differently from the IEC 61131-3
+# type name used everywhere else (tc6_xml_v201.xsd, group "elementaryTypes").
+# Emitting the IEC name as the element (e.g. <STRING/>) fails validation.
+PLCOPEN_TYPE_ELEMENTS = {
+    "STRING": "string",
+    "WSTRING": "wstring",
+    "DATE_AND_TIME": "DT",
+    "TIME_OF_DAY": "TOD",
+}
+
+
+def plcopen_type_element(type_name: str) -> str:
+    """The TC6 element name for an IEC elementary type name."""
+
+    return PLCOPEN_TYPE_ELEMENTS.get(type_name, type_name)
+
+
 PLCOPEN_PRIMITIVE_TYPES = frozenset(
     {
         "BOOL",
