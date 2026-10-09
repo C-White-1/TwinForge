@@ -17,6 +17,11 @@ class LadderRung:
     rung_type: str | None = None
     comment: str | None = None
     text: str | None = None
+    # IEC 61131-3 Instruction List lines, verbatim, for a rung whose source
+    # form is IL (Machine Expert - Basic). `network` is derived from it when
+    # the IL is ladder-expressible; when not, this is the rung's only logic.
+    # Separate from `text`, which means Logix RLL throughout TwinForge.
+    instruction_list: list[str] = field(default_factory=list)
     position: LadderPosition | None = None
     network: LadderSeries | None = None
     source_sha256: str | None = None

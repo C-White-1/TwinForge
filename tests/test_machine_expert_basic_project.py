@@ -153,8 +153,14 @@ def test_pou_becomes_program_with_ladder_routine_and_rungs():
                           position=LadderPosition(column=0, row=0)),
         LadderInstruction(LadderOperation.COIL, "Coil", "%Q0.0", position=LadderPosition(column=10, row=0)),
     ))
-    # An IL-only rung has no grid, so no network.
-    assert (second.number, second.comment, second.network) == (1, None, None)
+    # An IL-only rung keeps its IL and gets a network derived from it.
+    assert (second.number, second.comment) == (1, None)
+    assert second.instruction_list == ["LD    %M0", "ST    %Q0.1"]
+    assert second.network == LadderSeries((
+        LadderInstruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", "%M0"),
+        LadderInstruction(LadderOperation.COIL, "Coil", "%Q0.1"),
+    ))
+    assert first.instruction_list == []  # a grid rung's IL stays in its source extension
     # `text` means Logix RLL elsewhere in TwinForge, so IL never goes there;
     # it stays verbatim in the rung's source extension.
     assert first.text is None and second.text is None
@@ -226,3 +232,14 @@ def test_encrypted_project_exposes_public_name_only():
 def test_non_project_artifact_is_rejected():
     with pytest.raises(ValueError):
         parse_project(capture_bytes(b"<project/>"))
+
+
+def test_unconvertible_instruction_list_is_kept_as_the_rungs_logic():
+    software = "<Pous>" + _pou("Main", _rung(["LD %I0.0", "RISING0", "ST %Q0.0"], ladder=False)) + "</Pous>"
+
+    result = _parse(_smbp(software))
+
+    rung = result.controller.programs["Main"].routines["Main"].ladder_rungs[0]
+    assert rung.network is None
+    assert rung.instruction_list == ["LD %I0.0", "RISING0", "ST %Q0.0"]
+    assert _codes(result) == ["instruction_list_not_converted"]

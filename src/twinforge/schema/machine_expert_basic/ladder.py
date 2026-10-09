@@ -55,6 +55,13 @@ class LadderSpec:
         "Drum": BlockPins({"R": 0, "U": 1}, {"F": 0}),
         "WriteVarBasic": BlockPins({"Execute": 0}, {"Done": 0}),
     })
+    # Block type by instance address prefix, for Instruction List rungs that
+    # name a block only by address (`BLK %TM0`). One-to-one in every grid cell
+    # of the samples and fixtures: %TM Timer (35), %DR Drum (8), %C Counter
+    # (2), %WRITE_VAR WriteVarBasic (1). Longest prefix wins.
+    block_prefixes: dict[str, str] = field(default_factory=lambda: {
+        "%TM": "Timer", "%DR": "Drum", "%C": "Counter", "%WRITE_VAR": "WriteVarBasic",
+    })
     # Columns occupied; any element not listed is one column wide.
     widths: dict[str, int] = field(default_factory=lambda: {
         "Timer": 2, "Counter": 2, "Drum": 2, "Comparison": 2, "Operation": 2, "WriteVarBasic": 4,

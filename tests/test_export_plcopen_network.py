@@ -336,8 +336,26 @@ def test_rung_with_neither_text_nor_network_is_reported_accurately():
     assert [_local(e.tag) for e in ld_elements(result.xml)] == ["comment"]
 
 
-def test_instruction_list_fixture_is_not_called_unsupported_rll():
-    result = export(parse_project(capture_file(FIXTURES / "10_il_only.smbp")).controller)
+def test_instruction_list_fixture_exports_as_ladder():
+    plc = parse_project(capture_file(FIXTURES / "10_il_only.smbp")).controller
+    (program,) = plc.programs.values()
+    (routine,) = program.routines.values()
+
+    result = export(plc)
 
     codes = [d.code for d in result.diagnostics]
-    assert "rung_without_exportable_logic" in codes and "unsupported_rll_rung" not in codes
+    assert not {"rung_without_exportable_logic", "instruction_list_rung_not_converted", "unsupported_rll_rung"} & set(codes)
+    network = routine.ladder_rungs[0].network
+    assert network is not None
+    assert_equivalent(network, ld_elements(result.xml), surrogates(result))
+
+
+def test_unconverted_instruction_list_is_kept_readable_in_the_comment():
+    plc = controller(None)  # type: ignore[arg-type]
+    rung = plc.programs["Main"].routines["Main"].ladder_rungs[0]
+    rung.instruction_list = ["LD %I0.0", "RISING0", "ST %Q0.0"]
+
+    result = export(plc)
+
+    assert [d.code for d in result.diagnostics] == ["instruction_list_rung_not_converted"]
+    assert "Instruction List: LD %I0.0; RISING0; ST %Q0.0" in result.xml

@@ -2,12 +2,15 @@
 
 Milestones 1 and 2 of docs/roadmaps/machine-expert-basic-roadmap.md:
 controller identity, symbol-table tags, one Program/Routine per POU, and a
-`LadderRung.network` built from each rung's grid (see `ladder.py`).
+`LadderRung.network` built from each rung's grid (see `ladder.py`), or, for a
+rung written in Instruction List, from its IL (see `instruction_list.py`).
+An IL rung also keeps its IL verbatim in `LadderRung.instruction_list`,
+which is its only logic when the IL is not ladder-expressible.
 
 `LadderRung.text` is left empty: across this codebase it means Logix RLL
 text (`rll.py`, `software_calls.py` and `tag_dependencies.py` all read it
-that way, and the last skips `network` whenever `text` is set). Each rung's
-Instruction List is retained verbatim in its source extension instead.
+that way, and the last skips `network` whenever `text` is set). A grid
+rung's IL stays verbatim in its source extension.
 """
 from __future__ import annotations
 
@@ -21,6 +24,7 @@ from twinforge.schema.machine_expert_basic import BASIC_MAPPING, MappingSpec
 
 from .capture import CapturedArtifact, CapturedSection, Diagnostic
 from .evidence import source_extension as _extension
+from .instruction_list import build_network_from_instruction_list
 from .ladder import NetworkUnresolved, build_network
 
 PathSpec = tuple[str, ...]
@@ -113,15 +117,28 @@ def _rung(routine: str, index: int, node: CapturedSection, spec: MappingSpec, re
     rung = LadderRung(number=index, comment=_text(node, spec.rung_comment), source_extensions=[_extension(node)])
     if not _select(node, spec.rung_instruction_lines):
         result.report("missing_instruction_list", f"{routine} rung {index} has no Instruction List lines", node)
+    disconnected: list[str] = []
     if not _has_grid(node, spec):
-        return rung
-    cells = [{child.tag: (child.text or "").strip() for child in cell.ordered_children}
-             for cell in _select(node, spec.rung_cells)]
-    try:
-        rung.network, disconnected = build_network(cells, symbols)
-    except NetworkUnresolved as error:
-        result.report(error.code, f"{routine} rung {index}: {error}", node)
-        return rung
+        # Written in IL: keep the IL as the rung's logic, and derive a network
+        # from it when it is ladder-expressible.
+        rung.instruction_list = [line.text or "" for entry in _select(node, spec.rung_instruction_lines)
+                                 for line in _select(entry, spec.instruction_text)]
+        if not any(line.strip() for line in rung.instruction_list):
+            return rung
+        try:
+            rung.network = build_network_from_instruction_list(rung.instruction_list, symbols)
+        except NetworkUnresolved as error:
+            result.report(error.code, f"{routine} rung {index}: {error}; Instruction List kept as the rung's logic",
+                          node)
+            return rung
+    else:
+        cells = [{child.tag: (child.text or "").strip() for child in cell.ordered_children}
+                 for cell in _select(node, spec.rung_cells)]
+        try:
+            rung.network, disconnected = build_network(cells, symbols)
+        except NetworkUnresolved as error:
+            result.report(error.code, f"{routine} rung {index}: {error}", node)
+            return rung
     if disconnected:
         result.report("ladder_disconnected_element",
                       f"{routine} rung {index}: {sorted(set(disconnected))} reach no output; "

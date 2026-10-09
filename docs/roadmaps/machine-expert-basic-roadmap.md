@@ -115,12 +115,37 @@ The remaining `UNSUPPORTED` elements fall into four groups:
   `WriteVarBasic`): needs a model concept for a branch feeding a block pin;
   overlaps with function-block parameters below.
 
+## Instruction List rungs
+
+Decided 2026-10-09: convert IL to a ladder network where it is
+ladder-expressible (B), keep the IL text as the fallback (A). IEC 61131-3
+deprecated IL in its 2013 edition, which argues against making it a
+first-class model concept.
+
+- [x] B: `instruction_list.py` replays a rung's IL with a ladder condition
+  as the accumulator (`LD`/`AND`/`OR` and their `N`/`R`/`F` forms,
+  `AND(`...`)`, `MPS`/`MRD`/`MPP`, `ST`/`STN`/`S`/`R`, `[ ... ]`
+  operations, `BLK`...`OUT_BLK`...`END_BLK` blocks). Each output keeps its
+  full path; paths share element objects wherever the IL shares a
+  condition, so factoring common prefixes by identity rebuilds the grid
+  shape. Block types come from the address prefix (`%TM` Timer, `%C`
+  Counter, `%DR` Drum, `%WRITE_VAR` WriteVarBasic; one-to-one in every
+  grid cell). All 94 IL rungs in the samples and the fixture's one convert
+  and are equivalent to their IL by truth table; as a cross-check, the IL
+  of 272 of the 278 grid rungs converts equivalently too (the other 6 use
+  `RISINGn`/`MULTIFB`). Breaking the converter (OR as AND; ignoring
+  MRD/MPP restore) is caught.
+- [x] A: `LadderRung.instruction_list` (new model field) holds an IL rung's
+  IL verbatim; it is the rung's only logic when B refuses
+  (`instruction_list_not_converted`: `RISINGn`, `MULTIFB`, unbalanced
+  brackets, unknown blocks). The PLCopen exporter then keeps the IL,
+  readable, in the rung's comment (`instruction_list_rung_not_converted`).
+  A grid rung's IL stays in its source extension only.
+
+Every rung in the 63 samples now has a network (264 grid, 94 IL).
+
 ## Later
 
-- An IL representation in the model. IL-only rungs (91 in the samples) have
-  no network and, since `text` is RLL, no model-level logic; their IL is
-  only in source extensions. IEC 61131-3 IL is vendor-neutral, so this is a
-  model decision, not a parser one.
 - Function-block parameters (`TimerTM` preset/base, counters, drums) joined
   to rung block references.
 - `MastTask`/`FastTask` → `Task`, once scan-mode semantics are evidenced.

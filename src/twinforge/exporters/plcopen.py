@@ -327,8 +327,19 @@ class PLCopenExporter:
         if rung.text is None and rung.network is not None:
             self._network_rung(ld, rung, program_name)
             return
-        # Neither form (e.g. a Machine Expert - Basic rung written only in
-        # Instruction List, which the neutral model does not represent yet).
+        # Instruction List that could not become a ladder network: keep the IL
+        # itself, readable, in the comment.
+        if rung.text is None and rung.network is None and rung.instruction_list:
+            il_text = "; ".join(line.strip() for line in rung.instruction_list if line.strip())
+            self._diagnostic(
+                "instruction_list_rung_not_converted",
+                "Instruction List rung has no ladder-expressible network; its IL is kept as a comment",
+                program_name,
+                raw_value=il_text,
+            )
+            self._comment(ld, f"Instruction List: {il_text}")
+            return
+        # Neither form.
         if rung.text is None and rung.network is None:
             self._diagnostic(
                 "rung_without_exportable_logic",

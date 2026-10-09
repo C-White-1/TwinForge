@@ -101,7 +101,8 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
                          "| OUT(%C0.F) COIL(%Q0.1)]"]),
     ("07_compare_operate.smbp", ["Comparison(%MW0 > 10) Operation(%MW1 := %MW1 + 1)"]),
     ("08_edges.smbp", ["P(%I0.0) COIL(%Q0.0)", "N(%I0.1) COIL(%Q0.1)"]),
-    ("10_il_only.smbp", [None]),
+    # Written in IL, no grid: the network is derived from the IL.
+    ("10_il_only.smbp", ["NO(%I0.0) NO(%I0.1) COIL(%Q0.0)"]),
 ])
 def test_network_shapes_match_the_drawn_rungs(name: str, shapes: list[str | None]):
     assert _shapes(name) == shapes
@@ -130,6 +131,7 @@ def test_instruction_list_rung_keeps_its_il_in_source():
     routine = _routine(_parse("10_il_only.smbp"))
 
     assert routine.language == "IL"
+    assert routine.ladder_rungs[0].instruction_list == ["LD    %I0.0", "AND   %I0.1", "ST    %Q0.0"]
     rung = routine.ladder_rungs[0]
     lines = next(child for child in rung.source_extensions[0].root.children if child.name == "InstructionLines")
     assert [entry.children[0].text for entry in lines.children] == ["LD    %I0.0", "AND   %I0.1", "ST    %Q0.0"]
@@ -254,8 +256,9 @@ def test_network_is_equivalent_to_instruction_list(rung):
                {key: il_results.get(key, False) for key in il_outputs}, env
 
 
-def test_all_grid_rungs_are_checked():
-    assert len(list(_grid_rungs())) == 14
+def test_every_network_is_checked():
+    # 14 grid rungs plus the one IL-only rung (10_il_only).
+    assert len(list(_grid_rungs())) == 15
 
 
 # --- the grid checker script itself ----------------------------------------

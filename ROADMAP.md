@@ -226,11 +226,12 @@ conversion or native Control Expert compatibility.
     `AT %IX0.1`-style located variables). The Schneider address is kept in
     surrogate and tag metadata; translating it to a CODESYS address is not
     evidenced yet.
-  - [ ] Represent Instruction List-only rungs. They have neither RLL text
-    nor a network, and are now exported as a comment with an accurate
-    `rung_without_exportable_logic` diagnostic (previously mislabelled
-    `unsupported_rll_rung`); see "An IL representation in the model" in the
-    Machine Expert – Basic roadmap
+  - [x] Represent Instruction List-only rungs (2026-10-09). Machine Expert –
+    Basic IL rungs are converted to ladder networks where the IL is
+    ladder-expressible (all 94 in the samples), so they export as LD; any
+    that are not keep their IL in the new `LadderRung.instruction_list`
+    field and export as a comment holding that IL. See "Instruction List
+    rungs" in the Machine Expert – Basic roadmap
   - [ ] Retire CCW's network-to-RLL bridge (`targets/codesys/ccw_project.py`
     `_serialize_network`) in favour of this path, once its coverage report
     is reproduced without it
