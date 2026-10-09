@@ -1,19 +1,27 @@
 """Conservative basic mapping from a captured `.smbp` tree to neutral objects.
 
-Milestone 1 of docs/roadmaps/machine-expert-basic-roadmap.md: controller
-identity, symbol-table tags, and one Program/Routine per POU whose rungs
-carry their Instruction List text. Grid cells are retained as rung source
-evidence but not yet turned into `LadderRung.network`.
+Milestones 1 and 2 of docs/roadmaps/machine-expert-basic-roadmap.md:
+controller identity, symbol-table tags, one Program/Routine per POU, and a
+`LadderRung.network` built from each rung's grid (see `ladder.py`).
+
+`LadderRung.text` is left empty: across this codebase it means Logix RLL
+text (`rll.py`, `software_calls.py` and `tag_dependencies.py` all read it
+that way, and the last skips `network` whenever `text` is set). Each rung's
+Instruction List is retained verbatim in its source extension instead.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from twinforge.model import Controller, Identity, LadderRung, Program, Routine, Tag
+from twinforge.model import (
+    Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
+    Routine, Tag,
+)
 from twinforge.schema.machine_expert_basic import BASIC_MAPPING, MappingSpec
 
 from .capture import CapturedArtifact, CapturedSection, Diagnostic
 from .evidence import source_extension as _extension
+from .ladder import NetworkUnresolved, build_network
 
 PathSpec = tuple[str, ...]
 
@@ -89,14 +97,41 @@ def _tags(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> No
                       "declared symbol tables; source retained", node)
 
 
-def _rung(index: int, node: CapturedSection, spec: MappingSpec, result: ParsedProject) -> LadderRung:
-    lines = [line.text or "" for entry in _select(node, spec.rung_instruction_lines)
-             for line in _select(entry, spec.instruction_text)]
-    if not lines:
-        result.report("missing_instruction_list", f"Rung {index} has no Instruction List lines", node)
-    return LadderRung(number=index, comment=_text(node, spec.rung_comment),
-                      text="\n".join(lines) if lines else None,
-                      source_extensions=[_extension(node)])
+def _unsupported(series: LadderSeries) -> list[str]:
+    found: list[str] = []
+    for element in series.elements:
+        if isinstance(element, LadderParallel):
+            for branch in element.branches:
+                found.extend(_unsupported(branch))
+        elif isinstance(element, LadderInstruction) and element.operation is LadderOperation.UNSUPPORTED:
+            found.append(element.source_mnemonic)
+    return found
+
+
+def _rung(routine: str, index: int, node: CapturedSection, spec: MappingSpec, result: ParsedProject,
+          symbols: dict[str, str]) -> LadderRung:
+    rung = LadderRung(number=index, comment=_text(node, spec.rung_comment), source_extensions=[_extension(node)])
+    if not _select(node, spec.rung_instruction_lines):
+        result.report("missing_instruction_list", f"{routine} rung {index} has no Instruction List lines", node)
+    if not _has_grid(node, spec):
+        return rung
+    cells = [{child.tag: (child.text or "").strip() for child in cell.ordered_children}
+             for cell in _select(node, spec.rung_cells)]
+    try:
+        rung.network, disconnected = build_network(cells, symbols)
+    except NetworkUnresolved as error:
+        result.report(error.code, f"{routine} rung {index}: {error}", node)
+        return rung
+    if disconnected:
+        result.report("ladder_disconnected_element",
+                      f"{routine} rung {index}: {sorted(set(disconnected))} reach no output; "
+                      "left out of the network, retained in source", node)
+    unsupported = _unsupported(rung.network)
+    if unsupported:
+        result.report("ladder_unsupported_element",
+                      f"{routine} rung {index}: {sorted(set(unsupported))} have no portable operation; "
+                      "kept in the network as UNSUPPORTED", node)
+    return rung
 
 
 def _has_grid(node: CapturedSection, spec: MappingSpec) -> bool:
@@ -106,6 +141,9 @@ def _has_grid(node: CapturedSection, spec: MappingSpec) -> bool:
 
 def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
     used: set[str] = set()
+    # Ladder operands use the declared tag name for an address when one exists.
+    symbols = {tag.metadata["source_memory_address"]: name for name, tag in result.controller.tags.items()
+               if "source_memory_address" in tag.metadata}
     for pou in _select(root, spec.pous):
         name = _unique_name(result, pou, _text(pou, spec.pou_name), used, "POU")
         if name is None:
@@ -114,7 +152,8 @@ def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -
         # IL is stored for every rung; a grid only for rungs edited in Ladder.
         language = "LD" if any(_has_grid(rung, spec) for rung in rung_nodes) else "IL"
         routine = Routine(name=name, language=language, source_extensions=[_extension(pou)])
-        routine.ladder_rungs = [_rung(index, rung, spec, result) for index, rung in enumerate(rung_nodes)]
+        routine.ladder_rungs = [_rung(name, index, rung, spec, result, symbols)
+                                for index, rung in enumerate(rung_nodes)]
         program = Program(name=name, source_extensions=[_extension(pou)])
         program.add_routine(routine)
         result.controller.add_program(program)

@@ -1,8 +1,8 @@
 # Machine Expert – Basic `.smbp` project format: provisional specification
 
-Status: provisional specification, 2026-10-07. Read-only capture and basic
-mapping (controller, symbol tags, POU routines with rung IL) are implemented
-in `parsers/machine_expert_basic/`; ladder networks are not. Delivery is
+Status: provisional specification, 2026-10-07. Read-only capture, basic
+mapping (controller, symbol tags, POU routines) and ladder networks built
+from the grid rules below are implemented in `parsers/machine_expert_basic/`. Delivery is
 tracked in the [Machine Expert – Basic roadmap](../roadmaps/machine-expert-basic-roadmap.md).
 This document records what was directly observed in public sample files so
 implementation can be specification-driven. Rules under "Proposed capture

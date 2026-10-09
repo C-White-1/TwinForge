@@ -1,6 +1,7 @@
 """Machine Expert – Basic `.smbp` basic mapping: controller, tags, POUs, rungs."""
 import pytest
 
+from twinforge.model import LadderInstruction, LadderOperation, LadderPosition, LadderSeries
 from twinforge.parsers.machine_expert_basic import capture_bytes, parse_project
 
 BOM = b"\xef\xbb\xbf"
@@ -103,24 +104,40 @@ def test_symbol_outside_declared_tables_is_reported():
     assert "'PARTS'" in result.diagnostics[-1].message
 
 
+def _wire(row: int, first: int, last: int) -> str:
+    return "".join(_cell("Line", row, column, "Left, Right") for column in range(first, last + 1))
+
+
+def _source_child(rung, name: str):
+    return next(child for child in rung.source_extensions[0].root.children if child.name == name)
+
+
 def test_pou_becomes_program_with_ladder_routine_and_rungs():
-    cells = _cell("NormalContact", 0, 0, "Left, Right", "%I0.0") + _cell("Coil", 0, 10, "Left", "%Q0.0")
+    cells = (_cell("NormalContact", 0, 0, "Left, Right", "%I0.0") + _wire(0, 1, 9)
+             + _cell("Coil", 0, 10, "Left", "%Q0.0"))
     software = "<Pous>" + _pou("Main",
                                _rung(["LD    %I0.0", "ST    %Q0.0"], cells, comment="Start motor"),
                                _rung(["LD    %M0", "ST    %Q0.1"], ladder=False)) + "</Pous>"
 
-    controller = _parse(_smbp(software)).controller
+    result = _parse(_smbp(software))
 
-    routine = controller.programs["Main"].routines["Main"]
+    routine = result.controller.programs["Main"].routines["Main"]
     assert routine.name == "Main" and routine.language == "LD"
     first, second = routine.ladder_rungs
-    assert (first.number, first.comment, first.text) == (0, "Start motor", "LD    %I0.0\nST    %Q0.0")
-    assert (second.number, second.comment, second.text) == (1, None, "LD    %M0\nST    %Q0.1")
-    assert first.network is None  # Milestone 2
-    # The grid is retained as rung evidence.
-    rung_source = first.source_extensions[0].root
-    elements = next(child for child in rung_source.children if child.name == "LadderElements")
-    assert [cell.children[0].text for cell in elements.children] == ["NormalContact", "Coil"]
+    assert (first.number, first.comment) == (0, "Start motor")
+    assert first.network == LadderSeries((
+        LadderInstruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", "%I0.0",
+                          position=LadderPosition(column=0, row=0)),
+        LadderInstruction(LadderOperation.COIL, "Coil", "%Q0.0", position=LadderPosition(column=10, row=0)),
+    ))
+    # An IL-only rung has no grid, so no network.
+    assert (second.number, second.comment, second.network) == (1, None, None)
+    # `text` means Logix RLL elsewhere in TwinForge, so IL never goes there;
+    # it stays verbatim in the rung's source extension.
+    assert first.text is None and second.text is None
+    lines = _source_child(second, "InstructionLines")
+    assert [entry.children[0].text for entry in lines.children] == ["LD    %M0", "ST    %Q0.1"]
+    assert _codes(result) == []
 
 
 def test_pou_with_only_instruction_list_or_placeholder_cells_is_il():
@@ -133,12 +150,23 @@ def test_pou_with_only_instruction_list_or_placeholder_cells_is_il():
 
 
 def test_rung_without_instruction_list_is_reported():
-    software = "<Pous>" + _pou("Main", _rung([], _cell("Coil", 0, 10, "Left", "%Q0.0"))) + "</Pous>"
+    cells = _cell("NormalContact", 0, 0, "Left, Right", "%I0.0") + _cell("Coil", 0, 1, "Left", "%Q0.0")
+    software = "<Pous>" + _pou("Main", _rung([], cells)) + "</Pous>"
 
     result = _parse(_smbp(software))
 
-    assert result.controller.programs["Main"].routines["Main"].ladder_rungs[0].text is None
+    assert result.controller.programs["Main"].routines["Main"].ladder_rungs[0].network is not None
     assert _codes(result) == ["missing_instruction_list"]
+
+
+def test_unreachable_output_gets_no_network():
+    # A coil with no wire back to the rail.
+    software = "<Pous>" + _pou("Main", _rung(["ST %Q0.0"], _cell("Coil", 0, 10, "Left", "%Q0.0"))) + "</Pous>"
+
+    result = _parse(_smbp(software))
+
+    assert result.controller.programs["Main"].routines["Main"].ladder_rungs[0].network is None
+    assert _codes(result) == ["ladder_no_output"]
 
 
 def test_duplicate_pou_name_is_reported():

@@ -2,20 +2,39 @@
 
 Each file was drawn by hand in the editor to settle one question in
 docs/architecture/machine-expert-basic-smbp-format.md; these tests pin what
-the parser and the grid-against-IL check say about them.
+the parser and the grid-against-IL check say about them, including that
+every built ladder network is equivalent to its rung's Instruction List.
 """
 import ast
+import importlib.util
+import itertools
 from pathlib import Path
 import subprocess
 import sys
 
 import pytest
 
+from twinforge.analysis.tag_dependencies import build_tag_dependency_graph
+from twinforge.model import LadderInstruction, LadderOperation, LadderParallel, LadderSeries
 from twinforge.parsers.machine_expert_basic import capture_file, parse_project
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "examples/machine_expert_basic"
 ALL = sorted(FIXTURES.glob("*.smbp"))
+# Fixtures whose rungs use elements with no portable LadderOperation.
+WITH_UNSUPPORTED = {"05_timer", "05b_timer", "05c_timer", "06_counter", "06b_counter", "07_compare_operate",
+                    "08_edges"}
+
+_spec = importlib.util.spec_from_file_location("check_smbp_grid_vs_il", ROOT / "examples/check_smbp_grid_vs_il.py")
+assert _spec is not None and _spec.loader is not None
+checker = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(checker)
+
+_SHORT = {
+    LadderOperation.NORMALLY_OPEN_CONTACT: "NO", LadderOperation.NORMALLY_CLOSED_CONTACT: "NC",
+    LadderOperation.COIL: "COIL", LadderOperation.SET_COIL: "SET", LadderOperation.RESET_COIL: "RESET",
+    LadderOperation.BLOCK_OUTPUT_REFERENCE: "OUT",
+}
 
 
 def _parse(name: str):
@@ -33,6 +52,24 @@ def _user_tags(result) -> dict[str, tuple[str | None, dict]]:
             if tag.metadata["source_symbol_table"] not in ("SystemBits", "SystemWords")}
 
 
+def _shape(series: LadderSeries) -> str:
+    """Compact rendering: `[a | b]` is a parallel, `.PIN` a block input pin."""
+    parts = []
+    for element in series.elements:
+        if isinstance(element, LadderParallel):
+            parts.append("[" + " | ".join(_shape(branch) for branch in element.branches) + "]")
+        else:
+            label = _SHORT.get(element.operation) or element.source_mnemonic
+            pin = "".join("." + annotation.split("=", 1)[1] for annotation in element.annotations
+                          if annotation.startswith("input_pin="))
+            parts.append(f"{label}({element.operand}{pin})")
+    return " ".join(parts)
+
+
+def _shapes(name: str) -> list[str | None]:
+    return [_shape(rung.network) if rung.network else None for rung in _routine(_parse(name)).ladder_rungs]
+
+
 def test_fixture_set_is_present():
     assert len(ALL) == 15
 
@@ -41,25 +78,40 @@ def test_fixture_set_is_present():
 def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
     result = parse_project(capture_file(path))
 
-    expected = {"encrypted_project"} if result.encrypted else {"unclassified_content"}
+    if result.encrypted:
+        expected = {"encrypted_project"}
+    else:
+        expected = {"unclassified_content"} | ({"ladder_unsupported_element"} if path.stem in WITH_UNSUPPORTED else set())
     assert {d.code for d in result.diagnostics} == expected
     assert result.project_version == "3.0.0.0"
 
 
-def test_series_rung():
-    routine = _routine(_parse("01_series.smbp"))
+@pytest.mark.parametrize(("name", "shapes"), [
+    ("01_series.smbp", ["NO(%I0.0) NC(%I0.1) COIL(%Q0.0)"]),
+    ("02_parallel.smbp", ["[NO(%I0.0) | NO(%I0.1)] COIL(%Q0.0)"]),
+    ("03_nested.smbp", ["NO(%I0.0) [NO(%I0.1) | NO(%I0.2) NO(%I0.3)] COIL(%Q0.0)"]),
+    # Same logic as 03 drawn with the contact moved one column: same network.
+    ("12_edited.smbp", ["NO(%I0.0) [NO(%I0.1) | NO(%I0.2) NO(%I0.3)] COIL(%Q0.0)"]),
+    ("04_two_outputs.smbp", ["NO(%I0.0) [COIL(%Q0.0) | COIL(%Q0.1)]"]),
+    ("05_timer.smbp", ["[NO(%I0.0) Timer(%TM0.IN) | OUT(%TM0.Q) COIL(%Q0.0)]"]),
+    # Branches in drawn order, top to bottom then left to right: R (row 0),
+    # D (row 1), then on row 2 the CU contact (column 0) before F (column 2).
+    ("06_counter.smbp", ["[NO(%I0.1) Counter(%C0.R) | OUT(%C0.D) COIL(%Q0.0) | NO(%I0.0) Counter(%C0.CU) "
+                         "| OUT(%C0.F) COIL(%Q0.1)]"]),
+    ("07_compare_operate.smbp", ["Comparison(%MW0 > 10) Operation(%MW1 := %MW1 + 1)"]),
+    ("08_edges.smbp", ["RisingEdge(%I0.0) COIL(%Q0.0)", "FallingEdge(%I0.1) COIL(%Q0.1)"]),
+    ("10_il_only.smbp", [None]),
+])
+def test_network_shapes_match_the_drawn_rungs(name: str, shapes: list[str | None]):
+    assert _shapes(name) == shapes
 
-    assert routine.language == "LD"
-    assert [rung.text for rung in routine.ladder_rungs] == ["LD  %I0.0\nANDN  %I0.1\nST  %Q0.0"]
 
-
-def test_two_rungs_are_numbered_in_order():
-    rungs = _routine(_parse("08_edges.smbp")).ladder_rungs
-
-    assert [(rung.number, rung.text) for rung in rungs] == [
-        (0, "LDR   %I0.0\nST    %Q0.0"),
-        (1, "LDF   %I0.1\nST    %Q0.1"),
-    ]
+def test_rung_text_is_never_instruction_list():
+    # LadderRung.text means Logix RLL elsewhere in TwinForge.
+    for path in ALL:
+        for program in parse_project(capture_file(path)).controller.programs.values():
+            for routine in program.routines.values():
+                assert all(rung.text is None for rung in routine.ladder_rungs)
 
 
 def test_symbols_from_io_memory_and_counter_tables():
@@ -73,11 +125,25 @@ def test_symbols_from_io_memory_and_counter_tables():
     }
 
 
-def test_instruction_list_rung():
+def test_instruction_list_rung_keeps_its_il_in_source():
     routine = _routine(_parse("10_il_only.smbp"))
 
     assert routine.language == "IL"
-    assert routine.ladder_rungs[0].text == "LD    %I0.0\nAND   %I0.1\nST    %Q0.0"
+    rung = routine.ladder_rungs[0]
+    lines = next(child for child in rung.source_extensions[0].root.children if child.name == "InstructionLines")
+    assert [entry.children[0].text for entry in lines.children] == ["LD    %I0.0", "AND   %I0.1", "ST    %Q0.0"]
+
+
+def test_operands_use_declared_symbols_and_feed_tag_dependencies():
+    result = _parse("09_symbols.smbp")
+    assert _shapes("09_symbols.smbp") == ["[NO(START_PB) | NO(%I0.1)] COIL(MOTOR_RUN)"]
+
+    graph = build_tag_dependency_graph(result.controller)
+
+    assert sorted((ref.tag_name, ref.access.value) for ref in graph.references) == [
+        ("MOTOR_RUN", "write"), ("START_PB", "read")]
+    # The unnamed input is kept as evidence, not dropped.
+    assert [ref.operand for ref in graph.unresolved_references] == ["%I0.1"]
 
 
 def test_encrypted_project_keeps_only_its_public_name():
@@ -88,6 +154,110 @@ def test_encrypted_project_keeps_only_its_public_name():
     assert result.controller.name == "01_series"
     assert result.controller.programs == {} and result.controller.tags == {}
 
+
+# --- every network is equivalent to its rung's IL --------------------------
+
+_OUTPUT_KEYS = {LadderOperation.COIL: "ST", LadderOperation.SET_COIL: "S", LadderOperation.RESET_COIL: "R"}
+_EDGE_ATOMS = {"RisingEdge": "R:", "FallingEdge": "F:", "RisingEdgeBlock": "RISING"}
+
+
+def _address(element: LadderInstruction) -> str:
+    """The address the IL uses: the `address=` annotation when the operand is a symbol."""
+    annotated = [a.split("=", 1)[1] for a in element.annotations if a.startswith("address=")]
+    return annotated[0] if annotated else element.operand or ""
+
+
+def _atom(element: LadderInstruction) -> str | None:
+    operand = _address(element)
+    if element.operation is LadderOperation.BLOCK_OUTPUT_REFERENCE:
+        if element.annotations:  # operand is "SYMBOL.PIN"; rebuild "%C0.PIN"
+            return f"out:{operand}.{(element.operand or '').rsplit('.', 1)[1]}"
+        return f"out:{operand}"
+    if element.operation in (LadderOperation.NORMALLY_OPEN_CONTACT, LadderOperation.NORMALLY_CLOSED_CONTACT):
+        return operand
+    if element.source_mnemonic in _EDGE_ATOMS:
+        return _EDGE_ATOMS[element.source_mnemonic] + operand
+    if element.source_mnemonic == "Xor":
+        return operand
+    if element.source_mnemonic == "Comparison" and ":=" not in operand:
+        return "[" + checker.norm(operand) + "]"
+    return None
+
+
+def _evaluate(series: LadderSeries, power: bool, env: dict, results: dict) -> bool:
+    """Power flow through a network, recording every output it reaches."""
+    for element in series.elements:
+        if isinstance(element, LadderParallel):
+            power = any([_evaluate(branch, power, env, results) for branch in element.branches])
+            continue
+        kind, operand = element.source_mnemonic, _address(element)
+        pins = [annotation.split("=", 1)[1] for annotation in element.annotations if annotation.startswith("input_pin=")]
+        if pins:
+            results[("PIN", operand, pins[0])] = power
+        elif element.operation in _OUTPUT_KEYS or kind in ("NegativeCoil", "Operation"):
+            key = ((_OUTPUT_KEYS[element.operation], operand) if element.operation in _OUTPUT_KEYS
+                   else ("STN", operand) if kind == "NegativeCoil" else ("OP", checker.norm(operand)))
+            results[key] = results.get(key, False) or power
+        elif kind == "Comparison" and ":=" in operand:
+            key = ("OP", checker.norm(operand))
+            results[key] = results.get(key, False) or power
+        elif element.operation is LadderOperation.BLOCK_OUTPUT_REFERENCE:
+            power = env[_atom(element)]
+        elif element.operation is LadderOperation.NORMALLY_CLOSED_CONTACT:
+            power = power and not env[_atom(element)]
+        elif kind == "Xor":
+            power = power != env[_atom(element)]
+        elif kind == "Not":
+            power = not power
+        else:
+            power = power and env[_atom(element)]
+    return power
+
+
+def _atoms(series: LadderSeries) -> set[str]:
+    found: set[str] = set()
+    for element in series.elements:
+        if isinstance(element, LadderParallel):
+            for branch in element.branches:
+                found |= _atoms(branch)
+        elif (atom := _atom(element)) is not None:
+            found.add(atom)
+    return found
+
+
+def _grid_rungs():
+    for path in ALL:
+        for program in parse_project(capture_file(path)).controller.programs.values():
+            for routine in program.routines.values():
+                for rung in routine.ladder_rungs:
+                    if rung.network is not None:
+                        yield pytest.param(rung, id=f"{path.stem}-{rung.number}")
+
+
+@pytest.mark.parametrize("rung", list(_grid_rungs()))
+def test_network_is_equivalent_to_instruction_list(rung):
+    lines = next(child for child in rung.source_extensions[0].root.children if child.name == "InstructionLines")
+    program, il_atoms, il_outputs, _internal, _pins, _outs = checker.parse_il(
+        [entry.children[0].text or "" for entry in lines.children])
+    atoms = sorted(_atoms(rung.network))
+    assert set(atoms) == il_atoms
+    reached: dict = {}
+    _evaluate(rung.network, True, dict.fromkeys(atoms, False), reached)
+    assert set(reached) == il_outputs
+    for bits in itertools.product((False, True), repeat=len(atoms)):
+        env = dict(zip(atoms, bits))
+        network_results: dict = {}
+        _evaluate(rung.network, True, env, network_results)
+        il_results = checker.run_il(program, env)
+        assert {key: network_results.get(key, False) for key in il_outputs} == \
+               {key: il_results.get(key, False) for key in il_outputs}, env
+
+
+def test_all_grid_rungs_are_checked():
+    assert len(list(_grid_rungs())) == 14
+
+
+# --- the grid checker script itself ----------------------------------------
 
 def _check(*arguments: str) -> dict:
     completed = subprocess.run(
