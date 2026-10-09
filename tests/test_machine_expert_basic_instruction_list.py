@@ -19,6 +19,10 @@ def shape(series: LadderSeries) -> str:
         if isinstance(element, LadderParallel):
             parts.append("[" + " | ".join(shape(branch) for branch in element.branches) + "]")
         else:
+            if element.expression is not None:  # COMPARISON / ASSIGNMENT: the typed tree
+                label = "CMP" if element.operation is LadderOperation.COMPARISON else "ASSIGN"
+                parts.append(f"{label}({element.expression.render()})")
+                continue
             label = _SHORT.get(element.operation) or element.source_mnemonic
             parts.append(f"{label}({element.operand})")
     return " ".join(parts)
@@ -39,9 +43,9 @@ def convert(*lines: str, symbols: dict[str, str] | None = None) -> str:
     # Nested brackets, as 03_nested's IL writes them.
     (("LD %I0.0", "AND( %I0.1", "OR( %I0.2", "AND %I0.3", ")", ")", "ST %Q0.0"),
      "NO(%I0.0) [NO(%I0.1) | NO(%I0.2) NO(%I0.3)] COIL(%Q0.0)"),
-    (("LD [ %MW0 > 10 ]", "[ %MW1 := %MW1 + 1 ]"), "Comparison(%MW0 > 10) Operation(%MW1 := %MW1 + 1)"),
+    (("LD [ %MW0 > 10 ]", "[ %MW1 := %MW1 + 1 ]"), "CMP(%MW0 > 10) ASSIGN(%MW1 := (%MW1 + 1))"),
     (("LD %I0.0", "OPER [ %MF1 := ( %MF2 * 3.0 ) ]", "ST %Q0.0"),
-     "NO(%I0.0) [Operation(%MF1 := (%MF2 * 3.0)) | COIL(%Q0.0)]"),
+     "NO(%I0.0) [ASSIGN(%MF1 := (%MF2 * 3.0)) | COIL(%Q0.0)]"),
 ])
 def test_conditions_and_outputs(lines, expected):
     assert convert(*lines) == expected

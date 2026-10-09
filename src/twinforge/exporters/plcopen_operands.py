@@ -9,7 +9,8 @@ from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, LadderOperation, LadderSeries, Tag
+from twinforge.model import Controller, Expression, LadderOperation, LadderSeries, Tag
+from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
 from .plcopen_network import instructions as network_instructions
 from .plcopen_network import split_member
@@ -122,6 +123,10 @@ class PLCopenOperandPlan:
     # Tag name -> IEC-safe declared name, for tags whose source name is not
     # an IEC identifier (an unnamed Machine Expert - Basic timer is "%TM0").
     tag_names: dict[str, str] = field(default_factory=dict)
+    # id() of an Expression node -> the temporary variable its value is
+    # stored in: every nested arithmetic node and every comparison result.
+    # (The arithmetic directly assigned by an ASSIGNMENT writes its target.)
+    expression_temps: dict[int, str] = field(default_factory=dict)
 
     @classmethod
     def empty(cls) -> PLCopenOperandPlan:
@@ -181,6 +186,7 @@ class PLCopenOperandPlanner:
         self._diagnostics: list[ConversionDiagnostic] = []
         self._function_block_instances: dict[str, tuple[str, str]] = {}
         self._tag_names: dict[str, str] = {}
+        self._expression_temps: dict[int, str] = {}
 
     def prepare(self, controller: Controller) -> PLCopenOperandPlan:
         """Discover all required symbols in deterministic source order."""
@@ -208,6 +214,7 @@ class PLCopenOperandPlanner:
             diagnostics=tuple(self._diagnostics),
             function_block_instances=dict(self._function_block_instances),
             tag_names=dict(self._tag_names),
+            expression_temps=dict(self._expression_temps),
         )
 
     def _reset(self) -> None:
@@ -223,6 +230,7 @@ class PLCopenOperandPlanner:
         self._diagnostics = []
         self._function_block_instances = {}
         self._tag_names = {}
+        self._expression_temps = {}
 
     def _prepare_operands(self, controller: Controller) -> None:
         tags = list(controller.tags.values())
@@ -237,7 +245,7 @@ class PLCopenOperandPlanner:
             for routine in program.iter_routines():
                 for rung in routine.ladder_rungs:
                     if rung.text is None and rung.network is not None:
-                        self._prepare_network_operands(rung.network, names)
+                        self._prepare_network_operands(rung.network, names, program.name, routine.name, rung.number)
                         continue
                     parsed = parse_supported_rung(rung.text)
                     if parsed is None:
@@ -353,7 +361,9 @@ class PLCopenOperandPlanner:
                 raw_value=tag.name,
             )
 
-    def _prepare_network_operands(self, network: LadderSeries, names: set[str]) -> None:
+    def _prepare_network_operands(
+        self, network: LadderSeries, names: set[str], program: str = "", routine: str = "", rung: int | None = None,
+    ) -> None:
         """Declare surrogates for network operands that are not IEC identifiers.
 
         Only networks the LD emitter can encode are considered; every
@@ -367,6 +377,9 @@ class PLCopenOperandPlanner:
             return
         for instruction in network_instructions(network):
             operand = instruction.operand or ""
+            if instruction.expression is not None:
+                self._prepare_expression(instruction.expression, names, program, routine, rung)
+                continue
             if instruction.operation in (LadderOperation.FUNCTION_BLOCK_INPUT,
                                          LadderOperation.BLOCK_OUTPUT_REFERENCE):
                 continue  # a block pin, not a variable
@@ -396,6 +409,40 @@ class PLCopenOperandPlanner:
                 raw_value=operand,
             )
             self._operand_names[operand] = portable
+
+    def _prepare_expression(
+        self, expression: Expression, names: set[str], program: str, routine: str, rung: int | None,
+    ) -> None:
+        """Typed surrogates for raw operands, and temporaries for intermediate values."""
+        direct = expression.right if expression.operator == ASSIGNMENT_OPERATOR else None
+        for node in expression.iter_nodes():
+            if node.kind == "variable" and not _IEC_IDENTIFIER.fullmatch(node.text) \
+                    and node.text not in self._operand_names:
+                portable = unique_portable_name(node.text, names)
+                names.add(portable)
+                self._generated_tags.append(Tag(
+                    name=portable, data_type=node.data_type,
+                    description=f"Portable surrogate for source operand {node.text}",
+                    metadata={"plcopen_source_operand": node.text},
+                ))
+                self._diagnostic(
+                    "raw_operand_rewritten",
+                    "raw source operand was replaced by an IEC-safe surrogate variable",
+                    portable,
+                    raw_value=node.text,
+                )
+                self._operand_names[node.text] = portable
+            needs_temp = node.kind == "binary" and node.operator != ASSIGNMENT_OPERATOR and node is not direct
+            if needs_temp:
+                index = len([key for key in self._expression_temps]) + 1
+                rung_label = rung if rung is not None else "N"
+                temp = unique_portable_name(f"Expr_{program}_{routine}_{rung_label}_{index}", names)
+                names.add(temp)
+                self._expression_temps[id(node)] = temp
+                self._comparison_tags.setdefault(program, []).append(Tag(
+                    name=temp, data_type=node.data_type,
+                    description=f"TwinForge expression value for {routine} rung {rung}",
+                ))
 
     def _prepare_timers(self, controller: Controller) -> None:
         tags = [

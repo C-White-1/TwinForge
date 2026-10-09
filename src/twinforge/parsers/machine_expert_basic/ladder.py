@@ -32,6 +32,8 @@ import re
 from twinforge.model import LadderInstruction, LadderOperation, LadderParallel, LadderPosition, LadderSeries
 from twinforge.schema.machine_expert_basic.ladder import LADDER_SPEC, LadderSpec
 
+from .expression import expression_instruction
+
 Cell = dict[str, str]
 _RAIL = ("rail",)
 _SINK = ("sink",)
@@ -150,6 +152,14 @@ def build_network(cells: list[Cell], symbols: Mapping[str, str] | None = None,
         return LadderInstruction(operation=operation, source_mnemonic=cell[spec.element_type], operand=operand,
                                  annotations=annotations + address, position=LadderPosition(column=column, row=row))
 
+    def element(cell: Cell, operation: LadderOperation, field_name: str | None) -> LadderInstruction:
+        kind = cell[spec.element_type]
+        if kind in spec.expression_fields:
+            row, column = position(cell)
+            return expression_instruction(cell.get(spec.expression_fields[kind], ""), kind, symbols,
+                                          LadderPosition(column=column, row=row), spec)
+        return instruction(cell, operation, _operand(cell, field_name))
+
     def wired_from(row: int, column: int) -> bool:
         # A cell starting there reads the node.
         cell = starts.get((row, column))
@@ -170,13 +180,12 @@ def build_network(cells: list[Cell], symbols: Mapping[str, str] | None = None,
         elif kind in spec.conditions and reads_left:
             operation, field_name = spec.conditions[kind]
             edges.append(_Edge(source, nodes.find((row, right)),
-                               LadderSeries((instruction(cell, operation, _operand(cell, field_name)),)),
-                               (row, column)))
+                               LadderSeries((element(cell, operation, field_name),)), (row, column)))
         elif kind in spec.outputs and reads_left:
             operation, field_name = spec.outputs[kind]
             # An output whose right side feeds another cell passes power on.
             target = nodes.find((row, right)) if wired_from(row, right) else _SINK
-            edges.append(_Edge(source, target, LadderSeries((instruction(cell, operation, _operand(cell, field_name)),)),
+            edges.append(_Edge(source, target, LadderSeries((element(cell, operation, field_name),)),
                                (row, column)))
         elif kind in spec.blocks:
             pins = spec.blocks[kind]

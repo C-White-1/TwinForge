@@ -42,6 +42,15 @@ ENCODINGS: dict[LadderOperation, ElementEncoding] = {
 }
 
 
+# Expression instructions are emitted as IEC standard functions over these types.
+EXPRESSION_TYPES = frozenset({"INT", "DINT", "REAL", "BOOL"})
+EXPRESSION_OPERATIONS = frozenset({LadderOperation.COMPARISON, LadderOperation.ASSIGNMENT})
+# IEC 61131-3 standard function per operator.
+FUNCTION_BLOCK_TYPES = {
+    "+": "ADD", "-": "SUB", "*": "MUL", "/": "DIV",
+    "=": "EQ", "<>": "NE", "<": "LT", ">": "GT", "<=": "LE", ">=": "GE",
+}
+
 # IEC 61131-3 standard timers share one interface.
 TIMER_INPUT_PINS = frozenset({"IN"})
 TIMER_OUTPUT_PINS = frozenset({"Q", "ET"})
@@ -80,6 +89,15 @@ def unsupported_reason(series: LadderSeries, block_types: Mapping[str, str] | No
         return "network has no instructions"
     for instruction in instructions(series):
         operand = instruction.operand
+        if instruction.operation in EXPRESSION_OPERATIONS:
+            expression = instruction.expression
+            if expression is None:
+                return f"{instruction.source_mnemonic} has no expression"
+            untyped = [node.text or node.operator for node in expression.iter_nodes()
+                       if node.data_type not in EXPRESSION_TYPES]
+            if untyped:
+                return f"{instruction.source_mnemonic} expression has untyped parts {untyped}"
+            continue
         if not operand:
             return f"{instruction.source_mnemonic} has no operand"
         if instruction.operation in (LadderOperation.FUNCTION_BLOCK_INPUT, LadderOperation.BLOCK_OUTPUT_REFERENCE):

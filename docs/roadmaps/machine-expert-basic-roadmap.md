@@ -109,8 +109,32 @@ The remaining `UNSUPPORTED` elements fall into four groups:
   containing `UNSUPPORTED`: 170 → 152 of 264.
 - [ ] **B. Schneider power-flow operators** (`Not`, `Xor`,
   `RisingEdgeBlock`; 7 occurrences). No IEC ladder equivalent.
-- [ ] **C. Expressions** (`Comparison` 80, `Operation` 56): needs a neutral
-  expression representation; the largest group.
+- [x] **C. Expressions** (2026-10-10). Model: `Expression` (literal,
+  variable, or binary node with an IEC operator; every node typed INT,
+  DINT, REAL or BOOL), `LadderOperation.COMPARISON` (a condition) and
+  `ASSIGNMENT` (an output that passes power on), and an optional
+  `LadderInstruction.expression`. `parsers/machine_expert_basic/expression.py`
+  parses the box grammar (operands, integer/real literals including
+  negative ones, `+ - * /`, brackets, `= <> < > <= >=`, `:=`), types
+  operands by address prefix from the guide (`expression_operand_types`),
+  lets an integer literal adopt its context (`3` becomes `3.0` beside a
+  REAL), and refuses mixed types, member/bit reads (`%TM0.P`), functions
+  and out-of-range literals, keeping such boxes `UNSUPPORTED` with a
+  `reason=`. The original text stays as a `source_expression=` annotation.
+  The PLCopen exporter emits each tree as single IEC functions (`ADD`,
+  `SUB`, `MUL`, `DIV`, `MOVE`, `EQ`...`GE`) chained by EN/ENO: nested
+  arithmetic writes typed temporaries, an assignment's top level writes
+  its target, and a comparison writes a BOOL temporary read by a contact
+  wired from the comparison's ENO. Unnamed operands get typed surrogates.
+  Recorded, not modelled (Generic Functions Library Guide EIO0000003289.04,
+  Arithmetic Operators on Integers): on overflow or division by zero the
+  controller sets %S18 and the result is "not significant"; CODESYS
+  integer division by zero raises an exception instead. Samples: 300 of
+  311 expressions convert (the rest are functions or timer-preset
+  writes); all 358 networks remain equivalent to their IL; 332 of 358
+  rungs export as LD. Tests execute the emitted functions and compare
+  final values with the expression trees over random inputs; reversing
+  operands or writing a temporary instead of the target is caught.
 - [x] **D. Function-block pins**, timers (2026-10-10). New model operation
   `FUNCTION_BLOCK_INPUT` (operand `instance.pin`, the mirror of
   `BLOCK_OUTPUT_REFERENCE`) replaces the `UNSUPPORTED` + `input_pin=` sink

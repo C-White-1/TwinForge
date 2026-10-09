@@ -54,6 +54,7 @@ from .graphical import (
     LadderGridRow,
     MemberPath,
 )
+from .expression import Expression
 from .ladder import (
     LadderInstruction,
     LadderOperation,
@@ -177,6 +178,7 @@ __all__ = [
     "IODirection",
     "IOSignalType",
     "KeyingMode",
+    "Expression",
     "LadderInstruction",
     "LadderOperation",
     "LadderParallel",

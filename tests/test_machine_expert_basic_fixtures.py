@@ -22,7 +22,7 @@ ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "examples/machine_expert_basic"
 ALL = sorted(FIXTURES.glob("*.smbp"))
 # Fixtures whose rungs use elements with no portable LadderOperation.
-WITH_UNSUPPORTED = {"07_compare_operate"}
+WITH_UNSUPPORTED: set[str] = set()
 # Fixtures whose timers cannot become IEC instances (Retentive, Dynamic Preset).
 WITH_UNCONVERTED_TIMER = {"05c_timer"}
 
@@ -62,10 +62,12 @@ def _shape(series: LadderSeries) -> str:
         if isinstance(element, LadderParallel):
             parts.append("[" + " | ".join(_shape(branch) for branch in element.branches) + "]")
         else:
+            if element.expression is not None:  # COMPARISON / ASSIGNMENT: the typed tree
+                label = "CMP" if element.operation is LadderOperation.COMPARISON else "ASSIGN"
+                parts.append(f"{label}({element.expression.render()})")
+                continue
             label = _SHORT.get(element.operation) or element.source_mnemonic
-            pin = "".join("." + annotation.split("=", 1)[1] for annotation in element.annotations
-                          if annotation.startswith("input_pin="))
-            parts.append(f"{label}({element.operand}{pin})")
+            parts.append(f"{label}({element.operand})")
     return " ".join(parts)
 
 
@@ -102,7 +104,7 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
     # D (row 1), then on row 2 the CU contact (column 0) before F (column 2).
     ("06_counter.smbp", ["[NO(%I0.1) Counter(%C0.R) | OUT(%C0.D) COIL(%Q0.0) | NO(%I0.0) Counter(%C0.CU) "
                          "| OUT(%C0.F) COIL(%Q0.1)]"]),
-    ("07_compare_operate.smbp", ["Comparison(%MW0 > 10) Operation(%MW1 := %MW1 + 1)"]),
+    ("07_compare_operate.smbp", ["CMP(%MW0 > 10) ASSIGN(%MW1 := (%MW1 + 1))"]),
     ("08_edges.smbp", ["P(%I0.0) COIL(%Q0.0)", "N(%I0.1) COIL(%Q0.1)"]),
     # Written in IL, no grid: the network is derived from the IL.
     ("10_il_only.smbp", ["NO(%I0.0) NO(%I0.1) COIL(%Q0.0)"]),
@@ -168,9 +170,13 @@ _EDGE_ATOMS = {"RisingEdge": "R:", "FallingEdge": "F:", "RisingEdgeBlock": "RISI
 
 
 def _address(element: LadderInstruction) -> str:
-    """The address the IL uses: the `address=` annotation when the operand is a symbol."""
-    annotated = [a.split("=", 1)[1] for a in element.annotations if a.startswith("address=")]
-    return annotated[0] if annotated else element.operand or ""
+    """The text the IL uses: an expression box's original text, else the
+    `address=` annotation when the operand is a symbol, else the operand."""
+    for key in ("source_expression=", "address="):
+        annotated = [a.split("=", 1)[1] for a in element.annotations if a.startswith(key)]
+        if annotated:
+            return annotated[0]
+    return element.operand or ""
 
 
 def _atom(element: LadderInstruction) -> str | None:

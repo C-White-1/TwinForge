@@ -62,6 +62,20 @@ class LadderSpec:
     block_prefixes: dict[str, str] = field(default_factory=lambda: {
         "%TM": "Timer", "%DR": "Drum", "%C": "Counter", "%WRITE_VAR": "WriteVarBasic",
     })
+    # Expression boxes: element type -> field holding the expression text.
+    expression_fields: dict[str, str] = field(default_factory=lambda: {
+        "Comparison": "ComparisonExpression", "Operation": "OperationExpression",
+    })
+    # IEC type of an expression operand by address prefix (longest prefix
+    # wins), per the Generic Functions Library Guide EIO0000003289.04: word
+    # objects INT ("Word Objects"; network objects are listed as words),
+    # %MD/%KD DINT and %MF/%KF REAL ("Floating Point and Double Word
+    # Objects"). Anything else (bits, %TMi.P, %SWi:Xj) is not converted.
+    expression_operand_types: dict[str, str] = field(default_factory=lambda: {
+        "%MW": "INT", "%KW": "INT", "%SW": "INT", "%IW": "INT", "%QW": "INT", "%IWS": "INT", "%QWS": "INT",
+        "%IWE": "INT", "%QWE": "INT", "%IWM": "INT", "%QWM": "INT",
+        "%MD": "DINT", "%KD": "DINT", "%MF": "REAL", "%KF": "REAL",
+    })
     # Columns occupied; any element not listed is one column wide.
     widths: dict[str, int] = field(default_factory=lambda: {
         "Timer": 2, "Counter": 2, "Drum": 2, "Comparison": 2, "Operation": 2, "WriteVarBasic": 4,

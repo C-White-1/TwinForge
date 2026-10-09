@@ -30,6 +30,7 @@ import re
 from twinforge.model import LadderInstruction, LadderOperation, LadderParallel, LadderSeries
 from twinforge.schema.machine_expert_basic.ladder import LADDER_SPEC, LadderSpec
 
+from .expression import expression_instruction
 from .ladder import NetworkUnresolved, declared_name
 
 Element = LadderInstruction | LadderParallel
@@ -83,7 +84,7 @@ def build_network_from_instruction_list(
         if operand.startswith("["):
             if form:
                 raise _unresolved(f"comparison with modifier {form!r} is not supported")
-            return [instruction(LadderOperation.UNSUPPORTED, "Comparison", _expression(operand))]
+            return [expression_instruction(_bracketed(operand), "Comparison", symbols, spec=spec)]
         if block is not None and after_out and not operand.startswith("%"):
             block_name, address = named(block)
             return [LadderInstruction(operation=LadderOperation.BLOCK_OUTPUT_REFERENCE,
@@ -106,8 +107,8 @@ def build_network_from_instruction_list(
         if not line:
             continue
         if line.startswith("[") or line.startswith("OPER"):
-            expression = _expression(line[4:] if line.startswith("OPER") else line)
-            outputs.append(acc + [instruction(LadderOperation.UNSUPPORTED, "Operation", expression)])
+            text = _bracketed(line[4:] if line.startswith("OPER") else line)
+            outputs.append(acc + [expression_instruction(text, "Operation", symbols, spec=spec)])
             continue
         if line == ")":
             if not parens:
@@ -179,10 +180,10 @@ def build_network_from_instruction_list(
     return LadderSeries(tuple(_factor(outputs)))
 
 
-def _expression(text: str) -> str:
-    # The grid stores `(%MF2 * 3.0)` where the IL pads parentheses with spaces.
-    inner = re.sub(r"\s+", " ", text.strip().strip("[]").strip())
-    return re.sub(r"\(\s+", "(", re.sub(r"\s+\)", ")", inner))
+def _bracketed(text: str) -> str:
+    """The text inside an IL `[ ... ]` box."""
+    return text.strip().removeprefix("[").removesuffix("]").strip()
+
 
 
 def _or(first: list[Element], second: list[Element]) -> LadderParallel:

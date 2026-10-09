@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from .expression import Expression
+
 
 class LadderOperation(str, Enum):
     """Portable meaning assigned only when source evidence is sufficient."""
@@ -30,6 +32,14 @@ class LadderOperation(str, Enum):
     # "{instance_name}.{pin_name}"; the instance is a declared tag whose
     # `data_type` names the block type.
     FUNCTION_BLOCK_INPUT = "function_block_input"
+    # A condition whose value is a typed comparison (`expression`, root
+    # operator =, <>, <, >, <= or >=), e.g. Machine Expert - Basic's
+    # `[%MW0 > 10]`. `operand` holds its IEC text, for display only.
+    COMPARISON = "comparison"
+    # When power reaches it, evaluates `expression` (root operator `:=`,
+    # target on the left) and stores the result; passes power on unchanged.
+    # `operand` is the target variable.
+    ASSIGNMENT = "assignment"
     UNSUPPORTED = "unsupported"
 
 
@@ -58,6 +68,8 @@ class LadderInstruction:
     alias: str | None = None
     annotations: tuple[str, ...] = ()
     position: LadderPosition | None = None
+    # The typed expression of a COMPARISON or ASSIGNMENT; None otherwise.
+    expression: Expression | None = None
 
 
 @dataclass(frozen=True)

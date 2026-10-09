@@ -64,11 +64,18 @@ roadmaps linked from each item.
      Counter (%C) Description), none of which IEC `CTUD` does. The route is
      a generated function block reproducing those semantics, verified
      against the guide; drums (`%DR`) and `%WRITE_VAR` likewise.
-2. [ ] **Expressions.** A neutral representation for Machine Expert – Basic
-   `Comparison` (80 sample cells) and `Operation` (56) boxes, now the cause
-   of 140 of the 159 sample rungs still exported as comments, by parsing
-   Schneider expression syntax, so they stop being `UNSUPPORTED` and can
-   be exported. Group C in the Machine Expert – Basic roadmap.
+2. [x] **Expressions** (2026-10-10). A typed IEC expression tree in the
+   model (`model/expression.py`) with new `COMPARISON` and `ASSIGNMENT`
+   ladder operations; Machine Expert – Basic comparison and operation boxes
+   parse into it, and the PLCopen exporter decomposes each tree into single
+   IEC standard functions chained by EN/ENO with typed temporaries. 300 of
+   311 sample expressions convert; 332 of 358 sample rungs now export as LD
+   (up from 199), all validating against TC6. Group C in the Machine
+   Expert – Basic roadmap.
+   - [ ] Functions in expressions (`ROR`, `ITB`, `BTI`, and the guide's
+     `REM`, `SQRT`, `INC`, `DEC`, `ABS`): not in any grid sample; refused
+     with a reason for now.
+   - [ ] `tag_dependencies` does not yet read variables inside expressions.
 3. [ ] **Physical address binding.** Translate Schneider addresses
    (`%I0.0`) on typed tags and surrogates to CODESYS located variables.
    Waiting on a user-supplied fixture or CODESYS evidence; see "PLCopen

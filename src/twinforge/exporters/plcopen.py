@@ -10,7 +10,10 @@ from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program, Tag, Task
+from twinforge.model import (
+    Controller, Expression, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program, Tag, Task,
+)
+from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
 from .plcopen_codesys import CodesysProfileSupport
 from .plcopen_instructions import (
@@ -33,6 +36,7 @@ from .plcopen_operands import (
     PLCopenOperandPlanner,
 )
 from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
+from .plcopen_network import FUNCTION_BLOCK_TYPES as NETWORK_FUNCTIONS
 from .plcopen_network import describe as describe_network
 from .plcopen_network import unsupported_reason as network_unsupported_reason
 from .plcopen_project import PLCopenProjectOrchestrator
@@ -547,6 +551,9 @@ class PLCopenExporter:
                             joined.append(source)
                 current = joined
                 continue
+            if element.expression is not None:  # COMPARISON / ASSIGNMENT
+                current = self._emit_expression(ld, element.expression, current)
+                continue
             if element.operation is LadderOperation.FUNCTION_BLOCK_INPUT:
                 instance, _, pin = (element.operand or "").rpartition(".")
                 _, pins = self._network_block(ld, instance)
@@ -568,6 +575,84 @@ class PLCopenExporter:
                 opcode = {"set": "OTL", "reset": "OTU"}.get(encoding.storage or "", "OTE")
                 current = [self._coil(ld, opcode, operand, current, negated=encoding.negated)]
         return current
+
+    def _emit_expression(
+        self, ld: ET.Element, expression: Expression, chain: list[ConnectionRef],
+    ) -> list[ConnectionRef]:
+        """Emit a COMPARISON or ASSIGNMENT as single IEC functions chained by EN/ENO.
+
+        Each nested arithmetic node is one function writing its typed
+        temporary; an assignment's top-level arithmetic (or MOVE) writes the
+        target itself. A comparison writes its BOOL temporary and the rung
+        continues through a contact on it, wired from the comparison's ENO so
+        the function runs before the contact reads its result. Power reaching
+        the expression is its EN, so nothing executes unless the rung allows.
+        """
+        left, right = expression.left, expression.right
+        assert left is not None and right is not None
+        if expression.operator == ASSIGNMENT_OPERATOR:
+            target = self._portable_operand(left.text)
+            if right.kind == "binary":
+                assert right.left is not None and right.right is not None and right.operator is not None
+                first, chain = self._expression_value(ld, right.left, chain)
+                second, chain = self._expression_value(ld, right.right, chain)
+                return [self._function_call(ld, NETWORK_FUNCTIONS[right.operator], [first, second], target, chain)]
+            return [self._function_call(ld, "MOVE", [self._expression_leaf(right)], target, chain)]
+        first, chain = self._expression_value(ld, left, chain)
+        second, chain = self._expression_value(ld, right, chain)
+        assert expression.operator is not None
+        result = self._operands.expression_temps[id(expression)]
+        enabled = self._function_call(ld, NETWORK_FUNCTIONS[expression.operator], [first, second], result, chain)
+        return [self._contact(ld, "XIC", result, [enabled])]
+
+    def _expression_value(
+        self, ld: ET.Element, node: Expression, chain: list[ConnectionRef],
+    ) -> tuple[str, list[ConnectionRef]]:
+        """The text an input reads for `node`, emitting its functions first if needed."""
+        if node.kind != "binary":
+            return self._expression_leaf(node), chain
+        assert node.left is not None and node.right is not None and node.operator is not None
+        first, chain = self._expression_value(ld, node.left, chain)
+        second, chain = self._expression_value(ld, node.right, chain)
+        result = self._operands.expression_temps[id(node)]
+        return result, [self._function_call(ld, NETWORK_FUNCTIONS[node.operator], [first, second], result, chain)]
+
+    def _expression_leaf(self, node: Expression) -> str:
+        return node.text if node.kind == "literal" else self._portable_operand(node.text)
+
+    def _function_call(
+        self, ld: ET.Element, type_name: str, inputs: list[str], destination: str, chain: list[ConnectionRef],
+    ) -> ConnectionRef:
+        """One IEC standard function: EN from `chain`, inputs from inVariables,
+        result written to `destination`. Returns its ENO."""
+        ns = self.profile.namespace
+        input_ids: list[int] = []
+        for text in inputs:
+            local_id = self._id()
+            variable = ET.SubElement(ld, _q(ns, "inVariable"), {"localId": str(local_id)})
+            self._position(variable)
+            ET.SubElement(variable, _q(ns, "connectionPointOut"))
+            ET.SubElement(variable, _q(ns, "expression")).text = text
+            input_ids.append(local_id)
+        block_id = self._id()
+        block = ET.SubElement(ld, _q(ns, "block"), {"localId": str(block_id), "typeName": type_name})
+        self._position(block)
+        block_inputs = ET.SubElement(block, _q(ns, "inputVariables"))
+        enable = ET.SubElement(block_inputs, _q(ns, "variable"), {"formalParameter": "EN"})
+        enable_point = ET.SubElement(enable, _q(ns, "connectionPointIn"))
+        for source in chain:
+            self._condition_connection(enable_point, source)
+        for input_id in input_ids:
+            variable = ET.SubElement(block_inputs, _q(ns, "variable"), {"formalParameter": ""})
+            self._condition_connection(ET.SubElement(variable, _q(ns, "connectionPointIn")), input_id)
+        ET.SubElement(block, _q(ns, "inOutVariables"))
+        outputs = ET.SubElement(block, _q(ns, "outputVariables"))
+        enabled = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": "ENO"})
+        ET.SubElement(enabled, _q(ns, "connectionPointOut"))
+        result = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": ""})
+        result_point = ET.SubElement(result, _q(ns, "connectionPointOut"))
+        ET.SubElement(result_point, _q(ns, "expression")).text = destination
+        return (block_id, "ENO")
 
     def _network_block(self, ld: ET.Element, instance: str) -> tuple[int, dict[str, ET.Element]]:
         """The rung's TC6 block for a timer instance, created on first use.
