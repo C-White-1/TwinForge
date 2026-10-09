@@ -14,6 +14,13 @@ class LadderOperation(str, Enum):
     COIL = "coil"
     SET_COIL = "set_coil"
     RESET_COIL = "reset_coil"
+    # IEC 61131-3 transition-sensing contacts (-|P|-, -|N|-): pass power for
+    # one evaluation when the operand changes FALSE->TRUE (positive) or
+    # TRUE->FALSE (negative). They read the operand like any contact.
+    POSITIVE_TRANSITION_CONTACT = "positive_transition_contact"
+    NEGATIVE_TRANSITION_CONTACT = "negative_transition_contact"
+    # IEC 61131-3 negated coil (-(/)-): writes the inverse of the power flow.
+    NEGATED_COIL = "negated_coil"
     # A condition element whose value comes from a named function block's own
     # output pin (a drawn ladder wire from the block's own grid position),
     # not a declared tag read the way a contact is. See LadderInstruction.

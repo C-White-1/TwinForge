@@ -96,6 +96,9 @@ from .evidence import source_extension as _extension
 _CONTACT_OPERATIONS = {
     "openContact": LadderOperation.NORMALLY_OPEN_CONTACT,
     "closedContact": LadderOperation.NORMALLY_CLOSED_CONTACT,
+    # Real evidence: 3 occurrences in MultiGrafcet_Coordination_V1_2026.XEF (local-only); IEC 61131-3
+    # positive transition-sensing contact. "NContact" is not yet evidenced.
+    "PContact": LadderOperation.POSITIVE_TRANSITION_CONTACT,
 }
 # Real evidence: see the module docstring. Constant across every block type
 # and pin count observed; pin count grows row span, not column width.

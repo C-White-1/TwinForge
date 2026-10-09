@@ -745,8 +745,11 @@ Expert until now) -- only when every child is `emptyCell`/`HLink`/`contact`/
 `coil` and exactly one coil is present, as the last cell-bearing element.
 `typeContact`/`typeCoil` values map to `LadderOperation` only for the
 lexically-witnessed subset (`openContact`, `closedContact`, `coil`,
-`resetCoil`); any other value (e.g. `PContact`, a positive-edge contact seen
-gating `INITCHART`/`SETSTEP`) still resolves the instruction's position and
+`resetCoil`, `setCoil`, and since 2026-10-09 `PContact`, the positive-edge
+contact seen gating `INITCHART`/`SETSTEP`, which maps to the IEC 61131-3
+`POSITIVE_TRANSITION_CONTACT` added to the neutral model alongside
+Machine Expert – Basic's edge contacts); any other value (e.g. `NContact`,
+not yet seen in a file) still resolves the instruction's position and
 operand but carries `LadderOperation.UNSUPPORTED` plus a source-located
 diagnostic, preserving evidence without asserting unwitnessed boolean
 semantics. A row with contacts but no coil, or with a coil anywhere but the

@@ -101,6 +101,21 @@ repository's Python implementation or read `.ccwarc` internals directly.
     branches
   - [x] Map the initial `XIC`, `XIO`, `OTE`, `OTS`, `OTU`, and `OTR` subset without
     silently discarding unsupported instructions
+  - [ ] Map the IEC 61131-3 transition contacts and negated coil
+    (`POSITIVE_TRANSITION_CONTACT`, `NEGATIVE_TRANSITION_CONTACT`,
+    `NEGATED_COIL`), added to the neutral model on 2026-10-09 for Control
+    Expert's `PContact` and Machine Expert – Basic's edge contacts and
+    negative coil. Neither direction is mapped yet: CCW import has no
+    evidenced source mnemonic for them, and the CODESYS target adapter
+    (`targets/codesys/ccw_project.py`, which lists only contacts, coil, set
+    and reset) treats any rung containing one as unconvertible: its coverage
+    report gives `operation ... is unsupported` and the rung is emitted as an
+    `UNSUPPORTED_CCW(...)` placeholder. PLCopen TC6 XML can express them
+    (`contact`/`coil` with `edge="rising|falling"` and `negated="true"`), but
+    that is a candidate, not verified against CODESYS. Waiting on a user-supplied CCW fixture
+    that exercises edge contacts and a negated coil; map both directions
+    from that evidence and confirm the generated project imports into
+    CODESYS.
 - [ ] Complete the first end-to-end CCW-to-CODESYS milestone
   - [x] Generate PLCopen XML through the existing CODESYS target adapter
   - [x] Include `PLC_PRG` and an explicit cyclic task configuration
@@ -183,6 +198,17 @@ conversion or native Control Expert compatibility.
 - [ ] Add optional PLCopen Common Behaviour wrappers after underlying AOI
   translation is semantically validated
 - [ ] Produced/consumed and physical I/O binding strategies
+- [ ] Export the IEC 61131-3 transition contacts and negated coil
+  (`POSITIVE_TRANSITION_CONTACT`, `NEGATIVE_TRANSITION_CONTACT`,
+  `NEGATED_COIL`, added to the neutral model on 2026-10-09). PLCopen TC6
+  expresses them natively as `contact`/`coil` with `edge="rising|falling"`
+  and `negated="true"`, but this exporter cannot reach them yet: it reads
+  only `LadderRung.text` (Logix RLL, via `plcopen_rll.py`) and never
+  `LadderRung.network`, so rungs that exist only as networks (Control
+  Expert, Machine Expert – Basic) are not exported at all. Consuming
+  `network` is the prerequisite. Waiting on a user-supplied fixture to
+  verify the emitted XML imports into CODESYS; see the matching CCW/CODESYS
+  item above.
 
 This section describes the portable PLCopen XML exporter. Native OpenPLC
 project generation is a separate target path because the observed OpenPLC

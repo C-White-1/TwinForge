@@ -22,8 +22,7 @@ ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "examples/machine_expert_basic"
 ALL = sorted(FIXTURES.glob("*.smbp"))
 # Fixtures whose rungs use elements with no portable LadderOperation.
-WITH_UNSUPPORTED = {"05_timer", "05b_timer", "05c_timer", "06_counter", "06b_counter", "07_compare_operate",
-                    "08_edges"}
+WITH_UNSUPPORTED = {"05_timer", "05b_timer", "05c_timer", "06_counter", "06b_counter", "07_compare_operate"}
 
 _spec = importlib.util.spec_from_file_location("check_smbp_grid_vs_il", ROOT / "examples/check_smbp_grid_vs_il.py")
 assert _spec is not None and _spec.loader is not None
@@ -34,6 +33,8 @@ _SHORT = {
     LadderOperation.NORMALLY_OPEN_CONTACT: "NO", LadderOperation.NORMALLY_CLOSED_CONTACT: "NC",
     LadderOperation.COIL: "COIL", LadderOperation.SET_COIL: "SET", LadderOperation.RESET_COIL: "RESET",
     LadderOperation.BLOCK_OUTPUT_REFERENCE: "OUT",
+    LadderOperation.POSITIVE_TRANSITION_CONTACT: "P", LadderOperation.NEGATIVE_TRANSITION_CONTACT: "N",
+    LadderOperation.NEGATED_COIL: "NCOIL",
 }
 
 
@@ -99,7 +100,7 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
     ("06_counter.smbp", ["[NO(%I0.1) Counter(%C0.R) | OUT(%C0.D) COIL(%Q0.0) | NO(%I0.0) Counter(%C0.CU) "
                          "| OUT(%C0.F) COIL(%Q0.1)]"]),
     ("07_compare_operate.smbp", ["Comparison(%MW0 > 10) Operation(%MW1 := %MW1 + 1)"]),
-    ("08_edges.smbp", ["RisingEdge(%I0.0) COIL(%Q0.0)", "FallingEdge(%I0.1) COIL(%Q0.1)"]),
+    ("08_edges.smbp", ["P(%I0.0) COIL(%Q0.0)", "N(%I0.1) COIL(%Q0.1)"]),
     ("10_il_only.smbp", [None]),
 ])
 def test_network_shapes_match_the_drawn_rungs(name: str, shapes: list[str | None]):

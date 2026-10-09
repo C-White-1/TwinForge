@@ -58,7 +58,7 @@ def test_placeholder_cells_are_ignored():
     assert build_network([*base, cell("None", 1, 4, "None")]) == build_network(base)
 
 
-def test_short_is_a_wire_and_other_elements_stay_unsupported():
+def test_short_is_a_wire_negative_coil_is_negated_and_others_stay_unsupported():
     cells = [
         cell("Short", 0, 0),
         cell("Not", 0, 1),
@@ -72,7 +72,7 @@ def test_short_is_a_wire_and_other_elements_stay_unsupported():
     assert network == LadderSeries((
         instruction(LadderOperation.UNSUPPORTED, "Not", None, 0, 1),
         instruction(LadderOperation.UNSUPPORTED, "Xor", "%I0.3", 0, 2),
-        instruction(LadderOperation.UNSUPPORTED, "NegativeCoil", "%Q0.2", 0, 10),
+        instruction(LadderOperation.NEGATED_COIL, "NegativeCoil", "%Q0.2", 0, 10),
     ))
 
 

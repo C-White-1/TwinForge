@@ -299,15 +299,26 @@ def test_empty_line_advances_row_without_producing_a_rung():
 
 
 def test_unsupported_contact_type_resolves_structurally_but_is_flagged():
+    # NContact is not evidenced in any real file yet, so it stays unmapped.
     result, routine = _ld_routine('''
-    <typeLine><contact typeContact="PContact" contactVariableName="R"/>
+    <typeLine><contact typeContact="NContact" contactVariableName="R"/>
     <HLink nbCells="9"/><coil typeCoil="coil" coilVariableName="X"/></typeLine>''')
     assert len(routine.ladder_rungs) == 1
     instruction = _instructions(routine.ladder_rungs[0])[0]
     assert instruction.operation == LadderOperation.UNSUPPORTED
-    assert instruction.source_mnemonic == "PContact"
+    assert instruction.source_mnemonic == "NContact"
     assert instruction.operand == "R"
     assert sum(d.code == "unresolved_ladder_instruction" for d in result.diagnostics) == 1
+
+
+def test_positive_transition_contact_maps_to_its_iec_operation():
+    result, routine = _ld_routine('''
+    <typeLine><contact typeContact="PContact" contactVariableName="R"/>
+    <HLink nbCells="9"/><coil typeCoil="coil" coilVariableName="X"/></typeLine>''')
+    instruction = _instructions(routine.ladder_rungs[0])[0]
+    assert instruction.operation == LadderOperation.POSITIVE_TRANSITION_CONTACT
+    assert (instruction.source_mnemonic, instruction.operand) == ("PContact", "R")
+    assert not any(d.code == "unresolved_ladder_instruction" for d in result.diagnostics)
 
 
 def test_invalid_cell_count_is_diagnosed():

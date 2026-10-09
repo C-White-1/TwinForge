@@ -64,8 +64,8 @@ but are never mapped into the model.
   virtual sink, and series/parallel reduction yields the same shape L5X and
   CCW rungs use: shared conditions, then a `LadderParallel` of output
   branches, ordered top to bottom as drawn.
-- [x] Elements without a portable `LadderOperation` (edges, comparisons,
-  operations, NOT, XOR, negative coils) stay in the network as `UNSUPPORTED`
+- [x] Elements without a portable `LadderOperation` (originally edges,
+  comparisons, operations, NOT, XOR, negative coils) stay in the network as `UNSUPPORTED`
   with their element type as `source_mnemonic`, and the rung gets a
   `ladder_unsupported_element` diagnostic. (This is "option 2"; the earlier
   plan of no network for such rungs would have left 172 of 264 sample rungs
@@ -93,6 +93,27 @@ but are never mapped into the model.
   Builders with a wrong rule substituted (counter pins in IL order, a
   1-column timer, vertical links on the left edge) fail 2, 3 and 5 fixture
   rungs, so the check discriminates.
+
+## Portable operations for `UNSUPPORTED` elements
+
+The remaining `UNSUPPORTED` elements fall into four groups:
+
+- [x] **A. IEC 61131-3 standard elements.** Added to the neutral model:
+  `POSITIVE_TRANSITION_CONTACT`, `NEGATIVE_TRANSITION_CONTACT` (-|P|-,
+  -|N|-) and `NEGATED_COIL` (-(/)-). `RisingEdge`, `FallingEdge` and
+  `NegativeCoil` map to them; so does Control Expert's `PContact`.
+  `tag_dependencies` reads transition contacts' operands and treats a
+  negated coil as a write; the SVG exporter draws P, N and / marks. The
+  CODESYS/CCW target has no evidenced mapping for them yet and keeps its
+  existing handling of operations it does not list. Sample rungs still
+  containing `UNSUPPORTED`: 170 → 152 of 264.
+- [ ] **B. Schneider power-flow operators** (`Not`, `Xor`,
+  `RisingEdgeBlock`; 7 occurrences). No IEC ladder equivalent.
+- [ ] **C. Expressions** (`Comparison` 80, `Operation` 56): needs a neutral
+  expression representation; the largest group.
+- [ ] **D. Function-block pins** (`Timer`, `Counter`, `Drum`,
+  `WriteVarBasic`): needs a model concept for a branch feeding a block pin;
+  overlaps with function-block parameters below.
 
 ## Later
 

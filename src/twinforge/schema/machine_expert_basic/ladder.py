@@ -32,8 +32,8 @@ class LadderSpec:
     conditions: dict[str, tuple[LadderOperation, str | None]] = field(default_factory=lambda: {
         "NormalContact": (LadderOperation.NORMALLY_OPEN_CONTACT, "Descriptor"),
         "NegatedContact": (LadderOperation.NORMALLY_CLOSED_CONTACT, "Descriptor"),
-        "RisingEdge": (LadderOperation.UNSUPPORTED, "Descriptor"),
-        "FallingEdge": (LadderOperation.UNSUPPORTED, "Descriptor"),
+        "RisingEdge": (LadderOperation.POSITIVE_TRANSITION_CONTACT, "Descriptor"),
+        "FallingEdge": (LadderOperation.NEGATIVE_TRANSITION_CONTACT, "Descriptor"),
         "Xor": (LadderOperation.UNSUPPORTED, "Descriptor"),
         "Not": (LadderOperation.UNSUPPORTED, None),
         # Descriptor is an instance number, matching IL `RISINGn`.
@@ -46,7 +46,7 @@ class LadderSpec:
         "Coil": (LadderOperation.COIL, "Descriptor"),
         "SetCoil": (LadderOperation.SET_COIL, "Descriptor"),
         "ResetCoil": (LadderOperation.RESET_COIL, "Descriptor"),
-        "NegativeCoil": (LadderOperation.UNSUPPORTED, "Descriptor"),
+        "NegativeCoil": (LadderOperation.NEGATED_COIL, "Descriptor"),
         "Operation": (LadderOperation.UNSUPPORTED, "OperationExpression"),
     })
     blocks: dict[str, BlockPins] = field(default_factory=lambda: {

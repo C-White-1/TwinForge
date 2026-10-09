@@ -632,3 +632,21 @@ def test_optional_real_sayahali_export_diagram_matches_confirmed_positions():
            'stroke="black" stroke-width="2"/>' in svg
     assert f'<line x1="{sr2_left_edge + 2 * 70}" y1="{row21_center}" x2="{ton23_left_edge}" y2="{row21_center}" ' \
            'stroke="black"/>' in svg
+
+
+def test_renders_iec_transition_contacts_and_negated_coil_with_their_marks():
+    rung = _series_rung(
+        0,
+        (
+            _instruction(LadderOperation.POSITIVE_TRANSITION_CONTACT, "Rise", 0, mnemonic="RisingEdge"),
+            _instruction(LadderOperation.NEGATIVE_TRANSITION_CONTACT, "Fall", 2, mnemonic="FallingEdge"),
+            _instruction(LadderOperation.NEGATED_COIL, "Out", 11, mnemonic="NegativeCoil"),
+        ),
+    )
+
+    svg = LadderSvgExporter().export([rung])
+
+    marks = re.findall(r'text-anchor="middle">([PN/])</text>', svg)
+    assert marks == ["P", "N", "/"]
+    # Drawn as real contacts and a coil, not the unsupported placeholder.
+    assert 'fill="#a00"' not in svg

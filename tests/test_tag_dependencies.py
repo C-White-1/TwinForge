@@ -364,3 +364,28 @@ def test_real_fixture_resolves_step_state_references_when_available() -> None:
     assert resolved == {("G1_0", "G1_Voyants"), ("G1_1", "G1_Voyants"), ("G1_2", "G1_Voyants")}
     assert graph.ambiguous_step_state_references == ()
     assert not any("G1_" in u.identifier for u in graph.unresolved_references)
+
+
+def test_transition_contacts_read_and_negated_coil_writes() -> None:
+    controller = Controller(name="PLC", identity=Identity())
+    for name in ("Rise", "Fall", "Output"):
+        controller.add_tag(Tag(name=name))
+    program = Program("Main")
+    routine = Routine(name="Logic", language="LD")
+    routine.ladder_rungs = [
+        LadderRung(number=1, network=LadderSeries(elements=(
+            LadderInstruction(operation=LadderOperation.POSITIVE_TRANSITION_CONTACT,
+                              source_mnemonic="PContact", operand="Rise"),
+            LadderInstruction(operation=LadderOperation.NEGATIVE_TRANSITION_CONTACT,
+                              source_mnemonic="FallingEdge", operand="Fall"),
+            LadderInstruction(operation=LadderOperation.NEGATED_COIL, source_mnemonic="NegativeCoil", operand="Output"),
+        )))
+    ]
+    program.add_routine(routine)
+    controller.add_program(program)
+    graph = build_tag_dependency_graph(controller)
+    assert {(item.tag_key, item.access) for item in graph.references} == {
+        ("controller:Rise", TagReferenceAccess.READ),
+        ("controller:Fall", TagReferenceAccess.READ),
+        ("controller:Output", TagReferenceAccess.WRITE),
+    }

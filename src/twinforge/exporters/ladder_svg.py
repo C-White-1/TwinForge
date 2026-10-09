@@ -145,17 +145,23 @@ class LadderSvgExporter:
         cx = self._element_center(placement)
         label = instruction.operand or "?"
         op = instruction.operation
-        if op in (LadderOperation.NORMALLY_OPEN_CONTACT, LadderOperation.NORMALLY_CLOSED_CONTACT):
-            self._render_contact(parts, cx, y, label, closed=op == LadderOperation.NORMALLY_CLOSED_CONTACT)
-        elif op in (LadderOperation.COIL, LadderOperation.SET_COIL, LadderOperation.RESET_COIL):
-            mark = {LadderOperation.SET_COIL: "S", LadderOperation.RESET_COIL: "R"}.get(op, "")
+        if op in (LadderOperation.NORMALLY_OPEN_CONTACT, LadderOperation.NORMALLY_CLOSED_CONTACT,
+                  LadderOperation.POSITIVE_TRANSITION_CONTACT, LadderOperation.NEGATIVE_TRANSITION_CONTACT):
+            # IEC 61131-3 marks a transition-sensing contact with P or N between its bars.
+            mark = {LadderOperation.POSITIVE_TRANSITION_CONTACT: "P",
+                    LadderOperation.NEGATIVE_TRANSITION_CONTACT: "N"}.get(op, "")
+            self._render_contact(parts, cx, y, label, closed=op == LadderOperation.NORMALLY_CLOSED_CONTACT, mark=mark)
+        elif op in (LadderOperation.COIL, LadderOperation.SET_COIL, LadderOperation.RESET_COIL,
+                    LadderOperation.NEGATED_COIL):
+            mark = {LadderOperation.SET_COIL: "S", LadderOperation.RESET_COIL: "R",
+                    LadderOperation.NEGATED_COIL: "/"}.get(op, "")
             self._render_coil(parts, cx, y, label, mark)
         elif op == LadderOperation.BLOCK_OUTPUT_REFERENCE:
             self._render_block_output_reference(parts, cx, y, label)
         else:
             self._render_unsupported(parts, cx, y, label, instruction.source_mnemonic)
 
-    def _render_contact(self, parts: list[str], cx: int, y: int, label: str, *, closed: bool) -> None:
+    def _render_contact(self, parts: list[str], cx: int, y: int, label: str, *, closed: bool, mark: str = "") -> None:
         top, bottom = y - 14, y + 14
         left_bar, right_bar = cx - _CONTACT_GAP, cx + _CONTACT_GAP
         box_left, box_right = left_bar - 6, right_bar + 6
@@ -174,6 +180,8 @@ class LadderSvgExporter:
         if closed:
             parts.append(f'<line x1="{left_bar - 3}" y1="{bottom + 3}" x2="{right_bar + 3}" y2="{top - 3}" '
                           'stroke="black" stroke-width="2"/>')
+        if mark:
+            parts.append(f'<text x="{cx}" y="{y + 4}" text-anchor="middle">{mark}</text>')
         parts.append(f'<text x="{cx}" y="{top - _LABEL_OFFSET}" text-anchor="middle">{_escape(label)}</text>')
 
     def _render_coil(self, parts: list[str], cx: int, y: int, label: str, mark: str) -> None:

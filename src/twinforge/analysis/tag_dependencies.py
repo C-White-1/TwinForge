@@ -290,6 +290,9 @@ _LADDER_ACCESS = {
     LadderOperation.COIL: TagReferenceAccess.WRITE,
     LadderOperation.SET_COIL: TagReferenceAccess.WRITE,
     LadderOperation.RESET_COIL: TagReferenceAccess.WRITE,
+    LadderOperation.POSITIVE_TRANSITION_CONTACT: TagReferenceAccess.READ,
+    LadderOperation.NEGATIVE_TRANSITION_CONTACT: TagReferenceAccess.READ,
+    LadderOperation.NEGATED_COIL: TagReferenceAccess.WRITE,
     # UNSUPPORTED intentionally has no entry: an instruction shape this
     # project does not yet recognize is never guessed at as a read or write.
 }
