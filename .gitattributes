@@ -1,2 +1,16 @@
-# Vendor project files are evidence: store them byte-for-byte, never convert line endings.
+# Vendor-produced files are evidence: store them byte-for-byte and never
+# convert line endings (core.autocrlf would otherwise rewrite CRLF to LF and
+# flatten files with mixed endings).
 *.smbp -text
+*.export -text
+*.l5x -text
+*.L5X -text
+*.xef -text
+*.XEF -text
+*.xdb -text
+*.XDB -text
+*.eds -text
+*.EDS -text
+# Other XML in examples/PLCOpenXML is TwinForge's own output; this one is a
+# CODESYS export with mixed line endings in the original.
+examples/PLCOpenXML/12_enip_remote_adapter_diagnostics.xml -text
