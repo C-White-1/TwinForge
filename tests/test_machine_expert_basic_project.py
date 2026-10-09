@@ -81,8 +81,20 @@ def test_duplicate_symbol_is_reported_not_overwritten():
     assert _codes(result) == ["ambiguous_identity"]
 
 
+def test_counter_symbol_becomes_tag():
+    software = ("<Counters><Counter><Address>%C0</Address><Index>0</Index>"
+                "<Symbol>PART_COUNT</Symbol></Counter></Counters>")
+
+    result = _parse(_smbp(software))
+
+    tag = result.controller.tags["PART_COUNT"]
+    assert tag.metadata == {"source_symbol_table": "Counters", "source_memory_address": "%C0"}
+    assert _codes(result) == []
+
+
 def test_symbol_outside_declared_tables_is_reported():
-    software = "<Counters><CounterC><Address>%C0</Address><Symbol>PARTS</Symbol></CounterC></Counters>"
+    # A hypothetical table: any named entry the profile does not declare.
+    software = "<FutureTable><FutureEntry><Address>%X0</Address><Symbol>PARTS</Symbol></FutureEntry></FutureTable>"
 
     result = _parse(_smbp(software))
 

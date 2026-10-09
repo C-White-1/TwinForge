@@ -58,6 +58,8 @@ class MappingSpec:
         SymbolTable("MemoryFloats", ("SoftwareConfiguration", "MemoryFloats"), "MemoryFloat"),
         SymbolTable("MemoryDoubleWords", ("SoftwareConfiguration", "MemoryDoubleWords"), "MemoryDoubleWord"),
         SymbolTable("Timers", ("SoftwareConfiguration", "Timers"), "TimerTM"),
+        # Written only when the counter is named or has non-default settings.
+        SymbolTable("Counters", ("SoftwareConfiguration", "Counters"), "Counter"),
         # Vendor-predefined system objects; every entry carries a symbol.
         SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit"),
         SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord"),

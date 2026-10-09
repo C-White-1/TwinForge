@@ -9,14 +9,17 @@ Grid hypothesis under test:
 - Node (row, k) is the vertical edge between columns k-1 and k; (row, 0) is
   the left rail for every row.
 - A cell at (row, col) spans node (row, col) -> (row, col + width).
-  Width is 2 for Timer, Drum and Comparison, 4 for WriteVarBasic, else 1.
+  Width is 2 for Timer, Counter, Drum, Comparison and Operation, 4 for
+  WriteVarBasic, else 1.
 - ``Down`` on (r, c) joins node (r, c + width) to node (r + 1, c + width);
   ``Up`` is the mirror. Joined nodes are OR-ed (wired OR).
 - A cell without ``Left`` does not read its left node.
-- A function block at (r, c) takes its i-th input pin (in IL order) from
-  node (r + i, c), and drives its first IL output onto node (r, c + width)
-  when the cell starting there has ``Left``. The block's own ``Right`` is
-  not used: it is missing on some blocks whose output is wired.
+- Each function-block pin sits on a fixed row offset for its block type
+  (PIN_ROWS). Input pin p of a block at (r, c) reads node (r + row(p), c);
+  output pin p drives node (r + row(p), c + width) when the cell starting
+  there has ``Left``. The IL lists only wired pins, so IL order does not
+  give the row. The block's own ``Right`` is not used: it is missing on
+  some blocks whose output is wired.
 
 Usage: python examples/check_smbp_grid_vs_il.py SOURCE_DIR [-v] [--vertical-on-left]
 ``--vertical-on-left`` runs a deliberately wrong hypothesis (vertical links
@@ -32,9 +35,20 @@ import random
 import re
 import xml.etree.ElementTree as ET
 
-WIDTH = {"Timer": 2, "Drum": 2, "Comparison": 2, "WriteVarBasic": 4}
+# Operation is 2 wide in the output position (07_compare_operate.smbp: c9-c10).
+WIDTH = {"Timer": 2, "Counter": 2, "Drum": 2, "Comparison": 2, "Operation": 2, "WriteVarBasic": 4}
 OUTPUTS = {"Coil": "ST", "NegativeCoil": "STN", "SetCoil": "S", "ResetCoil": "R"}
-BLOCKS = {"Timer", "Drum", "WriteVarBasic"}
+# Row offset of each pin within its block, inputs and outputs separately.
+# Evidence: Timer and WriteVarBasic from the downloaded samples, Drum from
+# ss56/drum-test.smbp, Counter from the user-made 06_counter.smbp (all four
+# inputs and three outputs visible in the editor).
+PIN_ROWS = {
+    "Timer": ({"IN": 0}, {"Q": 0}),
+    "Drum": ({"R": 0, "U": 1}, {"F": 0}),
+    "WriteVarBasic": ({"Execute": 0}, {"Done": 0}),
+    "Counter": ({"R": 0, "S": 1, "CU": 2, "CD": 3}, {"E": 0, "D": 1, "F": 2}),
+}
+BLOCKS = set(PIN_ROWS)
 # Set from --vertical-on-left (negative control).
 VERTICAL_ON_LEFT = False
 
@@ -222,16 +236,21 @@ def grid_model(cells, pins, outs):
             outputs.add(output_key(c))
         if c["ElementType"] in BLOCKS:
             name = c.get("Descriptor", "")
-            if len(set(outs.get(name, []))) > 1:
-                raise Unsupported("block with several outputs")
-            outputs |= {("PIN", name, p) for p in pins.get(name, [])}
-            if outs.get(name) and block_output_wired(c, cells):
-                atoms.add(f"out:{name}.{outs[name][0]}")
+            in_rows, out_rows = PIN_ROWS[c["ElementType"]]
+            for pin in pins.get(name, []):
+                if pin not in in_rows:
+                    raise Unsupported(f"pin:{c['ElementType']}.{pin}")
+                outputs.add(("PIN", name, pin))
+            for pin in dict.fromkeys(outs.get(name, [])):
+                if pin not in out_rows:
+                    raise Unsupported(f"pin:{c['ElementType']}.{pin}")
+                if block_output_wired(c, out_rows[pin], cells):
+                    atoms.add(f"out:{name}.{pin}")
     return atoms, outputs
 
 
-def block_output_wired(c, cells):
-    r, end = int(c["Row"]), int(c["Column"]) + width(c)
+def block_output_wired(c, row_offset, cells):
+    r, end = int(c["Row"]) + row_offset, int(c["Column"]) + width(c)
     return any(int(n["Row"]) == r and int(n["Column"]) == end and "Left" in conns(n) for n in cells)
 
 
@@ -251,7 +270,7 @@ def run_grid(cells, pins, outs, env):
         for c in by_end.get(k, []):
             r, col = int(c["Row"]), int(c["Column"])
             inp = node.get((r, col), False) if "Left" in conns(c) else False
-            out = transfer(c, inp, env, node, cells, pins, outs, results)
+            out = transfer(c, inp, env, node, cells, pins, outs, results, raw)
             if out is not None:
                 raw[r] = raw.get(r, False) or out
         parent = {}
@@ -277,7 +296,7 @@ def run_grid(cells, pins, outs, env):
     return results
 
 
-def transfer(c, inp, env, node, cells, pins, outs, results):
+def transfer(c, inp, env, node, cells, pins, outs, results, raw):
     """Value the cell drives onto its right node, or None. Records outputs."""
     t = c["ElementType"]
     if t in ("Line", "Short"):
@@ -302,10 +321,15 @@ def transfer(c, inp, env, node, cells, pins, outs, results):
         return inp if "Right" in conns(c) else None
     if t in BLOCKS:
         name, r, col = c.get("Descriptor", ""), int(c["Row"]), int(c["Column"])
-        for i, pin in enumerate(pins.get(name, [])):
-            results[("PIN", name, pin)] = node.get((r + i, col), False)
-        if outs.get(name) and block_output_wired(c, cells):
-            return env[f"out:{name}.{outs[name][0]}"]
+        in_rows, out_rows = PIN_ROWS[t]
+        for pin in pins.get(name, []):
+            results[("PIN", name, pin)] = node.get((r + in_rows[pin], col), False)
+        # Outputs may land on rows below the block's own row, so they are
+        # written straight into this node column's raw values.
+        for pin in dict.fromkeys(outs.get(name, [])):
+            if block_output_wired(c, out_rows[pin], cells):
+                row = r + out_rows[pin]
+                raw[row] = raw.get(row, False) or env[f"out:{name}.{pin}"]
         return None
     if t in ("VerticalLine", "None"):
         return None
@@ -392,6 +416,12 @@ def main():
                 features["block below row 0"] += 1
             if any(c["ElementType"] in BLOCKS and len(pins.get(c.get("Descriptor"), [])) > 1 for c in cells):
                 features["block with >1 input pin"] += 1
+            if any(c["ElementType"] in BLOCKS and len(set(outs.get(c.get("Descriptor"), []))) > 1 for c in cells):
+                features["block with >1 wired output"] += 1
+            if any(c["ElementType"] in BLOCKS and any(
+                    PIN_ROWS[c["ElementType"]][0][p] != i
+                    for i, p in enumerate(pins.get(c.get("Descriptor"), []))) for c in cells):
+                features["input pin row differs from IL position"] += 1
             if internal:
                 features["IL internal temporary (MULTIFB)"] += 1
             if "RisingEdgeBlock" in kinds:

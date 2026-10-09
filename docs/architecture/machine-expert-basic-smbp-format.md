@@ -42,6 +42,34 @@ The corpus is weak in specific ways; read every observation in that light:
 - Inspection checked XML well-formedness only. Nothing was opened in Machine
   Expert – Basic, compiled, or downloaded to a controller.
 
+### User-made fixtures (Machine Expert – Basic 3.0)
+
+To fill specific gaps, 15 small projects were drawn by hand in Machine
+Expert – Basic (`ProjectVersion` 3.0.0.0, `ManagementLevel`
+`FunctLevelMan21_0`, TM221CE16R) and committed in
+`examples/machine_expert_basic/`. Unlike the downloaded samples they are
+redistributable, and `tests/test_machine_expert_basic_fixtures.py` exercises
+every one. Each was compared with an editor screenshot of the same rung.
+Their element paths are those of the 63 older samples plus exactly six,
+all from settings no sample happened to use: `TimerTM/IsRetentive` and
+`TimerTM/IsDynamicPreset` (`05c_timer`), and `Counters/Counter` with its
+`Address`, `Index`, `Preset` and `Symbol` (`06b_counter`, `09_symbols`). A
+plain 3.0 rung (`01_series`) adds nothing, so these come from content, not
+from the version. The `Counter` cell `ElementType` is likewise new.
+
+| Fixture | Settles |
+| --- | --- |
+| `01_series` | Baseline series rung; output in column 10 on 3.0 |
+| `02_parallel`, `03_nested`, `04_two_outputs` | Vertical links sit on a cell's right edge (seen in the editor, not only inferred from IL); nested branches; output fan-out |
+| `05_timer`, `05b_timer`, `05c_timer` | Timer width 2; which timer settings are stored, and when |
+| `06_counter`, `06b_counter` | `Counter` element type; fixed pin rows (corrects an earlier rule); two wired outputs; counter preset storage |
+| `07_compare_operate` | Comparison and output-side Operation are both 2 columns wide |
+| `08_edges` | `RisingEdge`/`FallingEdge` contacts; two rungs in one POU; a leading wire before the first contact |
+| `09_symbols` | Where I/O, memory-bit and counter symbols live; named but unused objects |
+| `10_il_only` | IL rungs store no cells; the editor pads IL columns itself |
+| `11_encrypted` | `CryptedProject` on 3.0 |
+| `12_edited` | Grid and IL after an edit (see open questions) |
+
 ## Container and encoding
 
 An `.smbp` is a single UTF-8 XML document with a byte-order mark (all 63
@@ -58,7 +86,11 @@ Two root elements were observed:
 | `CryptedProject` | 1 | `ProjectVersion`, an opaque `Crypted` text blob (14,464 chars), and `PublicProperties` (project name, company and user information) |
 
 A `CryptedProject` must be captured as such: public properties readable, the
-blob preserved verbatim, no attempt to decrypt.
+blob preserved verbatim, no attempt to decrypt. `11_encrypted` shows the
+same shape on 3.0. Its readable name is the project's internal name
+(`01_series`, the project it was copied from), not the file name. The file
+is 14 KB against 82 KB for the readable original, so the content is
+probably compressed before encryption; this is an observation only.
 
 ## `ProjectDescriptor` top level
 
@@ -118,6 +150,24 @@ Function-block parameters live here, not in the rung. Example:
 A rung that uses `%TM0` must be joined to this entry to know its preset and
 time base.
 
+**Settings at their default value are not written**, and an object whose
+settings are all default and that has no symbol has no entry at all.
+Established by changing one setting at a time in the fixtures:
+
+| Setting | Stored as | When absent | Fixture |
+| --- | --- | --- | --- |
+| Timer type | `TimerTM/Type` (`TOF`) | TON | `05_timer` vs `05b_timer` |
+| Retentive | `TimerTM/IsRetentive` = `true` | false | `05c_timer` |
+| Dynamic preset | `TimerTM/IsDynamicPreset` = `true` | false | `05c_timer` |
+| Counter preset | `Counters/Counter/Preset` | 9999; `<Counters />` is empty | `06_counter` vs `06b_counter` |
+| Counter symbol | `Counters/Counter/Symbol` | no symbol | `09_symbols` |
+
+A reader must therefore supply defaults itself: a rung that uses `%C0` with
+no `Counter` entry means preset 9999, not "unknown". TP is listed in the
+editor's timer types but has not been observed in a file. Timer and counter
+configuration appears only here, never in the IL (`BLK %TM0 … IN … Q` is
+the same for TON and TOF).
+
 ## Logic: POUs and rungs
 
 ```text
@@ -138,7 +188,9 @@ all 358 rungs. A rung edited in Ladder additionally stores its grid. 91 rungs
 have no grid cells at all (IL-only, `IsLadderSelected=false`). Three further
 rungs have `IsLadderSelected=false` and a single `None` cell. IL text is
 column-aligned with variable whitespace (`LD    %M0`, `LD  %I0.4`), so
-tokens must be split on runs of whitespace.
+tokens must be split on runs of whitespace. The editor adds the padding
+itself: in `10_il_only`, `LD %I0.0` typed by hand was saved as
+`LD    %I0.0`.
 
 This dual storage is the most useful property of the format: IL is an
 editor-generated linear form of the same logic, so it can be used to check
@@ -188,13 +240,14 @@ observed: 0–9.
 | `Comparison` | 80 | `Left, Right` | `LD [ %QW0.100 > 1000 ]`; an assignment inside one was seen as `OPER [ %TM0.P := %MW0 ]` |
 | `Operation` | 56 | `Left` (output side) or `Left, Right` | `[ %MW101 := %MW101 + 1 ]` |
 | `Timer` | 32 | `Left, Right` or `Left` | `BLK %TMn` … `IN` … `OUT_BLK` … `END_BLK` |
+| `Counter` | 0 (1 in `06_counter`) | `Left, Right` | `BLK %Cn` … `R` / `CU` … `OUT_BLK` … `LD D` / `LD F` … `END_BLK` |
 | `Drum` | 8 | `Left, Right` | `BLK %DRn` … `R` / `U` … `END_BLK` |
 | `WriteVarBasic` | 1 | `Left, Right` | `BLK %WRITE_VARn` … `Execute` … `END_BLK` |
 | `RisingEdgeBlock` | 4 | `Left, Right` | `RISINGn`, where `n` is the cell's `Descriptor` |
 | `Not` | 1 | `Left, Right` | `N` |
 | `Xor` | 2 | `Left, Right` | `XOR` |
 | `Short` | 9 | `Left, Right` | `LD 1` when it starts the rung |
-| `None` | 5 | `None` | none: a placeholder |
+| `None` | 5 | `None` | none: an empty cell the editor touched (see below) |
 
 Notes:
 
@@ -209,16 +262,25 @@ Notes:
   (`LDR %I0.0 | R | LDF %I0.0 | U`). Pin names (`IN`, `R`, `U`, `Execute`)
   and output names (`Q`, `F`, `Done`) appear only in the IL.
 - Element widths are not stored. The grid-against-IL check below confirms
-  `Timer`, `Drum` and `Comparison` are 2 columns wide and `WriteVarBasic` is
-  4 (one sample only); all other elements are 1.
+  `Timer`, `Counter`, `Drum` and `Comparison` are 2 columns wide and
+  `WriteVarBasic` is 4 (one sample only); all other elements are 1. An
+  `Operation` in the output position is also 2 wide: it starts one column
+  before a coil would (`07_compare_operate`: column 9 of 10). The
+  2-column timer, counter, comparison and operation are visible in the
+  editor screenshots of the fixtures.
+- `None` cells are leftovers of editor selection, not logic. In `03_nested`
+  the one `None` cell is exactly where an empty cell was selected in the
+  editor, and it disappears in `12_edited` after the rung was rebuilt.
 
 ### Grid semantics, verified against IL
 
 The rules below were checked against the IL of **every one of the 264 rungs
-that have grid cells**, with no exceptions:
+that have grid cells** in the downloaded samples, and of the user-made
+fixtures in `examples/machine_expert_basic/`, with no exceptions:
 
 ```powershell
 python examples/check_smbp_grid_vs_il.py reference/machine-expert/smbp
+python examples/check_smbp_grid_vs_il.py examples/machine_expert_basic
 ```
 
 The script evaluates each grid as a power-flow network and runs a small IL
@@ -237,21 +299,37 @@ then mismatch, so the check does discriminate.
    `Up` joins it to `(r - 1, c + w)`. Joined nodes form a wired OR. A
    `VerticalLine` cell has no horizontal conduction: it only carries this
    vertical link and, with `Right`, feeds the next cell in its row.
-4. A function block at `(r, c)` takes its *i*-th input pin, in the order the
-   pins appear in the IL, from node `(r + i, c)`. Example: the drum's
-   `R` pin comes from row `r`, its `U` pin from row `r + 1`.
-5. A block's first output drives node `(r, c + w)` when the cell that starts
-   there has `Left`. The block's own `Right` is **not** reliable: two `Timer`
-   cells lack `Right` although their output is wired and the IL reads `Q`.
-   These are the only cases where a cell's `Right` and its neighbour's
-   `Left` disagree.
+4. Every function-block pin sits on a **fixed row offset for its block
+   type**, and that table is not stored in the file:
+
+   | Block | Inputs (row offset) | Outputs (row offset) | Evidence |
+   | --- | --- | --- | --- |
+   | `Timer` | `IN` 0 | `Q` 0 | samples, `05_timer` |
+   | `Counter` | `R` 0, `S` 1, `CU` 2, `CD` 3 | `E` 0, `D` 1, `F` 2 | `06_counter` (all pins drawn) |
+   | `Drum` | `R` 0, `U` 1 | `F` 0 | `ss56/drum-test` |
+   | `WriteVarBasic` | `Execute` 0 | `Done` 0 | `ss56/WriteVar` (one sample) |
+
+   Input pin `p` of a block at `(r, c)` reads node `(r + row(p), c)`. The IL
+   lists only the **wired** pins, so a pin's position in the IL does not give
+   its row: in `06_counter`, `CU` is the second IL pin but sits on row 2,
+   because `S` on row 1 is unwired. (An earlier version of this note stated
+   the IL-order rule; it held in the downloaded samples only because their
+   wired pins happened to start at row 0 with no gaps. Substituting it back
+   makes `06_counter` fail.)
+5. Output pin `p` drives node `(r + row(p), c + w)` when the cell that
+   starts there has `Left`. In `06_counter`, `D` drives row 1 and `F` row 2.
+   The block's own `Right` is **not** reliable: two `Timer` cells lack
+   `Right` although their output is wired and the IL reads `Q`. These are
+   the only cases where a cell's `Right` and its neighbour's `Left` disagree.
 6. `None` cells are ignored.
 
 Coverage of the 264 rungs: 55 have vertical links, 41 contain a function
 block, 8 use a block with more than one input pin, 3 place a block below row
-0, and 3 use the `MULTIFB` IL form. Multi-output blocks never appear in a
-rung that has a grid (`ss56/test4.smbp` uses counter outputs `E`/`D`/`F`, but
-only in IL), so rule 5 is unverified for a second output.
+0, and 3 use the `MULTIFB` IL form. None of the downloaded samples wires
+more than one block output in a grid; `06_counter` (two wired outputs, on
+rows 1 and 2) is the only evidence for rule 5 beyond row 0. Pin rows for
+block types not in the table are unknown, and the checker reports such a
+pin as unsupported rather than guessing.
 
 `MULTIFB` (3 rungs, all in the `ProjectVersion` 2.7.0.0 sample) brackets IL
 that stores a shared branch point in a temporary bit (`ST %MW2009:X0`) and
@@ -302,10 +380,17 @@ content, stay vendor-neutral):
 
 ## Open questions
 
-- Whether IL and grid can disagree in a saved file. None did in 264 rungs.
-- Block widths and the second output of a multi-output block; widths for
-  element types not in this corpus.
-- What sets grid width (column 10 vs 11).
+- Whether IL and grid can disagree in a saved file. None did in 264
+  downloaded rungs or 14 fixture rungs. `12_edited` moved a contact in
+  `03_nested` (the grid changed, the logic did not) and the IL stayed
+  identical and consistent; because the logic was unchanged it cannot show
+  whether the editor regenerates IL on save. A logic-changing edit would.
+- Widths and pin rows for block types not yet evidenced (only Timer,
+  Counter, Drum and WriteVarBasic are known).
+- How a TP timer and other non-default values not yet tried are stored;
+  the defaults table above covers only what the fixtures exercised.
+- What sets grid width (column 10 vs 11). Version 3.0 uses column 10, so
+  the one column-11 file (2.5.0.0) is the outlier.
 - `ManagementLevel` meaning.
 - Content of multi-POU programs, subroutines (`SR`), Grafcet steps,
   user-defined function blocks and user functions: present as elements

@@ -19,9 +19,11 @@ An independent package, following the per-format convention of
 capture layer). Element names and paths come from
 `schema/machine_expert_basic/`, not from the parser code.
 
-Tests use small synthetic `.smbp` documents written in the test files. The
-downloaded samples in `reference/machine-expert/` are mostly unlicensed and
-stay local; they are used only for manual verification.
+Tests use small synthetic `.smbp` documents written in the test files, plus
+15 user-made Machine Expert – Basic 3.0 fixtures in
+`examples/machine_expert_basic/`. The downloaded samples in
+`reference/machine-expert/` are mostly unlicensed and stay local; they are
+used only for manual verification.
 
 ## Milestone 1: capture and basic mapping
 
@@ -35,7 +37,8 @@ stay local; they are used only for manual verification.
     `Identity.product_name`;
   - each named symbol-table entry (hardware I/O and software memory objects)
     → a controller `Tag` with `description` from `Comment` and the address
-    in `metadata["source_memory_address"]`, the same key Control Expert uses;
+    in `metadata["source_memory_address"]`, the same key Control Expert uses
+    (counter symbols added once `09_symbols` evidenced their location);
   - each POU → a `Program` holding one `Routine` (`LD` if any rung has grid
     cells, else `IL`);
   - each rung → a `LadderRung` with `number`, `comment` (`MainComment`) and
