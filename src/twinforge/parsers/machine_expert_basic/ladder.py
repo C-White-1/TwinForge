@@ -19,7 +19,7 @@ output branches. A grid that does not reduce (a bridge) gets no network.
 
 Function blocks follow the Control Expert convention: a block output used
 as a condition is a `BLOCK_OUTPUT_REFERENCE` leaf (`%TM0.Q`), and each wired
-input pin is an `UNSUPPORTED` sink instruction annotated with its pin name.
+input pin is its mirror, a `FUNCTION_BLOCK_INPUT` sink (`%TM0.IN`).
 Every element without a portable `LadderOperation` stays in the network as
 `UNSUPPORTED`, with its element type as `source_mnemonic`.
 """
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+import re
 
 from twinforge.model import LadderInstruction, LadderOperation, LadderParallel, LadderPosition, LadderSeries
 from twinforge.schema.machine_expert_basic.ladder import LADDER_SPEC, LadderSpec
@@ -52,6 +53,25 @@ class _Edge:
     # (row, column) of the first cell in this edge; orders parallel branches
     # top to bottom, as drawn.
     order: tuple[int, int]
+
+
+_MEMBER_READ = re.compile(r"(%[A-Z_]+\d+)\.([A-Za-z_]\w*)")
+
+
+def declared_name(address: str | None, symbols: Mapping[str, str]) -> tuple[str | None, tuple[str, ...]]:
+    """The declared symbol for an address, keeping the address as an annotation.
+
+    A member read such as `%TM2.Q` uses its object's symbol (`DELAY.Q`). An
+    address with no symbol is returned unchanged with no annotation.
+    """
+    if not address:
+        return address, ()
+    symbol = symbols.get(address)
+    if symbol is None:
+        member = _MEMBER_READ.fullmatch(address)
+        if member is not None and member.group(1) in symbols:
+            symbol = f"{symbols[member.group(1)]}.{member.group(2)}"
+    return (symbol, (f"address={address}",)) if symbol else (address, ())
 
 
 def _connections(cell: Cell, spec: LadderSpec) -> set[str]:
@@ -101,8 +121,7 @@ def build_network(cells: list[Cell], symbols: Mapping[str, str] | None = None,
     symbols = symbols or {}
 
     def named(address: str | None) -> tuple[str | None, tuple[str, ...]]:
-        symbol = symbols.get(address) if address else None
-        return (symbol, (f"address={address}",)) if symbol else (address, ())
+        return declared_name(address, symbols)
     cells = [cell for cell in cells if cell.get(spec.element_type) not in spec.ignored]
     unknown = sorted({cell.get(spec.element_type, "") for cell in cells
                       if not spec.known(cell.get(spec.element_type, ""))})
@@ -178,12 +197,13 @@ def build_network(cells: list[Cell], symbols: Mapping[str, str] | None = None,
         if kind not in spec.blocks:
             continue
         row, column = position(cell)
-        name = cell.get(spec.block_name) or None
+        name, address = named(cell.get(spec.block_name) or None)
         for pin, offset in spec.blocks[kind].inputs.items():
             pin_node = nodes.find((row + offset, column))
             if pin_node in driven:
-                edges.append(_Edge(pin_node, _SINK, LadderSeries((
-                    instruction(cell, LadderOperation.UNSUPPORTED, name, (f"input_pin={pin}",)),)),
+                edges.append(_Edge(pin_node, _SINK, LadderSeries((LadderInstruction(
+                    operation=LadderOperation.FUNCTION_BLOCK_INPUT, source_mnemonic=kind, operand=f"{name}.{pin}",
+                    annotations=address, position=LadderPosition(column=column, row=row)),)),
                     (row + offset, column)))
     edges, disconnected = _prune(edges)
     if not any(edge.target == _SINK for edge in edges):

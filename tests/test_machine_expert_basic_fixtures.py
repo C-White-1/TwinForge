@@ -22,7 +22,9 @@ ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "examples/machine_expert_basic"
 ALL = sorted(FIXTURES.glob("*.smbp"))
 # Fixtures whose rungs use elements with no portable LadderOperation.
-WITH_UNSUPPORTED = {"05_timer", "05b_timer", "05c_timer", "06_counter", "06b_counter", "07_compare_operate"}
+WITH_UNSUPPORTED = {"07_compare_operate"}
+# Fixtures whose timers cannot become IEC instances (Retentive, Dynamic Preset).
+WITH_UNCONVERTED_TIMER = {"05c_timer"}
 
 _spec = importlib.util.spec_from_file_location("check_smbp_grid_vs_il", ROOT / "examples/check_smbp_grid_vs_il.py")
 assert _spec is not None and _spec.loader is not None
@@ -83,6 +85,7 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
         expected = {"encrypted_project"}
     else:
         expected = {"unclassified_content"} | ({"ladder_unsupported_element"} if path.stem in WITH_UNSUPPORTED else set())
+        expected |= {"timer_not_converted"} if path.stem in WITH_UNCONVERTED_TIMER else set()
     assert {d.code for d in result.diagnostics} == expected
     assert result.project_version == "3.0.0.0"
 
@@ -194,9 +197,11 @@ def _evaluate(series: LadderSeries, power: bool, env: dict, results: dict) -> bo
             power = any([_evaluate(branch, power, env, results) for branch in element.branches])
             continue
         kind, operand = element.source_mnemonic, _address(element)
-        pins = [annotation.split("=", 1)[1] for annotation in element.annotations if annotation.startswith("input_pin=")]
-        if pins:
-            results[("PIN", operand, pins[0])] = power
+        if element.operation is LadderOperation.FUNCTION_BLOCK_INPUT:
+            # operand "instance.pin"; the IL names the instance by address.
+            annotated = [a.split("=", 1)[1] for a in element.annotations if a.startswith("address=")]
+            instance, _, pin = (element.operand or "").rpartition(".")
+            results[("PIN", annotated[0] if annotated else instance, pin)] = power
         elif element.operation in _OUTPUT_KEYS or kind in ("NegativeCoil", "Operation"):
             key = ((_OUTPUT_KEYS[element.operation], operand) if element.operation in _OUTPUT_KEYS
                    else ("STN", operand) if kind == "NegativeCoil" else ("OP", checker.norm(operand)))

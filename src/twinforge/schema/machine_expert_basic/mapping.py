@@ -39,6 +39,41 @@ class SymbolTable:
 
 
 @dataclass(frozen=True)
+class TimerSpec:
+    """`%TMi` timers as IEC 61131-3 TON/TOF/TP instances.
+
+    Semantics from the Generic Functions Library Guide EIO0000003289.04
+    (Timer (%TM): Configuration; TON/TOF/TP pages): duration is Preset x
+    Time Base; defaults are TON, Preset 9999, Time Base 1 min, and default
+    values are not written to the file. TON/TOF/TP behave as their IEC
+    namesakes when the timer is neither Retentive nor Dynamic Preset and the
+    program never writes its preset (%TMi.P), since by default a written
+    preset takes effect only on the next activation. Time-base spellings are
+    the `TimerTimeBaseEnum` members in the editor's
+    SchneiderElectric.SoMachineBasic.Entities.dll; the 1 ms base (TM0..TM5
+    only) has no member found there and is not converted.
+    """
+
+    container: PathSpec = ("SoftwareConfiguration", "Timers")
+    entry: str = "TimerTM"
+    type_field: PathSpec = ("Type",)
+    preset_field: PathSpec = ("Preset",)
+    base_field: PathSpec = ("Base",)
+    retentive_field: PathSpec = ("IsRetentive",)
+    dynamic_preset_field: PathSpec = ("IsDynamicPreset",)
+    address_prefix: str = "%TM"
+    default_type: str = "TON"
+    default_preset: int = 9999
+    default_base: str = "OneMinute"
+    iec_types: frozenset[str] = frozenset({"TON", "TOF", "TP"})
+    base_milliseconds: tuple[tuple[str, int], ...] = (
+        ("OneMinute", 60_000), ("OneSecond", 1_000), ("OneHundredMilliSeconds", 100), ("TenMilliSeconds", 10),
+    )
+    # A program write to the preset, in IL or an expression box.
+    preset_write_pattern: str = r"(%TM\d+)\.P\s*:="
+
+
+@dataclass(frozen=True)
 class MappingSpec:
     project_root: str = "ProjectDescriptor"
     encrypted_root: str = "CryptedProject"
@@ -59,6 +94,10 @@ class MappingSpec:
     entry_address: PathSpec = ("Address",)
     entry_symbol: PathSpec = ("Symbol",)
     entry_comment: PathSpec = ("Comment",)
+    timers: TimerSpec = TimerSpec()
+    # Where block instances are named in logic: grid cells and IL `BLK x` lines.
+    cell_descriptor: PathSpec = ("Descriptor",)
+    expression_fields: tuple[PathSpec, ...] = (("ComparisonExpression",), ("OperationExpression",))
     symbol_tables: tuple[SymbolTable, ...] = (
         SymbolTable("DigitalInputs", ("HardwareConfiguration", "Plc", "Cpu", "DigitalInputs"), "DiscretInput", "BOOL"),
         SymbolTable("DigitalOutputs", ("HardwareConfiguration", "Plc", "Cpu", "DigitalOutputs"), "DiscretOutput",

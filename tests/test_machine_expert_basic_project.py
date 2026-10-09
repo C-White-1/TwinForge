@@ -90,8 +90,8 @@ def test_tags_get_the_iec_type_schneider_documents_for_their_table():
         # 16-bit / 32-bit two's complement (EIO0000003289.04, "Word Objects",
         # "Floating Point and Double Word Objects").
         "COUNT": "INT", "TOTAL": "DINT",
-        # A function-block instance, not an elementary type.
-        "DELAY": None,
+        # A timer is an IEC function block instance; all-default config is TON.
+        "DELAY": "TON",
     }
 
 
@@ -243,3 +243,49 @@ def test_unconvertible_instruction_list_is_kept_as_the_rungs_logic():
     assert rung.network is None
     assert rung.instruction_list == ["LD %I0.0", "RISING0", "ST %Q0.0"]
     assert _codes(result) == ["instruction_list_not_converted"]
+
+
+def _timer_project(timers: str, il: list[str]) -> bytes:
+    software = f"<Timers>{timers}</Timers><Pous>" + _pou("Main", _rung(il, ladder=False)) + "</Pous>"
+    return _smbp(software)
+
+
+def _timer_tags(result) -> dict[str, tuple[str | None, dict | None]]:
+    return {tag.name: (tag.data_type, tag.metadata.get("iec_function_block_inputs"))
+            for tag in result.controller.tags.values() if tag.metadata.get("source_symbol_table") == "Timers"}
+
+
+def test_configured_timer_becomes_an_iec_instance_with_pt():
+    result = _parse(_timer_project(
+        "<TimerTM><Address>%TM0</Address><Index>0</Index><Symbol>DELAY</Symbol><Type>TOF</Type>"
+        "<Preset>5</Preset><Base>OneSecond</Base></TimerTM>",
+        ["BLK %TM0", "LD %I0.0", "IN", "OUT_BLK", "LD Q", "ST %Q0.0", "END_BLK"]))
+
+    assert _timer_tags(result) == {"DELAY": ("TOF", {"PT": "TIME#5000ms"})}
+    assert _codes(result) == []
+
+
+def test_unconfigured_timer_takes_the_documented_defaults_and_an_address_named_tag():
+    # No TimerTM entry at all: TON, preset 9999, time base 1 min (EIO0000003289.04).
+    result = _parse(_timer_project("", ["BLK %TM3", "LD %I0.0", "IN", "OUT_BLK", "LD Q", "ST %Q0.0", "END_BLK"]))
+
+    assert _timer_tags(result) == {"%TM3": ("TON", {"PT": f"TIME#{9999 * 60_000}ms"})}
+    rung = result.controller.programs["Main"].routines["Main"].ladder_rungs[0]
+    assert rung.network is not None  # the block pins reference "%TM3", not a symbol
+
+
+@pytest.mark.parametrize(("entry", "il", "reason"), [
+    ("<IsRetentive>true</IsRetentive>", [], "Retentive"),
+    ("<IsDynamicPreset>true</IsDynamicPreset>", [], "Dynamic Preset"),
+    ("<Base>OneMillisecond</Base>", [], "time base"),
+    ("", ["LD %I0.1", "[ %TM0.P := %MW0 ]"], "writes its preset"),
+])
+def test_timer_that_is_not_an_iec_equivalent_stays_untyped(entry, il, reason):
+    result = _parse(_timer_project(
+        f"<TimerTM><Address>%TM0</Address><Index>0</Index><Preset>5</Preset>{entry}</TimerTM>",
+        ["BLK %TM0", "LD %I0.0", "IN", "OUT_BLK", "LD Q", "ST %Q0.0", "END_BLK", *il]))
+
+    assert _timer_tags(result) == {"%TM0": (None, None)}
+    # (A preset write is itself an unsupported Operation element.)
+    assert [c for c in _codes(result) if c != "ladder_unsupported_element"] == ["timer_not_converted"]
+    assert any(reason in d.message for d in result.diagnostics if d.code == "timer_not_converted")

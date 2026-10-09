@@ -20,8 +20,7 @@ def shape(series: LadderSeries) -> str:
             parts.append("[" + " | ".join(shape(branch) for branch in element.branches) + "]")
         else:
             label = _SHORT.get(element.operation) or element.source_mnemonic
-            pin = "".join("." + a.split("=", 1)[1] for a in element.annotations if a.startswith("input_pin="))
-            parts.append(f"{label}({element.operand}{pin})")
+            parts.append(f"{label}({element.operand})")
     return " ".join(parts)
 
 
@@ -80,7 +79,8 @@ def test_operands_use_declared_symbols_with_the_address_kept():
     assert isinstance(contact, LadderInstruction) and isinstance(pin, LadderInstruction)
     assert isinstance(reference, LadderInstruction) and isinstance(coil, LadderInstruction)
     assert (contact.operand, contact.annotations) == ("START_PB", ("address=%I0.0",))
-    assert (pin.source_mnemonic, pin.operand, pin.annotations) == ("Timer", "DELAY", ("input_pin=IN", "address=%TM0"))
+    assert (pin.operation, pin.source_mnemonic, pin.operand, pin.annotations) == (
+        LadderOperation.FUNCTION_BLOCK_INPUT, "Timer", "DELAY.IN", ("address=%TM0",))
     assert (reference.operand, reference.annotations) == ("DELAY.Q", ("address=%TM0",))
     assert (coil.operand, coil.annotations) == ("%Q0.0", ())
 

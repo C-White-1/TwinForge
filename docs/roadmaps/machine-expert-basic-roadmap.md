@@ -111,9 +111,29 @@ The remaining `UNSUPPORTED` elements fall into four groups:
   `RisingEdgeBlock`; 7 occurrences). No IEC ladder equivalent.
 - [ ] **C. Expressions** (`Comparison` 80, `Operation` 56): needs a neutral
   expression representation; the largest group.
-- [ ] **D. Function-block pins** (`Timer`, `Counter`, `Drum`,
-  `WriteVarBasic`): needs a model concept for a branch feeding a block pin;
-  overlaps with function-block parameters below.
+- [x] **D. Function-block pins**, timers (2026-10-10). New model operation
+  `FUNCTION_BLOCK_INPUT` (operand `instance.pin`, the mirror of
+  `BLOCK_OUTPUT_REFERENCE`) replaces the `UNSUPPORTED` + `input_pin=` sink
+  for every block. Timers referenced in logic or configured get a tag
+  (named by symbol, or by address when unnamed) typed `TON`/`TOF`/`TP` with
+  `metadata["iec_function_block_inputs"] = {"PT": "TIME#<ms>ms"}`; PT is
+  Preset x Time Base with the documented defaults (TON, 9999, 1 min;
+  `TimerSpec`). Time-base spellings come from the editor's
+  `TimerTimeBaseEnum` (OneMinute, OneSecond, OneHundredMilliSeconds,
+  TenMilliSeconds); the 1 ms spelling was not found and is not converted.
+  Not converted, with `timer_not_converted`: Retentive, Dynamic Preset, or a
+  program write to `%TMi.P` (by default a written preset applies only on
+  the next activation, unlike IEC). A timer's Q read as a contact
+  (`%TM2.Q`) becomes the instance member. The PLCopen exporter emits a TC6
+  `block` per instance per rung: IN wired from the pin's condition, PT
+  from an `inVariable`, Q feeding its readers; CODESYS declares
+  `Standard.TON` and references the Standard library. Samples: 50 of 54
+  timers convert (the 4 others write their preset); 46 blocks emitted; all
+  62 readable sample exports validate against TC6.
+- [ ] **D. Function-block pins**, counters, drums, `%WRITE_VAR`: kept as
+  `FUNCTION_BLOCK_INPUT` in the network but not exported. `%C` is not IEC
+  `CTUD` (wraps 0..9999, `D` on equality, `E`/`F` wrap flags); a generated
+  function block reproducing Schneider semantics is the route.
 
 ## Instruction List rungs
 

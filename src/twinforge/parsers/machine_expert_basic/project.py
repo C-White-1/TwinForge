@@ -15,6 +15,7 @@ rung's IL stays verbatim in its source extension.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 
 from twinforge.model import (
     Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
@@ -156,11 +157,78 @@ def _has_grid(node: CapturedSection, spec: MappingSpec) -> bool:
                for cell in _select(node, spec.rung_cells))
 
 
+def _timers(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
+    """Give every timer the logic uses (or the file configures) a tag, typed as
+    its IEC TON/TOF/TP instance with PT, when it behaves as one.
+
+    A timer is a declared object even when it has no symbol or `TimerTM`
+    entry (all-default timers have neither), so an unnamed one gets a tag
+    named by its address. Settings left at their default are not written to
+    the file, so absent values take the documented defaults (`TimerSpec`).
+    """
+    timers = spec.timers
+    address_pattern = re.compile(re.escape(timers.address_prefix) + r"\d+")
+    write_pattern = re.compile(timers.preset_write_pattern)
+    entries: dict[str, CapturedSection] = {}
+    for entry in _select(root, timers.container + (timers.entry,)):
+        address = _text(entry, spec.entry_address)
+        if address:
+            entries[address] = entry
+    referenced: set[str] = set()
+    written: set[str] = set()
+    for pou in _select(root, spec.pous):
+        for rung in _select(pou, spec.rungs):
+            texts = [line.text or "" for entry in _select(rung, spec.rung_instruction_lines)
+                     for line in _select(entry, spec.instruction_text)]
+            for cell in _select(rung, spec.rung_cells):
+                texts.extend(_text(cell, path) or "" for path in (spec.cell_descriptor, *spec.expression_fields))
+            for text in texts:
+                referenced.update(address_pattern.findall(text))
+                written.update(write_pattern.findall(text))
+    tags_by_address = {tag.metadata["source_memory_address"]: tag for tag in result.controller.tags.values()
+                       if tag.metadata.get("source_symbol_table") == "Timers"
+                       and "source_memory_address" in tag.metadata}
+    base_milliseconds = dict(timers.base_milliseconds)
+    for address in sorted(set(entries) | referenced, key=lambda a: int(a[len(timers.address_prefix):])):
+        entry = entries.get(address)
+        node = entry if entry is not None else root
+        timer_type = (_text(entry, timers.type_field) if entry is not None else None) or timers.default_type
+        preset_text = (_text(entry, timers.preset_field) if entry is not None else None) or str(timers.default_preset)
+        base = (_text(entry, timers.base_field) if entry is not None else None) or timers.default_base
+        reasons = []
+        if timer_type not in timers.iec_types:
+            reasons.append(f"type {timer_type!r} is not TON, TOF or TP")
+        if base not in base_milliseconds:
+            reasons.append(f"time base {base!r} is not a verified spelling")
+        if not preset_text.isdigit():
+            reasons.append(f"preset {preset_text!r} is not a number")
+        if entry is not None and _text(entry, timers.retentive_field) == "true":
+            reasons.append("Retentive has no IEC TON/TOF/TP equivalent")
+        if entry is not None and _text(entry, timers.dynamic_preset_field) == "true":
+            reasons.append("Dynamic Preset has no IEC TON/TOF/TP equivalent")
+        if address in written:
+            reasons.append("the program writes its preset (%TMi.P), which takes effect differently")
+        tag = tags_by_address.get(address)
+        if tag is None:
+            tag = Tag(name=address, source_extensions=[_extension(entry)] if entry is not None else [])
+            tag.metadata["source_symbol_table"] = "Timers"
+            tag.metadata["source_memory_address"] = address
+            result.controller.add_tag(tag)
+        if reasons:
+            result.report("timer_not_converted", f"{address}: {'; '.join(reasons)}; kept as an untyped timer", node)
+            continue
+        tag.data_type = timer_type
+        # Constant inputs of the IEC function block instance, as IEC literals.
+        tag.metadata["iec_function_block_inputs"] = {
+            "PT": f"TIME#{int(preset_text) * base_milliseconds[base]}ms"}
+
+
 def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
     used: set[str] = set()
     # Ladder operands use the declared tag name for an address when one exists.
+    # Unnamed objects that still got a tag (timers) are named by their address.
     symbols = {tag.metadata["source_memory_address"]: name for name, tag in result.controller.tags.items()
-               if "source_memory_address" in tag.metadata}
+               if "source_memory_address" in tag.metadata and name != tag.metadata["source_memory_address"]}
     for pou in _select(root, spec.pous):
         name = _unique_name(result, pou, _text(pou, spec.pou_name), used, "POU")
         if name is None:
@@ -198,5 +266,6 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     if cpu is None:
         result.report("missing_cpu_reference", "CPU catalogue reference missing or ambiguous", root)
     _tags(result, root, spec)
+    _timers(result, root, spec)
     _programs(result, root, spec)
     return result

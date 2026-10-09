@@ -25,6 +25,11 @@ class LadderOperation(str, Enum):
     # output pin (a drawn ladder wire from the block's own grid position),
     # not a declared tag read the way a contact is. See LadderInstruction.
     BLOCK_OUTPUT_REFERENCE = "block_output_reference"
+    # The mirror of BLOCK_OUTPUT_REFERENCE: a sink whose power flow drives one
+    # input pin of a named function block instance. `operand` is
+    # "{instance_name}.{pin_name}"; the instance is a declared tag whose
+    # `data_type` names the block type.
+    FUNCTION_BLOCK_INPUT = "function_block_input"
     UNSUPPORTED = "unsupported"
 
 

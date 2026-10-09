@@ -30,7 +30,7 @@ import re
 from twinforge.model import LadderInstruction, LadderOperation, LadderParallel, LadderSeries
 from twinforge.schema.machine_expert_basic.ladder import LADDER_SPEC, LadderSpec
 
-from .ladder import NetworkUnresolved
+from .ladder import NetworkUnresolved, declared_name
 
 Element = LadderInstruction | LadderParallel
 
@@ -59,8 +59,8 @@ def build_network_from_instruction_list(
     symbols = symbols or {}
 
     def named(address: str) -> tuple[str, tuple[str, ...]]:
-        symbol = symbols.get(address)
-        return (symbol, (f"address={address}",)) if symbol else (address, ())
+        name, annotations = declared_name(address, symbols)
+        return name or address, annotations
 
     def instruction(operation: LadderOperation, mnemonic: str, operand: str | None,
                     annotations: tuple[str, ...] = ()) -> LadderInstruction:
@@ -130,8 +130,8 @@ def build_network_from_instruction_list(
         if block is not None and not after_out and not arg and op not in ("MPS", "MRD", "MPP", "N"):
             block_name, address = named(block)
             outputs.append(acc + [LadderInstruction(
-                operation=LadderOperation.UNSUPPORTED, source_mnemonic=block_type(block), operand=block_name,
-                annotations=(f"input_pin={op}",) + address)])
+                operation=LadderOperation.FUNCTION_BLOCK_INPUT, source_mnemonic=block_type(block),
+                operand=f"{block_name}.{op}", annotations=address)])
             continue
         if op == "MPS":
             branch_points.append(list(acc))

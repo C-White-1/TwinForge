@@ -68,29 +68,36 @@ def ld_elements(xml: str) -> list[ET.Element]:
 # --- the emitted PLCopen graph as power flow -------------------------------
 
 def _graph_outputs(elements: list[ET.Element], env: dict[str, bool]) -> dict[tuple, bool]:
-    """Evaluate one rung's PLCopen elements; returns coil -> energised."""
+    """Evaluate one rung's PLCopen elements; returns coil (and block IN) -> energised.
+
+    A block's output pin is an input to the rung (`block:<instance>.<pin>`);
+    what drives a block's IN pin is recorded like a coil.
+    """
     by_id = {e.get("localId"): e for e in elements if e.get("localId")}
-    memo: dict[str, bool] = {}
+    memo: dict[tuple[str, str | None], bool] = {}
 
-    def refs(element: ET.Element) -> list[str]:
-        return [c.get("refLocalId") or "" for c in element.iter() if _local(c.tag) == "connection"]
+    def refs(element: ET.Element) -> list[tuple[str, str | None]]:
+        return [(c.get("refLocalId") or "", c.get("formalParameter"))
+                for c in element.iter() if _local(c.tag) == "connection"]
 
-    def power(local_id: str) -> bool:
-        if local_id in memo:
-            return memo[local_id]
+    def power(local_id: str, pin: str | None = None) -> bool:
+        if (local_id, pin) in memo:
+            return memo[(local_id, pin)]
         element = by_id[local_id]
         kind = _local(element.tag)
         if kind == "leftPowerRail":
             value = True
+        elif kind == "block":
+            value = env[f"block:{element.get('instanceName')}.{pin}"]
         else:
-            incoming = any(power(ref) for ref in refs(element))
+            incoming = any(power(ref, pin) for ref, pin in refs(element))
             variable = next(c.text for c in element if _local(c.tag) == "variable") or ""
             if kind == "contact":
                 state = env[f"{element.get('edge', 'none')}:{variable}"]
                 value = incoming and (not state if element.get("negated") == "true" else state)
             else:  # coil: passes power on unchanged
                 value = incoming
-        memo[local_id] = value
+        memo[(local_id, pin)] = value
         return value
 
     results = {}
@@ -99,6 +106,11 @@ def _graph_outputs(elements: list[ET.Element], env: dict[str, bool]) -> dict[tup
             variable = next(c.text for c in element if _local(c.tag) == "variable")
             key = (variable, element.get("storage", "none"), element.get("negated", "false"))
             results[key] = results.get(key, False) or power(element.get("localId") or "")
+        elif _local(element.tag) == "block":
+            for variable in element.iter():
+                if _local(variable.tag) == "variable" and variable.get("formalParameter") == "IN":
+                    results[("PIN", element.get("instanceName"), "IN")] = any(
+                        power(ref, pin) for ref, pin in refs(variable))
     return results
 
 
@@ -119,6 +131,12 @@ def _network_outputs(network: LadderSeries, env: dict[str, bool], rename: dict[s
                 operand = rename.get(element.operand or "", element.operand)
                 state = env[f"{_EDGE.get(element.operation, 'none')}:{operand}"]
                 flow = flow and (not state if element.operation is Op.NORMALLY_CLOSED_CONTACT else state)
+            elif element.operation is Op.FUNCTION_BLOCK_INPUT:
+                instance, _, pin = (element.operand or "").rpartition(".")
+                results[("PIN", rename.get(instance, instance), pin)] = flow
+            elif element.operation is Op.BLOCK_OUTPUT_REFERENCE:
+                instance, _, pin = (element.operand or "").rpartition(".")
+                flow = env[f"block:{rename.get(instance, instance)}.{pin}"]
             else:
                 key = (rename.get(element.operand or "", element.operand), _STORAGE.get(element.operation, "none"),
                        "true" if element.operation is Op.NEGATED_COIL else "false")
@@ -139,6 +157,9 @@ def _atoms(network: LadderSeries, rename: dict[str, str]) -> list[str]:
                     walk(branch)
             elif element.operation in CONTACTS:
                 found.add(f"{_EDGE.get(element.operation, 'none')}:{rename.get(element.operand or '', element.operand)}")
+            elif element.operation is Op.BLOCK_OUTPUT_REFERENCE:
+                instance, _, pin = (element.operand or "").rpartition(".")
+                found.add(f"block:{rename.get(instance, instance)}.{pin}")
 
     walk(network)
     return sorted(found)
@@ -154,8 +175,9 @@ def assert_equivalent(network: LadderSeries, elements: list[ET.Element], rename:
 
 
 def surrogates(result) -> dict[str, str]:
-    """Source operand -> surrogate, from the exporter's own diagnostics."""
-    return {d.raw_value: d.object_name for d in result.diagnostics if d.code == "raw_operand_rewritten"}
+    """Source operand or tag name -> IEC-safe name, from the exporter's own diagnostics."""
+    return {d.raw_value: d.object_name for d in result.diagnostics
+            if d.code in ("raw_operand_rewritten", "tag_name_rewritten")}
 
 
 # --- tests --------------------------------------------------------------------
@@ -229,7 +251,8 @@ def test_rll_text_still_takes_precedence_over_a_network():
     assert "Text" in variables and "Network" not in variables
 
 
-@pytest.mark.parametrize("name", ["02_parallel", "03_nested", "04_two_outputs", "08_edges", "12_edited"])
+@pytest.mark.parametrize("name", ["02_parallel", "03_nested", "04_two_outputs", "05_timer", "05b_timer", "08_edges",
+                                  "12_edited"])
 def test_machine_expert_basic_fixtures_export_equivalently(name: str):
     plc = parse_project(capture_file(FIXTURES / f"{name}.smbp")).controller
     (program,) = plc.programs.values()
@@ -246,15 +269,16 @@ def test_machine_expert_basic_fixtures_export_equivalently(name: str):
         assert_equivalent(network, elements, surrogates(result))
 
 
-def test_fixture_with_a_block_pin_keeps_that_rung_as_a_comment():
-    result = export(parse_project(capture_file(FIXTURES / "05_timer.smbp")).controller)
+def test_counter_rung_is_kept_as_a_comment():
+    # Schneider %C wraps at 9999 and sets D on equality; IEC CTUD does neither.
+    result = export(parse_project(capture_file(FIXTURES / "06_counter.smbp")).controller)
 
     assert [d.code for d in result.diagnostics if d.code == "unsupported_network_rung"] == ["unsupported_network_rung"]
-    assert "Timer(%TM0)" in result.xml
+    assert "Counter(%C0.R)" in result.xml
 
 
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
-@pytest.mark.parametrize("name", ["03_nested", "04_two_outputs", "08_edges"])
+@pytest.mark.parametrize("name", ["03_nested", "04_two_outputs", "05_timer", "05b_timer", "08_edges"])
 def test_exported_networks_validate_against_tc6(name: str):
     validate_plcopen_xml(export(parse_project(capture_file(FIXTURES / f"{name}.smbp")).controller).xml, XSD)
 
@@ -381,3 +405,75 @@ def test_string_and_date_time_variables_validate_against_tc6():
         plc.add_tag(Tag(name=name, data_type=data_type))
 
     validate_plcopen_xml(export(plc).xml, XSD)
+
+
+# --- IEC timers -----------------------------------------------------------------
+
+def _blocks(xml: str) -> list[ET.Element]:
+    return [e for e in ET.fromstring(xml).iter() if _local(e.tag) == "block"]
+
+
+def _declared_types(xml: str) -> dict[str, str]:
+    """Variable name -> its type, elementary or derived (`<derived name=...>`)."""
+    declared: dict[str, str] = {}
+    for variable in ET.fromstring(xml).iter():
+        if _local(variable.tag) != "variable" or not variable.get("name"):
+            continue
+        type_element = next((child for child in variable if _local(child.tag) == "type"), None)
+        if type_element is not None and len(type_element):
+            inner = type_element[0]
+            declared[variable.get("name") or ""] = inner.get("name") or _local(inner.tag)
+    return declared
+
+
+@pytest.mark.parametrize(("name", "block_type"), [("05_timer", "TON"), ("05b_timer", "TOF")])
+def test_timer_becomes_an_iec_block_wired_into_the_rung(name: str, block_type: str):
+    result = export(parse_project(capture_file(FIXTURES / f"{name}.smbp")).controller)
+
+    (block,) = _blocks(result.xml)
+    assert (block.get("typeName"), block.get("instanceName")) == (block_type, "TF_TM0")
+    elements = {e.get("localId"): e for e in ld_elements(result.xml)}
+    preset_ref = next(c.get("refLocalId") for v in block.iter() if v.get("formalParameter") == "PT"
+                      for c in v.iter() if _local(c.tag) == "connection")
+    preset = elements[preset_ref]
+    assert _local(preset.tag) == "inVariable"
+    assert next(c.text for c in preset if _local(c.tag) == "expression") == "TIME#5000ms"
+    # The coil reads the block's Q output directly.
+    (coil,) = [e for e in elements.values() if _local(e.tag) == "coil"]
+    assert [(c.get("refLocalId"), c.get("formalParameter")) for c in coil.iter() if _local(c.tag) == "connection"]         == [(block.get("localId"), "Q")]
+    assert _declared_types(result.xml)["TF_TM0"] == block_type
+
+
+def test_codesys_profile_declares_standard_library_timers():
+    result = export(parse_project(capture_file(FIXTURES / "05_timer.smbp")).controller, "codesys")
+
+    assert _declared_types(result.xml)["TF_TM0"] == "Standard.TON"
+    assert '<Library Name="#Standard" Namespace="Standard"' in result.xml
+    # Only when something needs it.
+    plain = export(parse_project(capture_file(FIXTURES / "02_parallel.smbp")).controller, "codesys")
+    assert '<Library Name="#Standard"' not in plain.xml
+
+
+def test_retentive_timer_rung_stays_a_comment():
+    result = export(parse_project(capture_file(FIXTURES / "05c_timer.smbp")).controller)
+
+    assert _blocks(result.xml) == []
+    assert [d.code for d in result.diagnostics if d.code == "unsupported_network_rung"] == ["unsupported_network_rung"]
+
+
+def test_timer_output_read_as_a_contact_reads_the_instance_member():
+    plc = controller(series(i(Op.NORMALLY_CLOSED_CONTACT, "%TM2.Q"), i(Op.COIL, "Y")))
+    timer = Tag(name="%TM2", data_type="TON", metadata={"iec_function_block_inputs": {"PT": "TIME#3000ms"}})
+    plc.add_tag(timer)
+
+    result = export(plc)
+
+    assert _used(result.xml) == ["TF_TM2.Q", "Y"]
+    assert _declared_types(result.xml)["TF_TM2"] == "TON"
+
+
+def test_member_read_of_an_unconverted_object_is_not_given_a_surrogate():
+    result = export(controller(series(i(Op.NORMALLY_OPEN_CONTACT, "%C0.D"), i(Op.COIL, "Y"))))
+
+    assert surrogates(result) == {}
+    assert [d.code for d in result.diagnostics] == ["unsupported_network_rung"]

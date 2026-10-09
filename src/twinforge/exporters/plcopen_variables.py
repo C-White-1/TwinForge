@@ -37,11 +37,17 @@ class PLCopenVariableEmitter:
         tag_export_type: TagExportType,
         timer_type: str,
         report_diagnostic: DiagnosticReporter,
+        function_block_type: Callable[[Tag], str | None] = lambda tag: None,
+        declared_name: Callable[[Tag], str] = lambda tag: tag.name,
     ) -> None:
         self._namespace = namespace
         self._tag_export_type = tag_export_type
         self._timer_type = timer_type
         self._report_diagnostic = report_diagnostic
+        # The derived type to declare a function block instance tag as
+        # (e.g. "Standard.TON"), or None for any other tag.
+        self._function_block_type = function_block_type
+        self._declared_name = declared_name
 
     def emit(
         self,
@@ -82,6 +88,7 @@ class PLCopenVariableEmitter:
                 data_type not in PLCOPEN_PRIMITIVE_TYPES
                 and data_type != "TIMER"
                 and derived_type is None
+                and self._function_block_type(tag) is None
             ):
                 self._report_diagnostic(
                     "unsupported_variable_type",
@@ -106,7 +113,7 @@ class PLCopenVariableEmitter:
         variable = ET.SubElement(
             parent,
             qualified_name(self._namespace, "variable"),
-            {"name": tag.name},
+            {"name": self._declared_name(tag)},
         )
         self._type(variable, tag)
         self._initial_value(variable, tag)
@@ -121,7 +128,7 @@ class PLCopenVariableEmitter:
             variable,
             qualified_name(self._namespace, "type"),
         )
-        derived_type = tag.metadata.get("plcopen_derived_type")
+        derived_type = tag.metadata.get("plcopen_derived_type") or self._function_block_type(tag)
         if derived_type is not None:
             ET.SubElement(
                 type_element,

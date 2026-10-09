@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 
 from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, LadderSeries, Tag
+from twinforge.model import Controller, LadderOperation, LadderSeries, Tag
 
 from .plcopen_network import instructions as network_instructions
+from .plcopen_network import split_member
 from .plcopen_network import unsupported_reason as network_unsupported_reason
 
 from .plcopen_rll import (
@@ -42,6 +43,11 @@ def plcopen_type_element(type_name: str) -> str:
     """The TC6 element name for an IEC elementary type name."""
 
     return PLCOPEN_TYPE_ELEMENTS.get(type_name, type_name)
+
+
+# IEC 61131-3 standard timers, declared as function block instances.
+IEC_TIMER_TYPES = frozenset({"TON", "TOF", "TP"})
+_IEC_IDENTIFIER = re.compile(r"[A-Za-z_]\w*")
 
 
 PLCOPEN_PRIMITIVE_TYPES = frozenset(
@@ -109,6 +115,13 @@ class PLCopenOperandPlan:
     oneshots: dict[int, PLCopenOneShotExport]
     oneshot_tags: dict[str, tuple[Tag, ...]]
     diagnostics: tuple[ConversionDiagnostic, ...]
+    # Tag name -> (IEC block type, PT literal) for tags that are IEC timer
+    # instances with a known PT (`iec_function_block_inputs`), e.g. Machine
+    # Expert - Basic %TMi. Network rungs emit a TC6 block for these.
+    function_block_instances: dict[str, tuple[str, str]] = field(default_factory=dict)
+    # Tag name -> IEC-safe declared name, for tags whose source name is not
+    # an IEC identifier (an unnamed Machine Expert - Basic timer is "%TM0").
+    tag_names: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def empty(cls) -> PLCopenOperandPlan:
@@ -166,6 +179,8 @@ class PLCopenOperandPlanner:
         self._oneshots: dict[int, PLCopenOneShotExport] = {}
         self._oneshot_tags: dict[str, list[Tag]] = {}
         self._diagnostics: list[ConversionDiagnostic] = []
+        self._function_block_instances: dict[str, tuple[str, str]] = {}
+        self._tag_names: dict[str, str] = {}
 
     def prepare(self, controller: Controller) -> PLCopenOperandPlan:
         """Discover all required symbols in deterministic source order."""
@@ -191,6 +206,8 @@ class PLCopenOperandPlanner:
                 name: tuple(tags) for name, tags in self._oneshot_tags.items()
             },
             diagnostics=tuple(self._diagnostics),
+            function_block_instances=dict(self._function_block_instances),
+            tag_names=dict(self._tag_names),
         )
 
     def _reset(self) -> None:
@@ -204,12 +221,15 @@ class PLCopenOperandPlanner:
         self._oneshots = {}
         self._oneshot_tags = {}
         self._diagnostics = []
+        self._function_block_instances = {}
+        self._tag_names = {}
 
     def _prepare_operands(self, controller: Controller) -> None:
         tags = list(controller.tags.values())
         for program in controller.iter_programs():
             tags.extend(program.tags.values())
         names = {tag.name for tag in tags}
+        self._prepare_function_block_instances(tags, names)
         aliases_by_target = {tag.alias_for: tag.name for tag in tags if tag.alias_for}
         for program in controller.iter_programs():
             tags_by_name = dict(controller.tags)
@@ -314,6 +334,25 @@ class PLCopenOperandPlanner:
                                 )
                             self._operand_names[operand] = portable
 
+    def _prepare_function_block_instances(self, tags: list[Tag], names: set[str]) -> None:
+        """Find IEC timer instances and give non-IEC tag names an IEC-safe name."""
+        for tag in tags:
+            inputs = tag.metadata.get("iec_function_block_inputs") or {}
+            if tag.data_type in IEC_TIMER_TYPES and "PT" in inputs:
+                self._function_block_instances[tag.name] = (tag.data_type, str(inputs["PT"]))
+            if _IEC_IDENTIFIER.fullmatch(tag.name):
+                continue
+            portable = unique_portable_name(tag.name, names)
+            names.add(portable)
+            self._tag_names[tag.name] = portable
+            self._operand_names[tag.name] = portable
+            self._diagnostic(
+                "tag_name_rewritten",
+                "source tag name is not an IEC identifier and was declared under an IEC-safe name",
+                portable,
+                raw_value=tag.name,
+            )
+
     def _prepare_network_operands(self, network: LadderSeries, names: set[str]) -> None:
         """Declare surrogates for network operands that are not IEC identifiers.
 
@@ -323,10 +362,20 @@ class PLCopenOperandPlanner:
         `%I0.1` (a real I/O point with no symbol) becomes one IEC-safe
         surrogate, reused wherever the operand recurs.
         """
-        if network_unsupported_reason(network) is not None:
+        block_types = {name: kind for name, (kind, _) in self._function_block_instances.items()}
+        if network_unsupported_reason(network, block_types) is not None:
             return
         for instruction in network_instructions(network):
             operand = instruction.operand or ""
+            if instruction.operation in (LadderOperation.FUNCTION_BLOCK_INPUT,
+                                         LadderOperation.BLOCK_OUTPUT_REFERENCE):
+                continue  # a block pin, not a variable
+            member = split_member(operand)
+            if member is not None:
+                # A timer output read as a contact: `%TM2.Q` -> `<instance>.Q`.
+                root, name = member
+                self._operand_names[operand] = f"{self._operand_names.get(root, root)}.{name}"
+                continue
             self._boolean_operands.add(operand)
             if _IEC_OPERAND.fullmatch(operand) or operand in self._operand_names:
                 continue

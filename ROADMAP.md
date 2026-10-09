@@ -51,18 +51,22 @@ That is a project-specific result, not universal Logix coverage.
 In priority order (agreed 2026-10-09). Details live in the sections and
 roadmaps linked from each item.
 
-1. [ ] **Machine Expert – Basic timers and counters.** Convert `%TM`
-   (TON/TOF/TP with time base and preset) to IEC `TON`/`TOF`/`TP`, and
-   `%C` as far as it maps, replacing the `UNSUPPORTED` block-pin sinks.
-   The largest remaining `UNSUPPORTED` source in `.smbp` networks.
-   Semantics from Schneider's Generic Functions Library Guide
-   (EIO0000003289.04, installed locally); timers map cleanly, while `%C`
-   (R/S/CU/CD to E/D/F) is not a 1:1 match for IEC `CTUD` and must be
-   checked against the guide before mapping. See the
+1. [x] **Machine Expert – Basic timers** (2026-10-10). `%TM` timers become
+   IEC `TON`/`TOF`/`TP` instances (PT = Preset x Time Base, documented
+   defaults applied) and export as TC6 `block`s wired into the rung graph.
+   50 of 54 sample timers convert; 199 of 358 sample rungs now export as
+   LD. See the
    [Machine Expert – Basic roadmap](docs/roadmaps/machine-expert-basic-roadmap.md),
    group D.
+   - [ ] **Counters** (`%C`) stay unconverted: Schneider's counter wraps
+     between 0 and 9999, sets `D` on equality with the preset, and has
+     wrap flags `E`/`F` (Generic Functions Library Guide EIO0000003289.04,
+     Counter (%C) Description), none of which IEC `CTUD` does. The route is
+     a generated function block reproducing those semantics, verified
+     against the guide; drums (`%DR`) and `%WRITE_VAR` likewise.
 2. [ ] **Expressions.** A neutral representation for Machine Expert – Basic
-   `Comparison` (80 sample cells) and `Operation` (56) boxes, by parsing
+   `Comparison` (80 sample cells) and `Operation` (56) boxes, now the cause
+   of 140 of the 159 sample rungs still exported as comments, by parsing
    Schneider expression syntax, so they stop being `UNSUPPORTED` and can
    be exported. Group C in the Machine Expert – Basic roadmap.
 3. [ ] **Physical address binding.** Translate Schneider addresses

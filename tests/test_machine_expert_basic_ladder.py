@@ -91,12 +91,12 @@ def test_block_pins_use_fixed_rows_not_il_order():
     assert isinstance(parallel, LadderParallel)
     assert [branch.elements for branch in parallel.branches] == [
         (instruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", "%I0.1", 0, 0),
-         instruction(LadderOperation.UNSUPPORTED, "Counter", "%C0", 0, 2, ("input_pin=R",))),
+         instruction(LadderOperation.FUNCTION_BLOCK_INPUT, "Counter", "%C0.R", 0, 2)),
         (LadderInstruction(LadderOperation.BLOCK_OUTPUT_REFERENCE, "Counter", "%C0.D",
                            position=LadderPosition(column=2, row=1)),
          instruction(LadderOperation.COIL, "Coil", "%Q0.0", 1, 10)),
         (instruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", "%I0.0", 2, 0),
-         instruction(LadderOperation.UNSUPPORTED, "Counter", "%C0", 0, 2, ("input_pin=CU",))),
+         instruction(LadderOperation.FUNCTION_BLOCK_INPUT, "Counter", "%C0.CU", 0, 2)),
     ]
 
 
@@ -161,7 +161,18 @@ def test_operand_is_the_declared_symbol_with_the_address_kept():
     assert isinstance(parallel, LadderParallel)
     (contact, pin), (reference, coil) = (instructions(branch) for branch in parallel.branches)
     assert (contact.operand, contact.annotations) == ("START_PB", ("address=%I0.0",))
-    assert (pin.operand, pin.annotations) == ("DELAY", ("input_pin=IN", "address=%TM0"))
+    assert (pin.operation, pin.operand, pin.annotations) == (
+        LadderOperation.FUNCTION_BLOCK_INPUT, "DELAY.IN", ("address=%TM0",))
     assert (reference.operand, reference.annotations) == ("DELAY.Q", ("address=%TM0",))
     # No declared symbol: the address is the operand.
     assert (coil.operand, coil.annotations) == ("%Q0.0", ())
+
+
+def test_timer_output_read_as_a_contact_uses_the_timer_symbol():
+    cells = [cell("NegatedContact", 0, 0, Descriptor="%TM2.Q"), *wire(0, 1, 9),
+             cell("Coil", 0, 10, "Left", Descriptor="%Q0.0")]
+
+    network, _ = build_network(cells, {"%TM2": "DELAY"})
+
+    contact = instructions(network)[0]
+    assert (contact.operand, contact.annotations) == ("DELAY.Q", ("address=%TM2.Q",))

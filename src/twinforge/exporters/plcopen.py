@@ -10,7 +10,7 @@ from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, LadderParallel, LadderRung, LadderSeries, Program, Tag, Task
+from twinforge.model import Controller, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program, Tag, Task
 
 from .plcopen_codesys import CodesysProfileSupport
 from .plcopen_instructions import (
@@ -68,6 +68,9 @@ __all__ = [
 
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
 TWINFORGE_RLL_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-rll"
+# A connection source: an element's localId, or (block localId, output pin).
+ConnectionRef = int | tuple[int, str]
+
 _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
 
 
@@ -78,6 +81,8 @@ class PLCopenExporter:
         self._next_local_id = 1
         self._codesys = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
         self._operands = PLCopenOperandPlan.empty()
+        # Per network rung: timer instance -> (block localId, input points).
+        self._network_blocks: dict[str, tuple[int, dict[str, ET.Element]]] = {}
 
     def build(
         self,
@@ -156,6 +161,7 @@ class PLCopenExporter:
             generated_tags,
             needs_standard_library=bool(
                 self._operands.timers or self._operands.oneshots
+                or self._operands.function_block_instances
             ),
             emit_task=lambda parent, task: self._task(
                 parent,
@@ -305,11 +311,22 @@ class PLCopenExporter:
             if self.profile is PLCopenProfile.CODESYS
             else "TON"
         )
+        instances = self._operands.function_block_instances
+        codesys = self.profile is PLCopenProfile.CODESYS
+
+        def function_block_type(tag: Tag) -> str | None:
+            if tag.name not in instances:
+                return None
+            block_type = instances[tag.name][0]
+            return self._codesys.library_type(block_type) if codesys else block_type
+
         return PLCopenVariableEmitter(
             namespace=ns,
             tag_export_type=self._tag_export_type,
             timer_type=timer_type,
             report_diagnostic=self._diagnostic,
+            function_block_type=function_block_type,
+            declared_name=lambda tag: self._operands.tag_names.get(tag.name, tag.name),
         ).emit(parent, list_name, tags, attributes=attributes)
 
     def _rung(
@@ -483,7 +500,8 @@ class PLCopenExporter:
 
     def _network_rung(self, ld: ET.Element, rung: LadderRung, program_name: str) -> None:
         assert rung.network is not None
-        reason = network_unsupported_reason(rung.network)
+        block_types = {name: kind for name, (kind, _) in self._operands.function_block_instances.items()}
+        reason = network_unsupported_reason(rung.network, block_types)
         if reason is not None:
             text = describe_network(rung.network)
             self._diagnostic(
@@ -501,26 +519,45 @@ class PLCopenExporter:
         ET.SubElement(rail, _q(ns, "connectionPointOut"), {"formalParameter": "none"})
         if rung.comment:
             self._comment(ld, rung.comment)
+        # One TC6 block per function block instance per rung, shared by its
+        # input pins and every reader of its outputs.
+        self._network_blocks = {}
         self._emit_series(ld, rung.network, [rail_id])
         right = ET.SubElement(ld, _q(ns, "rightPowerRail"), {"localId": str(self._id())})
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
 
-    def _emit_series(self, ld: ET.Element, series: LadderSeries, inputs: list[int]) -> list[int]:
-        """Emit one series left to right; return the localIds its end is wired from.
+    def _emit_series(
+        self, ld: ET.Element, series: LadderSeries, inputs: list[ConnectionRef],
+    ) -> list[ConnectionRef]:
+        """Emit one series left to right; return the sources its end is wired from.
 
         A parallel section's output is every branch's output together (a
         wired OR); an empty branch is a bare wire, so it passes its input on.
+        A function block input pin ends its branch; a block output reference
+        starts one from that block's output pin.
         """
-        current = inputs
+        current: list[ConnectionRef] = list(inputs)
         for element in series.elements:
             if isinstance(element, LadderParallel):
-                joined: list[int] = []
+                joined: list[ConnectionRef] = []
                 for branch in element.branches:
-                    for local_id in self._emit_series(ld, branch, current):
-                        if local_id not in joined:
-                            joined.append(local_id)
+                    for source in self._emit_series(ld, branch, current):
+                        if source not in joined:
+                            joined.append(source)
                 current = joined
+                continue
+            if element.operation is LadderOperation.FUNCTION_BLOCK_INPUT:
+                instance, _, pin = (element.operand or "").rpartition(".")
+                _, pins = self._network_block(ld, instance)
+                for source in current:
+                    self._condition_connection(pins[pin], source)
+                current = []
+                continue
+            if element.operation is LadderOperation.BLOCK_OUTPUT_REFERENCE:
+                instance, _, pin = (element.operand or "").rpartition(".")
+                block_id, _ = self._network_block(ld, instance)
+                current = [(block_id, pin)]
                 continue
             encoding = NETWORK_ENCODINGS[element.operation]
             operand = element.operand or ""
@@ -531,6 +568,44 @@ class PLCopenExporter:
                 opcode = {"set": "OTL", "reset": "OTU"}.get(encoding.storage or "", "OTE")
                 current = [self._coil(ld, opcode, operand, current, negated=encoding.negated)]
         return current
+
+    def _network_block(self, ld: ET.Element, instance: str) -> tuple[int, dict[str, ET.Element]]:
+        """The rung's TC6 block for a timer instance, created on first use.
+
+        IN is wired by the instance's input-pin sinks; PT is the instance's
+        constant from an inVariable; Q and ET are read by output references.
+        Returns the block localId and its input connection points.
+        """
+        if instance in self._network_blocks:
+            return self._network_blocks[instance]
+        ns = self.profile.namespace
+        block_type, preset = self._operands.function_block_instances[instance]
+        preset_id = self._id()
+        preset_value = ET.SubElement(ld, _q(ns, "inVariable"), {"localId": str(preset_id)})
+        self._position(preset_value)
+        ET.SubElement(preset_value, _q(ns, "connectionPointOut"))
+        ET.SubElement(preset_value, _q(ns, "expression")).text = preset
+        block_id = self._id()
+        block = ET.SubElement(ld, _q(ns, "block"), {
+            "localId": str(block_id), "typeName": block_type,
+            "instanceName": self._operands.tag_names.get(instance, instance),
+        })
+        self._position(block)
+        inputs = ET.SubElement(block, _q(ns, "inputVariables"))
+        pins: dict[str, ET.Element] = {}
+        for parameter in ("IN", "PT"):
+            variable = ET.SubElement(inputs, _q(ns, "variable"), {"formalParameter": parameter})
+            pins[parameter] = ET.SubElement(variable, _q(ns, "connectionPointIn"))
+        self._condition_connection(pins["PT"], preset_id)
+        ET.SubElement(block, _q(ns, "inOutVariables"))
+        outputs = ET.SubElement(block, _q(ns, "outputVariables"))
+        for parameter in ("Q", "ET"):
+            variable = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": parameter})
+            ET.SubElement(variable, _q(ns, "connectionPointOut"))
+        if self.profile is PLCopenProfile.CODESYS:
+            self._codesys.append_call_type(block)
+        self._network_blocks[instance] = (block_id, pins)
+        return self._network_blocks[instance]
 
     def _instruction_registry(self) -> PLCopenInstructionRegistry:
         """Bind supported opcodes to their focused emission strategies."""
@@ -552,7 +627,7 @@ class PLCopenExporter:
         ld: ET.Element,
         opcode: str,
         operand: str,
-        condition_ids: list[int],
+        condition_ids: Sequence[ConnectionRef],
         *,
         edge: str | None = None,
     ) -> int:
@@ -578,7 +653,7 @@ class PLCopenExporter:
         ld: ET.Element,
         opcode: str,
         operand: str,
-        condition_ids: list[int],
+        condition_ids: Sequence[ConnectionRef],
         *,
         formal_parameter: str | None = None,
         negated: bool = False,
@@ -982,10 +1057,12 @@ class PLCopenExporter:
     def _condition_connection(
         self,
         point_in: ET.Element,
-        condition_id: int,
+        condition_id: ConnectionRef,
         *,
         formal_parameter: str | None = None,
     ) -> None:
+        if isinstance(condition_id, tuple):  # a block's named output pin
+            condition_id, formal_parameter = condition_id
         attributes = {"refLocalId": str(condition_id)}
         if formal_parameter is not None:
             attributes["formalParameter"] = formal_parameter
