@@ -150,6 +150,28 @@ Function-block parameters live here, not in the rung. Example:
 A rung that uses `%TM0` must be joined to this entry to know its preset and
 time base.
 
+### Object data types
+
+The file stores no data types; the object's address prefix decides it.
+Schneider documents the types in the *EcoStruxure Machine Expert – Basic
+Generic Functions Library Guide*, EIO0000003289.04 (© 2025), installed with
+the editor as `Help/en-GB/sombgflg.chm`:
+
+| Objects | Documented as | IEC type | Guide page |
+| --- | --- | --- | --- |
+| `%I`, `%Q` | digital input/output bit objects | BOOL | I/O Objects |
+| `%M`, `%S` | memory and system bit objects | BOOL | Memory Bit Objects |
+| `%MW`, `%KW`, `%IW`, `%QW`, `%IWS`, `%QWS`, `%SW` | 16-bit words, two's complement, -32768..32767 | INT | Word Objects |
+| `%QWE`, `%IWE`, `%QWM`, `%IWM` | listed under "Words" with `%MW` in operand tables | INT | Integer/Floating Conversion; Word, Double Word, and Floating Point Tables Assignment |
+| `%MD` | 32-bit two's complement | DINT | Floating Point and Double Word Objects |
+| `%MF` | IEEE 754 single precision | REAL | Floating Point and Double Word Objects |
+| `%TM`, `%C`, `%DR`, ... | function blocks | none (not an elementary type) | Timer (%TM), Counter (%C) |
+
+The word-object page names one exception, the Fast Counter function block
+(0..65535); it is not one of the mapped tables. The samples agree where they
+can: `%MF` takes float literals (`%MF2 := 1.0`), bits are used as contacts
+and coils. `schema/machine_expert_basic/mapping.py` holds the per-table type.
+
 **Settings at their default value are not written**, and an object whose
 settings are all default and that has no symbol has no entry at all.
 Established by changing one setting at a time in the fixtures:

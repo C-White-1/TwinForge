@@ -108,7 +108,7 @@ _STORAGE = {Op.SET_COIL: "set", Op.RESET_COIL: "reset"}
 _EDGE = {Op.POSITIVE_TRANSITION_CONTACT: "rising", Op.NEGATIVE_TRANSITION_CONTACT: "falling"}
 
 
-def _network_outputs(network: LadderSeries, env: dict[str, bool]) -> dict[tuple, bool]:
+def _network_outputs(network: LadderSeries, env: dict[str, bool], rename: dict[str, str]) -> dict[tuple, bool]:
     results: dict[tuple, bool] = {}
 
     def walk(s: LadderSeries, flow: bool) -> bool:
@@ -116,10 +116,11 @@ def _network_outputs(network: LadderSeries, env: dict[str, bool]) -> dict[tuple,
             if isinstance(element, LadderParallel):
                 flow = any([walk(branch, flow) for branch in element.branches])
             elif element.operation in CONTACTS:
-                state = env[f"{_EDGE.get(element.operation, 'none')}:{element.operand}"]
+                operand = rename.get(element.operand or "", element.operand)
+                state = env[f"{_EDGE.get(element.operation, 'none')}:{operand}"]
                 flow = flow and (not state if element.operation is Op.NORMALLY_CLOSED_CONTACT else state)
             else:
-                key = (element.operand, _STORAGE.get(element.operation, "none"),
+                key = (rename.get(element.operand or "", element.operand), _STORAGE.get(element.operation, "none"),
                        "true" if element.operation is Op.NEGATED_COIL else "false")
                 results[key] = results.get(key, False) or flow
         return flow
@@ -128,7 +129,7 @@ def _network_outputs(network: LadderSeries, env: dict[str, bool]) -> dict[tuple,
     return results
 
 
-def _atoms(network: LadderSeries) -> list[str]:
+def _atoms(network: LadderSeries, rename: dict[str, str]) -> list[str]:
     found: set[str] = set()
 
     def walk(s: LadderSeries) -> None:
@@ -137,17 +138,24 @@ def _atoms(network: LadderSeries) -> list[str]:
                 for branch in element.branches:
                     walk(branch)
             elif element.operation in CONTACTS:
-                found.add(f"{_EDGE.get(element.operation, 'none')}:{element.operand}")
+                found.add(f"{_EDGE.get(element.operation, 'none')}:{rename.get(element.operand or '', element.operand)}")
 
     walk(network)
     return sorted(found)
 
 
-def assert_equivalent(network: LadderSeries, elements: list[ET.Element]) -> None:
-    atoms = _atoms(network)
+def assert_equivalent(network: LadderSeries, elements: list[ET.Element], rename: dict[str, str] | None = None) -> None:
+    """`rename` maps a source operand to the IEC-safe surrogate the exporter declared for it."""
+    rename = rename or {}
+    atoms = _atoms(network, rename)
     for bits in itertools.product((False, True), repeat=len(atoms)):
         env = dict(zip(atoms, bits))
-        assert _graph_outputs(elements, env) == _network_outputs(network, env), env
+        assert _graph_outputs(elements, env) == _network_outputs(network, env, rename), env
+
+
+def surrogates(result) -> dict[str, str]:
+    """Source operand -> surrogate, from the exporter's own diagnostics."""
+    return {d.raw_value: d.object_name for d in result.diagnostics if d.code == "raw_operand_rewritten"}
 
 
 # --- tests --------------------------------------------------------------------
@@ -235,7 +243,7 @@ def test_machine_expert_basic_fixtures_export_equivalently(name: str):
     assert len(rungs) == len(networks)
     for network, elements in zip(networks, rungs):
         assert network is not None
-        assert_equivalent(network, elements)
+        assert_equivalent(network, elements, surrogates(result))
 
 
 def test_fixture_with_a_block_pin_keeps_that_rung_as_a_comment():
@@ -271,3 +279,65 @@ def _split_rungs(elements: list[ET.Element]) -> list[list[ET.Element]]:
         if rungs:
             rungs[-1].append(element)
     return rungs
+
+
+# --- variable declarations for network operands -----------------------------
+
+def _declared(xml: str) -> dict[str, str]:
+    """Declared variable name -> its elementary type (`<type><BOOL/></type>`)."""
+    declared: dict[str, str] = {}
+    for variable in ET.fromstring(xml).iter():
+        if _local(variable.tag) != "variable" or not variable.get("name"):
+            continue
+        type_element = next((child for child in variable if _local(child.tag) == "type"), None)
+        if type_element is not None and len(type_element):
+            declared[variable.get("name") or ""] = _local(type_element[0].tag)
+    return declared
+
+
+def _used(xml: str) -> list[str]:
+    return [(e.text or "").strip() for e in ET.fromstring(xml).iter()
+            if _local(e.tag) == "variable" and not e.get("name") and (e.text or "").strip()]
+
+
+def test_raw_network_operands_get_one_bool_surrogate_each():
+    network_a = series(i(Op.NORMALLY_OPEN_CONTACT, "%I0.1"), i(Op.COIL, "%Q0.0"))
+    network_b = series(i(Op.NORMALLY_CLOSED_CONTACT, "%I0.1"), i(Op.COIL, "Named"))
+
+    result = export(controller(network_a, network_b))
+
+    assert surrogates(result) == {"%I0.1": "TF_I0_1", "%Q0.0": "TF_Q0_0"}  # %I0.1 reused, not duplicated
+    assert _used(result.xml) == ["TF_I0_1", "TF_Q0_0", "TF_I0_1", "Named"]
+    declared = _declared(result.xml)
+    assert declared["TF_I0_1"] == "BOOL" and declared["TF_Q0_0"] == "BOOL"
+
+
+def test_unsupported_network_operands_get_no_surrogate():
+    result = export(controller(series(i(Op.UNSUPPORTED, "%TM0", "Timer"), i(Op.COIL, "%Q0.0"))))
+
+    assert surrogates(result) == {}
+
+
+@pytest.mark.parametrize("name", ["02_parallel", "08_edges", "09_symbols"])
+@pytest.mark.parametrize("profile", ["standard_201", "codesys"])
+def test_every_fixture_operand_is_declared_as_bool(name: str, profile: str):
+    result = export(parse_project(capture_file(FIXTURES / f"{name}.smbp")).controller, profile)
+
+    declared = _declared(result.xml)
+    used = _used(result.xml)
+    assert used and all(declared.get(operand) == "BOOL" for operand in used), (used, declared)
+
+
+def test_rung_with_neither_text_nor_network_is_reported_accurately():
+    # e.g. a Machine Expert - Basic rung written only in Instruction List.
+    result = export(controller(None))  # type: ignore[arg-type]
+
+    assert [d.code for d in result.diagnostics] == ["rung_without_exportable_logic"]
+    assert [_local(e.tag) for e in ld_elements(result.xml)] == ["comment"]
+
+
+def test_instruction_list_fixture_is_not_called_unsupported_rll():
+    result = export(parse_project(capture_file(FIXTURES / "10_il_only.smbp")).controller)
+
+    codes = [d.code for d in result.diagnostics]
+    assert "rung_without_exportable_logic" in codes and "unsupported_rll_rung" not in codes

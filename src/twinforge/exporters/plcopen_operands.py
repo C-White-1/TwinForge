@@ -9,7 +9,10 @@ from twinforge.converters import (
     ConversionDiagnostic,
     DiagnosticSeverity,
 )
-from twinforge.model import Controller, Tag
+from twinforge.model import Controller, LadderSeries, Tag
+
+from .plcopen_network import instructions as network_instructions
+from .plcopen_network import unsupported_reason as network_unsupported_reason
 
 from .plcopen_rll import (
     COMPARISON_TYPES,
@@ -196,6 +199,9 @@ class PLCopenOperandPlanner:
             tags_by_name.update(program.tags)
             for routine in program.iter_routines():
                 for rung in routine.ladder_rungs:
+                    if rung.text is None and rung.network is not None:
+                        self._prepare_network_operands(rung.network, names)
+                        continue
                     parsed = parse_supported_rung(rung.text)
                     if parsed is None:
                         continue
@@ -290,6 +296,40 @@ class PLCopenOperandPlanner:
                                     raw_value=operand,
                                 )
                             self._operand_names[operand] = portable
+
+    def _prepare_network_operands(self, network: LadderSeries, names: set[str]) -> None:
+        """Declare surrogates for network operands that are not IEC identifiers.
+
+        Only networks the LD emitter can encode are considered; every
+        instruction in one is a contact or coil, so its operand is BOOL by
+        use. A raw source operand such as Machine Expert - Basic's unnamed
+        `%I0.1` (a real I/O point with no symbol) becomes one IEC-safe
+        surrogate, reused wherever the operand recurs.
+        """
+        if network_unsupported_reason(network) is not None:
+            return
+        for instruction in network_instructions(network):
+            operand = instruction.operand or ""
+            self._boolean_operands.add(operand)
+            if _IEC_OPERAND.fullmatch(operand) or operand in self._operand_names:
+                continue
+            portable = unique_portable_name(operand, names)
+            names.add(portable)
+            self._generated_tags.append(
+                Tag(
+                    name=portable,
+                    data_type="BOOL",
+                    description=f"Portable surrogate for source operand {operand}",
+                    metadata={"plcopen_source_operand": operand},
+                )
+            )
+            self._diagnostic(
+                "raw_operand_rewritten",
+                "raw source operand was replaced by an IEC-safe surrogate variable",
+                portable,
+                raw_value=operand,
+            )
+            self._operand_names[operand] = portable
 
     def _prepare_timers(self, controller: Controller) -> None:
         tags = [

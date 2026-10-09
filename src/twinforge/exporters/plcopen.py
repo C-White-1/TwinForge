@@ -327,6 +327,16 @@ class PLCopenExporter:
         if rung.text is None and rung.network is not None:
             self._network_rung(ld, rung, program_name)
             return
+        # Neither form (e.g. a Machine Expert - Basic rung written only in
+        # Instruction List, which the neutral model does not represent yet).
+        if rung.text is None and rung.network is None:
+            self._diagnostic(
+                "rung_without_exportable_logic",
+                "rung has neither Logix RLL text nor a ladder network; kept as a comment",
+                program_name,
+            )
+            self._comment(ld, rung.comment or "Rung with no exportable logic")
+            return
         if rung.text and _NOP_INSTRUCTION.fullmatch(rung.text):
             self._comment(
                 ld,

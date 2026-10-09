@@ -75,7 +75,7 @@ def _tags(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> No
                 name = _unique_name(result, entry, symbol, used, "symbol")
                 if name is None:
                     continue
-                tag = Tag(name=name, description=_text(entry, spec.entry_comment),
+                tag = Tag(name=name, data_type=table.data_type, description=_text(entry, spec.entry_comment),
                           source_extensions=[_extension(entry)])
                 tag.metadata["source_symbol_table"] = table.name
                 address = _text(entry, spec.entry_address)

@@ -72,6 +72,29 @@ def test_named_symbol_table_entries_become_tags():
     assert tags["START_PB"].source_extensions[0].root.name == "DiscretInput"
 
 
+def test_tags_get_the_iec_type_schneider_documents_for_their_table():
+    hardware = ("<Cpu><Reference>TM221CE16R</Reference><DigitalInputs><DiscretInput><Address>%I0.0</Address>"
+                "<Symbol>START_PB</Symbol></DiscretInput></DigitalInputs></Cpu>")
+    software = ("<MemoryBits><MemoryBit><Address>%M0</Address><Symbol>RUN</Symbol></MemoryBit></MemoryBits>"
+                "<MemoryFloats><MemoryFloat><Address>%MF0</Address><Symbol>SPEED</Symbol></MemoryFloat></MemoryFloats>"
+                "<MemoryWords><MemoryWord><Address>%MW0</Address><Symbol>COUNT</Symbol></MemoryWord></MemoryWords>"
+                "<MemoryDoubleWords><MemoryDoubleWord><Address>%MD0</Address><Symbol>TOTAL</Symbol></MemoryDoubleWord>"
+                "</MemoryDoubleWords>"
+                "<Timers><TimerTM><Address>%TM0</Address><Symbol>DELAY</Symbol></TimerTM></Timers>"
+                "<SystemBits><MemoryBit><Address>%S0</Address><Symbol>SB_COLD</Symbol></MemoryBit></SystemBits>")
+
+    tags = _parse(_smbp(software, hardware)).controller.tags
+
+    assert {name: tag.data_type for name, tag in tags.items()} == {
+        "START_PB": "BOOL", "RUN": "BOOL", "SB_COLD": "BOOL", "SPEED": "REAL",
+        # 16-bit / 32-bit two's complement (EIO0000003289.04, "Word Objects",
+        # "Floating Point and Double Word Objects").
+        "COUNT": "INT", "TOTAL": "DINT",
+        # A function-block instance, not an elementary type.
+        "DELAY": None,
+    }
+
+
 def test_duplicate_symbol_is_reported_not_overwritten():
     software = ("<MemoryBits><MemoryBit><Address>%M0</Address><Symbol>RUN</Symbol></MemoryBit>"
                 "<MemoryBit><Address>%M1</Address><Symbol>run</Symbol></MemoryBit></MemoryBits>")

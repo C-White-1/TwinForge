@@ -211,11 +211,26 @@ conversion or native Control Expert compatibility.
   `.smbp` fixtures validate against the local TC6 XSD.
   - [ ] Verify a generated project imports into CODESYS (waiting on a
     user-supplied fixture; see the CCW/CODESYS item above)
-  - [ ] Declare variables for tags with no `data_type`: Machine Expert –
-    Basic tags get `unsupported_variable_type` (a type is implied by the
-    address, `%M` bit, `%MW` word, but that mapping is not yet evidenced),
-    and unnamed direct addresses such as `%I0.1` are emitted verbatim, not
-    IEC `%IX0.1` syntax
+  - [x] Declare variables for Machine Expert – Basic tags and unnamed
+    addresses (2026-10-09). Each symbol table carries the IEC type Schneider
+    documents for its objects (Generic Functions Library Guide
+    EIO0000003289.04, installed with Machine Expert – Basic): bits BOOL,
+    words INT, `%MD` DINT, `%MF` REAL. An unnamed address used by a contact
+    or coil (`%I0.1`, a real I/O point with no symbol) gets one IEC-safe
+    BOOL surrogate (`TF_I0_1`) through the exporter's existing
+    `raw_operand_rewritten` mechanism. Untyped variables per exported
+    fixture fell from 215 to 0; across the 63 samples only 2 remain, both
+    timers. Timers and counters are function-block instances and stay
+    undeclared until function-block conversion.
+  - [ ] Bind surrogates and typed tags to their physical addresses (IEC
+    `AT %IX0.1`-style located variables). The Schneider address is kept in
+    surrogate and tag metadata; translating it to a CODESYS address is not
+    evidenced yet.
+  - [ ] Represent Instruction List-only rungs. They have neither RLL text
+    nor a network, and are now exported as a comment with an accurate
+    `rung_without_exportable_logic` diagnostic (previously mislabelled
+    `unsupported_rll_rung`); see "An IL representation in the model" in the
+    Machine Expert – Basic roadmap
   - [ ] Retire CCW's network-to-RLL bridge (`targets/codesys/ccw_project.py`
     `_serialize_network`) in favour of this path, once its coverage report
     is reproduced without it
