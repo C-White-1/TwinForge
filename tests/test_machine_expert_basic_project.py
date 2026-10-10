@@ -112,7 +112,9 @@ def test_counter_symbol_becomes_tag():
     result = _parse(_smbp(software))
 
     tag = result.controller.tags["PART_COUNT"]
-    assert tag.metadata == {"source_symbol_table": "Counters", "source_memory_address": "%C0"}
+    assert tag.metadata == {"source_symbol_table": "Counters", "source_memory_address": "%C0",
+                            "function_block_semantics": "machine-expert-basic.counter",
+                            "iec_function_block_inputs": {"PV": "9999"}}
     assert _codes(result) == []
 
 
@@ -289,3 +291,25 @@ def test_timer_that_is_not_an_iec_equivalent_stays_untyped(entry, il, reason):
     # (A preset write is itself an unsupported Operation element.)
     assert [c for c in _codes(result) if c != "ladder_unsupported_element"] == ["timer_not_converted"]
     assert any(reason in d.message for d in result.diagnostics if d.code == "timer_not_converted")
+
+
+def _counter_tags(result) -> dict[str, tuple[str | None, dict | None, str | None]]:
+    return {tag.name: (tag.data_type, tag.metadata.get("iec_function_block_inputs"),
+                       tag.metadata.get("function_block_semantics"))
+            for tag in result.controller.tags.values() if tag.metadata.get("source_symbol_table") == "Counters"}
+
+
+def test_counters_carry_their_own_type_semantics_and_preset():
+    software = ("<Counters><Counter><Address>%C1</Address><Index>1</Index><Symbol>PARTS</Symbol>"
+                "<Preset>10</Preset></Counter></Counters><Pous>"
+                + _pou("Main", _rung(["BLK %C0", "LD %I0.0", "CU", "OUT_BLK", "LD D", "ST %Q0.0", "END_BLK",
+                                      "LD %C1.D", "ST %Q0.1"], ladder=False)) + "</Pous>")
+
+    result = _parse(_smbp(software))
+
+    assert _counter_tags(result) == {
+        # Unconfigured: the documented default preset, named by address.
+        "%C0": ("Counter", {"PV": "9999"}, "machine-expert-basic.counter"),
+        "PARTS": ("Counter", {"PV": "10"}, "machine-expert-basic.counter"),
+    }
+    assert _codes(result) == []

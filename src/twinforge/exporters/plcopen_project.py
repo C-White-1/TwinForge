@@ -34,8 +34,11 @@ class PLCopenProjectOrchestrator:
         emit_task: TaskEmitter,
         emit_global_variables: VariableEmitter,
         emit_target_application: TargetApplicationEmitter | None = None,
+        emit_function_blocks: Callable[[ET.Element], None] | None = None,
     ) -> None:
         self._namespace = namespace
+        # Generated function block POUs, written before the programs using them.
+        self._emit_function_blocks = emit_function_blocks
         self._emit_program = emit_program
         self._emit_task = emit_task
         self._emit_global_variables = emit_global_variables
@@ -77,6 +80,8 @@ class PLCopenProjectOrchestrator:
         if self._emit_target_application is not None:
             self._emit_target_application(root, controller, generated_tags)
         else:
+            if self._emit_function_blocks is not None:
+                self._emit_function_blocks(pous)
             for program in controller.iter_programs():
                 self._emit_program(pous, program)
             self._standard_configuration(

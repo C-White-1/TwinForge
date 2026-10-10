@@ -58,12 +58,24 @@ roadmaps linked from each item.
    LD. See the
    [Machine Expert – Basic roadmap](docs/roadmaps/machine-expert-basic-roadmap.md),
    group D.
-   - [ ] **Counters** (`%C`) stay unconverted: Schneider's counter wraps
-     between 0 and 9999, sets `D` on equality with the preset, and has
-     wrap flags `E`/`F` (Generic Functions Library Guide EIO0000003289.04,
-     Counter (%C) Description), none of which IEC `CTUD` does. The route is
-     a generated function block reproducing those semantics, verified
-     against the guide; drums (`%DR`) and `%WRITE_VAR` likewise.
+   - [x] **Counters** (`%C`, 2026-10-10). Schneider's counter wraps
+     between 0 and 9999, sets `D` on equality with the preset, and has wrap
+     flags `E`/`F` (Generic Functions Library Guide EIO0000003289.04,
+     Counter (%C)), none of which IEC `CTUD` does, so it is not mapped to
+     `CTUD`. Instead the exporter writes a TwinForge-generated function
+     block (`TF_MEBasic_Counter`, `exporters/plcopen_library.py`) and
+     declares each `%C` as an instance of it, wired like the timers. The
+     guide is ambiguous or wrong in places, so the body was settled in the
+     Machine Expert – Basic 3.0 simulator
+     ([checklist and results](docs/experiments/machine-expert-basic-counter-simulator.md)):
+     `E` sets only on the 0 → 9999 wrap, any count clears `E`/`F`, `D`
+     follows equality both ways, and `CU`+`CD` edges in one scan cancel.
+     Tests run the generated ST against the recorded sequences. Generated
+     blocks not yet verified this way are withheld from export
+     (`generated_block_unverified`; opt in with
+     `include_unverified_blocks=True`). 334 of 358 sample rungs export as
+     LD. Not covered: logic writing `%Ci.P` (the preset is a constant
+     `PV`). Drums (`%DR`) and `%WRITE_VAR` can follow the same route.
 2. [x] **Expressions** (2026-10-10). A typed IEC expression tree in the
    model (`model/expression.py`) with new `COMPARISON` and `ASSIGNMENT`
    ladder operations; Machine Expert – Basic comparison and operation boxes

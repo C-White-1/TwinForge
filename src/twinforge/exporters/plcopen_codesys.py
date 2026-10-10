@@ -13,6 +13,7 @@ from collections.abc import Callable, Sequence
 
 from twinforge.model import Controller, Program, Tag, Task
 
+from .plcopen_library import GeneratedFunctionBlock, emit_function_block_pou
 from .plcopen_xml import qualified_name as q
 
 
@@ -59,6 +60,7 @@ class CodesysProfileSupport:
         emit_task: TaskEmitter,
         emit_variables: VariableEmitter,
         emit_program: ProgramEmitter,
+        function_blocks: Sequence[GeneratedFunctionBlock] = (),
     ) -> None:
         """Wrap generic controller content in a CODESYS application object."""
 
@@ -90,6 +92,17 @@ class CodesysProfileSupport:
             )
 
         resource_add_data = ET.SubElement(resource, q(ns, "addData"))
+        for block in function_blocks:
+            wrapper = ET.SubElement(
+                resource_add_data,
+                q(ns, "data"),
+                {
+                    "name": f"{CODESYS_NAMESPACE}/pou",
+                    "handleUnknown": "implementation",
+                },
+            )
+            pou = emit_function_block_pou(wrapper, block, ns)
+            self.append_object_id(pou, self.object_id(f"Application/pou/{block.name}"))
         for program in controller.iter_programs():
             wrapper = ET.SubElement(
                 resource_add_data,
@@ -111,6 +124,7 @@ class CodesysProfileSupport:
             controller,
             has_global_variables=global_variables is not None,
             needs_standard_library=needs_standard_library,
+            function_block_names=[block.name for block in function_blocks],
         )
 
     def append_task_settings(
@@ -205,6 +219,7 @@ class CodesysProfileSupport:
         *,
         has_global_variables: bool,
         needs_standard_library: bool,
+        function_block_names: Sequence[str] = (),
     ) -> None:
         """Describe CODESYS navigator objects independently of IEC content."""
 
@@ -232,6 +247,8 @@ class CodesysProfileSupport:
                 "Library Manager",
                 "Application/Library Manager",
             )
+        for name in function_block_names:
+            self._append_structure_object(application, name, f"Application/pou/{name}")
         for program in controller.iter_programs():
             program_object = self._append_structure_object(
                 application,

@@ -8,7 +8,8 @@ lists the localIds feeding it, several references meaning a wired OR. Every
 
 `FUNCTION_BLOCK_INPUT` and `BLOCK_OUTPUT_REFERENCE` become a TC6 `block` in
 the same graph, but only for instances the caller declares convertible
-(`block_types`: IEC TON/TOF/TP with a known PT) and only on their IEC pins.
+(`blocks`: an IEC timer with a known PT, or a TwinForge-generated block) and
+only on that block's own pins.
 Anything else, including `UNSUPPORTED`, has no encoding yet, so a rung
 containing it is preserved as a comment rather than approximated.
 """
@@ -51,9 +52,35 @@ FUNCTION_BLOCK_TYPES = {
     "=": "EQ", "<>": "NE", "<": "LT", ">": "GT", "<=": "LE", ">=": "GE",
 }
 
-# IEC 61131-3 standard timers share one interface.
-TIMER_INPUT_PINS = frozenset({"IN"})
-TIMER_OUTPUT_PINS = frozenset({"Q", "ET"})
+@dataclass(frozen=True)
+class BlockInterface:
+    """How one convertible function block instance appears in LD.
+
+    `inputs`/`outputs` are the block's pins in declaration order; `constants`
+    are inputs fed from a literal (a timer's PT, a counter's PV) rather than
+    the rung; `bool_outputs` are the outputs a contact may read. `standard`
+    marks an IEC standard library block (CODESYS `Standard.`), as opposed
+    to a TwinForge-generated one.
+    """
+
+    type_name: str
+    inputs: tuple[str, ...]
+    outputs: tuple[str, ...]
+    bool_outputs: frozenset[str]
+    constants: tuple[tuple[str, str], ...] = ()
+    standard: bool = True
+
+    @property
+    def wired_inputs(self) -> frozenset[str]:
+        constant = {pin for pin, _ in self.constants}
+        return frozenset(pin for pin in self.inputs if pin not in constant)
+
+
+def timer_interface(type_name: str, preset: str) -> BlockInterface:
+    """IEC 61131-3 TON/TOF/TP: IN, PT -> Q, ET."""
+    return BlockInterface(type_name, ("IN", "PT"), ("Q", "ET"), frozenset({"Q"}), (("PT", preset),))
+
+
 _IEC_IDENTIFIER = re.compile(r"[A-Za-z_]\w*")
 # A member read such as `%TM2.Q`; a numeric suffix (`%I0.1`) is an address.
 _MEMBER = re.compile(r"(.+)\.([A-Za-z_]\w*)")
@@ -78,13 +105,13 @@ def instructions(series: LadderSeries) -> list[LadderInstruction]:
     return found
 
 
-def unsupported_reason(series: LadderSeries, block_types: Mapping[str, str] | None = None) -> str | None:
+def unsupported_reason(series: LadderSeries, blocks: Mapping[str, BlockInterface] | None = None) -> str | None:
     """Why this network cannot be emitted as executable LD, or None.
 
-    `block_types` maps each convertible function block instance to its IEC
-    type; block pins and member reads of anything else are unsupported.
+    `blocks` maps each convertible function block instance to its interface;
+    block pins and member reads of anything else are unsupported.
     """
-    block_types = block_types or {}
+    blocks = blocks or {}
     if not instructions(series):
         return "network has no instructions"
     for instruction in instructions(series):
@@ -102,20 +129,22 @@ def unsupported_reason(series: LadderSeries, block_types: Mapping[str, str] | No
             return f"{instruction.source_mnemonic} has no operand"
         if instruction.operation in (LadderOperation.FUNCTION_BLOCK_INPUT, LadderOperation.BLOCK_OUTPUT_REFERENCE):
             instance, _, pin = operand.rpartition(".")
-            if instance not in block_types:
+            if instance not in blocks:
                 return f"{instruction.source_mnemonic} {instance} is not a convertible function block instance"
-            pins = TIMER_INPUT_PINS if instruction.operation is LadderOperation.FUNCTION_BLOCK_INPUT                 else TIMER_OUTPUT_PINS
+            interface = blocks[instance]
+            pins = interface.wired_inputs if instruction.operation is LadderOperation.FUNCTION_BLOCK_INPUT \
+                else frozenset(interface.outputs)
             if pin not in pins:
-                return f"{instruction.source_mnemonic} pin {pin} has no IEC {block_types[instance]} equivalent"
+                return f"{instruction.source_mnemonic} pin {pin} has no {interface.type_name} equivalent"
             continue
         if instruction.operation not in ENCODINGS:
             return f"{instruction.source_mnemonic} ({instruction.operation.value}) has no PLCopen LD encoding"
         member = split_member(operand)
-        if member is not None and member[0] not in block_types:
+        if member is not None and member[0] not in blocks:
             return f"{operand} reads a member of {member[0]}, which is not a convertible function block instance"
-        # Contacts and coils are BOOL; of a timer's members only Q is.
-        if member is not None and member[1] != "Q":
-            return f"{operand} is not a BOOL member of {block_types[member[0]]}"
+        # Contacts and coils are BOOL; only a block's BOOL outputs can be read.
+        if member is not None and member[1] not in blocks[member[0]].bool_outputs:
+            return f"{operand} is not a BOOL output of {blocks[member[0]].type_name}"
     return None
 
 

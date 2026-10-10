@@ -269,14 +269,6 @@ def test_machine_expert_basic_fixtures_export_equivalently(name: str):
         assert_equivalent(network, elements, surrogates(result))
 
 
-def test_counter_rung_is_kept_as_a_comment():
-    # Schneider %C wraps at 9999 and sets D on equality; IEC CTUD does neither.
-    result = export(parse_project(capture_file(FIXTURES / "06_counter.smbp")).controller)
-
-    assert [d.code for d in result.diagnostics if d.code == "unsupported_network_rung"] == ["unsupported_network_rung"]
-    assert "Counter(%C0.R)" in result.xml
-
-
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
 @pytest.mark.parametrize("name", ["03_nested", "04_two_outputs", "05_timer", "05b_timer", "08_edges"])
 def test_exported_networks_validate_against_tc6(name: str):

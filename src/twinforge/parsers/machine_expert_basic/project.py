@@ -223,6 +223,49 @@ def _timers(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> 
             "PT": f"TIME#{int(preset_text) * base_milliseconds[base]}ms"}
 
 
+def _counters(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
+    """Give every counter the logic uses (or the file configures) a tag.
+
+    Typed as Schneider's own `Counter` block with its documented behaviour
+    named in `function_block_semantics`, and its preset (default 9999 when
+    not written) as the constant input PV. Whether that behaviour can be
+    exported is the exporter's decision.
+    """
+    counters = spec.counters
+    address_pattern = re.compile(counters.address_pattern + r"(?![0-9])")
+    entries: dict[str, CapturedSection] = {}
+    for entry in _select(root, counters.container + (counters.entry,)):
+        address = _text(entry, spec.entry_address)
+        if address:
+            entries[address] = entry
+    referenced: set[str] = set()
+    for pou in _select(root, spec.pous):
+        for rung in _select(pou, spec.rungs):
+            texts = [line.text or "" for entry in _select(rung, spec.rung_instruction_lines)
+                     for line in _select(entry, spec.instruction_text)]
+            texts.extend(_text(cell, spec.cell_descriptor) or "" for cell in _select(rung, spec.rung_cells))
+            for text in texts:
+                referenced.update(address_pattern.findall(text))
+    tags_by_address = {tag.metadata["source_memory_address"]: tag for tag in result.controller.tags.values()
+                       if tag.metadata.get("source_symbol_table") == "Counters"
+                       and "source_memory_address" in tag.metadata}
+    for address in sorted(set(entries) | referenced, key=lambda a: int(a[2:])):
+        entry = entries.get(address)
+        preset = (_text(entry, counters.preset_field) if entry is not None else None) or str(counters.default_preset)
+        tag = tags_by_address.get(address)
+        if tag is None:
+            tag = Tag(name=address, source_extensions=[_extension(entry)] if entry is not None else [])
+            tag.metadata["source_symbol_table"] = "Counters"
+            tag.metadata["source_memory_address"] = address
+            result.controller.add_tag(tag)
+        if not preset.isdigit():
+            result.report("counter_not_converted", f"{address}: preset {preset!r} is not a number", entry or root)
+            continue
+        tag.data_type = counters.data_type
+        tag.metadata["function_block_semantics"] = counters.semantics
+        tag.metadata["iec_function_block_inputs"] = {"PV": preset}
+
+
 def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
     used: set[str] = set()
     # Ladder operands use the declared tag name for an address when one exists.
@@ -267,5 +310,6 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
         result.report("missing_cpu_reference", "CPU catalogue reference missing or ambiguous", root)
     _tags(result, root, spec)
     _timers(result, root, spec)
+    _counters(result, root, spec)
     _programs(result, root, spec)
     return result

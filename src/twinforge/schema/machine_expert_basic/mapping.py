@@ -74,6 +74,26 @@ class TimerSpec:
 
 
 @dataclass(frozen=True)
+class CounterSpec:
+    """`%Ci` counters (Generic Functions Library Guide EIO0000003289.04,
+    Counter (%C)): Preset 0..9999, default 9999, not written when default.
+
+    A counter wraps 0..9999 and sets D on equality, which IEC CTUD does not,
+    so it is not typed as CTUD. Its tag carries the block's own name
+    (`Counter`), the identifier of whose behaviour it follows
+    (`function_block_semantics`), and its preset as the constant input PV.
+    """
+
+    container: PathSpec = ("SoftwareConfiguration", "Counters")
+    entry: str = "Counter"
+    preset_field: PathSpec = ("Preset",)
+    address_pattern: str = r"%C\d+"
+    default_preset: int = 9999
+    data_type: str = "Counter"
+    semantics: str = "machine-expert-basic.counter"
+
+
+@dataclass(frozen=True)
 class MappingSpec:
     project_root: str = "ProjectDescriptor"
     encrypted_root: str = "CryptedProject"
@@ -95,6 +115,7 @@ class MappingSpec:
     entry_symbol: PathSpec = ("Symbol",)
     entry_comment: PathSpec = ("Comment",)
     timers: TimerSpec = TimerSpec()
+    counters: CounterSpec = CounterSpec()
     # Where block instances are named in logic: grid cells and IL `BLK x` lines.
     cell_descriptor: PathSpec = ("Descriptor",)
     expression_fields: tuple[PathSpec, ...] = (("ComparisonExpression",), ("OperationExpression",))

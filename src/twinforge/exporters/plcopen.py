@@ -35,6 +35,7 @@ from .plcopen_operands import (
     PLCopenOperandPlan,
     PLCopenOperandPlanner,
 )
+from .plcopen_library import emit_function_block_pou
 from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
 from .plcopen_network import FUNCTION_BLOCK_TYPES as NETWORK_FUNCTIONS
 from .plcopen_network import describe as describe_network
@@ -79,8 +80,13 @@ _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
 
 
 class PLCopenExporter:
-    def __init__(self, profile: PLCopenProfile | str = PLCopenProfile.STANDARD_201):
+    def __init__(
+        self, profile: PLCopenProfile | str = PLCopenProfile.STANDARD_201, *, include_unverified_blocks: bool = False,
+    ):
         self.profile = PLCopenProfile(profile)
+        # Also export TwinForge-generated blocks whose behaviour is not yet
+        # verified against the vendor (plcopen_library); off by default.
+        self._include_unverified_blocks = include_unverified_blocks
         self.diagnostics: list[ConversionDiagnostic] = []
         self._next_local_id = 1
         self._codesys = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
@@ -104,7 +110,8 @@ class PLCopenExporter:
             else "R_TRIG"
         )
         self._operands = PLCopenOperandPlanner(
-            rising_trigger_type=trigger_type
+            rising_trigger_type=trigger_type,
+            include_unverified_blocks=self._include_unverified_blocks,
         ).prepare(controller)
         self.diagnostics.extend(self._operands.diagnostics)
         target_application = (
@@ -125,6 +132,7 @@ class PLCopenExporter:
                 tags,
             ),
             emit_target_application=target_application,
+            emit_function_blocks=self._emit_generated_blocks,
         ).build(
             controller,
             self._operands.generated_tags,
@@ -165,7 +173,7 @@ class PLCopenExporter:
             generated_tags,
             needs_standard_library=bool(
                 self._operands.timers or self._operands.oneshots
-                or self._operands.function_block_instances
+                or any(block.standard for block in self._operands.function_block_instances.values())
             ),
             emit_task=lambda parent, task: self._task(
                 parent,
@@ -178,6 +186,7 @@ class PLCopenExporter:
                 list(tags),
                 attributes={"name": "ControllerTags"},
             ),
+            function_blocks=self._operands.generated_blocks,
             emit_program=lambda parent, program: self._program(
                 parent,
                 program,
@@ -321,8 +330,8 @@ class PLCopenExporter:
         def function_block_type(tag: Tag) -> str | None:
             if tag.name not in instances:
                 return None
-            block_type = instances[tag.name][0]
-            return self._codesys.library_type(block_type) if codesys else block_type
+            block = instances[tag.name]
+            return self._codesys.library_type(block.type_name) if codesys and block.standard else block.type_name
 
         return PLCopenVariableEmitter(
             namespace=ns,
@@ -502,10 +511,14 @@ class PLCopenExporter:
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
 
+    def _emit_generated_blocks(self, pous: ET.Element) -> None:
+        """TwinForge-generated function block definitions the project uses."""
+        for block in self._operands.generated_blocks:
+            emit_function_block_pou(pous, block, self.profile.namespace)
+
     def _network_rung(self, ld: ET.Element, rung: LadderRung, program_name: str) -> None:
         assert rung.network is not None
-        block_types = {name: kind for name, (kind, _) in self._operands.function_block_instances.items()}
-        reason = network_unsupported_reason(rung.network, block_types)
+        reason = network_unsupported_reason(rung.network, self._operands.function_block_instances)
         if reason is not None:
             text = describe_network(rung.network)
             self._diagnostic(
@@ -655,36 +668,40 @@ class PLCopenExporter:
         return (block_id, "ENO")
 
     def _network_block(self, ld: ET.Element, instance: str) -> tuple[int, dict[str, ET.Element]]:
-        """The rung's TC6 block for a timer instance, created on first use.
+        """The rung's TC6 block for a function block instance, created on first use.
 
-        IN is wired by the instance's input-pin sinks; PT is the instance's
-        constant from an inVariable; Q and ET are read by output references.
-        Returns the block localId and its input connection points.
+        Its wired inputs are connected by the instance's input-pin sinks; its
+        constant inputs (a timer's PT, a counter's PV) come from inVariables;
+        output references read its outputs. Returns the block localId and its
+        input connection points.
         """
         if instance in self._network_blocks:
             return self._network_blocks[instance]
         ns = self.profile.namespace
-        block_type, preset = self._operands.function_block_instances[instance]
-        preset_id = self._id()
-        preset_value = ET.SubElement(ld, _q(ns, "inVariable"), {"localId": str(preset_id)})
-        self._position(preset_value)
-        ET.SubElement(preset_value, _q(ns, "connectionPointOut"))
-        ET.SubElement(preset_value, _q(ns, "expression")).text = preset
+        interface = self._operands.function_block_instances[instance]
+        constant_ids: dict[str, int] = {}
+        for pin, literal in interface.constants:
+            constant_ids[pin] = self._id()
+            constant = ET.SubElement(ld, _q(ns, "inVariable"), {"localId": str(constant_ids[pin])})
+            self._position(constant)
+            ET.SubElement(constant, _q(ns, "connectionPointOut"))
+            ET.SubElement(constant, _q(ns, "expression")).text = literal
         block_id = self._id()
         block = ET.SubElement(ld, _q(ns, "block"), {
-            "localId": str(block_id), "typeName": block_type,
+            "localId": str(block_id), "typeName": interface.type_name,
             "instanceName": self._operands.tag_names.get(instance, instance),
         })
         self._position(block)
         inputs = ET.SubElement(block, _q(ns, "inputVariables"))
         pins: dict[str, ET.Element] = {}
-        for parameter in ("IN", "PT"):
+        for parameter in interface.inputs:
             variable = ET.SubElement(inputs, _q(ns, "variable"), {"formalParameter": parameter})
             pins[parameter] = ET.SubElement(variable, _q(ns, "connectionPointIn"))
-        self._condition_connection(pins["PT"], preset_id)
+            if parameter in constant_ids:
+                self._condition_connection(pins[parameter], constant_ids[parameter])
         ET.SubElement(block, _q(ns, "inOutVariables"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
-        for parameter in ("Q", "ET"):
+        for parameter in interface.outputs:
             variable = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": parameter})
             ET.SubElement(variable, _q(ns, "connectionPointOut"))
         if self.profile is PLCopenProfile.CODESYS:

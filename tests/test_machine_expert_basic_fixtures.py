@@ -76,7 +76,7 @@ def _shapes(name: str) -> list[str | None]:
 
 
 def test_fixture_set_is_present():
-    assert len(ALL) == 15
+    assert len(ALL) == 16
 
 
 @pytest.mark.parametrize("path", ALL, ids=lambda path: path.stem)
@@ -104,6 +104,14 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
     # D (row 1), then on row 2 the CU contact (column 0) before F (column 2).
     ("06_counter.smbp", ["[NO(%I0.1) Counter(%C0.R) | OUT(%C0.D) COIL(%Q0.0) | NO(%I0.0) Counter(%C0.CU) "
                          "| OUT(%C0.F) COIL(%Q0.1)]"]),
+    # The counter simulator project: all four pins of %C0, and one contact
+    # driving two pins at once (CU+CD of %C1, R+S of %C2).
+    ("13_counter_simulation.smbp", [
+        "[NO(%I0.2) Counter(%C0.R) | OUT(%C0.E) COIL(%Q0.1) | NO(%I0.3) Counter(%C0.S) | OUT(%C0.D) COIL(%Q0.0) "
+        "| NO(%I0.0) Counter(%C0.CU) | OUT(%C0.F) COIL(%Q0.2) | NO(%I0.1) Counter(%C0.CD)]",
+        "[NO(%I0.6) Counter(%C1.R) | NO(%I0.5) Counter(%C1.S) | NO(%I0.4) [Counter(%C1.CU) | Counter(%C1.CD)]]",
+        "NO(%I0.7) [Counter(%C2.R) | Counter(%C2.S)]",
+    ]),
     ("07_compare_operate.smbp", ["CMP(%MW0 > 10) ASSIGN(%MW1 := (%MW1 + 1))"]),
     ("08_edges.smbp", ["P(%I0.0) COIL(%Q0.0)", "N(%I0.1) COIL(%Q0.1)"]),
     # Written in IL, no grid: the network is derived from the IL.
@@ -128,7 +136,9 @@ def test_symbols_from_io_memory_and_counter_tables():
         "START_PB": ("Start push button", {"source_symbol_table": "DigitalInputs", "source_memory_address": "%I0.0"}),
         "MOTOR_RUN": ("Motor contactor", {"source_symbol_table": "DigitalOutputs", "source_memory_address": "%Q0.0"}),
         "RUN_LATCH": (None, {"source_symbol_table": "MemoryBits", "source_memory_address": "%M0"}),
-        "PART_COUNT": (None, {"source_symbol_table": "Counters", "source_memory_address": "%C0"}),
+        "PART_COUNT": (None, {"source_symbol_table": "Counters", "source_memory_address": "%C0",
+                              "function_block_semantics": "machine-expert-basic.counter",
+                              "iec_function_block_inputs": {"PV": "9999"}}),
     }
 
 
@@ -269,7 +279,7 @@ def test_network_is_equivalent_to_instruction_list(rung):
 
 def test_every_network_is_checked():
     # 14 grid rungs plus the one IL-only rung (10_il_only).
-    assert len(list(_grid_rungs())) == 15
+    assert len(list(_grid_rungs())) == 18
 
 
 # --- the grid checker script itself ----------------------------------------
@@ -283,7 +293,7 @@ def _check(*arguments: str) -> dict:
 
 
 def test_every_grid_rung_matches_its_instruction_list():
-    assert _check() == {"match": 14, "il-only": 1}
+    assert _check() == {"match": 17, "il-only": 1}
 
 
 def test_grid_check_fails_under_the_wrong_vertical_edge_rule():

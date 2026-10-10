@@ -12,6 +12,9 @@ from twinforge.converters import (
 from twinforge.model import Controller, Expression, LadderOperation, LadderSeries, Tag
 from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
+from .plcopen_library import LIBRARY as GENERATED_LIBRARY
+from .plcopen_library import GeneratedFunctionBlock
+from .plcopen_network import BlockInterface, timer_interface
 from .plcopen_network import instructions as network_instructions
 from .plcopen_network import split_member
 from .plcopen_network import unsupported_reason as network_unsupported_reason
@@ -116,10 +119,13 @@ class PLCopenOperandPlan:
     oneshots: dict[int, PLCopenOneShotExport]
     oneshot_tags: dict[str, tuple[Tag, ...]]
     diagnostics: tuple[ConversionDiagnostic, ...]
-    # Tag name -> (IEC block type, PT literal) for tags that are IEC timer
-    # instances with a known PT (`iec_function_block_inputs`), e.g. Machine
-    # Expert - Basic %TMi. Network rungs emit a TC6 block for these.
-    function_block_instances: dict[str, tuple[str, str]] = field(default_factory=dict)
+    # Tag name -> interface, for tags that are convertible function block
+    # instances: IEC timers with a known PT (`iec_function_block_inputs`),
+    # and TwinForge-generated blocks (`function_block_semantics`). Network
+    # rungs emit a TC6 block for these.
+    function_block_instances: dict[str, BlockInterface] = field(default_factory=dict)
+    # TwinForge-generated function block definitions the project uses.
+    generated_blocks: tuple[GeneratedFunctionBlock, ...] = ()
     # Tag name -> IEC-safe declared name, for tags whose source name is not
     # an IEC identifier (an unnamed Machine Expert - Basic timer is "%TM0").
     tag_names: dict[str, str] = field(default_factory=dict)
@@ -172,8 +178,11 @@ class PLCopenOperandPlan:
 class PLCopenOperandPlanner:
     """Discover deterministic symbols without serializing PLCopen XML."""
 
-    def __init__(self, *, rising_trigger_type: str = "R_TRIG") -> None:
+    def __init__(self, *, rising_trigger_type: str = "R_TRIG", include_unverified_blocks: bool = False) -> None:
         self._rising_trigger_type = rising_trigger_type
+        # Export instances of generated blocks whose behaviour is not yet
+        # verified (see plcopen_library.GeneratedFunctionBlock.verified).
+        self._include_unverified_blocks = include_unverified_blocks
         self._operand_names: dict[str, str] = {}
         self._boolean_operands: set[str] = set()
         self._generated_tags: list[Tag] = []
@@ -184,7 +193,9 @@ class PLCopenOperandPlanner:
         self._oneshots: dict[int, PLCopenOneShotExport] = {}
         self._oneshot_tags: dict[str, list[Tag]] = {}
         self._diagnostics: list[ConversionDiagnostic] = []
-        self._function_block_instances: dict[str, tuple[str, str]] = {}
+        self._function_block_instances: dict[str, BlockInterface] = {}
+        self._generated_blocks: dict[str, GeneratedFunctionBlock] = {}
+        self._withheld_blocks: set[str] = set()
         self._tag_names: dict[str, str] = {}
         self._expression_temps: dict[int, str] = {}
 
@@ -213,6 +224,7 @@ class PLCopenOperandPlanner:
             },
             diagnostics=tuple(self._diagnostics),
             function_block_instances=dict(self._function_block_instances),
+            generated_blocks=tuple(self._generated_blocks.values()),
             tag_names=dict(self._tag_names),
             expression_temps=dict(self._expression_temps),
         )
@@ -229,6 +241,8 @@ class PLCopenOperandPlanner:
         self._oneshot_tags = {}
         self._diagnostics = []
         self._function_block_instances = {}
+        self._generated_blocks = {}
+        self._withheld_blocks = set()
         self._tag_names = {}
         self._expression_temps = {}
 
@@ -346,8 +360,26 @@ class PLCopenOperandPlanner:
         """Find IEC timer instances and give non-IEC tag names an IEC-safe name."""
         for tag in tags:
             inputs = tag.metadata.get("iec_function_block_inputs") or {}
+            generated = GENERATED_LIBRARY.get(tag.metadata.get("function_block_semantics") or "")
             if tag.data_type in IEC_TIMER_TYPES and "PT" in inputs:
-                self._function_block_instances[tag.name] = (tag.data_type, str(inputs["PT"]))
+                self._function_block_instances[tag.name] = timer_interface(tag.data_type, str(inputs["PT"]))
+            elif generated is not None and not (generated.verified or self._include_unverified_blocks):
+                if generated.name not in self._withheld_blocks:
+                    self._withheld_blocks.add(generated.name)
+                    self._diagnostic(
+                        "generated_block_unverified",
+                        f"{generated.name} reproduces {tag.data_type} behaviour that is not yet verified "
+                        f"({generated.source}); its instances are not exported",
+                        generated.name,
+                    )
+            elif generated is not None:
+                constant_pins = [pin for pin, _ in generated.inputs if pin in inputs]
+                self._function_block_instances[tag.name] = BlockInterface(
+                    generated.name, tuple(pin for pin, _ in generated.inputs),
+                    tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
+                    tuple((pin, str(inputs[pin])) for pin in constant_pins), standard=False,
+                )
+                self._generated_blocks.setdefault(generated.name, generated)
             if _IEC_IDENTIFIER.fullmatch(tag.name):
                 continue
             portable = unique_portable_name(tag.name, names)
@@ -372,8 +404,7 @@ class PLCopenOperandPlanner:
         `%I0.1` (a real I/O point with no symbol) becomes one IEC-safe
         surrogate, reused wherever the operand recurs.
         """
-        block_types = {name: kind for name, (kind, _) in self._function_block_instances.items()}
-        if network_unsupported_reason(network, block_types) is not None:
+        if network_unsupported_reason(network, self._function_block_instances) is not None:
             return
         for instruction in network_instructions(network):
             operand = instruction.operand or ""

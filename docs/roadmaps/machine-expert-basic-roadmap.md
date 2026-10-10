@@ -154,10 +154,28 @@ The remaining `UNSUPPORTED` elements fall into four groups:
   `Standard.TON` and references the Standard library. Samples: 50 of 54
   timers convert (the 4 others write their preset); 46 blocks emitted; all
   62 readable sample exports validate against TC6.
-- [ ] **D. Function-block pins**, counters, drums, `%WRITE_VAR`: kept as
-  `FUNCTION_BLOCK_INPUT` in the network but not exported. `%C` is not IEC
-  `CTUD` (wraps 0..9999, `D` on equality, `E`/`F` wrap flags); a generated
-  function block reproducing Schneider semantics is the route.
+- [x] **D. Function-block pins**, counters (2026-10-10). Every counter the logic uses or the file configures
+  gets a tag (by symbol, or by address when unnamed) with
+  `data_type="Counter"`, `metadata["function_block_semantics"] =
+  "machine-expert-basic.counter"` and its preset as `PV` (default 9999;
+  `CounterSpec`). The PLCopen exporter maps that identifier to the
+  TwinForge-generated `TF_MEBasic_Counter` function block
+  (`exporters/plcopen_library.py`), writes its definition once (before the
+  programs in the standard profile; as a CODESYS `pou` object listed in the
+  project tree), and emits each instance as a TC6 block with `PV` as a
+  constant input. Block handling is now per-type (`BlockInterface`) rather
+  than timer-specific. The body was settled against the Machine Expert –
+  Basic 3.0 simulator
+  ([checklist and results](../experiments/machine-expert-basic-counter-simulator.md)),
+  which corrected the guide on two points (`E` sets only on the wrap, not on
+  reaching 0; counting up clears `E`) and settled `CU`+`CD` in one scan
+  (they cancel). Tests execute the generated ST against the recorded
+  sequences, and the block is marked verified; generated blocks that are not
+  stay opt-in (`include_unverified_blocks`). Fixture
+  `13_counter_simulation.smbp` is the simulator project. 334 of 358 sample
+  rungs export as LD. Not covered: logic writing `%Ci.P`.
+- [ ] **D. Function-block pins**, drums and `%WRITE_VAR`: kept as
+  `FUNCTION_BLOCK_INPUT` in the network but not exported.
 
 ## Instruction List rungs
 
