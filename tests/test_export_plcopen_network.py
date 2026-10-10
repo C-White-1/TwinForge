@@ -242,6 +242,15 @@ def test_rung_without_an_ld_encoding_is_kept_as_a_comment(instruction):
     assert "Unsupported ladder network:" in result.xml
 
 
+def test_rung_with_no_output_is_kept_as_a_comment():
+    # Emitted, it would be a contact off the left rail and an unreached right rail.
+    result = export(controller(series(i(Op.NORMALLY_OPEN_CONTACT, "Start"), i(Op.NORMALLY_CLOSED_CONTACT, "Stop"))))
+
+    assert [d.message for d in result.diagnostics if d.code == "unsupported_network_rung"] == [
+        "rung was emitted as a non-executable comment: network has no output"]
+    assert [_local(e.tag) for e in ld_elements(result.xml)] == ["comment"]
+
+
 def test_rll_text_still_takes_precedence_over_a_network():
     network = series(i(Op.NORMALLY_OPEN_CONTACT, "Network"), i(Op.COIL, "Y"))
 

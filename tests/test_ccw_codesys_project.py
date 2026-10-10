@@ -1,7 +1,18 @@
-"""Synthetic end-to-end tests for CCW-to-CODESYS project planning."""
+"""Synthetic end-to-end tests for CCW-to-CODESYS project planning.
+
+Rungs reach the PLCopen exporter as networks, not RLL text; exported rungs
+are checked as power flow against their network for every input.
+"""
 
 from datetime import datetime, timezone
+import io
+import json
+from pathlib import Path
 import xml.etree.ElementTree as ET
+
+import pytest
+
+from test_export_plcopen_network import assert_equivalent
 
 from twinforge.exporters import (
     PLCOPEN_CODESYS_NAMESPACE,
@@ -20,10 +31,12 @@ from twinforge.model import (
     Routine,
     Tag,
 )
+from twinforge.cli.ccw_project import export_ccw_codesys_project
 from twinforge.targets.codesys import plan_ccw_codesys_project
 
 
 NS = {"p": PLCOPEN_CODESYS_NAMESPACE}
+CCW_TESTS = Path(__file__).parents[1] / "reference" / "ccw-tests"
 FIXED_TIME = datetime(2026, 8, 28, tzinfo=timezone.utc)
 
 
@@ -117,20 +130,19 @@ def test_plan_creates_plc_prg_actions_task_and_coverage() -> None:
     assert main.ladder_rungs[0].text == "JSR(Sequence,0);"
     assert plan.controller.tasks["MainTask"].scheduled_programs == [program]
     assert plan.controller.tasks["MainTask"].rate == 20
-    assert program.routines["Sequence"].ladder_rungs[0].text == (
-        "XIC(Permit)[XIC(Start),XIC(Seal)]XIO(Fault)OTE(Motor);"
-    )
-    assert "UNSUPPORTED_CCW(ADD(Counter))" in (
-        program.routines["Sequence"].ladder_rungs[1].text or ""
-    )
+    converted, preserved, _ = program.routines["Sequence"].ladder_rungs
+    # Networks pass through untouched; no RLL text is synthesized.
+    assert converted.text is None and converted.network is not None
+    assert preserved.text is None and preserved.network is not None
     assert plan.converted_rung_count == 1
     assert plan.preserved_rung_count == 1
     assert plan.empty_rung_count == 1
     assert plan.diagnostics[0].code == "ccw_rung_preserved_for_codesys"
+    assert plan.coverage[1].reason == "ADD (unsupported) has no PLCopen LD encoding"
     assert program.routines["Sequence"].ladder_rungs[2].text == "NOP();"
 
 
-def test_plan_preserves_rung_with_two_parallel_groups_in_series() -> None:
+def test_plan_converts_rung_with_two_parallel_groups_in_series() -> None:
     controller = Controller(name="Synthetic Two Parallels", identity=Identity())
     for name in ("Permit", "Start", "Seal", "SecondEnable", "A", "B", "Motor"):
         controller.add_tag(Tag(name=name, data_type="BOOL"))
@@ -203,16 +215,14 @@ def test_plan_preserves_rung_with_two_parallel_groups_in_series() -> None:
 
     plan = plan_ccw_codesys_project(controller)
 
-    assert plan.converted_rung_count == 0
-    assert plan.preserved_rung_count == 1
-    rung_text = plan.controller.programs["PLC_PRG"].routines["Sequence"].ladder_rungs[0].text
-    assert rung_text is not None
-    assert rung_text.startswith("UNSUPPORTED_CCW(")
-    assert plan.coverage[0].reason is not None
-    assert "duplicate" in plan.coverage[0].reason
+    # The RLL bridge refused this: flattening it would duplicate conditions.
+    # The LD graph needs no duplication.
+    assert plan.converted_rung_count == 1
+    assert plan.preserved_rung_count == 0
+    _assert_action_exports_equivalently(plan)
 
 
-def test_plan_preserves_rung_with_empty_parallel_branch() -> None:
+def test_plan_converts_rung_with_empty_parallel_branch() -> None:
     controller = Controller(name="Synthetic Empty Branch", identity=Identity())
     for name in ("Start", "Motor"):
         controller.add_tag(Tag(name=name, data_type="BOOL"))
@@ -247,11 +257,22 @@ def test_plan_preserves_rung_with_empty_parallel_branch() -> None:
 
     plan = plan_ccw_codesys_project(controller)
 
-    assert plan.converted_rung_count == 0
-    assert plan.preserved_rung_count == 1
-    rung_text = plan.controller.programs["PLC_PRG"].routines["Sequence"].ladder_rungs[0].text
-    assert rung_text is not None
-    assert rung_text.startswith("UNSUPPORTED_CCW(")
+    # An empty branch is a wire around Start, so Motor is always powered.
+    assert plan.converted_rung_count == 1
+    assert plan.preserved_rung_count == 0
+    _assert_action_exports_equivalently(plan)
+
+
+def _assert_action_exports_equivalently(plan) -> None:
+    """Export the plan and compare the action's one rung with its network."""
+    (rung,) = plan.controller.programs["PLC_PRG"].routines["Sequence"].ladder_rungs
+    assert rung.network is not None
+    result = PLCopenExporter(PLCopenProfile.CODESYS).export(plan.controller, creation_time=FIXED_TIME)
+    assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
+    root = ET.fromstring(result.xml)
+    (action,) = root.findall(".//p:action[@name='Sequence']", NS)
+    (ld,) = action.findall(".//p:LD", NS)
+    assert_equivalent(rung.network, list(ld))
 
 
 def test_plan_exports_importable_codesys_shape_and_preserved_comment() -> None:
@@ -275,5 +296,21 @@ def test_plan_exports_importable_codesys_shape_and_preserved_comment() -> None:
     comments = [
         element.text or "" for element in root.findall(".//p:comment/p:content/*", NS)
     ]
-    assert any("Unsupported Rockwell RLL" in text for text in comments)
+    assert "Unsupported ladder network: ADD(Counter)" in comments
+    assert [d.code for d in result.diagnostics] == ["unsupported_network_rung"]
     assert any("intentional no operation" in text for text in comments)
+
+
+@pytest.mark.skipif(not (CCW_TESTS / "M10_Conveyor.json").exists(), reason="reference CCW project is local-only")
+def test_real_project_reproduces_the_recorded_coverage_report(tmp_path: Path) -> None:
+    # Recorded with the former network-to-RLL bridge; the direct network path
+    # must convert exactly the same rungs.
+    coverage_path = tmp_path / "coverage.json"
+    export_ccw_codesys_project(
+        CCW_TESTS / "M10_Conveyor.json", destination=tmp_path / "out.xml", coverage_path=coverage_path,
+        task_rate_ms=20, stdout=io.StringIO(),
+    )
+    produced = json.loads(coverage_path.read_text(encoding="utf-8"))
+    recorded = json.loads((CCW_TESTS / "M10_Conveyor_codesys.coverage.json").read_text(encoding="utf-8"))
+
+    assert {key: produced[key] for key in recorded} == recorded

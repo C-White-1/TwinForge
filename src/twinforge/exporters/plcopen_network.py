@@ -46,6 +46,11 @@ ENCODINGS: dict[LadderOperation, ElementEncoding] = {
 # Expression instructions are emitted as IEC standard functions over these types.
 EXPRESSION_TYPES = frozenset({"INT", "DINT", "REAL", "BOOL"})
 EXPRESSION_OPERATIONS = frozenset({LadderOperation.COMPARISON, LadderOperation.ASSIGNMENT})
+# Operations that store something; a network with none of them has no effect.
+OUTPUT_OPERATIONS = frozenset({
+    LadderOperation.COIL, LadderOperation.SET_COIL, LadderOperation.RESET_COIL, LadderOperation.NEGATED_COIL,
+    LadderOperation.FUNCTION_BLOCK_INPUT, LadderOperation.ASSIGNMENT,
+})
 # IEC 61131-3 standard function per operator.
 FUNCTION_BLOCK_TYPES = {
     "+": "ADD", "-": "SUB", "*": "MUL", "/": "DIV",
@@ -145,6 +150,9 @@ def unsupported_reason(series: LadderSeries, blocks: Mapping[str, BlockInterface
         # Contacts and coils are BOOL; only a block's BOOL outputs can be read.
         if member is not None and member[1] not in blocks[member[0]].bool_outputs:
             return f"{operand} is not a BOOL output of {blocks[member[0]].type_name}"
+    if not any(instruction.operation in OUTPUT_OPERATIONS for instruction in instructions(series)):
+        # Emitted, it would be a rung ending in a right rail nothing reaches.
+        return "network has no output"
     return None
 
 

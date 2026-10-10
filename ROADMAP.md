@@ -101,9 +101,13 @@ roadmaps linked from each item.
    (`%I0.0`) on typed tags and surrogates to CODESYS located variables.
    Waiting on a user-supplied fixture or CODESYS evidence; see "PLCopen
    conversion".
-4. [ ] **Retire CCW's network-to-RLL bridge** in favour of direct network
-   export, removing its single-flat-parallel limit, once its coverage
-   report is reproduced. See "PLCopen conversion".
+4. [x] **Retire CCW's network-to-RLL bridge** (2026-10-10). CCW rungs now
+   reach the PLCopen exporter as networks, so any series/parallel nesting
+   converts; coverage is decided by the exporter's own test. The reference
+   project's coverage report is reproduced exactly (51 converted, 1 empty)
+   and its export is byte-identical. The exporter now also refuses a
+   network with no output instead of emitting a dangling rung. See
+   "PLCopen conversion".
 5. [ ] **Full Machine Expert (CODESYS-based): PLCopen XML import.** A new
    input format; 13 Logic Builder exports are already in the local
    `reference/machine-expert/plcopen/`.
@@ -294,9 +298,10 @@ conversion or native Control Expert compatibility.
     that are not keep their IL in the new `LadderRung.instruction_list`
     field and export as a comment holding that IL. See "Instruction List
     rungs" in the Machine Expert – Basic roadmap
-  - [ ] Retire CCW's network-to-RLL bridge (`targets/codesys/ccw_project.py`
-    `_serialize_network`) in favour of this path, once its coverage report
-    is reproduced without it
+  - [x] Retire CCW's network-to-RLL bridge (2026-10-10): the planner keeps
+    each rung's network for this path and takes coverage from the exporter's
+    `unsupported_reason`; a test reproduces the recorded M10_Conveyor
+    coverage report
   - [x] Fix variable emission that failed TC6 validation (2026-10-09). The
     emitter wrote the IEC type name as the element, but TC6 names four
     elementary types differently: `STRING`/`WSTRING` are `string`/`wstring`,

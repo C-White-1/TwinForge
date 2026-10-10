@@ -43,16 +43,18 @@ an explicit unsupported instruction carrying its original mnemonic, operand,
 annotations, and position, accompanied by a diagnostic. The complete source
 record also remains attached as a source extension.
 
-For supported ladder networks, common serial conditions remain before and
-after a parallel section in the PLCopen connection graph. TwinForge does not
-distribute those contacts into duplicated Boolean paths merely to obtain an
-equivalent expression; this keeps imported CODESYS ladder structure comparable
-to the CCW source. TwinForge currently only converts a condition section that
-is a single flat parallel group (optionally preceded and followed by flat
-serial conditions). A rung with two or more parallel groups in series, a
-nested parallel, or a parallel branch with no captured elements is preserved
-as attributable evidence rather than converted, so that TwinForge never
-silently duplicates a shared condition across paths to force a conversion.
+Supported ladder networks reach the PLCopen exporter as the neutral
+`LadderRung.network`, which it emits directly as an LD connection graph:
+series elements chain, parallel branches fan out and join, and an empty
+branch is a wire. Common serial conditions therefore stay single contacts
+before and after each parallel section; TwinForge never distributes them into
+duplicated Boolean paths, which keeps imported CODESYS ladder structure
+comparable to the CCW source. Any series/parallel nesting converts, including
+several parallel groups in series. (Until 2026-10-10 rungs were first
+serialized to RLL text, which limited conversion to one flat parallel group;
+the coverage of the reference project is unchanged by the switch.) A rung is
+preserved as attributable evidence when it contains an operation with no LD
+encoding or has no output.
 
 This boundary does not yet claim that CCW ladder logic can be converted to
 every PLCopen XML target or CODESYS construct. The initial CODESYS adapter

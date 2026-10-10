@@ -1,4 +1,10 @@
-"""CODESYS project planning for neutral CCW ladder models."""
+"""CODESYS project planning for neutral CCW ladder models.
+
+Each CCW program becomes an action of `PLC_PRG`, called from its main
+routine. Rungs keep their neutral `LadderRung.network`, which the PLCopen
+exporter emits directly as an LD graph; coverage uses the exporter's own
+test of what it can emit, so the plan and the export agree.
+"""
 
 from __future__ import annotations
 
@@ -7,11 +13,10 @@ from dataclasses import dataclass
 import re
 
 from twinforge.converters import ConversionDiagnostic, DiagnosticSeverity
+from twinforge.exporters.plcopen_network import unsupported_reason
 from twinforge.model import (
     Controller,
     LadderInstruction,
-    LadderOperation,
-    LadderParallel,
     LadderRung,
     LadderSeries,
     Program,
@@ -20,22 +25,6 @@ from twinforge.model import (
 )
 
 
-_OPCODES = {
-    LadderOperation.NORMALLY_OPEN_CONTACT: "XIC",
-    LadderOperation.NORMALLY_CLOSED_CONTACT: "XIO",
-    LadderOperation.COIL: "OTE",
-    LadderOperation.SET_COIL: "OTL",
-    LadderOperation.RESET_COIL: "OTU",
-}
-_CONDITIONS = {
-    LadderOperation.NORMALLY_OPEN_CONTACT,
-    LadderOperation.NORMALLY_CLOSED_CONTACT,
-}
-_OUTPUTS = {
-    LadderOperation.COIL,
-    LadderOperation.SET_COIL,
-    LadderOperation.RESET_COIL,
-}
 _INVALID_IDENTIFIER = re.compile(r"[^A-Za-z0-9_]")
 
 
@@ -157,15 +146,19 @@ def plan_ccw_codesys_project(
 def _planned_rung(
     rung: LadderRung,
 ) -> tuple[LadderRung, str, str | None]:
-    if rung.network is not None and not rung.network.elements:
-        text = "NOP();"
-        status = "empty"
-        reason = "empty source rung preserved as an intentional no-op"
-    else:
-        text, reason = _serialize_network(rung.network)
-        status = "converted" if reason is None else "preserved"
-    if status == "preserved":
+    text: str | None = None
+    if rung.network is None:
+        # Nothing to emit: kept as a marked RLL placeholder so the exporter
+        # writes it as an unsupported-rung comment.
         text = f"UNSUPPORTED_CCW({_evidence_text(rung.network)});"
+        status, reason = "preserved", "CCW rung has no captured executable topology"
+    elif not rung.network.elements:
+        text = "NOP();"
+        status, reason = "empty", "empty source rung preserved as an intentional no-op"
+    else:
+        # CCW lowering produces no function block pins, so no instances.
+        reason = unsupported_reason(rung.network)
+        status = "converted" if reason is None else "preserved"
     return (
         LadderRung(
             number=rung.number,
@@ -180,155 +173,6 @@ def _planned_rung(
         status,
         reason,
     )
-
-
-def _serialize_network(
-    network: LadderSeries | None,
-) -> tuple[str, str | None]:
-    if network is None or not network.elements:
-        return "", "CCW rung has no captured executable topology"
-    split_index = next(
-        (
-            index
-            for index, element in enumerate(network.elements)
-            if isinstance(element, LadderInstruction) and element.operation in _OUTPUTS
-        ),
-        None,
-    )
-    if split_index is None:
-        return "", "rung has no supported output instruction"
-    condition_elements = network.elements[:split_index]
-    output_elements = network.elements[split_index:]
-    prefix, branches, suffix = _structural_conditions(condition_elements)
-    if branches is None:
-        if any(isinstance(element, LadderParallel) for element in condition_elements):
-            # Any parallel topology outside the single flat-branch shape above
-            # (a second parallel group in series, a non-flat prefix/suffix, an
-            # empty branch, or a nested parallel) would require duplicating
-            # shared conditions across the cross-product of paths, which the
-            # architecture doc guarantees TwinForge does not do.
-            return (
-                "",
-                "condition topology is not a single flat parallel section; "
-                "converting it would duplicate shared conditions across paths",
-            )
-        paths, reason = _condition_paths(condition_elements)
-        if reason is not None:
-            return "", reason
-        if not paths:
-            condition_text = ""
-        elif len(paths) == 1:
-            condition_text = "".join(paths[0])
-        else:
-            condition_text = "[" + ",".join("".join(path) for path in paths) + "]"
-    else:
-        condition_text = (
-            "".join(prefix)
-            + "["
-            + ",".join("".join(branch) for branch in branches)
-            + "]"
-            + "".join(suffix)
-        )
-    outputs: list[str] = []
-    for element in output_elements:
-        if not isinstance(element, LadderInstruction):
-            return "", "parallel topology appears after an output instruction"
-        if element.operation not in _OUTPUTS:
-            return "", "condition or unsupported operation appears after an output"
-        rendered, reason = _instruction_text(element)
-        if reason is not None:
-            return "", reason
-        outputs.append(rendered)
-    return condition_text + "".join(outputs) + ";", None
-
-
-def _structural_conditions(
-    elements: tuple[LadderInstruction | LadderParallel, ...],
-) -> tuple[list[str], list[list[str]] | None, list[str]]:
-    """Retain one flat parallel section with its common prefix and suffix."""
-
-    parallel_indexes = [
-        index
-        for index, element in enumerate(elements)
-        if isinstance(element, LadderParallel)
-    ]
-    if len(parallel_indexes) != 1:
-        return [], None, []
-    parallel_index = parallel_indexes[0]
-    parallel = elements[parallel_index]
-    assert isinstance(parallel, LadderParallel)
-    if len(parallel.branches) < 2:
-        return [], None, []
-    prefix = _flat_condition_text(elements[:parallel_index])
-    suffix = _flat_condition_text(elements[parallel_index + 1 :])
-    if prefix is None or suffix is None:
-        return [], None, []
-    branches: list[list[str]] = []
-    for branch in parallel.branches:
-        branch_text = _flat_condition_text(branch.elements)
-        if branch_text is None or not branch_text:
-            return [], None, []
-        branches.append(branch_text)
-    return prefix, branches, suffix
-
-
-def _flat_condition_text(
-    elements: tuple[LadderInstruction | LadderParallel, ...],
-) -> list[str] | None:
-    rendered: list[str] = []
-    for element in elements:
-        if not isinstance(element, LadderInstruction):
-            return None
-        if element.operation not in _CONDITIONS:
-            return None
-        text, reason = _instruction_text(element)
-        if reason is not None:
-            return None
-        rendered.append(text)
-    return rendered
-
-
-def _condition_paths(
-    elements: tuple[LadderInstruction | LadderParallel, ...],
-) -> tuple[list[list[str]], str | None]:
-    """Expand recursive condition topology into equivalent parallel paths."""
-
-    paths: list[list[str]] = [[]]
-    for element in elements:
-        alternatives: list[list[str]] = []
-        if isinstance(element, LadderInstruction):
-            if element.operation not in _CONDITIONS:
-                return [], "non-condition instruction appears before an output"
-            rendered, reason = _instruction_text(element)
-            if reason is not None:
-                return [], reason
-            alternatives.append([rendered])
-        else:
-            if len(element.branches) < 2:
-                return [], "parallel topology contains fewer than two branches"
-            for branch in element.branches:
-                branch_paths, reason = _condition_paths(branch.elements)
-                if reason is not None:
-                    return [], reason
-                alternatives.extend(branch_paths)
-        paths = [
-            [*prefix, *alternative] for prefix in paths for alternative in alternatives
-        ]
-        if len(paths) > 256:
-            return [], "parallel normalization exceeds the 256-path safety limit"
-    return paths, None
-
-
-def _instruction_text(
-    instruction: LadderInstruction,
-) -> tuple[str, str | None]:
-    if not instruction.operand:
-        return "", f"instruction {instruction.source_mnemonic} has no operand"
-    try:
-        opcode = _OPCODES[instruction.operation]
-    except KeyError:
-        return "", f"operation {instruction.operation.value} is unsupported"
-    return f"{opcode}({instruction.operand})", None
 
 
 def _evidence_text(network: LadderSeries | None) -> str:
