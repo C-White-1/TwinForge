@@ -121,8 +121,11 @@ class TagDependencyGraph:
     ambiguous_step_state_references: tuple[AmbiguousStepStateReference, ...] = ()
 
 
+# An optional leading "%" keeps an IEC direct address whole ("%TM0.Q"), so a
+# tag declared under its address (Machine Expert - Basic names unnamed
+# objects that way) resolves, and an unresolved one is reported as written.
 _IDENTIFIER = re.compile(
-    r"[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z0-9_]+)*"
+    r"%?[A-Za-z_][A-Za-z0-9_]*(?::[A-Za-z0-9_]+)*"
     r"(?:\[[^\]]+\])?(?:\.[A-Za-z0-9_]+)*"
 )
 _IGNORED_IDENTIFIERS = frozenset({"false", "true"})
@@ -293,6 +296,11 @@ _LADDER_ACCESS = {
     LadderOperation.POSITIVE_TRANSITION_CONTACT: TagReferenceAccess.READ,
     LadderOperation.NEGATIVE_TRANSITION_CONTACT: TagReferenceAccess.READ,
     LadderOperation.NEGATED_COIL: TagReferenceAccess.WRITE,
+    # Function block pins: operand "{instance}.{pin}", resolved to the
+    # instance tag with the pin as member. Power flow into an input pin
+    # writes the instance; a wire out of an output pin reads it.
+    LadderOperation.FUNCTION_BLOCK_INPUT: TagReferenceAccess.WRITE,
+    LadderOperation.BLOCK_OUTPUT_REFERENCE: TagReferenceAccess.READ,
     # UNSUPPORTED intentionally has no entry: an instruction shape this
     # project does not yet recognize is never guessed at as a read or write.
 }

@@ -460,3 +460,51 @@ def test_unknown_expression_variables_are_kept_as_unresolved_evidence() -> None:
         ("controller:Level", TagReferenceAccess.READ)]
     assert [(item.instruction, item.operand, item.argument_position) for item in graph.unresolved_references] == [
         ("comparison", "%MW7", 0)]
+
+
+def _pin_controller(instance: str, *instructions: LadderInstruction) -> Controller:
+    controller = Controller(name="PLC", identity=Identity())
+    for name in ("Start", "Lamp"):
+        controller.add_tag(Tag(name=name))
+    controller.add_tag(Tag(name=instance, data_type="TON"))
+    program = Program("Main")
+    routine = Routine(name="Logic", language="LD")
+    routine.ladder_rungs = [LadderRung(number=1, network=LadderSeries(elements=instructions))]
+    program.add_routine(routine)
+    controller.add_program(program)
+    return controller
+
+
+def test_function_block_pins_write_inputs_and_read_outputs() -> None:
+    graph = build_tag_dependency_graph(_pin_controller(
+        "Delay",
+        LadderInstruction(operation=LadderOperation.NORMALLY_OPEN_CONTACT, source_mnemonic="contact", operand="Start"),
+        LadderInstruction(operation=LadderOperation.FUNCTION_BLOCK_INPUT, source_mnemonic="TON", operand="Delay.IN"),
+    ))
+    assert {(item.tag_key, item.member_path, item.access) for item in graph.references} == {
+        ("controller:Start", None, TagReferenceAccess.READ),
+        ("controller:Delay", ".IN", TagReferenceAccess.WRITE),
+    }
+
+    graph = build_tag_dependency_graph(_pin_controller(
+        "Delay",
+        LadderInstruction(operation=LadderOperation.BLOCK_OUTPUT_REFERENCE, source_mnemonic="TON", operand="Delay.Q"),
+        LadderInstruction(operation=LadderOperation.COIL, source_mnemonic="coil", operand="Lamp"),
+    ))
+    assert {(item.tag_key, item.member_path, item.access) for item in graph.references} == {
+        ("controller:Delay", ".Q", TagReferenceAccess.READ),
+        ("controller:Lamp", None, TagReferenceAccess.WRITE),
+    }
+
+
+def test_tag_declared_under_a_direct_address_resolves() -> None:
+    # Machine Expert - Basic declares an unnamed timer as "%TM0".
+    graph = build_tag_dependency_graph(_pin_controller(
+        "%TM0",
+        LadderInstruction(operation=LadderOperation.NORMALLY_OPEN_CONTACT, source_mnemonic="contact",
+                          operand="%TM0.Q"),
+        LadderInstruction(operation=LadderOperation.COIL, source_mnemonic="coil", operand="%Q0.0"),
+    ))
+    assert [(item.tag_key, item.member_path) for item in graph.references] == [("controller:%TM0", ".Q")]
+    # An address with no tag is reported whole, "%" included.
+    assert [item.identifier for item in graph.unresolved_references] == ["%Q0.0"]

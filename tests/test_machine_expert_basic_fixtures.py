@@ -173,6 +173,18 @@ def test_expression_variables_are_dependency_evidence():
         ("assignment", "%MW1", 0), ("assignment", "%MW1", 1), ("comparison", "%MW0", 0)]
 
 
+@pytest.mark.parametrize(("name", "pins"), [
+    ("05_timer.smbp", [("function_block_input", ".IN", "write"), ("block_output_reference", ".Q", "read")]),
+    ("06_counter.smbp", [("function_block_input", ".R", "write"), ("block_output_reference", ".D", "read"),
+                         ("function_block_input", ".CU", "write"), ("block_output_reference", ".F", "read")]),
+])
+def test_block_pins_are_dependency_evidence_on_the_instance(name: str, pins: list[tuple[str, str, str]]):
+    graph = build_tag_dependency_graph(_parse(name).controller)
+
+    assert sorted((ref.instruction, ref.member_path, ref.access.value) for ref in graph.references) == sorted(pins)
+    assert {ref.tag_name for ref in graph.references} == {"%" + ("TM0" if "timer" in name else "C0")}
+
+
 def test_encrypted_project_keeps_only_its_public_name():
     result = _parse("11_encrypted.smbp")
 

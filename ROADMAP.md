@@ -92,6 +92,11 @@ roadmaps linked from each item.
      reads the right-hand side. On the samples this adds 94 resolved
      references (63 reads, 31 writes); unnamed addresses stay unresolved
      evidence, as for contacts.
+   - [x] `tag_dependencies` reads function block pins (2026-10-10): power
+     into an input pin writes the instance (member = pin), an output pin
+     read reads it, and a leading `%` is kept so tags declared under an
+     address (`%TM0`) resolve. Samples: 132 pin references; drums and
+     `%WRITE_VAR` stay unresolved until they are declared as tags.
 3. [ ] **Physical address binding.** Translate Schneider addresses
    (`%I0.0`) on typed tags and surrogates to CODESYS located variables.
    Waiting on a user-supplied fixture or CODESYS evidence; see "PLCopen
