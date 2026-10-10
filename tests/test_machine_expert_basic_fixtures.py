@@ -164,6 +164,15 @@ def test_operands_use_declared_symbols_and_feed_tag_dependencies():
     assert [ref.operand for ref in graph.unresolved_references] == ["%I0.1"]
 
 
+def test_expression_variables_are_dependency_evidence():
+    graph = build_tag_dependency_graph(_parse("07_compare_operate.smbp").controller)
+
+    # The words are unnamed, so they stay unresolved evidence (like %I0.1 in
+    # 09_symbols) rather than being dropped; %MW1 := %MW1 + 1 writes and reads.
+    assert [(ref.instruction, ref.operand, ref.argument_position) for ref in graph.unresolved_references] == [
+        ("assignment", "%MW1", 0), ("assignment", "%MW1", 1), ("comparison", "%MW0", 0)]
+
+
 def test_encrypted_project_keeps_only_its_public_name():
     result = _parse("11_encrypted.smbp")
 

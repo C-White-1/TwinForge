@@ -87,7 +87,11 @@ roadmaps linked from each item.
    - [ ] Functions in expressions (`ROR`, `ITB`, `BTI`, and the guide's
      `REM`, `SQRT`, `INC`, `DEC`, `ABS`): not in any grid sample; refused
      with a reason for now.
-   - [ ] `tag_dependencies` does not yet read variables inside expressions.
+   - [x] `tag_dependencies` reads variables inside expressions (2026-10-10):
+     a comparison reads every variable, an assignment writes its target and
+     reads the right-hand side. On the samples this adds 94 resolved
+     references (63 reads, 31 writes); unnamed addresses stay unresolved
+     evidence, as for contacts.
 3. [ ] **Physical address binding.** Translate Schneider addresses
    (`%I0.0`) on typed tags and surrogates to CODESYS located variables.
    Waiting on a user-supplied fixture or CODESYS evidence; see "PLCopen

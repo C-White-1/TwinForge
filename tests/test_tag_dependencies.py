@@ -16,6 +16,7 @@ from twinforge.model import (
     StructuredTextLine,
     Tag,
 )
+from twinforge.model.expression import Expression
 
 
 def _controller() -> Controller:
@@ -389,3 +390,73 @@ def test_transition_contacts_read_and_negated_coil_writes() -> None:
         ("controller:Fall", TagReferenceAccess.READ),
         ("controller:Output", TagReferenceAccess.WRITE),
     }
+
+
+def _variable(name: str) -> Expression:
+    return Expression(kind="variable", data_type="INT", text=name)
+
+
+def _binary(left: Expression, operator: str, right: Expression, data_type: str = "INT") -> Expression:
+    return Expression(kind="binary", data_type=data_type, operator=operator, left=left, right=right)
+
+
+def _expression_controller(*instructions: LadderInstruction) -> Controller:
+    controller = Controller(name="PLC", identity=Identity())
+    for name in ("Level", "Limit", "Count", "Step", "Delay"):
+        controller.add_tag(Tag(name=name))
+    program = Program("Main")
+    routine = Routine(name="Logic", language="LD")
+    routine.ladder_rungs = [LadderRung(number=1, network=LadderSeries(elements=instructions))]
+    program.add_routine(routine)
+    controller.add_program(program)
+    return controller
+
+
+def test_comparison_reads_every_variable_in_its_expression() -> None:
+    comparison = _binary(_variable("Level"), ">", _binary(_variable("Limit"), "+", _variable("Delay.ET")), "BOOL")
+    graph = build_tag_dependency_graph(_expression_controller(
+        LadderInstruction(operation=LadderOperation.COMPARISON, source_mnemonic="Comparison",
+                          operand=comparison.render(), expression=comparison)))
+
+    assert [(item.instruction, item.argument_position, item.tag_key, item.member_path, item.access)
+            for item in graph.references] == [
+        ("comparison", 0, "controller:Level", None, TagReferenceAccess.READ),
+        ("comparison", 1, "controller:Limit", None, TagReferenceAccess.READ),
+        ("comparison", 2, "controller:Delay", ".ET", TagReferenceAccess.READ),
+    ]
+
+
+def test_assignment_writes_its_target_and_reads_the_right_hand_side() -> None:
+    assignment = _binary(_variable("Count"), ":=", _binary(_variable("Count"), "+", _variable("Step")))
+    graph = build_tag_dependency_graph(_expression_controller(
+        LadderInstruction(operation=LadderOperation.ASSIGNMENT, source_mnemonic="Operation",
+                          operand="Count", expression=assignment)))
+
+    assert sorted((item.argument_position, item.tag_key, item.access) for item in graph.references) == [
+        (0, "controller:Count", TagReferenceAccess.WRITE),
+        (1, "controller:Count", TagReferenceAccess.READ),
+        (2, "controller:Step", TagReferenceAccess.READ),
+    ]
+
+
+def test_assignment_of_a_literal_only_writes() -> None:
+    assignment = _binary(_variable("Count"), ":=", Expression(kind="literal", data_type="INT", text="0"))
+    graph = build_tag_dependency_graph(_expression_controller(
+        LadderInstruction(operation=LadderOperation.ASSIGNMENT, source_mnemonic="Operation",
+                          operand="Count", expression=assignment)))
+
+    assert [(item.tag_key, item.access) for item in graph.references] == [
+        ("controller:Count", TagReferenceAccess.WRITE)]
+    assert graph.unresolved_references == ()
+
+
+def test_unknown_expression_variables_are_kept_as_unresolved_evidence() -> None:
+    comparison = _binary(_variable("%MW7"), "=", _variable("Level"), "BOOL")
+    graph = build_tag_dependency_graph(_expression_controller(
+        LadderInstruction(operation=LadderOperation.COMPARISON, source_mnemonic="Comparison",
+                          operand=comparison.render(), expression=comparison)))
+
+    assert [(item.tag_key, item.access) for item in graph.references] == [
+        ("controller:Level", TagReferenceAccess.READ)]
+    assert [(item.instruction, item.operand, item.argument_position) for item in graph.unresolved_references] == [
+        ("comparison", "%MW7", 0)]

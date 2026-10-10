@@ -325,21 +325,46 @@ def _collect_structured_ladder_references(
         if rung.text is not None or rung.network is None:
             continue
         for instruction in _walk_ladder_series(rung.network):
-            access = _LADDER_ACCESS.get(instruction.operation)
-            if access is None or not instruction.operand:
-                continue
+            if instruction.expression is not None:
+                operands = _expression_operands(instruction)
+            else:
+                access = _LADDER_ACCESS.get(instruction.operation)
+                if access is None or not instruction.operand:
+                    continue
+                operands = ((instruction.operand, access),)
             call = SoftwareCallSite(
                 callee=instruction.operation.value,
                 arguments=(),
                 program_name=program.name,
                 routine_name=routine.name,
                 language=SoftwareCallLanguage.LADDER,
-                source_text=instruction.operand,
+                source_text=instruction.operand or "",
                 rung_number=rung.number,
             )
-            _collect_operand(
-                call, 0, instruction.operand, access, program_tags, controller_tags, references, unresolved,
-            )
+            for position, (operand, access) in enumerate(operands):
+                _collect_operand(
+                    call, position, operand, access, program_tags, controller_tags, references, unresolved,
+                )
+
+
+def _expression_operands(instruction: LadderInstruction) -> tuple[tuple[str, TagReferenceAccess], ...]:
+    """Each variable in a COMPARISON or ASSIGNMENT expression, left to right.
+
+    An assignment writes its target (the left of `:=`) and reads every
+    variable on the right; a comparison only reads. A variable read and
+    written by the same assignment (`X := X + 1`) yields both.
+    """
+    expression = instruction.expression
+    assert expression is not None
+    if instruction.operation is LadderOperation.ASSIGNMENT:
+        assert expression.left is not None and expression.right is not None
+        target = ((expression.left.text, TagReferenceAccess.WRITE),)
+        expression = expression.right
+    else:
+        target = ()
+    reads = tuple((node.text, TagReferenceAccess.READ) for node in expression.iter_nodes()
+                  if node.kind == "variable")
+    return target + reads
 
 
 def _collect_alias_definitions(
