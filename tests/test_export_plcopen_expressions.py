@@ -38,10 +38,30 @@ def _divide(a, b):
     return quotient if (a >= 0) == (b >= 0) else -quotient
 
 
+# IEC bit strings, as (width, unsigned bits); integer <-> bit string
+# conversions copy the bits (two's complement).
+def _to_bits(width: int):
+    return lambda a: (width, a & ((1 << width) - 1))
+
+
+def _from_bits(value) -> int:
+    width, bits = value
+    return bits - (1 << width) if bits >> (width - 1) else bits
+
+
+def _rotate(value, n: int, left: bool):
+    width, bits = value
+    n = n if left else width - n
+    return (width, ((bits << n) | (bits >> (width - n))) & ((1 << width) - 1))
+
+
 _FUNCTIONS = {
     "ADD": lambda a, b: a + b, "SUB": lambda a, b: a - b, "MUL": lambda a, b: a * b, "DIV": _divide,
     "EQ": lambda a, b: a == b, "NE": lambda a, b: a != b, "LT": lambda a, b: a < b, "GT": lambda a, b: a > b,
     "LE": lambda a, b: a <= b, "GE": lambda a, b: a >= b,
+    "INT_TO_WORD": _to_bits(16), "DINT_TO_DWORD": _to_bits(32), "WORD_TO_INT": _from_bits, "DWORD_TO_DINT": _from_bits,
+    "SHL": lambda a, n: (a[0], (a[1] << n) & ((1 << a[0]) - 1)), "SHR": lambda a, n: (a[0], a[1] >> n),
+    "ROL": lambda a, n: _rotate(a, n, True), "ROR": lambda a, n: _rotate(a, n, False),
 }
 _OPERATORS = {"+": "ADD", "-": "SUB", "*": "MUL", "/": "DIV", "=": "EQ", "<>": "NE", "<": "LT", ">": "GT",
               "<=": "LE", ">=": "GE"}
@@ -110,11 +130,24 @@ def run_graph(elements: list[ET.Element], store: dict, contacts: dict[str, bool]
 
 # --- the source network, evaluated --------------------------------------------
 
+def _schneider_shift(name: str, value: int, n: int, width: int) -> int:
+    """The guide's word/double-word shift, worked on the bit pattern as text."""
+    bits = format(value & ((1 << width) - 1), f"0{width}b")
+    shifted = {"SHL": bits[n:] + "0" * n, "SHR": "0" * n + bits[:width - n],
+               "ROL": bits[n:] + bits[:n], "ROR": bits[width - n:] + bits[:width - n]}[name]
+    result = int(shifted, 2)
+    return result - (1 << width) if shifted[0] == "1" else result
+
+
 def evaluate(node: Expression, store: dict, rename: dict[str, str]):
     if node.kind == "literal":
         return _literal(node.text)
     if node.kind == "variable":
         return store[rename.get(node.text, node.text)]
+    if node.kind == "call":
+        assert node.left is not None and node.right is not None and node.operator is not None
+        width = {"INT": 16, "DINT": 32}[node.data_type]
+        return _schneider_shift(node.operator, int(evaluate(node.left, store, rename)), int(node.right.text), width)
     assert node.left is not None and node.right is not None and node.operator is not None
     return _FUNCTIONS[_OPERATORS[node.operator]](evaluate(node.left, store, rename), evaluate(node.right, store, rename))
 
@@ -163,7 +196,11 @@ def _variables(network: LadderSeries) -> dict[str, str]:
 
 
 def _random_value(data_type: str, rng: random.Random):
-    return round(rng.uniform(-50, 50), 2) if data_type == "REAL" else rng.choice([rng.randint(-20, 20), 0, 1, 10])
+    if data_type == "REAL":
+        return round(rng.uniform(-50, 50), 2)
+    # Mostly small values; full-range ones exercise the sign bit of shifts.
+    bound = 2 ** 15 if data_type == "INT" else 2 ** 31
+    return rng.choice([rng.randint(-20, 20), 0, 1, 10, rng.randint(-bound, bound - 1)])
 
 
 def assert_executes_equivalently(network: LadderSeries, result, contact_names: list[str], trials: int = 300):
@@ -223,6 +260,35 @@ def test_assignments_execute_like_the_expression(text: str):
 
     assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
     assert_executes_equivalently(network, result, ["Run"])
+
+
+@pytest.mark.parametrize("text", [
+    "%MW10 := ROR(%KW9, 10)",  # as in the samples
+    "%MW0 := SHL(%MW10, 5)",
+    "%MW1 := SHR(%MW2, 3)",
+    "%MW1 := ROL(%MW2, 16)",  # a full rotation
+    "%MW1 := SHR(%MW2, 16)",  # everything shifted out
+    "%MD0 := ROR(%MD1, 7)",
+    "%MD0 := SHL(%MD1, 31)",
+    "%MW0 := SHL(%MW1, 2) + %MW2",  # a shift nested in arithmetic
+])
+def test_shifts_execute_like_the_word_operation(text: str):
+    plc, network = plc_with(contact("Run"), expression_instruction(text, "Operation"))
+    result = PLCopenExporter("standard_201").export(plc)
+
+    assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
+    assert_executes_equivalently(network, result, ["Run"])
+
+
+def test_shift_converts_through_the_bit_string_type():
+    plc, _ = plc_with(contact("Run"), expression_instruction("%MD0 := ROR(%MD1, 7)", "Operation"))
+    root = ET.fromstring(PLCopenExporter("standard_201").export(plc).xml)
+
+    assert [b.get("typeName") for b in root.iter() if _local(b.tag) == "block"] == [
+        "DINT_TO_DWORD", "ROR", "DWORD_TO_DINT"]
+    declared = {v.get("name"): _local(next(c for c in v if _local(c.tag) == "type")[0].tag)
+                for v in root.iter() if _local(v.tag) == "variable" and v.get("name", "").startswith("TF_Expr")}
+    assert sorted(declared.values()) == ["DWORD", "DWORD"]
 
 
 @pytest.mark.parametrize("text", ["%MW0 > 10", "%MW0 + %MW1 <= %MW2 * 2", "%MF0 <> 2.5", "%MW0 = 0"])

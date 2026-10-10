@@ -119,8 +119,9 @@ The remaining `UNSUPPORTED` elements fall into four groups:
   operands by address prefix from the guide (`expression_operand_types`),
   lets an integer literal adopt its context (`3` becomes `3.0` beside a
   REAL), and refuses mixed types, member/bit reads (`%TM0.P`), functions
-  and out-of-range literals, keeping such boxes `UNSUPPORTED` with a
-  `reason=`. The original text stays as a `source_expression=` annotation.
+  other than the shift instructions (`SHL`, `SHR`, `ROL`, `ROR`, a `call`
+  node; added 2026-10-10) and out-of-range literals, keeping such boxes
+  `UNSUPPORTED` with a `reason=`. The original text stays as a `source_expression=` annotation.
   The PLCopen exporter emits each tree as single IEC functions (`ADD`,
   `SUB`, `MUL`, `DIV`, `MOVE`, `EQ`...`GE`) chained by EN/ENO: nested
   arithmetic writes typed temporaries, an assignment's top level writes

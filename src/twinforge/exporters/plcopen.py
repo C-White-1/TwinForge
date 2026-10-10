@@ -37,6 +37,7 @@ from .plcopen_operands import (
 )
 from .plcopen_library import emit_function_block_pou
 from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
+from .plcopen_network import BIT_STRING_TYPES
 from .plcopen_network import FUNCTION_BLOCK_TYPES as NETWORK_FUNCTIONS
 from .plcopen_network import describe as describe_network
 from .plcopen_network import unsupported_reason as network_unsupported_reason
@@ -605,6 +606,8 @@ class PLCopenExporter:
         assert left is not None and right is not None
         if expression.operator == ASSIGNMENT_OPERATOR:
             target = self._portable_operand(left.text)
+            if right.kind == "call":
+                return [self._emit_shift(ld, right, target, chain)]
             if right.kind == "binary":
                 assert right.left is not None and right.right is not None and right.operator is not None
                 first, chain = self._expression_value(ld, right.left, chain)
@@ -622,6 +625,9 @@ class PLCopenExporter:
         self, ld: ET.Element, node: Expression, chain: list[ConnectionRef],
     ) -> tuple[str, list[ConnectionRef]]:
         """The text an input reads for `node`, emitting its functions first if needed."""
+        if node.kind == "call":
+            result = self._operands.expression_temps[id(node)]
+            return result, [self._emit_shift(ld, node, result, chain)]
         if node.kind != "binary":
             return self._expression_leaf(node), chain
         assert node.left is not None and node.right is not None and node.operator is not None
@@ -629,6 +635,18 @@ class PLCopenExporter:
         second, chain = self._expression_value(ld, node.right, chain)
         result = self._operands.expression_temps[id(node)]
         return result, [self._function_call(ld, NETWORK_FUNCTIONS[node.operator], [first, second], result, chain)]
+
+    def _emit_shift(
+        self, ld: ET.Element, node: Expression, destination: str, chain: list[ConnectionRef],
+    ) -> ConnectionRef:
+        """A shift `call`: convert to the bit string, shift, convert back into `destination`."""
+        assert node.left is not None and node.right is not None and node.operator is not None
+        value, chain = self._expression_value(ld, node.left, chain)
+        bits = BIT_STRING_TYPES[node.data_type]
+        converted, shifted = self._operands.expression_bit_temps[id(node)]
+        enabled = self._function_call(ld, f"{node.data_type}_TO_{bits}", [value], converted, chain)
+        enabled = self._function_call(ld, node.operator, [converted, node.right.text], shifted, [enabled])
+        return self._function_call(ld, f"{bits}_TO_{node.data_type}", [shifted], destination, [enabled])
 
     def _expression_leaf(self, node: Expression) -> str:
         return node.text if node.kind == "literal" else self._portable_operand(node.text)

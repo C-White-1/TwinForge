@@ -75,7 +75,16 @@ roadmaps linked from each item.
      (`generated_block_unverified`; opt in with
      `include_unverified_blocks=True`). 334 of 358 sample rungs export as
      LD. Not covered: logic writing `%Ci.P` (the preset is a constant
-     `PV`). Drums (`%DR`) and `%WRITE_VAR` can follow the same route.
+     `PV`).
+   - [ ] **Drums** (`%DR`, a step sequencer writing configured outputs per
+     step): the same generated-block route, once
+     [the drum simulator checklist](docs/experiments/machine-expert-basic-drum-simulator.md)
+     settles the guide's contradictions (which output a control bit drives;
+     `R` level or edge) and its saved project shows how a configured drum
+     is stored (the one sample's `<Drums />` is empty).
+   - `%WRITE_VAR` (write to a Modbus device) is not converted: it is a
+     communication block with no portable IEC equivalent, so its rungs stay
+     preserved evidence.
 2. [x] **Expressions** (2026-10-10). A typed IEC expression tree in the
    model (`model/expression.py`) with new `COMPARISON` and `ASSIGNMENT`
    ladder operations; Machine Expert – Basic comparison and operation boxes
@@ -84,9 +93,20 @@ roadmaps linked from each item.
    311 sample expressions convert; 332 of 358 sample rungs now export as LD
    (up from 199), all validating against TC6. Group C in the Machine
    Expert – Basic roadmap.
-   - [ ] Functions in expressions (`ROR`, `ITB`, `BTI`, and the guide's
-     `REM`, `SQRT`, `INC`, `DEC`, `ABS`): not in any grid sample; refused
-     with a reason for now.
+   - [x] Shift functions in expressions (2026-10-10): `SHL`, `SHR`, `ROL`,
+     `ROR` on a word or double word convert to the IEC functions of the same
+     name on `WORD`/`DWORD`, wrapped in bit-copying `INT_TO_WORD`/
+     `WORD_TO_INT` conversions; tests execute them against the guide's
+     word operation. 165 of the 171 expression boxes in sample networks
+     convert.
+   - [ ] BCD conversions (`BTI`, `ITB`): IEC edition 3 names them
+     `WORD_BCD_TO_UINT`/`UINT_TO_BCD_WORD` (unsigned only), Control Expert
+     `BCD_TO_INT`/`INT_TO_BCD`; which a CODESYS target provides is not
+     evidenced. Refused with a reason; needs the same CODESYS evidence as
+     address binding. The guide's other functions (`REM`, `SQRT`, `ABS`...)
+     appear in no sample.
+   - [ ] Timer preset writes (`%TM0.P := %MW0`, 4 sample boxes): need a
+     timer whose `PT` is a variable rather than a constant.
    - [x] `tag_dependencies` reads variables inside expressions (2026-10-10):
      a comparison reads every variable, an assignment writes its target and
      reads the right-hand side. On the samples this adds 94 resolved

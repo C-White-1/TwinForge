@@ -2,13 +2,22 @@
 
 The editor's comparison and operation boxes (`[%MW0 > 10]`,
 `[%MF1 := %MF2 * 3.0]`) use IEC 61131-3 operator spellings. Grammar, as
-observed in every sample and fixture (no function calls occur):
+observed in the samples and fixtures:
 
     assignment := operand ":=" sum
     comparison := sum ("=" | "<>" | "<" | ">" | "<=" | ">=") sum
     sum        := term (("+" | "-") term)*
     term       := factor (("*" | "/") factor)*
-    factor     := ["-"] number | operand | "(" sum ")"
+    factor     := ["-"] number | operand | call | "(" sum ")"
+    call       := name "(" operand "," integer ")"
+
+Of the calls, only the shift instructions SHL, SHR, ROL and ROR convert
+(Generic Functions Library Guide, Shift Instructions): IEC 61131-3 has the
+same functions on bit strings. The guide restricts the bit count to an
+immediate value of 1-16 for a word and 1-32 for a double word, and the
+operand to a word or double word. Other functions (the samples use BTI and
+ITB, BCD conversions) have no IEC name that every target is evidenced to
+provide, and stay unsupported.
 
 Operands are typed by address prefix from the ladder spec (Generic Functions
 Library Guide EIO0000003289.04). Integer arithmetic and floating-point
@@ -18,8 +27,8 @@ type of the other side (written `n.0` in a REAL context). Anything else
 raises `ExpressionUnsupported` and the box stays UNSUPPORTED.
 
 Semantic differences recorded, not modelled: on overflow or division by
-zero the controller sets %S18 and the result is "not significant"; IEC has
-no %S18.
+zero the controller sets %S18 and the result is "not significant"; a shift
+sets %S17 to the last bit shifted out. IEC has no %S17 or %S18.
 """
 from __future__ import annotations
 
@@ -27,11 +36,16 @@ from collections.abc import Mapping
 import re
 
 from twinforge.model import Expression, LadderInstruction, LadderOperation, LadderPosition
-from twinforge.model.expression import ARITHMETIC_OPERATORS, ASSIGNMENT_OPERATOR, COMPARISON_OPERATORS
+from twinforge.model.expression import (
+    ARITHMETIC_OPERATORS, ASSIGNMENT_OPERATOR, COMPARISON_OPERATORS, SHIFT_FUNCTIONS,
+)
 from twinforge.schema.machine_expert_basic.ladder import LADDER_SPEC, LadderSpec
 
-_TOKEN = re.compile(r"\s*(:=|<=|>=|<>|[-+*/()<>=]|\d+\.\d+|\d+|%[A-Za-z]+\d+(?:\.\d+)*(?:[.:][A-Za-z]\w*)?)")
+_TOKEN = re.compile(
+    r"\s*(:=|<=|>=|<>|[-+*/()<>=,]|\d+\.\d+|\d+|%[A-Za-z]+\d+(?:\.\d+)*(?:[.:][A-Za-z]\w*)?|[A-Za-z_]\w*)")
 _INTEGER_RANGES = {"INT": (-32768, 32767), "DINT": (-2147483648, 2147483647)}
+# Bit count allowed for a shift, by operand type (guide: word 1-16, double word 1-32).
+_SHIFT_WIDTHS = {"INT": 16, "DINT": 32}
 
 
 class ExpressionUnsupported(Exception):
@@ -152,7 +166,26 @@ class _Parser:
             return self.literal("-" + number)
         if token is not None and re.fullmatch(r"\d+(\.\d+)?", token):
             return self.literal(self.take())
+        if token is not None and re.fullmatch(r"[A-Za-z_]\w*", token):
+            return self.call()
         return self.operand()
+
+    def call(self) -> Expression:
+        name = self.take().upper()
+        if name not in SHIFT_FUNCTIONS:
+            raise ExpressionUnsupported(f"function {name} has no IEC equivalent evidenced for every target")
+        self.expect("(")
+        value = self.operand()
+        self.expect(",")
+        count = self.take()
+        self.expect(")")
+        width = _SHIFT_WIDTHS.get(value.data_type)
+        if width is None:
+            raise ExpressionUnsupported(f"{name} of {value.data_type} {value.text} is not a word or double word")
+        if not re.fullmatch(r"\d+", count) or not 1 <= int(count) <= width:
+            raise ExpressionUnsupported(f"{name} bit count {count!r} is not an immediate 1..{width}")
+        return Expression("call", value.data_type, operator=name, left=value,
+                          right=Expression("literal", "INT", text=count))
 
     @staticmethod
     def literal(text: str) -> Expression:

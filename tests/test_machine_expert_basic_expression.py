@@ -16,6 +16,10 @@ from twinforge.parsers.machine_expert_basic.expression import (
     ("%MD0 := %MD1 / 3", "%MD0 := (%MD1 / 3)", "DINT"),
     ("%QW0.100 := 0", "%QW0.100 := 0", "INT"),
     ("%IW0.0 >= 500", "%IW0.0 >= 500", "BOOL"),
+    # Shift instructions, as in the samples (spaces inside the call included).
+    ("%MW10 := ROR ( %KW9 , 10 )", "%MW10 := ROR(%KW9, 10)", "INT"),
+    ("%MD0 := shl(%MD1, 32)", "%MD0 := SHL(%MD1, 32)", "DINT"),
+    ("%MW0 > SHR(%MW1, 2) + 1", "%MW0 > (SHR(%MW1, 2) + 1)", "BOOL"),
 ])
 def test_parses_and_types(text, rendered, data_type):
     expression = parse_expression(text)
@@ -41,7 +45,13 @@ def test_symbols_replace_addresses_and_keep_them():
     ("%MW0 + %MF1 > 1", "mixes types"),
     ("%TM0.P := %MW0", "member"),  # a timer preset write
     ("%MW0:X3 = 1", "member or bit"),
-    ("%MW10 := ROR(%KW9, 10)", "cannot read"),  # functions are not converted yet
+    # BCD conversions: no IEC name every target is evidenced to provide.
+    ("%MW1 := ITB ( %KW9 )", "function ITB has no IEC equivalent"),
+    ("%MW0 := BTI ( %MW10 )", "function BTI has no IEC equivalent"),
+    ("%MW1 := ROR(%MW2, 17)", "not an immediate 1..16"),
+    ("%MW1 := ROR(%MW2, 0)", "not an immediate 1..16"),
+    ("%MW1 := ROR(%MW2, %MW3)", "not an immediate"),
+    ("%MF1 := ROR(%MF2, 1)", "not a word or double word"),
     ("%MW0 := 40000", "does not fit INT"),
     ("%MW0 := -%MW1", "unary minus"),
     ("%MW0 + 1", "comparison or assignment"),

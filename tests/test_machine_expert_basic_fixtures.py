@@ -76,7 +76,7 @@ def _shapes(name: str) -> list[str | None]:
 
 
 def test_fixture_set_is_present():
-    assert len(ALL) == 16
+    assert len(ALL) == 17
 
 
 @pytest.mark.parametrize("path", ALL, ids=lambda path: path.stem)
@@ -111,6 +111,11 @@ def test_every_fixture_parses_with_only_expected_diagnostics(path: Path):
         "| NO(%I0.0) Counter(%C0.CU) | OUT(%C0.F) COIL(%Q0.2) | NO(%I0.1) Counter(%C0.CD)]",
         "[NO(%I0.6) Counter(%C1.R) | NO(%I0.5) Counter(%C1.S) | NO(%I0.4) [Counter(%C1.CU) | Counter(%C1.CD)]]",
         "NO(%I0.7) [Counter(%C2.R) | Counter(%C2.S)]",
+    ]),
+    # The drum simulator project (saved with rung 1 as a plain coil).
+    ("14_drum_simulation.smbp", [
+        "[NO(%I0.1) Drum(%DR0.R) | OUT(%DR0.F) COIL(%Q0.7) | NO(%I0.0) Drum(%DR0.U)]",
+        "NO(%I0.2) COIL(%Q0.1)",
     ]),
     ("07_compare_operate.smbp", ["CMP(%MW0 > 10) ASSIGN(%MW1 := (%MW1 + 1))"]),
     ("08_edges.smbp", ["P(%I0.0) COIL(%Q0.0)", "N(%I0.1) COIL(%Q0.1)"]),
@@ -300,7 +305,7 @@ def test_network_is_equivalent_to_instruction_list(rung):
 
 def test_every_network_is_checked():
     # 14 grid rungs plus the one IL-only rung (10_il_only).
-    assert len(list(_grid_rungs())) == 18
+    assert len(list(_grid_rungs())) == 20
 
 
 # --- the grid checker script itself ----------------------------------------
@@ -314,7 +319,7 @@ def _check(*arguments: str) -> dict:
 
 
 def test_every_grid_rung_matches_its_instruction_list():
-    assert _check() == {"match": 17, "il-only": 1}
+    assert _check() == {"match": 19, "il-only": 1}
 
 
 def test_grid_check_fails_under_the_wrong_vertical_edge_rule():

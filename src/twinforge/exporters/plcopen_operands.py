@@ -14,7 +14,7 @@ from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
 from .plcopen_library import LIBRARY as GENERATED_LIBRARY
 from .plcopen_library import GeneratedFunctionBlock
-from .plcopen_network import BlockInterface, timer_interface
+from .plcopen_network import BIT_STRING_TYPES, BlockInterface, timer_interface
 from .plcopen_network import instructions as network_instructions
 from .plcopen_network import split_member
 from .plcopen_network import unsupported_reason as network_unsupported_reason
@@ -133,6 +133,9 @@ class PLCopenOperandPlan:
     # stored in: every nested arithmetic node and every comparison result.
     # (The arithmetic directly assigned by an ASSIGNMENT writes its target.)
     expression_temps: dict[int, str] = field(default_factory=dict)
+    # id() of a shift `call` node -> its two bit-string temporaries: the
+    # converted input and the shifted value.
+    expression_bit_temps: dict[int, tuple[str, str]] = field(default_factory=dict)
 
     @classmethod
     def empty(cls) -> PLCopenOperandPlan:
@@ -198,6 +201,8 @@ class PLCopenOperandPlanner:
         self._withheld_blocks: set[str] = set()
         self._tag_names: dict[str, str] = {}
         self._expression_temps: dict[int, str] = {}
+        self._expression_bit_temps: dict[int, tuple[str, str]] = {}
+        self._expression_temp_count = 0
 
     def prepare(self, controller: Controller) -> PLCopenOperandPlan:
         """Discover all required symbols in deterministic source order."""
@@ -227,6 +232,7 @@ class PLCopenOperandPlanner:
             generated_blocks=tuple(self._generated_blocks.values()),
             tag_names=dict(self._tag_names),
             expression_temps=dict(self._expression_temps),
+            expression_bit_temps=dict(self._expression_bit_temps),
         )
 
     def _reset(self) -> None:
@@ -245,6 +251,8 @@ class PLCopenOperandPlanner:
         self._withheld_blocks = set()
         self._tag_names = {}
         self._expression_temps = {}
+        self._expression_bit_temps = {}
+        self._expression_temp_count = 0
 
     def _prepare_operands(self, controller: Controller) -> None:
         tags = list(controller.tags.values())
@@ -463,17 +471,29 @@ class PLCopenOperandPlanner:
                     raw_value=node.text,
                 )
                 self._operand_names[node.text] = portable
-            needs_temp = node.kind == "binary" and node.operator != ASSIGNMENT_OPERATOR and node is not direct
+            needs_temp = node.kind in ("binary", "call") and node.operator != ASSIGNMENT_OPERATOR                 and node is not direct
             if needs_temp:
-                index = len([key for key in self._expression_temps]) + 1
-                rung_label = rung if rung is not None else "N"
-                temp = unique_portable_name(f"Expr_{program}_{routine}_{rung_label}_{index}", names)
-                names.add(temp)
-                self._expression_temps[id(node)] = temp
-                self._comparison_tags.setdefault(program, []).append(Tag(
-                    name=temp, data_type=node.data_type,
-                    description=f"TwinForge expression value for {routine} rung {rung}",
-                ))
+                self._expression_temps[id(node)] = self._expression_temp(
+                    node.data_type, names, program, routine, rung)
+            if node.kind == "call":
+                bits = BIT_STRING_TYPES[node.data_type]
+                self._expression_bit_temps[id(node)] = (
+                    self._expression_temp(bits, names, program, routine, rung),
+                    self._expression_temp(bits, names, program, routine, rung),
+                )
+
+    def _expression_temp(self, data_type: str, names: set[str], program: str, routine: str, rung: int | None) -> str:
+        """Declare one typed program variable holding an intermediate value."""
+        self._expression_temp_count += 1
+        index = self._expression_temp_count
+        rung_label = rung if rung is not None else "N"
+        temp = unique_portable_name(f"Expr_{program}_{routine}_{rung_label}_{index}", names)
+        names.add(temp)
+        self._comparison_tags.setdefault(program, []).append(Tag(
+            name=temp, data_type=data_type,
+            description=f"TwinForge expression value for {routine} rung {rung}",
+        ))
+        return temp
 
     def _prepare_timers(self, controller: Controller) -> None:
         tags = [

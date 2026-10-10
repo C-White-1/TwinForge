@@ -51,6 +51,10 @@ OUTPUT_OPERATIONS = frozenset({
     LadderOperation.COIL, LadderOperation.SET_COIL, LadderOperation.RESET_COIL, LadderOperation.NEGATED_COIL,
     LadderOperation.FUNCTION_BLOCK_INPUT, LadderOperation.ASSIGNMENT,
 })
+# A shift acts on a bit string: the integer is converted to the bit string of
+# its width, shifted, and converted back. IEC conversions between an integer
+# and a bit string copy the bits, so this is the source's word operation.
+BIT_STRING_TYPES = {"INT": "WORD", "DINT": "DWORD"}
 # IEC 61131-3 standard function per operator.
 FUNCTION_BLOCK_TYPES = {
     "+": "ADD", "-": "SUB", "*": "MUL", "/": "DIV",
