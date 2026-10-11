@@ -571,14 +571,15 @@ class PLCopenExporter:
             if element.operation is LadderOperation.FUNCTION_BLOCK_INPUT:
                 instance, _, pin = (element.operand or "").rpartition(".")
                 _, pins = self._network_block(ld, instance)
+                parameter = self._operands.function_block_instances[instance].parameter(pin)
                 for source in current:
-                    self._condition_connection(pins[pin], source)
+                    self._condition_connection(pins[parameter], source)
                 current = []
                 continue
             if element.operation is LadderOperation.BLOCK_OUTPUT_REFERENCE:
                 instance, _, pin = (element.operand or "").rpartition(".")
                 block_id, _ = self._network_block(ld, instance)
-                current = [(block_id, pin)]
+                current = [(block_id, self._operands.function_block_instances[instance].parameter(pin))]
                 continue
             encoding = NETWORK_ENCODINGS[element.operation]
             operand = element.operand or ""

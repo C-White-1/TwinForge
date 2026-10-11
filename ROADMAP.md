@@ -161,11 +161,37 @@ roadmaps linked from each item.
      LD logic whose order relative to the block is not defined.
      `VAR_IN_OUT` is standard IEC. The recorded sequences stay the tests,
      now fed with the constants the parser derives from the fixture.
-   - [ ] Emit the library content as PLCopen XML (counter, drum, version,
-     and a test program replaying the recorded sequences).
-   - [ ] Compile it in CODESYS (user) - the first real compile of
-     TwinForge's generated Structured Text - and run the test program in
-     the CODESYS SoftPLC.
+   - [x] Emit the library content as PLCopen XML (2026-10-11):
+     `twinforge codesys library --output DIR` writes `TwinForge_MEBasic.xml`
+     (counter, drum, version 0.1.0) and `TwinForge_MEBasic_Tests.xml`, which
+     adds `TF_MEBasic_Tests`, a program replaying the 29 recorded simulator
+     checks and counting failures. The checks are one data set
+     (`exporters/plcopen_library_checks.py`) used by both TwinForge's tests
+     and the generated program; TwinForge's tests also execute the generated
+     program on the blocks (0 failures) and on a broken counter (fails at
+     C2).
+   - [x] Compile it in CODESYS and run the test program in the SoftPLC
+     (2026-10-11; [checklist](docs/experiments/codesys-library-compile.md)).
+     Run 1 found `R`/`S` are reserved in CODESYS (now `RESET`/`LOAD`/
+     `STEP_NO`, mapped from the source pins; a test guards reserved words).
+     Run 2: 0 errors, 0 warnings; in CODESYS Control Win V3 all 29 recorded
+     checks pass (0 failures). Part B: saved and installed as a library
+     (CODESYS V3.5 SP22 Patch 3); the Library Manager lists
+     `TwinForge_MEBasic, 0.1.0 (TwinForge)`, and the test program run
+     against the installed library's blocks also passes all 29 checks.
+   - [ ] Make the library usable by hand, not only as a converter target
+     (raised 2026-10-11 after first use: there is no Drum Assistant in
+     CODESYS, so the grid becomes pattern words and 16 bound in-outs).
+     Behaviour must not change; the recorded checks prove it again.
+     - [ ] A pattern helper, e.g. `TF_DrumStep(B0 := TRUE, B1 := TRUE)`
+       returning the step's `WORD`, so no one works out hex by hand.
+     - [ ] Fewer mandatory in-outs: one `WORD` in-out for the 16 bits plus a
+       mask of the bits the drum owns (only those are written), instead of
+       16 `BOOL` in-outs that must all be bound.
+     - [ ] Library documentation: usage examples (ST and LD), the
+       grid-to-pattern table, the behaviour and verification notes, and what
+       is not modelled, as a README and as POU comments CODESYS shows in
+       the library browser.
    - [ ] CODESYS export option: reference the library instead of embedding
      the blocks; standard/OpenPLC exports keep embedding.
    - [ ] Publishing (user's decision): readable `.library` in the

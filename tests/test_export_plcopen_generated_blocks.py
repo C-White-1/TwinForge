@@ -6,6 +6,7 @@ the sequences recorded in the Machine Expert - Basic simulator
 what marks the counter verified, so it exports by default.
 """
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -15,7 +16,9 @@ from twinforge.exporters.plcopen import PLCopenExporter
 from twinforge.exporters.plcopen_library import (
     LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock, generated_block_for,
 )
+from twinforge.exporters.plcopen_library_checks import CHECKS, DRUM_CONSTANTS, Check, Expect, Scan, Write
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
+from twinforge.exporters.plcopen_library_package import LIBRARY_BLOCKS, TEST_PROGRAM, library_document, checks_program
 from twinforge.model import (
     Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
     Routine, Tag,
@@ -24,14 +27,15 @@ from twinforge.parsers.machine_expert_basic import capture_file, parse_project
 from twinforge.schema.machine_expert_basic import BASIC_MAPPING
 from twinforge.structured_text.parser import parse_structured_text
 from twinforge.structured_text.syntax import (
-    AssignmentStatement, BinaryExpression, IfStatement, LiteralExpression, NameExpression, ParenthesizedExpression,
-    UnaryExpression,
+    AssignmentStatement, BinaryExpression, CallExpression, ExpressionStatement, IfStatement, LiteralExpression,
+    MemberExpression, NameExpression, ParenthesizedExpression, UnaryExpression,
 )
 
 ROOT = Path(__file__).parents[1]
 FIXTURES = ROOT / "examples/machine_expert_basic"
 XSD = ROOT / "reference/PLCopenXML/standard/tc6_xml_v201.xsd"
 Op = LadderOperation
+FIXED_TIME = datetime(2026, 10, 11, tzinfo=timezone.utc)
 
 
 def _local(tag: str) -> str:
@@ -137,9 +141,10 @@ def test_instances_are_wired_with_their_preset_as_a_constant():
 
     (preset,) = feeds("PV")
     assert next(c.text for c in preset if _local(c.tag) == "expression") == "3"
-    assert [next(c.text for c in e if _local(c.tag) == "variable") for e in feeds("R")] == ["Reset"]
+    # The source's pin R drives the block's RESET (R is reserved in CODESYS).
+    assert [next(c.text for c in e if _local(c.tag) == "variable") for e in feeds("RESET")] == ["Reset"]
     assert [next(c.text for c in e if _local(c.tag) == "variable") for e in feeds("CU")] == ["Pulse"]
-    assert feeds("S") == [] and feeds("CD") == []  # unwired pins stay unconnected
+    assert feeds("LOAD") == [] and feeds("CD") == []  # unwired pins stay unconnected
     coil = next(e for e in elements.values() if _local(e.tag) == "coil"
                 and next(c.text for c in e if _local(c.tag) == "variable") == "Done0")
     assert [(c.get("refLocalId"), c.get("formalParameter")) for c in coil.iter() if _local(c.tag) == "connection"] \
@@ -210,9 +215,11 @@ class BlockRun:
             for name, data_type in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)}
         self.state.update(constants)
 
-    def scan(self, **inputs: bool) -> None:
+    def scan(self, **inputs: bool | int) -> None:
+        """One call: BOOL inputs not given are FALSE, others keep their value."""
         for pin in self.inputs:
             self.state[pin] = inputs.get(pin, False)
+        self.state.update({pin: value for pin, value in inputs.items() if pin not in self.inputs})
         self._run(self.statements)
 
     def pulse(self, *pins: str) -> None:
@@ -247,103 +254,112 @@ class BlockRun:
         raise AssertionError(f"unexpected expression {expression!r}")
 
 
-class CounterRun(BlockRun):
-    def __init__(self, preset: int = 3):
-        super().__init__(MACHINE_EXPERT_BASIC_COUNTER, PV=preset)
-
-    def outputs(self) -> tuple[bool | int, ...]:
-        """(V, D, E, F), the columns recorded in the simulator."""
-        return (self.state["CV"], self.state["D"], self.state["E"], self.state["F"])
-
-
-# Steps from docs/experiments/machine-expert-basic-counter-simulator.md;
-# expected values are (V, D, E, F) as recorded in the simulator.
-
-def test_counts_and_done_follow_equality_with_the_preset():
-    counter = CounterRun(preset=3)
-    for _ in range(3):
-        counter.pulse("CU")
-    assert counter.outputs() == (3, True, False, False)    # A1
-    counter.pulse("CU")
-    assert counter.outputs() == (4, False, False, False)   # A2: D clears off the preset
-    counter.pulse("CD")
-    assert counter.outputs() == (3, True, False, False)    # A3: and sets again from above
+def replay(check: Check) -> None:
+    """Run a recorded check on the block's Structured Text."""
+    run = BlockRun(check.block, **check.constants)
+    for step in check.steps:
+        if isinstance(step, Scan):
+            run.scan(**step.inputs)
+        elif isinstance(step, Write):
+            run.state[step.variable] = step.value
+        else:
+            assert {name: run.state[name] for name in step.values} == dict(step.values), step.label
 
 
-def test_empty_flag_sets_on_the_down_wrap_only_and_clears_on_the_next_count():
-    counter = CounterRun(preset=3)
-    counter.pulse("CU")
-    counter.pulse("CD")
-    assert counter.outputs() == (0, False, False, False)   # B1: reaching 0 does not set E
-    counter.pulse("CD")
-    assert counter.outputs() == (9999, False, True, False)  # B2: the 0 -> 9999 wrap does
-    counter.pulse("CD")
-    assert counter.outputs() == (9998, False, False, False)  # B3: the next count down clears it
-
-
-def test_full_flag_sets_on_the_up_wrap_and_counting_up_clears_empty():
-    counter = CounterRun(preset=3)
-    counter.pulse("CD")
-    assert counter.outputs() == (9999, False, True, False)
-    counter.pulse("CU")
-    assert counter.outputs() == (0, False, False, True)    # C2: F sets, E clears
-    counter.pulse("CU")
-    assert counter.outputs() == (1, False, False, False)   # C3
-
-
-def test_set_loads_the_preset_and_reset_has_priority():
-    counter = CounterRun(preset=3)
-    counter.pulse("R")
-    counter.pulse("S")
-    assert counter.outputs() == (3, True, False, False)    # C1 (on %C1)
-    counter.pulse("R", "S")
-    assert counter.outputs() == (0, False, False, False)   # E1 (on %C2)
-
-    counter = CounterRun(preset=9999)
-    counter.pulse("R")
-    counter.pulse("S")
-    assert counter.outputs()[0] == 9999                     # C1 with preset 9999
-
-
-def test_count_up_and_down_in_the_same_scan_cancel():
-    counter = CounterRun(preset=3)
-    counter.pulse("CU", "CD")
-    assert counter.outputs() == (0, False, False, False)   # D1
-    counter.state["CV"] = 9999                              # G2: %C1.V written in the animation table
-    counter.pulse("CU", "CD")
-    assert counter.outputs() == (9999, False, False, False)
-
-
-def test_counting_down_clears_full():
-    counter = CounterRun(preset=3)
-    counter.state["CV"] = 9999                              # G1: %C0.V written in the animation table
-    counter.pulse("CU")
-    assert counter.outputs() == (0, False, False, True)
-    counter.pulse("CD")
-    assert counter.outputs() == (9999, False, True, False)
+@pytest.mark.parametrize("check", CHECKS, ids=lambda check: check.name)
+def test_block_reproduces_the_recorded_simulator_sequence(check: Check):
+    replay(check)
 
 
 # --- drums (%DR) ------------------------------------------------------------
 
+class ProgramRun(BlockRun):
+    """Executes a generated test program: its calls run the blocks' own bodies."""
+
+    def __init__(self, body: str, variables, blocks: dict[str, GeneratedFunctionBlock]):
+        document = parse_structured_text(body)
+        assert not document.diagnostics
+        self.statements = document.statements
+        self.inputs = []
+        self.instances = {name: BlockRun(blocks[data_type]) for name, data_type, instance in variables if instance}
+        self.in_outs = {name: {pin for pin, _ in blocks[data_type].in_outs}
+                        for name, data_type, instance in variables if instance}
+        self.state = {name: (0 if data_type == "INT" else False)
+                      for name, data_type, instance in variables if not instance}
+
+    def _run(self, statements) -> None:
+        for statement in statements:
+            if isinstance(statement, ExpressionStatement):
+                call = statement.expression
+                assert isinstance(call, CallExpression) and isinstance(call.callee, NameExpression)
+                instance = self.instances[call.callee.name]
+                in_outs = {}
+                for argument in call.arguments:
+                    assert argument.name is not None
+                    if argument.name in self.in_outs[call.callee.name]:
+                        assert isinstance(argument.value, NameExpression)
+                        in_outs[argument.name] = argument.value.name  # passed by reference
+                        instance.state[argument.name] = self.state[argument.value.name]
+                    else:
+                        instance.state[argument.name] = self._value(argument.value)
+                instance._run(instance.statements)
+                for pin, variable in in_outs.items():
+                    self.state[variable] = instance.state[pin]
+            else:
+                super()._run([statement])
+
+    def _value(self, expression):
+        if isinstance(expression, MemberExpression):
+            assert isinstance(expression.target, NameExpression)
+            return self.instances[expression.target.name].state[expression.member]
+        return super()._value(expression)
+
+
+def run_test_program(blocks: dict[str, GeneratedFunctionBlock] | None = None) -> dict:
+    program = checks_program()
+    run = ProgramRun(program.body, program.variables, blocks or {block.name: block for block in LIBRARY_BLOCKS})
+    run._run(run.statements)
+    return run.state
+
+
+def test_generated_test_program_passes_on_the_blocks():
+    results = run_test_program()
+
+    assert results["xDone"]
+    assert (results["iChecks"], results["iFailures"], results["iFirstFailure"]) == (len(checks_program().labels), 0, 0)
+    assert results["iChecks"] == sum(isinstance(step, Expect) for check in CHECKS for step in check.steps)
+
+
+def test_generated_test_program_reports_the_first_failure_of_a_broken_block():
+    # The old counter body: counting up did not clear E.
+    broken = replace(MACHINE_EXPERT_BASIC_COUNTER, body=MACHINE_EXPERT_BASIC_COUNTER.body.replace(
+        "        END_IF;\n        E := FALSE;\n", "        END_IF;\n", 1))
+    assert broken.body != MACHINE_EXPERT_BASIC_COUNTER.body
+    results = run_test_program({broken.name: broken, MACHINE_EXPERT_BASIC_DRUM.name: MACHINE_EXPERT_BASIC_DRUM})
+
+    assert results["iFailures"] > 0
+    first_failure = checks_program().labels[results["iFirstFailure"] - 1]
+    assert first_failure == "Counter_Full: C2 the 9999 -> 0 wrap sets F and clears E"
+
+
+@pytest.mark.parametrize("include_tests", [False, True])
+def test_library_document_holds_the_blocks_and_optionally_the_tests(include_tests: bool):
+    xml = library_document(creation_time=FIXED_TIME, include_tests=include_tests)
+
+    names = [(pou.get("name"), pou.get("pouType")) for pou in pous(xml)]
+    assert names == [("TF_MEBasic_Counter", "functionBlock"), ("TF_MEBasic_Drum", "functionBlock"),
+                     *([(TEST_PROGRAM, "program")] if include_tests else [])]
+    header = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "contentHeader")
+    assert header.get("version") == "0.1.0"
+
+
+@pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
+def test_library_document_validates_against_tc6():
+    validate_plcopen_xml(library_document(profile="standard_201", creation_time=FIXED_TIME, include_tests=True), XSD)
+
+
 def drum_tag() -> Tag:
     return parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller.tags["%DR0"]
-
-
-class DrumRun(BlockRun):
-    """Fixture 14's drum: 4 steps; step 1 sets B0 and B1, step 2 B2, step 3 B3.
-
-    Its constant inputs (step count, pattern words) are the ones the parser
-    gives the fixture's tag, so the replay covers parser and block together.
-    """
-
-    def __init__(self):
-        constants = {pin: literal_value(text) for pin, text in drum_tag().metadata["iec_function_block_inputs"].items()}
-        super().__init__(MACHINE_EXPERT_BASIC_DRUM, **constants)
-
-    def outputs(self) -> tuple[bool | int | str, ...]:
-        """(S, F, outputs on), the columns recorded in the simulator."""
-        on = "".join(pin[1:] for pin in ("B0", "B1", "B2", "B3") if self.state[pin])
-        return (self.state["S"], self.state["F"], on)
 
 
 def test_drum_configuration_is_parsed_from_the_fixture():
@@ -357,60 +373,8 @@ def test_drum_configuration_is_parsed_from_the_fixture():
         "NSTEPS": "4", "P0": "WORD#16#0000", "P1": "WORD#16#0003", "P2": "WORD#16#0004", "P3": "WORD#16#0008",
         **{f"P{step}": "WORD#16#0000" for step in range(4, 8)}}
     assert generated_block_for(tag) is MACHINE_EXPERT_BASIC_DRUM
-
-
-# Steps from docs/experiments/machine-expert-basic-drum-simulator.md; expected
-# values are (S, F, outputs on) as recorded in the simulator.
-
-def test_drum_steps_through_its_pattern_and_wraps():
-    drum = DrumRun()
-    drum.pulse("R")
-    assert drum.outputs() == (0, False, "")       # A1
-    drum.pulse("U")
-    assert drum.outputs() == (1, False, "01")     # A2 (step 1 sets %Q0.0 and %Q0.1)
-    drum.pulse("U")
-    assert drum.outputs() == (2, False, "2")      # A3: a step writes 0s too
-    drum.pulse("U")
-    assert drum.outputs() == (3, True, "3")       # A4: F on the last step
-    drum.pulse("U")
-    assert drum.outputs() == (0, False, "")       # A5: wraps, F clears
-
-
-def test_reset_acts_while_held_and_wins():
-    drum = DrumRun()
-    drum.pulse("U")
-    drum.pulse("U")
-    assert drum.outputs() == (2, False, "2")      # B1
-    drum.scan(R=True)
-    drum.scan(R=True, U=True)                      # B2: U while R is held
-    drum.scan(R=True)
-    assert drum.outputs() == (0, False, "")       # R writes step 0's pattern
-    drum.scan()
-    assert drum.outputs() == (0, False, "")       # B3
-
-
-def test_outputs_are_written_only_when_the_step_changes():
-    drum = DrumRun()
-    drum.pulse("U")
-    assert drum.outputs() == (1, False, "01")     # C1
-    drum.state["B1"] = False                       # a reset coil elsewhere clears %Q0.1
-    drum.scan()
-    drum.scan()
-    assert drum.outputs() == (1, False, "0")      # C2: the drum does not rewrite it
-    drum.pulse("U")
-    assert drum.outputs() == (2, False, "2")      # the next step change does
-
-
-def test_reset_rewrites_step_zero_every_scan_it_is_held():
-    drum = DrumRun()
-    drum.scan(R=True)
-    drum.state["B0"] = True                        # E1b: a set coil elsewhere sets %Q0.0
-    drum.scan(R=True)
-    assert drum.outputs() == (0, False, "")       # cleared again while R is held
-    drum.scan()
-    drum.state["B0"] = True                        # with R released, a set stands
-    drum.scan()
-    assert drum.outputs() == (0, False, "0")
+    # The recorded drum checks run with exactly these constants.
+    assert {pin: literal_value(text) for pin, text in tag.metadata["iec_function_block_inputs"].items()}         == dict(DRUM_CONSTANTS)
 
 
 def test_drum_is_verified_and_exports_by_default():
@@ -455,3 +419,24 @@ def test_drum_export_validates_against_tc6(profile: str):
         validate_plcopen_xml(xml, XSD)
     else:
         assert 'Object Name="TF_MEBasic_Drum"' in xml
+
+
+# IEC 61131-3 keywords and Instruction List operators, plus CODESYS's own
+# (S= and R= set/reset assignments make S and R reserved there; D, E, F
+# were accepted by CODESYS): none may
+# name a parameter or variable of a generated block.
+RESERVED = frozenset("""
+    ABS ACTION AND ANDN ANY ARRAY AT BOOL BY BYTE CAL CALC CALCN CASE CONFIGURATION CONSTANT DATE DINT DIV DO DT
+    DWORD ELSE ELSIF END_ACTION END_CASE END_CONFIGURATION END_FOR END_FUNCTION END_FUNCTION_BLOCK END_IF
+    END_PROGRAM END_REPEAT END_RESOURCE END_STEP END_STRUCT END_TRANSITION END_TYPE END_VAR END_WHILE EQ EXIT
+    FALSE FOR FROM FUNCTION FUNCTION_BLOCK GE GT IF INITIAL_STEP INT JMP JMPC JMPCN LD LDN LE LINT LREAL LT LWORD
+    MOD MUL NE NOT OF ON OR ORN PROGRAM R REAL REPEAT RESOURCE RET RETAIN RETC RETCN RETURN S SINT ST STEP STN
+    STRING STRUCT SUB TASK THEN TIME TO TOD TRANSITION TRUE TYPE UDINT UINT ULINT UNTIL USINT VAR VAR_ACCESS
+    VAR_CONFIG VAR_EXTERNAL VAR_GLOBAL VAR_IN_OUT VAR_INPUT VAR_OUTPUT VAR_TEMP WHILE WITH WORD XOR XORN
+""".split())
+
+
+@pytest.mark.parametrize("block", LIBRARY_BLOCKS, ids=lambda block: block.name)
+def test_generated_block_names_avoid_reserved_words(block: GeneratedFunctionBlock):
+    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)]
+    assert [name for name in names if name.upper() in RESERVED] == []

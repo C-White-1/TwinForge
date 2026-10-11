@@ -401,6 +401,7 @@ class PLCopenOperandPlanner:
                     tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
                     tuple((pin, str(inputs[pin])) for pin in constant_pins), standard=False,
                     in_outs=tuple((pin, bound[pin]) for pin, _ in generated.in_outs),
+                    source_pins=generated.source_pins,
                 )
                 self._generated_blocks.setdefault(generated.name, generated)
             if _IEC_IDENTIFIER.fullmatch(tag.name):
@@ -441,6 +442,9 @@ class PLCopenOperandPlanner:
             if member is not None:
                 # A timer output read as a contact: `%TM2.Q` -> `<instance>.Q`.
                 root, name = member
+                interface = self._function_block_instances.get(root)
+                if interface is not None:
+                    name = interface.parameter(name)
                 self._operand_names[operand] = f"{self._operand_names.get(root, root)}.{name}"
                 continue
             self._declare_boolean_operand(operand, names)

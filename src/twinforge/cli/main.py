@@ -19,6 +19,7 @@ from .cip_software import CipSoftwareCommandError, discover_cip_software
 from .codesys_deployment import (
     CodesysDeploymentCommandError,
     export_codesys_powerflex525_bundle,
+    export_generated_block_library,
 )
 from .ccw_project import (
     CCWProjectCommandError,
@@ -230,6 +231,17 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         type=Path,
         help="Directory in which to write the deployment bundle.",
+    )
+    codesys_library = codesys_commands.add_parser(
+        "library",
+        help="Write TwinForge's generated function blocks (and a test program) as PLCopen XML "
+             "for a CODESYS library.",
+    )
+    codesys_library.add_argument(
+        "--output",
+        required=True,
+        type=Path,
+        help="Directory in which to write the library and test-project XML.",
     )
 
     model = commands.add_parser(
@@ -809,11 +821,14 @@ def main(
                 stdout=output,
             )
         elif arguments.command == "codesys":
-            export_codesys_powerflex525_bundle(
-                arguments.manifest,
-                arguments.output,
-                stdout=output,
-            )
+            if arguments.codesys_command == "library":
+                export_generated_block_library(arguments.output, stdout=output)
+            else:
+                export_codesys_powerflex525_bundle(
+                    arguments.manifest,
+                    arguments.output,
+                    stdout=output,
+                )
         elif arguments.command == "model":
             if arguments.model_command == "validate":
                 validate_model_json_file(arguments.path, stdout=output)

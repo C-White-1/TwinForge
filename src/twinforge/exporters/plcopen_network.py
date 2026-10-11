@@ -80,6 +80,13 @@ class BlockInterface:
     constants: tuple[tuple[str, str], ...] = ()
     standard: bool = True
     in_outs: tuple[tuple[str, str], ...] = ()
+    # Source pin -> block parameter, where the source's pin name is not usable
+    # (Machine Expert - Basic's `R`/`S` are reserved words in CODESYS).
+    source_pins: tuple[tuple[str, str], ...] = ()
+
+    def parameter(self, pin: str) -> str:
+        """The block parameter for a pin named as the source names it."""
+        return dict(self.source_pins).get(pin, pin)
 
     @property
     def wired_inputs(self) -> frozenset[str]:
@@ -145,7 +152,7 @@ def unsupported_reason(series: LadderSeries, blocks: Mapping[str, BlockInterface
             interface = blocks[instance]
             pins = interface.wired_inputs if instruction.operation is LadderOperation.FUNCTION_BLOCK_INPUT \
                 else frozenset(interface.outputs)
-            if pin not in pins:
+            if interface.parameter(pin) not in pins:
                 return f"{instruction.source_mnemonic} pin {pin} has no {interface.type_name} equivalent"
             continue
         if instruction.operation not in ENCODINGS:
@@ -154,7 +161,7 @@ def unsupported_reason(series: LadderSeries, blocks: Mapping[str, BlockInterface
         if member is not None and member[0] not in blocks:
             return f"{operand} reads a member of {member[0]}, which is not a convertible function block instance"
         # Contacts and coils are BOOL; only a block's BOOL outputs can be read.
-        if member is not None and member[1] not in blocks[member[0]].bool_outputs:
+        if member is not None and blocks[member[0]].parameter(member[1]) not in blocks[member[0]].bool_outputs:
             return f"{operand} is not a BOOL output of {blocks[member[0]].type_name}"
     if not any(instruction.operation in OUTPUT_OPERATIONS for instruction in instructions(series)):
         # Emitted, it would be a rung ending in a right rail nothing reaches.

@@ -59,3 +59,24 @@ def test_codesys_bundle_command_reports_invalid_manifest(
     assert result == 1
     assert "cannot export CODESYS deployment manifest" in errors.getvalue()
     assert not (tmp_path / "bundle").exists()
+
+
+def test_codesys_library_command_writes_the_library_and_its_tests(
+    tmp_path: Path,
+) -> None:
+    output = StringIO()
+    errors = StringIO()
+
+    result = main(
+        ("codesys", "library", "--output", str(tmp_path)),
+        stdout=output,
+        stderr=errors,
+    )
+
+    assert result == 0
+    assert errors.getvalue() == ""
+    library = (tmp_path / "TwinForge_MEBasic.xml").read_text(encoding="utf-8")
+    tests = (tmp_path / "TwinForge_MEBasic_Tests.xml").read_text(encoding="utf-8")
+    assert 'name="TF_MEBasic_Drum"' in library and 'name="TF_MEBasic_Tests"' not in library
+    assert 'name="TF_MEBasic_Tests"' in tests
+    assert "TwinForge_MEBasic 0.1.0" in output.getvalue()

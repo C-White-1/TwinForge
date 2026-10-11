@@ -43,6 +43,9 @@ class GeneratedFunctionBlock:
     verified: bool = False
     # VAR_IN_OUT parameters: variables the block writes in place.
     in_outs: tuple[tuple[str, str], ...] = ()
+    # Source pin -> parameter, where the vendor's pin name is a reserved word
+    # in IEC 61131-3 or CODESYS (`R` and `S` are Instruction List operators).
+    source_pins: tuple[tuple[str, str], ...] = ()
 
     @property
     def input_pins(self) -> frozenset[str]:
@@ -59,24 +62,25 @@ class GeneratedFunctionBlock:
 
 MACHINE_EXPERT_BASIC_COUNTER = GeneratedFunctionBlock(
     name="TF_MEBasic_Counter",
-    inputs=(("R", "BOOL"), ("S", "BOOL"), ("CU", "BOOL"), ("CD", "BOOL"), ("PV", "INT")),
+    inputs=(("RESET", "BOOL"), ("LOAD", "BOOL"), ("CU", "BOOL"), ("CD", "BOOL"), ("PV", "INT")),
     outputs=(("E", "BOOL"), ("D", "BOOL"), ("F", "BOOL"), ("CV", "INT")),
     locals=(("CU_LAST", "BOOL"), ("CD_LAST", "BOOL")),
     body="""(* TwinForge-generated: Machine Expert - Basic Counter (%C) behaviour, from the
    Generic Functions Library Guide EIO0000003289.04, Counter (%C), checked in
    the Machine Expert - Basic 3.0 simulator
    (docs/experiments/machine-expert-basic-counter-simulator.md).
-   R has priority and clears everything. S loads the preset and sets D.
+   RESET (the source's R) has priority and clears everything. LOAD (the
+   source's S) loads the preset and sets D.
    CU and CD count on rising edges; edges on both in the same scan cancel.
    Counting up wraps 9999 -> 0 and sets F; counting down wraps 0 -> 9999 and
    sets E; the next count in either direction clears the flag. D is set
    whenever the value equals the preset. *)
-IF R THEN
+IF RESET THEN
     CV := 0;
     E := FALSE;
     D := FALSE;
     F := FALSE;
-ELSIF S THEN
+ELSIF LOAD THEN
     CV := PV;
     D := TRUE;
 ELSE
@@ -107,6 +111,7 @@ CD_LAST := CD;
     source="Generic Functions Library Guide EIO0000003289.04, Counter (%C); "
            "Machine Expert - Basic 3.0 simulator checks",
     verified=True,
+    source_pins=(("R", "RESET"), ("S", "LOAD")),
 )
 
 # function_block_semantics identifier -> generated block.
@@ -120,40 +125,40 @@ _DRUM_BODY = """\n(* TwinForge-generated: Machine Expert - Basic Drum (%DR) beha
    the Machine Expert - Basic 3.0 simulator
    (docs/experiments/machine-expert-basic-drum-simulator.md).
    NSTEPS steps (1-8); P<k> is step k's pattern, bit n = control bit n.
-   R holds the drum at step 0 and has priority, writing step 0's pattern
-   every scan it is on; a rising edge on U advances one step, wrapping from
+   RESET (the source's R) holds the drum at step 0 and has priority,
+   writing step 0's pattern every scan it is on; a rising edge on U advances one step, wrapping from
    the last step to step 0; F is on at the last step. Otherwise the control
    bits (B<n>, all 16, 0s included) are written only when the step changes,
    and are left as other logic wrote them in between. The step is kept
    across a controller stop/run; what a restart does to outputs follows
    the target runtime and is not modelled. *)
 WRITE := FALSE;
-IF R THEN
-    S := 0;
+IF RESET THEN
+    STEP_NO := 0;
     WRITE := TRUE;
 ELSIF U AND NOT U_LAST THEN
-    IF S >= NSTEPS - 1 THEN
-        S := 0;
+    IF STEP_NO >= NSTEPS - 1 THEN
+        STEP_NO := 0;
     ELSE
-        S := S + 1;
+        STEP_NO := STEP_NO + 1;
     END_IF;
     WRITE := TRUE;
 END_IF;
 U_LAST := U;
 IF WRITE THEN
-    IF S = 0 THEN
+    IF STEP_NO = 0 THEN
         PATTERN := P0;
-    ELSIF S = 1 THEN
+    ELSIF STEP_NO = 1 THEN
         PATTERN := P1;
-    ELSIF S = 2 THEN
+    ELSIF STEP_NO = 2 THEN
         PATTERN := P2;
-    ELSIF S = 3 THEN
+    ELSIF STEP_NO = 3 THEN
         PATTERN := P3;
-    ELSIF S = 4 THEN
+    ELSIF STEP_NO = 4 THEN
         PATTERN := P4;
-    ELSIF S = 5 THEN
+    ELSIF STEP_NO = 5 THEN
         PATTERN := P5;
-    ELSIF S = 6 THEN
+    ELSIF STEP_NO = 6 THEN
         PATTERN := P6;
     ELSE
         PATTERN := P7;
@@ -175,14 +180,14 @@ IF WRITE THEN
     B14 := (PATTERN AND WORD#16#4000) <> WORD#0;
     B15 := (PATTERN AND WORD#16#8000) <> WORD#0;
 END_IF;
-F := S = NSTEPS - 1;
+F := STEP_NO = NSTEPS - 1;
 """
 
 MACHINE_EXPERT_BASIC_DRUM = GeneratedFunctionBlock(
     name="TF_MEBasic_Drum",
-    inputs=(("R", "BOOL"), ("U", "BOOL"), ("NSTEPS", "INT"),
+    inputs=(("RESET", "BOOL"), ("U", "BOOL"), ("NSTEPS", "INT"),
             *((f"P{step}", "WORD") for step in range(8))),
-    outputs=(("F", "BOOL"), ("S", "INT")),
+    outputs=(("F", "BOOL"), ("STEP_NO", "INT")),
     locals=(("U_LAST", "BOOL"), ("WRITE", "BOOL"), ("PATTERN", "WORD")),
     body=_DRUM_BODY,
     source="Generic Functions Library Guide EIO0000003289.04, Drum (%DR); "
@@ -191,6 +196,7 @@ MACHINE_EXPERT_BASIC_DRUM = GeneratedFunctionBlock(
     # Written in place, and only when the step changes: a VAR_IN_OUT, not an
     # output pin, so other logic's writes stand in between (as on the M221).
     in_outs=tuple((f"B{bit}", "BOOL") for bit in range(16)),
+    source_pins=(("R", "RESET"), ("S", "STEP_NO")),
 )
 
 LIBRARY["machine-expert-basic.drum"] = MACHINE_EXPERT_BASIC_DRUM
