@@ -48,6 +48,8 @@ exclude = [
     "**/.*",
     # Legacy live-discovery example for an API that is not implemented yet.
     "examples/build_twin.py",
+    # Scripts that run inside CODESYS's IronPython 2.7 ScriptEngine.
+    "examples/CODESYS/scripts",
     "reference",
 ]
 pythonVersion = "3.10"

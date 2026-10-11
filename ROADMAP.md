@@ -188,6 +188,28 @@ roadmaps linked from each item.
      - [ ] Fewer mandatory in-outs: one `WORD` in-out for the 16 bits plus a
        mask of the bits the drum owns (only those are written), instead of
        16 `BOOL` in-outs that must all be bound.
+     - [ ] One pattern input, `PATTERN : ARRAY[0..7] OF WORD`, instead of
+       `P0`..`P7`, so a pattern table (binary literals, `2#0000_0000_0000_0011`,
+       one line per step: the Assistant's grid on its side) or an editor
+       binds to a single array.
+     - [x] Feasibility test (2026-10-12, CODESYS V3.5 SP22 Patch 3):
+       `examples/CODESYS/scripts/drum_pattern_dialog_test.py`, run from
+       Tools > Scripting, showed a Windows Forms step x bit grid inside
+       CODESYS and wrote the ticked pattern (fixture 14's: `0011`, `0100`,
+       `1000`) as binary literals into a new global variable list
+       `TF_DrumPatternTest`. Both halves work, so the script route is viable
+       and the standalone fallback is not needed.
+     - [ ] Design-time pattern editor, the Drum Assistant's equivalent: a
+       CODESYS script launched from a toolbar button, opening a step x bit
+       grid with output names, reading and writing the pattern table in a
+       global variable list. Not an IDE plug-in (Automation Platform SDK:
+       licensed, heavy, version-tied). Fallback if the test fails: a
+       standalone grid tool (web page or TwinForge command) that produces
+       the declaration to paste.
+     - [ ] Optional run-time pattern editor: a visualisation frame in the
+       library (steps x bits checkboxes bound to the pattern array, the
+       current step highlighted), for commissioning; may need a
+       TargetVisu/WebVisu licence on real devices.
      - [ ] Library documentation: usage examples (ST and LD), the
        grid-to-pattern table, the behaviour and verification notes, and what
        is not modelled, as a README and as POU comments CODESYS shows in
