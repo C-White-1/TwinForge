@@ -717,7 +717,17 @@ class PLCopenExporter:
             pins[parameter] = ET.SubElement(variable, _q(ns, "connectionPointIn"))
             if parameter in constant_ids:
                 self._condition_connection(pins[parameter], constant_ids[parameter])
-        ET.SubElement(block, _q(ns, "inOutVariables"))
+        in_outs = ET.SubElement(block, _q(ns, "inOutVariables"))
+        for parameter, operand in interface.in_outs:
+            # The variable written in place, passed to the in-out parameter.
+            bound_id = self._id()
+            bound = ET.SubElement(ld, _q(ns, "inVariable"), {"localId": str(bound_id)})
+            self._position(bound)
+            ET.SubElement(bound, _q(ns, "connectionPointOut"))
+            ET.SubElement(bound, _q(ns, "expression")).text = self._portable_operand(operand)
+            variable = ET.SubElement(in_outs, _q(ns, "variable"), {"formalParameter": parameter})
+            self._condition_connection(ET.SubElement(variable, _q(ns, "connectionPointIn")), bound_id)
+            ET.SubElement(variable, _q(ns, "connectionPointOut"))
         outputs = ET.SubElement(block, _q(ns, "outputVariables"))
         for parameter in interface.outputs:
             variable = ET.SubElement(outputs, _q(ns, "variable"), {"formalParameter": parameter})

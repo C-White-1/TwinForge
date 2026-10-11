@@ -11,9 +11,10 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from twinforge.exporters import plcopen_operands
 from twinforge.exporters.plcopen import PLCopenExporter
-from twinforge.exporters.plcopen_library import LIBRARY, MACHINE_EXPERT_BASIC_COUNTER
+from twinforge.exporters.plcopen_library import (
+    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, GeneratedFunctionBlock, generated_block_for,
+)
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
 from twinforge.model import (
     Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
@@ -87,8 +88,7 @@ def test_counter_is_verified():
 @pytest.fixture
 def unverified_counter(monkeypatch):
     semantics = BASIC_MAPPING.counters.semantics
-    monkeypatch.setitem(plcopen_operands.GENERATED_LIBRARY, semantics,
-                        replace(LIBRARY[semantics], verified=False))
+    monkeypatch.setitem(LIBRARY, semantics, replace(LIBRARY[semantics], verified=False))
 
 
 @pytest.mark.usefixtures("unverified_counter")
@@ -180,26 +180,26 @@ def test_fixture_counter_exports():
     assert block.get("typeName") == "TF_MEBasic_Counter"
 
 
-class CounterRun:
-    """Executes the generated counter body one controller scan at a time."""
+class BlockRun:
+    """Executes a generated block's body one controller scan at a time."""
 
     BINARY = {
-        "AND": lambda a, b: a and b, "OR": lambda a, b: a or b, "=": lambda a, b: a == b,
+        "AND": lambda a, b: a and b, "OR": lambda a, b: a or b, "=": lambda a, b: a == b, "<>": lambda a, b: a != b,
         ">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b, "+": lambda a, b: a + b, "-": lambda a, b: a - b,
     }
 
-    def __init__(self, preset: int = 3):
-        document = parse_structured_text(MACHINE_EXPERT_BASIC_COUNTER.body)
+    def __init__(self, block: GeneratedFunctionBlock, **constants: int):
+        document = parse_structured_text(block.body)
         assert not document.diagnostics
         self.statements = document.statements
+        self.inputs = [name for name, data_type in block.inputs if data_type == "BOOL"]
         self.state: dict[str, bool | int] = {
             name: (0 if data_type == "INT" else False)
-            for name, data_type in (*MACHINE_EXPERT_BASIC_COUNTER.inputs, *MACHINE_EXPERT_BASIC_COUNTER.outputs,
-                                    *MACHINE_EXPERT_BASIC_COUNTER.locals)}
-        self.state["PV"] = preset
+            for name, data_type in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)}
+        self.state.update(constants)
 
     def scan(self, **inputs: bool) -> None:
-        for pin in ("R", "S", "CU", "CD"):
+        for pin in self.inputs:
             self.state[pin] = inputs.get(pin, False)
         self._run(self.statements)
 
@@ -208,9 +208,6 @@ class CounterRun:
         self.scan(**dict.fromkeys(pins, True))
         self.scan()
 
-    def outputs(self) -> tuple[bool | int, ...]:
-        """(V, D, E, F), the columns recorded in the simulator."""
-        return (self.state["CV"], self.state["D"], self.state["E"], self.state["F"])
 
     def _run(self, statements) -> None:
         for statement in statements:
@@ -237,6 +234,15 @@ class CounterRun:
         if isinstance(expression, BinaryExpression):
             return self.BINARY[expression.operator.upper()](self._value(expression.left), self._value(expression.right))
         raise AssertionError(f"unexpected expression {expression!r}")
+
+
+class CounterRun(BlockRun):
+    def __init__(self, preset: int = 3):
+        super().__init__(MACHINE_EXPERT_BASIC_COUNTER, PV=preset)
+
+    def outputs(self) -> tuple[bool | int, ...]:
+        """(V, D, E, F), the columns recorded in the simulator."""
+        return (self.state["CV"], self.state["D"], self.state["E"], self.state["F"])
 
 
 # Steps from docs/experiments/machine-expert-basic-counter-simulator.md;
@@ -304,3 +310,128 @@ def test_counting_down_clears_full():
     assert counter.outputs() == (0, False, False, True)
     counter.pulse("CD")
     assert counter.outputs() == (9999, False, True, False)
+
+
+# --- drums (%DR) ------------------------------------------------------------
+
+def drum_tag() -> Tag:
+    return parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller.tags["%DR0"]
+
+
+class DrumRun(BlockRun):
+    """Fixture 14's drum: 4 steps; step 1 sets B0 and B1, step 2 B2, step 3 B3."""
+
+    def __init__(self):
+        block = generated_block_for(drum_tag())
+        assert block is not None
+        super().__init__(block)
+
+    def outputs(self) -> tuple[bool | int | str, ...]:
+        """(S, F, outputs on), the columns recorded in the simulator."""
+        on = "".join(pin[1:] for pin in ("B0", "B1", "B2", "B3") if self.state[pin])
+        return (self.state["S"], self.state["F"], on)
+
+
+def test_drum_configuration_is_parsed_from_the_fixture():
+    tag = drum_tag()
+
+    assert tag.data_type == "Drum"
+    assert tag.metadata["drum_steps"] == 4
+    assert tag.metadata["iec_function_block_in_outs"] == {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}
+    assert tag.metadata["drum_patterns"] == {"B0": [1], "B1": [1], "B2": [2], "B3": [3]}
+
+
+# Steps from docs/experiments/machine-expert-basic-drum-simulator.md; expected
+# values are (S, F, outputs on) as recorded in the simulator.
+
+def test_drum_steps_through_its_pattern_and_wraps():
+    drum = DrumRun()
+    drum.pulse("R")
+    assert drum.outputs() == (0, False, "")       # A1
+    drum.pulse("U")
+    assert drum.outputs() == (1, False, "01")     # A2 (step 1 sets %Q0.0 and %Q0.1)
+    drum.pulse("U")
+    assert drum.outputs() == (2, False, "2")      # A3: a step writes 0s too
+    drum.pulse("U")
+    assert drum.outputs() == (3, True, "3")       # A4: F on the last step
+    drum.pulse("U")
+    assert drum.outputs() == (0, False, "")       # A5: wraps, F clears
+
+
+def test_reset_acts_while_held_and_wins():
+    drum = DrumRun()
+    drum.pulse("U")
+    drum.pulse("U")
+    assert drum.outputs() == (2, False, "2")      # B1
+    drum.scan(R=True)
+    drum.scan(R=True, U=True)                      # B2: U while R is held
+    drum.scan(R=True)
+    assert drum.outputs() == (0, False, "")       # R writes step 0's pattern
+    drum.scan()
+    assert drum.outputs() == (0, False, "")       # B3
+
+
+def test_outputs_are_written_only_when_the_step_changes():
+    drum = DrumRun()
+    drum.pulse("U")
+    assert drum.outputs() == (1, False, "01")     # C1
+    drum.state["B1"] = False                       # a reset coil elsewhere clears %Q0.1
+    drum.scan()
+    drum.scan()
+    assert drum.outputs() == (1, False, "0")      # C2: the drum does not rewrite it
+    drum.pulse("U")
+    assert drum.outputs() == (2, False, "2")      # the next step change does
+
+
+def test_reset_rewrites_step_zero_every_scan_it_is_held():
+    drum = DrumRun()
+    drum.scan(R=True)
+    drum.state["B0"] = True                        # E1b: a set coil elsewhere sets %Q0.0
+    drum.scan(R=True)
+    assert drum.outputs() == (0, False, "")       # cleared again while R is held
+    drum.scan()
+    drum.state["B0"] = True                        # with R released, a set stands
+    drum.scan()
+    assert drum.outputs() == (0, False, "0")
+
+
+def test_drum_is_verified_and_exports_by_default():
+    result = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+
+    assert "generated_block_unverified" not in [d.code for d in result.diagnostics]
+    assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
+    assert [p.get("name") for p in pous(result.xml)][0] == "TF_MEBasic_Drum_DR0"
+
+
+def test_drum_exports_with_its_outputs_bound_in_place():
+    result = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+    root = ET.fromstring(result.xml)
+
+    (definition,) = [p for p in pous(result.xml) if p.get("name") == "TF_MEBasic_Drum_DR0"]
+    in_out_vars = [v.get("name") for section in definition.iter() if _local(section.tag) == "inOutVars"
+                   for v in section if _local(v.tag) == "variable"]
+    assert in_out_vars == ["B0", "B1", "B2", "B3"]
+    elements = {e.get("localId"): e for e in root.iter() if e.get("localId")}
+    (block,) = [e for e in elements.values() if _local(e.tag) == "block" and e.get("typeName") == "TF_MEBasic_Drum_DR0"]
+    bound = {}
+    for section in block:
+        if _local(section.tag) != "inOutVariables":
+            continue
+        for variable in section:
+            (connection,) = [c for c in variable.iter() if _local(c.tag) == "connection"]
+            source = elements[connection.get("refLocalId")]
+            bound[variable.get("formalParameter")] = next(c.text for c in source if _local(c.tag) == "expression")
+    surrogates = {d.raw_value: d.object_name for d in result.diagnostics if d.code == "raw_operand_rewritten"}
+    assert bound == {pin: surrogates[address] for pin, address in
+                     {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}.items()}
+
+
+@pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
+@pytest.mark.parametrize("profile", ["standard_201", "codesys"])
+def test_drum_export_validates_against_tc6(profile: str):
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    xml = export(plc, profile).xml
+    if profile == "standard_201":
+        validate_plcopen_xml(xml, XSD)
+    else:
+        assert 'Object Name="TF_MEBasic_Drum_DR0"' in xml

@@ -12,8 +12,7 @@ from twinforge.converters import (
 from twinforge.model import Controller, Expression, LadderOperation, LadderSeries, Tag
 from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
-from .plcopen_library import LIBRARY as GENERATED_LIBRARY
-from .plcopen_library import GeneratedFunctionBlock
+from .plcopen_library import GeneratedFunctionBlock, generated_block_for
 from .plcopen_network import BIT_STRING_TYPES, BlockInterface, timer_interface
 from .plcopen_network import instructions as network_instructions
 from .plcopen_network import split_member
@@ -368,7 +367,7 @@ class PLCopenOperandPlanner:
         """Find IEC timer instances and give non-IEC tag names an IEC-safe name."""
         for tag in tags:
             inputs = tag.metadata.get("iec_function_block_inputs") or {}
-            generated = GENERATED_LIBRARY.get(tag.metadata.get("function_block_semantics") or "")
+            generated = generated_block_for(tag)
             if tag.data_type in IEC_TIMER_TYPES and "PT" in inputs:
                 self._function_block_instances[tag.name] = timer_interface(tag.data_type, str(inputs["PT"]))
             elif generated is not None and not (generated.verified or self._include_unverified_blocks):
@@ -382,10 +381,14 @@ class PLCopenOperandPlanner:
                     )
             elif generated is not None:
                 constant_pins = [pin for pin, _ in generated.inputs if pin in inputs]
+                bound = tag.metadata.get("iec_function_block_in_outs") or {}
+                for pin, _ in generated.in_outs:
+                    self._declare_boolean_operand(str(bound[pin]), names)
                 self._function_block_instances[tag.name] = BlockInterface(
                     generated.name, tuple(pin for pin, _ in generated.inputs),
                     tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
                     tuple((pin, str(inputs[pin])) for pin in constant_pins), standard=False,
+                    in_outs=tuple((pin, str(bound[pin])) for pin, _ in generated.in_outs),
                 )
                 self._generated_blocks.setdefault(generated.name, generated)
             if _IEC_IDENTIFIER.fullmatch(tag.name):
@@ -428,26 +431,30 @@ class PLCopenOperandPlanner:
                 root, name = member
                 self._operand_names[operand] = f"{self._operand_names.get(root, root)}.{name}"
                 continue
-            self._boolean_operands.add(operand)
-            if _IEC_OPERAND.fullmatch(operand) or operand in self._operand_names:
-                continue
-            portable = unique_portable_name(operand, names)
-            names.add(portable)
-            self._generated_tags.append(
-                Tag(
-                    name=portable,
-                    data_type="BOOL",
-                    description=f"Portable surrogate for source operand {operand}",
-                    metadata={"plcopen_source_operand": operand},
-                )
+            self._declare_boolean_operand(operand, names)
+
+    def _declare_boolean_operand(self, operand: str, names: set[str]) -> None:
+        """A BOOL operand; one IEC-safe surrogate when it is not an IEC identifier."""
+        self._boolean_operands.add(operand)
+        if _IEC_OPERAND.fullmatch(operand) or operand in self._operand_names:
+            return
+        portable = unique_portable_name(operand, names)
+        names.add(portable)
+        self._generated_tags.append(
+            Tag(
+                name=portable,
+                data_type="BOOL",
+                description=f"Portable surrogate for source operand {operand}",
+                metadata={"plcopen_source_operand": operand},
             )
-            self._diagnostic(
-                "raw_operand_rewritten",
-                "raw source operand was replaced by an IEC-safe surrogate variable",
-                portable,
-                raw_value=operand,
-            )
-            self._operand_names[operand] = portable
+        )
+        self._diagnostic(
+            "raw_operand_rewritten",
+            "raw source operand was replaced by an IEC-safe surrogate variable",
+            portable,
+            raw_value=operand,
+        )
+        self._operand_names[operand] = portable
 
     def _prepare_expression(
         self, expression: Expression, names: set[str], program: str, routine: str, rung: int | None,

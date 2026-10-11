@@ -266,6 +266,59 @@ def _counters(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -
         tag.metadata["iec_function_block_inputs"] = {"PV": preset}
 
 
+def _drums(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
+    """Give every drum the logic uses (or the file configures) a tag.
+
+    A configured drum carries its step count, and for each assigned control
+    bit its output (the declared name when the address has one) and the
+    steps that set it. A drum the logic uses but the file does not
+    configure keeps a tag with no semantics, so it is never converted.
+    """
+    drums = spec.drums
+    address_pattern = re.compile(drums.address_pattern + r"(?![0-9])")
+    entries: dict[str, CapturedSection] = {}
+    for entry in _select(root, drums.container + (drums.entry,)):
+        address = _text(entry, spec.entry_address)
+        if address:
+            entries[address] = entry
+    referenced: set[str] = set()
+    for pou in _select(root, spec.pous):
+        for rung in _select(pou, spec.rungs):
+            texts = [line.text or "" for entry in _select(rung, spec.rung_instruction_lines)
+                     for line in _select(entry, spec.instruction_text)]
+            texts.extend(_text(cell, spec.cell_descriptor) or "" for cell in _select(rung, spec.rung_cells))
+            for text in texts:
+                referenced.update(address_pattern.findall(text))
+    symbols = {tag.metadata["source_memory_address"]: name for name, tag in result.controller.tags.items()
+               if "source_memory_address" in tag.metadata and name != tag.metadata["source_memory_address"]}
+    for address in sorted(set(entries) | referenced, key=lambda a: int(a[3:])):
+        entry = entries.get(address)
+        tag = Tag(name=address, source_extensions=[_extension(entry)] if entry is not None else [])
+        tag.metadata["source_symbol_table"] = "Drums"
+        tag.metadata["source_memory_address"] = address
+        result.controller.add_tag(tag)
+        tag.data_type = drums.data_type
+        steps = _text(entry, drums.steps_field) if entry is not None else None
+        if entry is None or steps is None or not steps.isdigit() or int(steps) < 1:
+            result.report("drum_not_converted", f"{address}: no step configuration ({steps!r})", entry or root)
+            continue
+        outputs: dict[str, str] = {}
+        patterns: dict[str, list[int]] = {}
+        for bit in _select(entry, drums.bits):
+            output = _text(bit, drums.bit_output)
+            index = _text(bit, drums.bit_index)
+            if not output or index is None:
+                continue  # an unassigned bit drives nothing
+            pin = f"B{index}"
+            outputs[pin] = symbols.get(output, output)
+            patterns[pin] = [number for number, step in enumerate(_select(bit, drums.bit_steps))
+                             if number < int(steps) and _text(step, drums.step_used) == drums.used_value]
+        tag.metadata["function_block_semantics"] = drums.semantics
+        tag.metadata["drum_steps"] = int(steps)
+        tag.metadata["iec_function_block_in_outs"] = outputs
+        tag.metadata["drum_patterns"] = patterns
+
+
 def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
     used: set[str] = set()
     # Ladder operands use the declared tag name for an address when one exists.
@@ -311,5 +364,6 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     _tags(result, root, spec)
     _timers(result, root, spec)
     _counters(result, root, spec)
+    _drums(result, root, spec)
     _programs(result, root, spec)
     return result

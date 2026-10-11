@@ -76,12 +76,20 @@ roadmaps linked from each item.
      `include_unverified_blocks=True`). 334 of 358 sample rungs export as
      LD. Not covered: logic writing `%Ci.P` (the preset is a constant
      `PV`).
-   - [ ] **Drums** (`%DR`, a step sequencer writing configured outputs per
-     step): the same generated-block route, once
-     [the drum simulator checklist](docs/experiments/machine-expert-basic-drum-simulator.md)
-     settles the guide's contradictions (which output a control bit drives;
-     `R` level or edge) and its saved project shows how a configured drum
-     is stored (the one sample's `<Drums />` is empty).
+   - [x] **Drums** (`%DR`, a step sequencer writing configured outputs per
+     step, 2026-10-11). The parser
+     reads each configured drum (steps, each assigned bit's output and
+     pattern; fixture `14_drum_simulation.smbp`). Because the
+     [simulator](docs/experiments/machine-expert-basic-drum-simulator.md)
+     showed a drum writes its outputs only when its step changes, each
+     configured drum gets its own generated block
+     (`TF_MEBasic_Drum_<instance>`) with its pattern in the body and its
+     outputs as `VAR_IN_OUT` parameters, bound in the rung. Tests replay the
+     recorded sequence; a third simulator run corrected one assumption (a
+     held `R` rewrites step 0's pattern every scan) and the block is
+     verified, so drums export by default. Restart effects on outputs follow
+     the target runtime and are not modelled. A drum the file does not configure
+     (the one sample's `<Drums />` is empty) is reported, not converted.
    - `%WRITE_VAR` (write to a Modbus device) is not converted: it is a
      communication block with no portable IEC equivalent, so its rungs stay
      preserved evidence.

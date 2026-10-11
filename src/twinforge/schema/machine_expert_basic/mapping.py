@@ -94,6 +94,33 @@ class CounterSpec:
 
 
 @dataclass(frozen=True)
+class DrumSpec:
+    """`%DRi` drums (Generic Functions Library Guide EIO0000003289.04, Drum
+    (%DR)), configured in the Drum Assistant: a number of steps and, per
+    control bit 0-15, an output address and the steps that set it.
+
+    Stored (fixture 14_drum_simulation) as `StepsNumber` and 16
+    `BitForDrum` entries, each with `Index`, `Outputs` (absent when the bit
+    is unassigned) and one `Step` per step slot, `<Used>true</Used>` where
+    ticked. A drum writes its bits only when its step changes (verified in
+    the simulator), so its tag also carries its outputs and pattern.
+    """
+
+    container: PathSpec = ("SoftwareConfiguration", "Drums")
+    entry: str = "Drum"
+    steps_field: PathSpec = ("StepsNumber",)
+    bits: PathSpec = ("Bits", "BitForDrum")
+    bit_index: PathSpec = ("Index",)
+    bit_output: PathSpec = ("Outputs",)
+    bit_steps: PathSpec = ("Steps", "Step")
+    step_used: PathSpec = ("Used",)
+    used_value: str = "true"
+    address_pattern: str = r"%DR\d+"
+    data_type: str = "Drum"
+    semantics: str = "machine-expert-basic.drum"
+
+
+@dataclass(frozen=True)
 class MappingSpec:
     project_root: str = "ProjectDescriptor"
     encrypted_root: str = "CryptedProject"
@@ -116,6 +143,7 @@ class MappingSpec:
     entry_comment: PathSpec = ("Comment",)
     timers: TimerSpec = TimerSpec()
     counters: CounterSpec = CounterSpec()
+    drums: DrumSpec = DrumSpec()
     # Where block instances are named in logic: grid cells and IL `BLK x` lines.
     cell_descriptor: PathSpec = ("Descriptor",)
     expression_fields: tuple[PathSpec, ...] = (("ComparisonExpression",), ("OperationExpression",))

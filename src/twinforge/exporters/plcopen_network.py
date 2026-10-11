@@ -67,9 +67,10 @@ class BlockInterface:
 
     `inputs`/`outputs` are the block's pins in declaration order; `constants`
     are inputs fed from a literal (a timer's PT, a counter's PV) rather than
-    the rung; `bool_outputs` are the outputs a contact may read. `standard`
-    marks an IEC standard library block (CODESYS `Standard.`), as opposed
-    to a TwinForge-generated one.
+    the rung; `bool_outputs` are the outputs a contact may read. `in_outs`
+    binds each in-out parameter to the variable it writes in place (a
+    drum's outputs). `standard` marks an IEC standard library block
+    (CODESYS `Standard.`), as opposed to a TwinForge-generated one.
     """
 
     type_name: str
@@ -78,6 +79,7 @@ class BlockInterface:
     bool_outputs: frozenset[str]
     constants: tuple[tuple[str, str], ...] = ()
     standard: bool = True
+    in_outs: tuple[tuple[str, str], ...] = ()
 
     @property
     def wired_inputs(self) -> frozenset[str]:

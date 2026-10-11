@@ -51,7 +51,7 @@ results.
    to 0, and a force stays until you change it.
 
 Save the project as `examples/machine_expert_basic/14_drum_simulation.smbp`.
-(The saved fixture has rung 1 as the original plain coil.)
+(The saved fixture has rung 1 as the original plain coil, and rung 2 from the third run.)
 
 ## Steps and results
 
@@ -87,8 +87,24 @@ Record `S`, `F` and the outputs after each step (`Q` = which of
 - **Q5** `R` wins over `U`.
 - **Q6** Not testable: the animation table does not accept a `%DRi.S` write.
 
-Not observed: whether `R` held at step 0 rewrites step 0's pattern every
-scan, and what the outputs are before the first step change after start-up.
+Third run: while `R` is held the drum writes step 0's pattern every scan
+(E1, E1b), even when already at step 0; the step survives a stop/run (E2).
+With that, every behaviour the generated block encodes has been observed and
+`TF_MEBasic_Drum_<instance>` is marked verified. Restart effects on outputs
+are the target runtime's and are not modelled.
+
+### Third run (2026-10-11): the two assumptions
+
+TwinForge's generated block (`TF_MEBasic_Drum_<instance>`) encodes two
+behaviours nobody has observed yet; it stays unverified (not exported by
+default) until they are. Add rung 2: contact `%I0.3` → **set coil** `(S)`
+`%Q0.0`, and add `%I0.3` to the animation table.
+
+| Step | Action | S | F | Q on | Settles |
+| --- | --- | --- | --- | --- | --- |
+| E1 | Pulse `R`. Force `R` (`%I0.1`) to 1 and leave it on. Pulse `%I0.3` (sets `%Q0.0`). Is `%Q0.0` on? | 0 | 0 | none (`%Q0.0` cleared) | Does `R` held at step 0 rewrite step 0's pattern every scan? (assumed: no, `%Q0.0` stays on). **Assumption wrong:** `R` at step 0 wrote step 0's pattern. Order of forcing uncertain, so E1b decides every scan vs. once when `R` comes on |
+| E1b | Keep `R` forced on. Pulse `%I0.3` again (1, then 0). Is `%Q0.0` on? | 0 | 0 | none | **Settled: while `R` is held the drum rewrites step 0's pattern every scan** |
+| E2 | Release `R`. Pulse `U` (S = 1). **Stop controller**, then **Run controller** again. S and outputs? | 1 | 0 | `%Q0.0` (`%Q0.1` held off by rung 1's plain coil) | The step is kept across stop/run. Whether outputs are rewritten at start-up cannot be told apart here (`%Q0.0` was already 1); restart behaviour follows the target runtime and is not modelled |
 
 ## Notes
 
