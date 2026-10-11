@@ -139,6 +139,41 @@ roadmaps linked from each item.
 5. [ ] **Full Machine Expert (CODESYS-based): PLCopen XML import.** A new
    input format; 13 Logic Builder exports are already in the local
    `reference/machine-expert/plcopen/`.
+6. [ ] **Publishable CODESYS library of the generated blocks**
+   (`TwinForge_MEBasic`, proposed 2026-10-11), so other CODESYS users can
+   install the simulator-verified counter and drum instead of each export
+   embedding copies. Research, sources and publishing considerations:
+   [CODESYS library notes](docs/references/codesys-library-for-machine-expert-basic-blocks.md).
+   - Finding: no drum sequencer exists in IEC 61131-3, the CODESYS
+     Standard library, or OSCAT (its `SEQUENCE_n` is timer-driven).
+     Schneider's TwidoEmulationSupport library (EIO0000002956) has
+     `FB_Drum`/`FB_Counter`/`FB_Timer`, but only inside Machine Expert, and
+     its documented interface suggests drum outputs are written every scan,
+     unlike the M221 (written only on a step change).
+   - [ ] Redesign the drum as one reusable block: pattern as an input
+     (`ARRAY [0..15] OF BYTE`, as `FB_Drum`), the 16 bits as outputs plus a
+     write flag (on the scan the step changes and every scan `R` is held);
+     the exported rung writes each assigned output through set/reset coils
+     gated by the flag. Same observed behaviour, no per-drum block and no
+     `VAR_IN_OUT`; the recorded sequences stay the tests.
+   - [ ] Emit the library content as PLCopen XML (counter, drum, version,
+     and a test program replaying the recorded sequences).
+   - [ ] Compile it in CODESYS (user) - the first real compile of
+     TwinForge's generated Structured Text - and run the test program in
+     the CODESYS SoftPLC.
+   - [ ] CODESYS export option: reference the library instead of embedding
+     the blocks; standard/OpenPLC exports keep embedding.
+   - [ ] Publishing (user's decision): readable `.library` in the
+     repository, then optionally CODESYS Forge; README with verification
+     status, what is not modelled, a no-warranty note, and the CODESYS
+     version it was built with.
+   - [ ] Later candidates, from the TwidoEmulationSupport list: retentive
+     timers, shift bit register, FIFO/LIFO, step counter; logic writing a
+     preset or drum step.
+   - Option: a Machine Expert target profile mapping to Schneider's own
+     `FB_Counter`/`FB_Drum`/`FB_Timer`, and full Machine Expert's
+     Basic-project converter as an oracle on fixtures 13 and 14 (needs it
+     installed).
 
 ## Next: broaden offline engineering value
 
