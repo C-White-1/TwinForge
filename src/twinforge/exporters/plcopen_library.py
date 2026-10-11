@@ -11,18 +11,15 @@ A model tag selects a generated block through
 `metadata["function_block_semantics"]` (an identifier naming whose
 behaviour it is); its constant inputs come from
 `metadata["iec_function_block_inputs"]` and the variables bound to its
-in-out parameters from `metadata["iec_function_block_in_outs"]`. Most
-behaviours are one fixed block (`LIBRARY`); a configured one, such as a
-drum whose step pattern is part of its configuration, gets a block of its
-own (`FACTORIES`). The exporter emits a definition only when an instance
-uses it.
+in-out parameters from `metadata["iec_function_block_in_outs"]` (an in-out
+the instance does not bind is given a spare variable). Each block is fixed,
+so the set can be packaged as a CODESYS library. The exporter emits a
+definition only when an instance uses it.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-import re
 import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
@@ -118,79 +115,90 @@ LIBRARY: dict[str, GeneratedFunctionBlock] = {
 }
 
 
-def machine_expert_basic_drum(tag: Tag) -> GeneratedFunctionBlock | None:
-    """The block for one configured Machine Expert - Basic drum (`%DRi`).
-
-    Behaviour from the Generic Functions Library Guide EIO0000003289.04,
-    Drum (%DR), settled in the Machine Expert - Basic 3.0 simulator
-    (docs/experiments/machine-expert-basic-drum-simulator.md). Each assigned
-    control bit is an in-out parameter `B<n>`, written only when the step
-    changes; the step pattern is the drum's configuration, so it is part of
-    the body and each configured drum has its own block.
-    """
-    steps = tag.metadata.get("drum_steps")
-    patterns = tag.metadata.get("drum_patterns")
-    if not isinstance(steps, int) or steps < 1 or not isinstance(patterns, dict):
-        return None
-    pins = sorted(patterns, key=lambda pin: int(pin[1:]))
-    conditions = {pin: " OR ".join(f"(S = {step})" for step in patterns[pin]) or "FALSE" for pin in pins}
-    writes = "\n".join(f"    {pin} := {conditions[pin]};" for pin in pins)
-    body = f"""(* TwinForge-generated: Machine Expert - Basic Drum (%DR) {tag.name}, {steps} steps.
-   Behaviour from the Generic Functions Library Guide EIO0000003289.04, Drum
-   (%DR), checked in the Machine Expert - Basic 3.0 simulator
-   (docs/experiments/machine-expert-basic-drum-simulator.md). R holds the
-   drum at step 0 and has priority, writing step 0's pattern every scan it
-   is on; a rising edge on U advances one step, wrapping from the last step
-   to step 0; F is on at the last step. Otherwise the control bits (B<n>,
-   every assigned bit, 0s included) are written only when the step
-   changes, and are left as other logic wrote them in between. The step
-   is kept across a controller stop/run; what a restart does to outputs
-   follows the target runtime and is not modelled. *)
-CHANGED := FALSE;
+_DRUM_BODY = """\n(* TwinForge-generated: Machine Expert - Basic Drum (%DR) behaviour, from the
+   Generic Functions Library Guide EIO0000003289.04, Drum (%DR), checked in
+   the Machine Expert - Basic 3.0 simulator
+   (docs/experiments/machine-expert-basic-drum-simulator.md).
+   NSTEPS steps (1-8); P<k> is step k's pattern, bit n = control bit n.
+   R holds the drum at step 0 and has priority, writing step 0's pattern
+   every scan it is on; a rising edge on U advances one step, wrapping from
+   the last step to step 0; F is on at the last step. Otherwise the control
+   bits (B<n>, all 16, 0s included) are written only when the step changes,
+   and are left as other logic wrote them in between. The step is kept
+   across a controller stop/run; what a restart does to outputs follows
+   the target runtime and is not modelled. *)
+WRITE := FALSE;
 IF R THEN
     S := 0;
-    CHANGED := TRUE;
+    WRITE := TRUE;
 ELSIF U AND NOT U_LAST THEN
-    IF S >= {steps - 1} THEN
+    IF S >= NSTEPS - 1 THEN
         S := 0;
     ELSE
         S := S + 1;
     END_IF;
-    CHANGED := TRUE;
+    WRITE := TRUE;
 END_IF;
 U_LAST := U;
-IF CHANGED THEN
-{writes}
+IF WRITE THEN
+    IF S = 0 THEN
+        PATTERN := P0;
+    ELSIF S = 1 THEN
+        PATTERN := P1;
+    ELSIF S = 2 THEN
+        PATTERN := P2;
+    ELSIF S = 3 THEN
+        PATTERN := P3;
+    ELSIF S = 4 THEN
+        PATTERN := P4;
+    ELSIF S = 5 THEN
+        PATTERN := P5;
+    ELSIF S = 6 THEN
+        PATTERN := P6;
+    ELSE
+        PATTERN := P7;
+    END_IF;
+    B0 := (PATTERN AND WORD#16#0001) <> WORD#0;
+    B1 := (PATTERN AND WORD#16#0002) <> WORD#0;
+    B2 := (PATTERN AND WORD#16#0004) <> WORD#0;
+    B3 := (PATTERN AND WORD#16#0008) <> WORD#0;
+    B4 := (PATTERN AND WORD#16#0010) <> WORD#0;
+    B5 := (PATTERN AND WORD#16#0020) <> WORD#0;
+    B6 := (PATTERN AND WORD#16#0040) <> WORD#0;
+    B7 := (PATTERN AND WORD#16#0080) <> WORD#0;
+    B8 := (PATTERN AND WORD#16#0100) <> WORD#0;
+    B9 := (PATTERN AND WORD#16#0200) <> WORD#0;
+    B10 := (PATTERN AND WORD#16#0400) <> WORD#0;
+    B11 := (PATTERN AND WORD#16#0800) <> WORD#0;
+    B12 := (PATTERN AND WORD#16#1000) <> WORD#0;
+    B13 := (PATTERN AND WORD#16#2000) <> WORD#0;
+    B14 := (PATTERN AND WORD#16#4000) <> WORD#0;
+    B15 := (PATTERN AND WORD#16#8000) <> WORD#0;
 END_IF;
-F := S = {steps - 1};
+F := S = NSTEPS - 1;
 """
-    instance = re.sub(r"\W", "_", tag.name).strip("_") or "Drum"
-    return GeneratedFunctionBlock(
-        name=f"TF_MEBasic_Drum_{instance}",
-        inputs=(("R", "BOOL"), ("U", "BOOL")),
-        outputs=(("F", "BOOL"), ("S", "INT")),
-        locals=(("U_LAST", "BOOL"), ("CHANGED", "BOOL")),
-        body=body,
-        source="Generic Functions Library Guide EIO0000003289.04, Drum (%DR); "
-               "Machine Expert - Basic 3.0 simulator checks",
-        in_outs=tuple((pin, "BOOL") for pin in pins),
-        verified=True,
-    )
 
+MACHINE_EXPERT_BASIC_DRUM = GeneratedFunctionBlock(
+    name="TF_MEBasic_Drum",
+    inputs=(("R", "BOOL"), ("U", "BOOL"), ("NSTEPS", "INT"),
+            *((f"P{step}", "WORD") for step in range(8))),
+    outputs=(("F", "BOOL"), ("S", "INT")),
+    locals=(("U_LAST", "BOOL"), ("WRITE", "BOOL"), ("PATTERN", "WORD")),
+    body=_DRUM_BODY,
+    source="Generic Functions Library Guide EIO0000003289.04, Drum (%DR); "
+           "Machine Expert - Basic 3.0 simulator checks",
+    verified=True,
+    # Written in place, and only when the step changes: a VAR_IN_OUT, not an
+    # output pin, so other logic's writes stand in between (as on the M221).
+    in_outs=tuple((f"B{bit}", "BOOL") for bit in range(16)),
+)
 
-# function_block_semantics identifier -> block for one configured instance.
-FACTORIES: dict[str, Callable[[Tag], GeneratedFunctionBlock | None]] = {
-    "machine-expert-basic.drum": machine_expert_basic_drum,
-}
+LIBRARY["machine-expert-basic.drum"] = MACHINE_EXPERT_BASIC_DRUM
 
 
 def generated_block_for(tag: Tag) -> GeneratedFunctionBlock | None:
     """The generated block whose behaviour `tag` names, if TwinForge has one."""
-    semantics = tag.metadata.get("function_block_semantics") or ""
-    if semantics in LIBRARY:
-        return LIBRARY[semantics]
-    factory = FACTORIES.get(semantics)
-    return factory(tag) if factory is not None else None
+    return LIBRARY.get(tag.metadata.get("function_block_semantics") or "")
 
 
 def emit_function_block_pou(parent: ET.Element, block: GeneratedFunctionBlock, namespace: str) -> ET.Element:

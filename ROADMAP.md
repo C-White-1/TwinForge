@@ -81,10 +81,12 @@ roadmaps linked from each item.
      reads each configured drum (steps, each assigned bit's output and
      pattern; fixture `14_drum_simulation.smbp`). Because the
      [simulator](docs/experiments/machine-expert-basic-drum-simulator.md)
-     showed a drum writes its outputs only when its step changes, each
-     configured drum gets its own generated block
-     (`TF_MEBasic_Drum_<instance>`) with its pattern in the body and its
-     outputs as `VAR_IN_OUT` parameters, bound in the rung. Tests replay the
+     showed a drum writes its outputs only when its step changes, its 16
+     control bits are `VAR_IN_OUT` parameters of one fixed generated block,
+     `TF_MEBasic_Drum` (step count and one pattern word per step as constant
+     inputs; unassigned bits share a spare variable), bound in the rung.
+     (Until the library redesign the same day, each drum had its own block
+     with the pattern in its body.) Tests replay the
      recorded sequence; a third simulator run corrected one assumption (a
      held `R` rewrites step 0's pattern every scan) and the block is
      verified, so drums export by default. Restart effects on outputs follow
@@ -150,12 +152,15 @@ roadmaps linked from each item.
      `FB_Drum`/`FB_Counter`/`FB_Timer`, but only inside Machine Expert, and
      its documented interface suggests drum outputs are written every scan,
      unlike the M221 (written only on a step change).
-   - [ ] Redesign the drum as one reusable block: pattern as an input
-     (`ARRAY [0..15] OF BYTE`, as `FB_Drum`), the 16 bits as outputs plus a
-     write flag (on the scan the step changes and every scan `R` is held);
-     the exported rung writes each assigned output through set/reset coils
-     gated by the flag. Same observed behaviour, no per-drum block and no
-     `VAR_IN_OUT`; the recorded sequences stay the tests.
+   - [x] Redesign the drum as one reusable block (2026-10-11):
+     `TF_MEBasic_Drum` takes the step count and one pattern `WORD` per step
+     (`P0`..`P7`) as inputs and keeps its 16 bits as `VAR_IN_OUT`
+     parameters (an in-out the drum does not use is bound to a spare). The
+     first plan, plain outputs plus set/reset coils gated by a write flag,
+     was dropped: those coils would read the block's outputs from separate
+     LD logic whose order relative to the block is not defined.
+     `VAR_IN_OUT` is standard IEC. The recorded sequences stay the tests,
+     now fed with the constants the parser derives from the fixture.
    - [ ] Emit the library content as PLCopen XML (counter, drum, version,
      and a test program replaying the recorded sequences).
    - [ ] Compile it in CODESYS (user) - the first real compile of

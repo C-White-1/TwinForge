@@ -381,14 +381,26 @@ class PLCopenOperandPlanner:
                     )
             elif generated is not None:
                 constant_pins = [pin for pin, _ in generated.inputs if pin in inputs]
-                bound = tag.metadata.get("iec_function_block_in_outs") or {}
+                bound = {pin: str(operand) for pin, operand in
+                         (tag.metadata.get("iec_function_block_in_outs") or {}).items()}
                 for pin, _ in generated.in_outs:
-                    self._declare_boolean_operand(str(bound[pin]), names)
+                    if pin in bound:
+                        self._declare_boolean_operand(bound[pin], names)
+                if any(pin not in bound for pin, _ in generated.in_outs):
+                    # IEC requires every in-out to be bound; the ones this
+                    # instance does not use share one spare variable.
+                    spare = unique_portable_name(f"{tag.name}_Unused", names)
+                    names.add(spare)
+                    self._generated_tags.append(Tag(
+                        name=spare, data_type="BOOL",
+                        description=f"Unused in-out parameters of {tag.name}",
+                    ))
+                    bound = {pin: bound.get(pin, spare) for pin, _ in generated.in_outs}
                 self._function_block_instances[tag.name] = BlockInterface(
                     generated.name, tuple(pin for pin, _ in generated.inputs),
                     tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
                     tuple((pin, str(inputs[pin])) for pin in constant_pins), standard=False,
-                    in_outs=tuple((pin, str(bound[pin])) for pin, _ in generated.in_outs),
+                    in_outs=tuple((pin, bound[pin]) for pin, _ in generated.in_outs),
                 )
                 self._generated_blocks.setdefault(generated.name, generated)
             if _IEC_IDENTIFIER.fullmatch(tag.name):

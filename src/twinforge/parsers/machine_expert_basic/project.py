@@ -299,7 +299,7 @@ def _drums(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> N
         result.controller.add_tag(tag)
         tag.data_type = drums.data_type
         steps = _text(entry, drums.steps_field) if entry is not None else None
-        if entry is None or steps is None or not steps.isdigit() or int(steps) < 1:
+        if entry is None or steps is None or not steps.isdigit() or not 1 <= int(steps) <= drums.max_steps:
             result.report("drum_not_converted", f"{address}: no step configuration ({steps!r})", entry or root)
             continue
         outputs: dict[str, str] = {}
@@ -313,10 +313,14 @@ def _drums(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> N
             outputs[pin] = symbols.get(output, output)
             patterns[pin] = [number for number, step in enumerate(_select(bit, drums.bit_steps))
                              if number < int(steps) and _text(step, drums.step_used) == drums.used_value]
+        words = [sum(1 << int(pin[1:]) for pin, on in patterns.items() if step in on)
+                 for step in range(drums.max_steps)]
         tag.metadata["function_block_semantics"] = drums.semantics
         tag.metadata["drum_steps"] = int(steps)
-        tag.metadata["iec_function_block_in_outs"] = outputs
         tag.metadata["drum_patterns"] = patterns
+        tag.metadata["iec_function_block_inputs"] = {
+            "NSTEPS": steps, **{f"P{step}": f"WORD#16#{word:04X}" for step, word in enumerate(words)}}
+        tag.metadata["iec_function_block_in_outs"] = outputs
 
 
 def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:

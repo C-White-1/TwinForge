@@ -13,7 +13,7 @@ import pytest
 
 from twinforge.exporters.plcopen import PLCopenExporter
 from twinforge.exporters.plcopen_library import (
-    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, GeneratedFunctionBlock, generated_block_for,
+    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock, generated_block_for,
 )
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
 from twinforge.model import (
@@ -180,11 +180,23 @@ def test_fixture_counter_exports():
     assert block.get("typeName") == "TF_MEBasic_Counter"
 
 
+def literal_value(text: str) -> bool | int:
+    """An IEC literal: TRUE/FALSE, an integer, or a typed one such as WORD#16#0003."""
+    value = text.upper().rsplit("#", 2)
+    if value[0] in ("TRUE", "FALSE"):
+        return value[0] == "TRUE"
+    if len(value) == 3:  # TYPE#BASE#DIGITS
+        return int(value[2], int(value[1]))
+    if len(value) == 2:  # TYPE#DIGITS or BASE#DIGITS
+        return int(value[1], int(value[0])) if value[0].isdigit() else int(value[1])
+    return int(value[0])
+
+
 class BlockRun:
     """Executes a generated block's body one controller scan at a time."""
 
     BINARY = {
-        "AND": lambda a, b: a and b, "OR": lambda a, b: a or b, "=": lambda a, b: a == b, "<>": lambda a, b: a != b,
+        "AND": lambda a, b: a and b if isinstance(a, bool) else a & b, "OR": lambda a, b: a or b, "=": lambda a, b: a == b, "<>": lambda a, b: a != b,
         ">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b, "+": lambda a, b: a + b, "-": lambda a, b: a - b,
     }
 
@@ -224,8 +236,7 @@ class BlockRun:
         if isinstance(expression, NameExpression):
             return self.state[expression.name]
         if isinstance(expression, LiteralExpression):
-            value = expression.value.upper()
-            return value == "TRUE" if value in ("TRUE", "FALSE") else int(value)
+            return literal_value(expression.value)
         if isinstance(expression, ParenthesizedExpression):
             return self._value(expression.expression)
         if isinstance(expression, UnaryExpression):
@@ -319,12 +330,15 @@ def drum_tag() -> Tag:
 
 
 class DrumRun(BlockRun):
-    """Fixture 14's drum: 4 steps; step 1 sets B0 and B1, step 2 B2, step 3 B3."""
+    """Fixture 14's drum: 4 steps; step 1 sets B0 and B1, step 2 B2, step 3 B3.
+
+    Its constant inputs (step count, pattern words) are the ones the parser
+    gives the fixture's tag, so the replay covers parser and block together.
+    """
 
     def __init__(self):
-        block = generated_block_for(drum_tag())
-        assert block is not None
-        super().__init__(block)
+        constants = {pin: literal_value(text) for pin, text in drum_tag().metadata["iec_function_block_inputs"].items()}
+        super().__init__(MACHINE_EXPERT_BASIC_DRUM, **constants)
 
     def outputs(self) -> tuple[bool | int | str, ...]:
         """(S, F, outputs on), the columns recorded in the simulator."""
@@ -339,6 +353,10 @@ def test_drum_configuration_is_parsed_from_the_fixture():
     assert tag.metadata["drum_steps"] == 4
     assert tag.metadata["iec_function_block_in_outs"] == {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}
     assert tag.metadata["drum_patterns"] == {"B0": [1], "B1": [1], "B2": [2], "B3": [3]}
+    assert tag.metadata["iec_function_block_inputs"] == {
+        "NSTEPS": "4", "P0": "WORD#16#0000", "P1": "WORD#16#0003", "P2": "WORD#16#0004", "P3": "WORD#16#0008",
+        **{f"P{step}": "WORD#16#0000" for step in range(4, 8)}}
+    assert generated_block_for(tag) is MACHINE_EXPERT_BASIC_DRUM
 
 
 # Steps from docs/experiments/machine-expert-basic-drum-simulator.md; expected
@@ -400,19 +418,20 @@ def test_drum_is_verified_and_exports_by_default():
 
     assert "generated_block_unverified" not in [d.code for d in result.diagnostics]
     assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
-    assert [p.get("name") for p in pous(result.xml)][0] == "TF_MEBasic_Drum_DR0"
+    assert [p.get("name") for p in pous(result.xml)][0] == "TF_MEBasic_Drum"
 
 
 def test_drum_exports_with_its_outputs_bound_in_place():
     result = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
     root = ET.fromstring(result.xml)
 
-    (definition,) = [p for p in pous(result.xml) if p.get("name") == "TF_MEBasic_Drum_DR0"]
+    (definition,) = [p for p in pous(result.xml) if p.get("name") == "TF_MEBasic_Drum"]
     in_out_vars = [v.get("name") for section in definition.iter() if _local(section.tag) == "inOutVars"
                    for v in section if _local(v.tag) == "variable"]
-    assert in_out_vars == ["B0", "B1", "B2", "B3"]
+    assert in_out_vars == [f"B{bit}" for bit in range(16)]
     elements = {e.get("localId"): e for e in root.iter() if e.get("localId")}
-    (block,) = [e for e in elements.values() if _local(e.tag) == "block" and e.get("typeName") == "TF_MEBasic_Drum_DR0"]
+    (block,) = [e for e in elements.values() if _local(e.tag) == "block" and e.get("typeName") == "TF_MEBasic_Drum"]
+    assert block.get("instanceName") == "TF_DR0"
     bound = {}
     for section in block:
         if _local(section.tag) != "inOutVariables":
@@ -422,8 +441,9 @@ def test_drum_exports_with_its_outputs_bound_in_place():
             source = elements[connection.get("refLocalId")]
             bound[variable.get("formalParameter")] = next(c.text for c in source if _local(c.tag) == "expression")
     surrogates = {d.raw_value: d.object_name for d in result.diagnostics if d.code == "raw_operand_rewritten"}
-    assert bound == {pin: surrogates[address] for pin, address in
-                     {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}.items()}
+    assert bound == {**{pin: surrogates[address] for pin, address in
+                        {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}.items()},
+                     **{f"B{bit}": "TF_DR0_Unused" for bit in range(4, 16)}}  # unassigned bits share a spare
 
 
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
@@ -434,4 +454,4 @@ def test_drum_export_validates_against_tc6(profile: str):
     if profile == "standard_201":
         validate_plcopen_xml(xml, XSD)
     else:
-        assert 'Object Name="TF_MEBasic_Drum_DR0"' in xml
+        assert 'Object Name="TF_MEBasic_Drum"' in xml

@@ -90,12 +90,12 @@ Record `S`, `F` and the outputs after each step (`Q` = which of
 Third run: while `R` is held the drum writes step 0's pattern every scan
 (E1, E1b), even when already at step 0; the step survives a stop/run (E2).
 With that, every behaviour the generated block encodes has been observed and
-`TF_MEBasic_Drum_<instance>` is marked verified. Restart effects on outputs
+the generated drum block (now `TF_MEBasic_Drum`) is marked verified. Restart effects on outputs
 are the target runtime's and are not modelled.
 
 ### Third run (2026-10-11): the two assumptions
 
-TwinForge's generated block (`TF_MEBasic_Drum_<instance>`) encodes two
+TwinForge's generated block (then `TF_MEBasic_Drum_<instance>`, now `TF_MEBasic_Drum`) encodes two
 behaviours nobody has observed yet; it stays unverified (not exported by
 default) until they are. Add rung 2: contact `%I0.3` → **set coil** `(S)`
 `%Q0.0`, and add `%I0.3` to the animation table.

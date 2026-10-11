@@ -102,8 +102,9 @@ class DrumSpec:
     Stored (fixture 14_drum_simulation) as `StepsNumber` and 16
     `BitForDrum` entries, each with `Index`, `Outputs` (absent when the bit
     is unassigned) and one `Step` per step slot, `<Used>true</Used>` where
-    ticked. A drum writes its bits only when its step changes (verified in
-    the simulator), so its tag also carries its outputs and pattern.
+    ticked. Its tag carries the step count and one pattern word per step
+    (bit n set when control bit n is on in that step) as constant inputs,
+    and the assigned outputs as the variables its bits are written to.
     """
 
     container: PathSpec = ("SoftwareConfiguration", "Drums")
@@ -115,6 +116,8 @@ class DrumSpec:
     bit_steps: PathSpec = ("Steps", "Step")
     step_used: PathSpec = ("Used",)
     used_value: str = "true"
+    # The Drum Assistant offers 8 step columns and 16 control bits.
+    max_steps: int = 8
     address_pattern: str = r"%DR\d+"
     data_type: str = "Drum"
     semantics: str = "machine-expert-basic.drum"
