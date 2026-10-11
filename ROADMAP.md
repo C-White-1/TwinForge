@@ -193,7 +193,7 @@ roadmaps linked from each item.
        one line per step: the Assistant's grid on its side) or an editor
        binds to a single array.
      - [x] Feasibility test (2026-10-12, CODESYS V3.5 SP22 Patch 3):
-       `examples/CODESYS/scripts/drum_pattern_dialog_test.py`, run from
+       `examples/CODESYS/scripts/drum_pattern_dialog_feasibility.py`, run from
        Tools > Scripting, showed a Windows Forms step x bit grid inside
        CODESYS and wrote the ticked pattern (fixture 14's: `0011`, `0100`,
        `1000`) as binary literals into a new global variable list
