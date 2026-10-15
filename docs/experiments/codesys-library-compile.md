@@ -98,6 +98,14 @@ and `TF_MEBasic_Drum` were deleted, leaving `TF_MEBasic_Tests` to use the
 installed library's blocks; after a reset and start, **29 checks, 0
 failures**. The installed library itself reproduces every recorded check.
 
+### Run 3, library 0.2.0 (2026-10-15)
+
+The drum's `P0`..`P7` became one `PATTERN : ARRAY[0..7] OF WORD` input, and
+the test program declares each drum check's table as an initialised array
+variable. Imported into CODESYS, built and run in the SoftPLC: **29 checks,
+0 failures**. CODESYS accepts an array function block input and an
+initialised array variable from imported PLCopen XML.
+
 ## Notes
 
 Anything surprising, write it here. Screenshots of the build messages and

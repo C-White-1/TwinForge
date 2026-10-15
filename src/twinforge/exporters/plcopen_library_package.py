@@ -21,41 +21,60 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 
 from .plcopen_library import (
-    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, XHTML_NAMESPACE, GeneratedFunctionBlock,
-    emit_function_block_pou,
+    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, XHTML_NAMESPACE, GeneratedFunctionBlock, array_bounds,
+    emit_array_value, emit_function_block_pou, emit_type,
 )
 from .plcopen_library_checks import CHECKS, Check, Expect, Scan, Value, Write
 from .plcopen_types import PLCopenProfile
 from .plcopen_xml import qualified_name as q
 
 LIBRARY_NAME = "TwinForge_MEBasic"
-LIBRARY_VERSION = "0.1.0"
+# 0.2.0: the drum takes one PATTERN array instead of P0..P7.
+LIBRARY_VERSION = "0.2.0"
 LIBRARY_BLOCKS: tuple[GeneratedFunctionBlock, ...] = (MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM)
 TEST_PROGRAM = "TF_MEBasic_Tests"
 RESULTS = (("xDone", "BOOL"), ("iChecks", "INT"), ("iFailures", "INT"), ("iFirstFailure", "INT"))
 
 
 @dataclass(frozen=True)
-class ChecksProgram:
-    """A program replaying checks: its local variables (name, type, and the
-    function block type for an instance) and its Structured Text body."""
+class ProgramVariable:
+    """A local variable of the test program: a block instance (`data_type` is
+    the block), or a typed variable, optionally with an array initial value."""
 
-    variables: tuple[tuple[str, str, bool], ...]
+    name: str
+    data_type: str
+    instance: bool = False
+    initial: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ChecksProgram:
+    """A program replaying checks: its local variables and its Structured Text body."""
+
+    variables: tuple[ProgramVariable, ...]
     body: str
     labels: tuple[str, ...]
 
 
 def checks_program(checks: Sequence[Check] = CHECKS) -> ChecksProgram:
     """Structured Text replaying `checks`, one block instance per check."""
-    variables: list[tuple[str, str, bool]] = []
+    variables: list[ProgramVariable] = []
     statements: list[str] = []
     labels: list[str] = []
     for check in checks:
         block = check.block
         types = dict((*block.inputs, *block.outputs, *block.in_outs))
-        variables.append((check.name, block.name, True))
+        variables.append(ProgramVariable(check.name, block.name, instance=True))
         bound = {pin: f"{check.name}_{pin}" for pin, _ in block.in_outs}
-        variables.extend((name, "BOOL", False) for name in bound.values())
+        variables.extend(ProgramVariable(name, "BOOL") for name in bound.values())
+        # An array input is fed from a variable initialised with its table.
+        tables = {pin: f"{check.name}_{pin}" for pin, data_type in block.inputs if array_bounds(data_type)}
+        for pin, name in tables.items():
+            base = array_bounds(types[pin])
+            assert base is not None
+            table = check.constants[pin]
+            assert isinstance(table, tuple)
+            variables.append(ProgramVariable(name, types[pin], initial=tuple(_literal(word, base[2]) for word in table)))
         current: dict[str, Value] = dict(check.constants)
         statements.append(f"    (* {check.name} *)")
         for step in check.steps:
@@ -63,7 +82,7 @@ def checks_program(checks: Sequence[Check] = CHECKS) -> ChecksProgram:
                 current.update(step.inputs)
                 arguments = [f"{pin} := {_literal(step.inputs.get(pin, False), 'BOOL')}"
                              for pin, data_type in block.inputs if data_type == "BOOL"]
-                arguments += [f"{pin} := {_literal(current[pin], data_type)}"
+                arguments += [f"{pin} := {tables[pin] if pin in tables else _literal(current[pin], data_type)}"
                               for pin, data_type in block.inputs if data_type != "BOOL"]
                 arguments += [f"{pin} := {name}" for pin, name in bound.items()]
                 statements.append(f"    {check.name}({', '.join(arguments)});")
@@ -79,8 +98,8 @@ def checks_program(checks: Sequence[Check] = CHECKS) -> ChecksProgram:
         f"   iFailures counts failed checks; iFirstFailure is the number of the first:\n{legend} *)\n"
         "IF NOT xDone THEN\n" + "\n".join(statements) + "\n    xDone := TRUE;\nEND_IF;\n"
     )
-    return ChecksProgram(tuple(variables) + tuple((name, data_type, False) for name, data_type in RESULTS),
-                       body, tuple(labels))
+    return ChecksProgram(tuple(variables) + tuple(ProgramVariable(name, data_type) for name, data_type in RESULTS),
+                         body, tuple(labels))
 
 
 def _expect(step: Expect, instance: str, bound: Mapping[str, str], types: Mapping[str, str],
@@ -104,6 +123,7 @@ def _expect(step: Expect, instance: str, bound: Mapping[str, str], types: Mappin
 
 
 def _literal(value: Value, data_type: str) -> str:
+    assert not isinstance(value, tuple), "a table is passed through a variable"
     if data_type == "BOOL":
         return "TRUE" if value else "FALSE"
     if data_type == "WORD":
@@ -153,11 +173,14 @@ def library_document(
 def _emit_test_program(pous: ET.Element, program: ChecksProgram, ns: str) -> None:
     pou = ET.SubElement(pous, q(ns, "pou"), {"name": TEST_PROGRAM, "pouType": "program"})
     local_variables = ET.SubElement(ET.SubElement(pou, q(ns, "interface")), q(ns, "localVars"))
-    for name, data_type, instance in program.variables:
-        type_element = ET.SubElement(ET.SubElement(local_variables, q(ns, "variable"), {"name": name}), q(ns, "type"))
-        if instance:
-            ET.SubElement(type_element, q(ns, "derived"), {"name": data_type})
+    for variable in program.variables:
+        element = ET.SubElement(local_variables, q(ns, "variable"), {"name": variable.name})
+        type_element = ET.SubElement(element, q(ns, "type"))
+        if variable.instance:
+            ET.SubElement(type_element, q(ns, "derived"), {"name": variable.data_type})
         else:
-            ET.SubElement(type_element, q(ns, data_type))
+            emit_type(type_element, variable.data_type, ns)
+        if variable.initial:
+            emit_array_value(element, list(variable.initial), ns)
     st = ET.SubElement(ET.SubElement(pou, q(ns, "body")), q(ns, "ST"))
     ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml")).text = program.body

@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
 
+from .plcopen_library import emit_array_value, emit_type
 from .plcopen_operands import PLCOPEN_PRIMITIVE_TYPES, plcopen_type_element
 from .plcopen_xml import (
     plcopen_scalar_value,
@@ -74,6 +75,11 @@ class PLCopenVariableEmitter:
     def _supported_tags(self, tags: Iterable[Tag]) -> list[Tag]:
         supported: list[Tag] = []
         for tag in tags:
+            if tag.metadata.get("plcopen_array_type"):
+                # A table TwinForge generated (e.g. a drum's pattern), not a
+                # source array: its type and values are fully known.
+                supported.append(tag)
+                continue
             data_type = self._tag_export_type(tag)
             if tag.alias_for:
                 self._report_diagnostic(
@@ -128,8 +134,11 @@ class PLCopenVariableEmitter:
             variable,
             qualified_name(self._namespace, "type"),
         )
+        array_type = tag.metadata.get("plcopen_array_type")
         derived_type = tag.metadata.get("plcopen_derived_type") or self._function_block_type(tag)
-        if derived_type is not None:
+        if array_type:
+            emit_type(type_element, str(array_type), self._namespace)
+        elif derived_type is not None:
             ET.SubElement(
                 type_element,
                 qualified_name(self._namespace, "derived"),
@@ -151,6 +160,10 @@ class PLCopenVariableEmitter:
             )
 
     def _initial_value(self, variable: ET.Element, tag: Tag) -> None:
+        array_values = tag.metadata.get("plcopen_array_values")
+        if array_values:
+            emit_array_value(variable, [str(value) for value in array_values], self._namespace)
+            return
         if tag.initial_value is None:
             return
         initial_value = ET.SubElement(

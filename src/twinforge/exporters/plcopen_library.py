@@ -20,6 +20,7 @@ definition only when an instance uses it.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
@@ -120,14 +121,17 @@ LIBRARY: dict[str, GeneratedFunctionBlock] = {
 }
 
 
-_DRUM_BODY = """\n(* TwinForge-generated: Machine Expert - Basic Drum (%DR) behaviour, from the
+_DRUM_BODY = """\
+(* TwinForge-generated: Machine Expert - Basic Drum (%DR) behaviour, from the
    Generic Functions Library Guide EIO0000003289.04, Drum (%DR), checked in
    the Machine Expert - Basic 3.0 simulator
    (docs/experiments/machine-expert-basic-drum-simulator.md).
-   NSTEPS steps (1-8); P<k> is step k's pattern, bit n = control bit n.
+   NSTEPS steps (1-8); PATTERN[k] is step k's pattern, bit n = control bit n
+   (written most readably as binary literals, 2#0000_0000_0000_0011).
    RESET (the source's R) holds the drum at step 0 and has priority,
-   writing step 0's pattern every scan it is on; a rising edge on U advances one step, wrapping from
-   the last step to step 0; F is on at the last step. Otherwise the control
+   writing step 0's pattern every scan it is on; a rising edge on U
+   advances one step, wrapping from the last step to step 0; F is on at
+   the last step. Otherwise the control
    bits (B<n>, all 16, 0s included) are written only when the step changes,
    and are left as other logic wrote them in between. The step is kept
    across a controller stop/run; what a restart does to outputs follows
@@ -146,49 +150,32 @@ ELSIF U AND NOT U_LAST THEN
 END_IF;
 U_LAST := U;
 IF WRITE THEN
-    IF STEP_NO = 0 THEN
-        PATTERN := P0;
-    ELSIF STEP_NO = 1 THEN
-        PATTERN := P1;
-    ELSIF STEP_NO = 2 THEN
-        PATTERN := P2;
-    ELSIF STEP_NO = 3 THEN
-        PATTERN := P3;
-    ELSIF STEP_NO = 4 THEN
-        PATTERN := P4;
-    ELSIF STEP_NO = 5 THEN
-        PATTERN := P5;
-    ELSIF STEP_NO = 6 THEN
-        PATTERN := P6;
-    ELSE
-        PATTERN := P7;
-    END_IF;
-    B0 := (PATTERN AND WORD#16#0001) <> WORD#0;
-    B1 := (PATTERN AND WORD#16#0002) <> WORD#0;
-    B2 := (PATTERN AND WORD#16#0004) <> WORD#0;
-    B3 := (PATTERN AND WORD#16#0008) <> WORD#0;
-    B4 := (PATTERN AND WORD#16#0010) <> WORD#0;
-    B5 := (PATTERN AND WORD#16#0020) <> WORD#0;
-    B6 := (PATTERN AND WORD#16#0040) <> WORD#0;
-    B7 := (PATTERN AND WORD#16#0080) <> WORD#0;
-    B8 := (PATTERN AND WORD#16#0100) <> WORD#0;
-    B9 := (PATTERN AND WORD#16#0200) <> WORD#0;
-    B10 := (PATTERN AND WORD#16#0400) <> WORD#0;
-    B11 := (PATTERN AND WORD#16#0800) <> WORD#0;
-    B12 := (PATTERN AND WORD#16#1000) <> WORD#0;
-    B13 := (PATTERN AND WORD#16#2000) <> WORD#0;
-    B14 := (PATTERN AND WORD#16#4000) <> WORD#0;
-    B15 := (PATTERN AND WORD#16#8000) <> WORD#0;
+    CURRENT := PATTERN[STEP_NO];
+    B0 := (CURRENT AND WORD#16#0001) <> WORD#0;
+    B1 := (CURRENT AND WORD#16#0002) <> WORD#0;
+    B2 := (CURRENT AND WORD#16#0004) <> WORD#0;
+    B3 := (CURRENT AND WORD#16#0008) <> WORD#0;
+    B4 := (CURRENT AND WORD#16#0010) <> WORD#0;
+    B5 := (CURRENT AND WORD#16#0020) <> WORD#0;
+    B6 := (CURRENT AND WORD#16#0040) <> WORD#0;
+    B7 := (CURRENT AND WORD#16#0080) <> WORD#0;
+    B8 := (CURRENT AND WORD#16#0100) <> WORD#0;
+    B9 := (CURRENT AND WORD#16#0200) <> WORD#0;
+    B10 := (CURRENT AND WORD#16#0400) <> WORD#0;
+    B11 := (CURRENT AND WORD#16#0800) <> WORD#0;
+    B12 := (CURRENT AND WORD#16#1000) <> WORD#0;
+    B13 := (CURRENT AND WORD#16#2000) <> WORD#0;
+    B14 := (CURRENT AND WORD#16#4000) <> WORD#0;
+    B15 := (CURRENT AND WORD#16#8000) <> WORD#0;
 END_IF;
 F := STEP_NO = NSTEPS - 1;
 """
 
 MACHINE_EXPERT_BASIC_DRUM = GeneratedFunctionBlock(
     name="TF_MEBasic_Drum",
-    inputs=(("RESET", "BOOL"), ("U", "BOOL"), ("NSTEPS", "INT"),
-            *((f"P{step}", "WORD") for step in range(8))),
+    inputs=(("RESET", "BOOL"), ("U", "BOOL"), ("NSTEPS", "INT"), ("PATTERN", "ARRAY[0..7] OF WORD")),
     outputs=(("F", "BOOL"), ("STEP_NO", "INT")),
-    locals=(("U_LAST", "BOOL"), ("WRITE", "BOOL"), ("PATTERN", "WORD")),
+    locals=(("U_LAST", "BOOL"), ("WRITE", "BOOL"), ("CURRENT", "WORD")),
     body=_DRUM_BODY,
     source="Generic Functions Library Guide EIO0000003289.04, Drum (%DR); "
            "Machine Expert - Basic 3.0 simulator checks",
@@ -218,11 +205,40 @@ def emit_function_block_pou(parent: ET.Element, block: GeneratedFunctionBlock, n
         variable_list = ET.SubElement(interface, qualified_name(namespace, list_name))
         for name, data_type in variables:
             variable = ET.SubElement(variable_list, qualified_name(namespace, "variable"), {"name": name})
-            type_element = ET.SubElement(variable, qualified_name(namespace, "type"))
-            ET.SubElement(type_element, qualified_name(namespace, data_type))
+            emit_type(ET.SubElement(variable, qualified_name(namespace, "type")), data_type, namespace)
     body = ET.SubElement(pou, qualified_name(namespace, "body"))
     st = ET.SubElement(body, qualified_name(namespace, "ST"))
     # Provenance is in the body's leading comment; no <documentation>, so a
     # target can still append <addData>, which TC6 orders before it.
     ET.SubElement(st, qualified_name(XHTML_NAMESPACE, "xhtml")).text = block.body
     return pou
+
+
+_ARRAY = re.compile(r"ARRAY\[(-?\d+)\.\.(-?\d+)\] OF (\w+)")
+
+
+def array_bounds(data_type: str) -> tuple[int, int, str] | None:
+    """`(lower, upper, base)` for a one-dimensional `ARRAY[l..u] OF BASE`."""
+    match = _ARRAY.fullmatch(data_type)
+    return (int(match.group(1)), int(match.group(2)), match.group(3)) if match else None
+
+
+def emit_type(type_element: ET.Element, data_type: str, namespace: str) -> None:
+    """Fill a TC6 `type`: an elementary type, or a one-dimensional array of one."""
+    bounds = array_bounds(data_type)
+    if bounds is None:
+        ET.SubElement(type_element, qualified_name(namespace, data_type))
+        return
+    lower, upper, base = bounds
+    array = ET.SubElement(type_element, qualified_name(namespace, "array"))
+    ET.SubElement(array, qualified_name(namespace, "dimension"), {"lower": str(lower), "upper": str(upper)})
+    ET.SubElement(ET.SubElement(array, qualified_name(namespace, "baseType")), qualified_name(namespace, base))
+
+
+def emit_array_value(variable: ET.Element, values: list[str], namespace: str) -> None:
+    """A TC6 `initialValue` holding one simple value per array element."""
+    array = ET.SubElement(ET.SubElement(variable, qualified_name(namespace, "initialValue")),
+                          qualified_name(namespace, "arrayValue"))
+    for value in values:
+        ET.SubElement(ET.SubElement(array, qualified_name(namespace, "value")), qualified_name(namespace, "simpleValue"),
+                      {"value": value})

@@ -188,10 +188,16 @@ roadmaps linked from each item.
      - [ ] Fewer mandatory in-outs: one `WORD` in-out for the 16 bits plus a
        mask of the bits the drum owns (only those are written), instead of
        16 `BOOL` in-outs that must all be bound.
-     - [ ] One pattern input, `PATTERN : ARRAY[0..7] OF WORD`, instead of
-       `P0`..`P7`, so a pattern table (binary literals, `2#0000_0000_0000_0011`,
-       one line per step: the Assistant's grid on its side) or an editor
-       binds to a single array.
+     - [x] One pattern input, `PATTERN : ARRAY[0..7] OF WORD`, instead of
+       `P0`..`P7` (2026-10-15, library 0.2.0), so a pattern table (binary
+       literals, `2#0000_0000_0000_0011`, one line per step: the Assistant's
+       grid on its side) or an editor binds to a single array. The block
+       reads `PATTERN[STEP_NO]`. An exported drum's table is a declared
+       variable (`TF_DR0_Pattern`, array type and initial values) wired to
+       the pin, as an array literal is not a portable pin expression; the
+       exporter declares only such generated tables, not source arrays. The
+       recorded checks pass again, and in CODESYS (V3.5 SP22 Patch 3) the
+       0.2.0 test program builds and passes 29 of 29.
      - [x] Feasibility test (2026-10-12, CODESYS V3.5 SP22 Patch 3):
        `examples/CODESYS/scripts/drum_pattern_dialog_feasibility.py`, run from
        Tools > Scripting, showed a Windows Forms step x bit grid inside

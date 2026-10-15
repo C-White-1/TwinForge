@@ -318,8 +318,9 @@ def _drums(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> N
         tag.metadata["function_block_semantics"] = drums.semantics
         tag.metadata["drum_steps"] = int(steps)
         tag.metadata["drum_patterns"] = patterns
-        tag.metadata["iec_function_block_inputs"] = {
-            "NSTEPS": steps, **{f"P{step}": f"WORD#16#{word:04X}" for step, word in enumerate(words)}}
+        tag.metadata["iec_function_block_inputs"] = {"NSTEPS": steps}
+        # One pattern word per step, bit n = control bit n: an array input.
+        tag.metadata["iec_function_block_tables"] = {"PATTERN": [f"WORD#16#{word:04X}" for word in words]}
         tag.metadata["iec_function_block_in_outs"] = outputs
 
 

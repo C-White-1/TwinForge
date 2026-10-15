@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 
 from .plcopen_library import MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock
 
-Value = bool | int
+Value = bool | int | tuple[int, ...]  # a tuple is an array input's table
 
 # Pins below use the blocks' parameter names: the source's R and S are
 # RESET and LOAD (a drum's step output S is STEP_NO), because R and S are
@@ -116,8 +116,9 @@ COUNTER_CHECKS = (
 # (%Q0.0, %Q0.1), step 2 bit 2, step 3 bit 3. The constants are the ones the
 # parser derives from that fixture (TwinForge's tests check they agree).
 DRUM_CONSTANTS: Mapping[str, Value] = {
-    "NSTEPS": 4, "P0": 0x0000, "P1": 0x0003, "P2": 0x0004, "P3": 0x0008,
-    "P4": 0x0000, "P5": 0x0000, "P6": 0x0000, "P7": 0x0000,
+    "NSTEPS": 4,
+    "PATTERN": (0b0000_0000_0000_0000, 0b0000_0000_0000_0011, 0b0000_0000_0000_0100, 0b0000_0000_0000_1000,
+                0, 0, 0, 0),
 }
 
 DRUM_CHECKS = (

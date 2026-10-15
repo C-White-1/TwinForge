@@ -6,6 +6,7 @@ the sequences recorded in the Machine Expert - Basic simulator
 what marks the counter verified, so it exports by default.
 """
 from dataclasses import replace
+from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
 import xml.etree.ElementTree as ET
@@ -14,9 +15,10 @@ import pytest
 
 from twinforge.exporters.plcopen import PLCopenExporter
 from twinforge.exporters.plcopen_library import (
-    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock, generated_block_for,
+    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock, array_bounds,
+    generated_block_for,
 )
-from twinforge.exporters.plcopen_library_checks import CHECKS, DRUM_CONSTANTS, Check, Expect, Scan, Write
+from twinforge.exporters.plcopen_library_checks import CHECKS, DRUM_CONSTANTS, Check, Expect, Scan, Value, Write
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
 from twinforge.exporters.plcopen_library_package import LIBRARY_BLOCKS, TEST_PROGRAM, library_document, checks_program
 from twinforge.model import (
@@ -27,8 +29,8 @@ from twinforge.parsers.machine_expert_basic import capture_file, parse_project
 from twinforge.schema.machine_expert_basic import BASIC_MAPPING
 from twinforge.structured_text.parser import parse_structured_text
 from twinforge.structured_text.syntax import (
-    AssignmentStatement, BinaryExpression, CallExpression, ExpressionStatement, IfStatement, LiteralExpression,
-    MemberExpression, NameExpression, ParenthesizedExpression, UnaryExpression,
+    AssignmentStatement, BinaryExpression, CallExpression, ExpressionStatement, IfStatement, IndexExpression,
+    LiteralExpression, MemberExpression, NameExpression, ParenthesizedExpression, UnaryExpression,
 )
 
 ROOT = Path(__file__).parents[1]
@@ -185,6 +187,14 @@ def test_fixture_counter_exports():
     assert block.get("typeName") == "TF_MEBasic_Counter"
 
 
+def initial_state(data_type: str):
+    """A variable's value before anything is written: 0, FALSE, or an array of 0s."""
+    bounds = array_bounds(data_type)
+    if bounds is not None:
+        return [0] * (bounds[1] - bounds[0] + 1)
+    return False if data_type == "BOOL" else 0
+
+
 def literal_value(text: str) -> bool | int:
     """An IEC literal: TRUE/FALSE, an integer, or a typed one such as WORD#16#0003."""
     value = text.upper().rsplit("#", 2)
@@ -205,17 +215,16 @@ class BlockRun:
         ">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b, "+": lambda a, b: a + b, "-": lambda a, b: a - b,
     }
 
-    def __init__(self, block: GeneratedFunctionBlock, **constants: int):
+    def __init__(self, block: GeneratedFunctionBlock, **constants):
         document = parse_structured_text(block.body)
         assert not document.diagnostics
         self.statements = document.statements
         self.inputs = [name for name, data_type in block.inputs if data_type == "BOOL"]
-        self.state: dict[str, bool | int] = {
-            name: (0 if data_type == "INT" else False)
-            for name, data_type in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)}
-        self.state.update(constants)
+        self.state: dict = {name: initial_state(data_type)
+                            for name, data_type in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)}
+        self.state.update({pin: list(value) if isinstance(value, tuple) else value for pin, value in constants.items()})
 
-    def scan(self, **inputs: bool | int) -> None:
+    def scan(self, **inputs: Value) -> None:
         """One call: BOOL inputs not given are FALSE, others keep their value."""
         for pin in self.inputs:
             self.state[pin] = inputs.get(pin, False)
@@ -239,7 +248,7 @@ class BlockRun:
             else:
                 raise AssertionError(f"unexpected statement {statement!r}")
 
-    def _value(self, expression):
+    def _value(self, expression) -> Any:
         if isinstance(expression, NameExpression):
             return self.state[expression.name]
         if isinstance(expression, LiteralExpression):
@@ -251,6 +260,9 @@ class BlockRun:
             return not self._value(expression.operand)
         if isinstance(expression, BinaryExpression):
             return self.BINARY[expression.operator.upper()](self._value(expression.left), self._value(expression.right))
+        if isinstance(expression, IndexExpression):
+            (index,) = expression.indices
+            return self._value(expression.target)[self._value(index)]
         raise AssertionError(f"unexpected expression {expression!r}")
 
 
@@ -281,11 +293,10 @@ class ProgramRun(BlockRun):
         assert not document.diagnostics
         self.statements = document.statements
         self.inputs = []
-        self.instances = {name: BlockRun(blocks[data_type]) for name, data_type, instance in variables if instance}
-        self.in_outs = {name: {pin for pin, _ in blocks[data_type].in_outs}
-                        for name, data_type, instance in variables if instance}
-        self.state = {name: (0 if data_type == "INT" else False)
-                      for name, data_type, instance in variables if not instance}
+        self.instances = {v.name: BlockRun(blocks[v.data_type]) for v in variables if v.instance}
+        self.in_outs = {v.name: {pin for pin, _ in blocks[v.data_type].in_outs} for v in variables if v.instance}
+        self.state = {v.name: [literal_value(value) for value in v.initial] if v.initial else initial_state(v.data_type)
+                      for v in variables if not v.instance}
 
     def _run(self, statements) -> None:
         for statement in statements:
@@ -350,7 +361,7 @@ def test_library_document_holds_the_blocks_and_optionally_the_tests(include_test
     assert names == [("TF_MEBasic_Counter", "functionBlock"), ("TF_MEBasic_Drum", "functionBlock"),
                      *([(TEST_PROGRAM, "program")] if include_tests else [])]
     header = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "contentHeader")
-    assert header.get("version") == "0.1.0"
+    assert header.get("version") == "0.2.0"
 
 
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
@@ -369,12 +380,31 @@ def test_drum_configuration_is_parsed_from_the_fixture():
     assert tag.metadata["drum_steps"] == 4
     assert tag.metadata["iec_function_block_in_outs"] == {"B0": "%Q0.0", "B1": "%Q0.1", "B2": "%Q0.2", "B3": "%Q0.3"}
     assert tag.metadata["drum_patterns"] == {"B0": [1], "B1": [1], "B2": [2], "B3": [3]}
-    assert tag.metadata["iec_function_block_inputs"] == {
-        "NSTEPS": "4", "P0": "WORD#16#0000", "P1": "WORD#16#0003", "P2": "WORD#16#0004", "P3": "WORD#16#0008",
-        **{f"P{step}": "WORD#16#0000" for step in range(4, 8)}}
+    assert tag.metadata["iec_function_block_inputs"] == {"NSTEPS": "4"}
+    assert tag.metadata["iec_function_block_tables"] == {"PATTERN": [
+        "WORD#16#0000", "WORD#16#0003", "WORD#16#0004", "WORD#16#0008", *["WORD#16#0000"] * 4]}
     assert generated_block_for(tag) is MACHINE_EXPERT_BASIC_DRUM
-    # The recorded drum checks run with exactly these constants.
-    assert {pin: literal_value(text) for pin, text in tag.metadata["iec_function_block_inputs"].items()}         == dict(DRUM_CONSTANTS)
+    # The recorded drum checks run with exactly these constants and table.
+    parsed: dict[str, Value] = {pin: literal_value(text)
+                                for pin, text in tag.metadata["iec_function_block_inputs"].items()}
+    parsed["PATTERN"] = tuple(literal_value(word) for word in tag.metadata["iec_function_block_tables"]["PATTERN"])
+    assert parsed == dict(DRUM_CONSTANTS)
+
+
+def test_drum_pattern_is_fed_from_a_declared_table():
+    result = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+    root = ET.fromstring(result.xml)
+    elements = {e.get("localId"): e for e in root.iter() if e.get("localId")}
+
+    (block,) = [e for e in elements.values() if _local(e.tag) == "block" and e.get("typeName") == "TF_MEBasic_Drum"]
+    pattern = next(v for v in block.iter() if v.get("formalParameter") == "PATTERN")
+    (connection,) = [c for c in pattern.iter() if _local(c.tag) == "connection"]
+    source = elements[connection.get("refLocalId")]
+    assert next(c.text for c in source if _local(c.tag) == "expression") == "TF_DR0_Pattern"
+    (table,) = [v for v in root.iter() if _local(v.tag) == "variable" and v.get("name") == "TF_DR0_Pattern"]
+    assert [d.get("upper") for d in table.iter() if _local(d.tag) == "dimension"] == ["7"]
+    assert [s.get("value") for s in table.iter() if _local(s.tag) == "simpleValue"] == [
+        "WORD#16#0000", "WORD#16#0003", "WORD#16#0004", "WORD#16#0008", *["WORD#16#0000"] * 4]
 
 
 def test_drum_is_verified_and_exports_by_default():

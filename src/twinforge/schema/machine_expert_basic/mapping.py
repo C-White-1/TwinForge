@@ -102,9 +102,10 @@ class DrumSpec:
     Stored (fixture 14_drum_simulation) as `StepsNumber` and 16
     `BitForDrum` entries, each with `Index`, `Outputs` (absent when the bit
     is unassigned) and one `Step` per step slot, `<Used>true</Used>` where
-    ticked. Its tag carries the step count and one pattern word per step
-    (bit n set when control bit n is on in that step) as constant inputs,
-    and the assigned outputs as the variables its bits are written to.
+    ticked. Its tag carries the step count as a constant input, a table of
+    one pattern word per step (bit n set when control bit n is on in that
+    step), and the assigned outputs as the variables its bits are written
+    to.
     """
 
     container: PathSpec = ("SoftwareConfiguration", "Drums")

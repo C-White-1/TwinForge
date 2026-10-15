@@ -380,7 +380,22 @@ class PLCopenOperandPlanner:
                         generated.name,
                     )
             elif generated is not None:
-                constant_pins = [pin for pin, _ in generated.inputs if pin in inputs]
+                constants = {pin: str(inputs[pin]) for pin, _ in generated.inputs if pin in inputs}
+                tables = tag.metadata.get("iec_function_block_tables") or {}
+                for pin, data_type in generated.inputs:
+                    if pin in tables:
+                        # An array input is fed from a variable declared with
+                        # the table as its initial value (an array literal is
+                        # not a portable pin expression).
+                        table = unique_portable_name(f"{tag.name}_{pin.title()}", names)
+                        names.add(table)
+                        self._generated_tags.append(Tag(
+                            name=table, data_type=data_type,
+                            description=f"{pin} table of {tag.name}",
+                            metadata={"plcopen_array_type": data_type,
+                                      "plcopen_array_values": [str(value) for value in tables[pin]]},
+                        ))
+                        constants[pin] = table
                 bound = {pin: str(operand) for pin, operand in
                          (tag.metadata.get("iec_function_block_in_outs") or {}).items()}
                 for pin, _ in generated.in_outs:
@@ -399,7 +414,7 @@ class PLCopenOperandPlanner:
                 self._function_block_instances[tag.name] = BlockInterface(
                     generated.name, tuple(pin for pin, _ in generated.inputs),
                     tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
-                    tuple((pin, str(inputs[pin])) for pin in constant_pins), standard=False,
+                    tuple((pin, constants[pin]) for pin, _ in generated.inputs if pin in constants), standard=False,
                     in_outs=tuple((pin, bound[pin]) for pin, _ in generated.in_outs),
                     source_pins=generated.source_pins,
                 )
