@@ -205,13 +205,17 @@ roadmaps linked from each item.
        `1000`) as binary literals into a new global variable list
        `TF_DrumPatternTest`. Both halves work, so the script route is viable
        and the standalone fallback is not needed.
-     - [ ] Design-time pattern editor, the Drum Assistant's equivalent: a
-       CODESYS script launched from a toolbar button, opening a step x bit
-       grid with output names, reading and writing the pattern table in a
-       global variable list. Not an IDE plug-in (Automation Platform SDK:
-       licensed, heavy, version-tied). Fallback if the test fails: a
-       standalone grid tool (web page or TwinForge command) that produces
-       the declaration to paste.
+     - [x] Design-time pattern editor, the Drum Assistant's equivalent
+       (2026-10-17): `examples/CODESYS/scripts/drum_pattern_editor.py`, run
+       from Tools > Scripting. A step x bit grid with output names and a
+       step count (unused steps greyed); it writes a marked block per drum
+       (`DR0_NSTEPS`, `DR0_PATTERN` as binary literals, output names as
+       comments) into a global variable list (`TF_DrumPatterns`), reads it
+       back to edit, and replaces only that drum's block. Its text handling
+       is tested (`tests/test_codesys_drum_pattern_editor.py`); the dialog
+       worked in CODESYS V3.5 SP22 Patch 3. Not an IDE plug-in (Automation
+       Platform SDK: licensed, heavy, version-tied).
+     - [ ] Launch the editor from a toolbar button (CODESYS script commands).
      - [ ] Optional run-time pattern editor: a visualisation frame in the
        library (steps x bits checkboxes bound to the pattern array, the
        current step highlighted), for commissioning; may need a
