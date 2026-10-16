@@ -8,6 +8,30 @@ import xml.etree.ElementTree as ET
 from twinforge.model import Tag
 
 
+XHTML_NAMESPACE_URI = "http://www.w3.org/1999/xhtml"
+
+
+def xhtml_namespace_on_element(xml: str) -> str:
+    """Declare the XHTML namespace on each `xhtml` element, as CODESYS writes it.
+
+    ElementTree serialises XHTML content with a prefix declared on the root
+    (`<html:xhtml>`). That is the same XML, but CODESYS's PLCopen import keeps
+    a variable's `documentation` only when written as CODESYS exports it:
+    `<xhtml xmlns="http://www.w3.org/1999/xhtml">` (observed with CODESYS
+    V3.5 SP22 Patch 3).
+    """
+    declaration = re.search(r' xmlns:(\w+)="' + re.escape(XHTML_NAMESPACE_URI) + '"', xml)
+    if declaration is None:
+        return xml
+    prefix = declaration.group(1)
+    xml = xml.replace(declaration.group(0), "", 1)
+    xml = re.sub(rf"<{prefix}:xhtml(\s*/?)>", lambda tag: f'<xhtml xmlns="{XHTML_NAMESPACE_URI}"{tag.group(1)}>', xml)
+    xml = xml.replace(f"</{prefix}:xhtml>", "</xhtml>")
+    if re.search(rf"</?{prefix}:", xml):
+        raise ValueError(f"unexpected {prefix}: element besides xhtml")
+    return xml
+
+
 def qualified_name(namespace: str, name: str) -> str:
     """Build an ElementTree expanded name."""
 

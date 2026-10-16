@@ -13,7 +13,7 @@ from collections.abc import Callable, Sequence
 
 from twinforge.model import Controller, Program, Tag, Task
 
-from .plcopen_library import GeneratedFunctionBlock, emit_function_block_pou
+from .plcopen_library import GeneratedFunctionBlock, append_block_documentation, emit_function_block_pou
 from .plcopen_xml import qualified_name as q
 
 
@@ -103,6 +103,7 @@ class CodesysProfileSupport:
             )
             pou = emit_function_block_pou(wrapper, block, ns)
             self.append_object_id(pou, self.object_id(f"Application/pou/{block.name}"))
+            append_block_documentation(pou, block, ns)
         for program in controller.iter_programs():
             wrapper = ET.SubElement(
                 resource_add_data,

@@ -216,6 +216,15 @@ roadmaps linked from each item.
        library (steps x bits checkboxes bound to the pattern array, the
        current step highlighted), for commissioning; may need a
        TargetVisu/WebVisu licence on real devices.
+     - [x] Block and parameter documentation in CODESYS (2026-10-17,
+       library 0.2.1): every block has a summary and every parameter a
+       comment, shown in the declaration and the Library Manager. CODESYS
+       keeps a TC6 `documentation` only with the XHTML namespace declared on
+       the element, as its own export writes it, so TwinForge now writes all
+       XHTML that way.
+     - [ ] The library's Overview page in the Library Manager stays blank
+       (also when compiled): find what produces it (`DocFormat` property, or
+       CODESYS's LibDoc tooling).
      - [ ] Library documentation: usage examples (ST and LD), the
        grid-to-pattern table, the behaviour and verification notes, and what
        is not modelled, as a README and as POU comments CODESYS shows in

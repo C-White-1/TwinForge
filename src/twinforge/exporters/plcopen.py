@@ -35,7 +35,7 @@ from .plcopen_operands import (
     PLCopenOperandPlan,
     PLCopenOperandPlanner,
 )
-from .plcopen_library import emit_function_block_pou
+from .plcopen_library import append_block_documentation, emit_function_block_pou
 from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
 from .plcopen_network import BIT_STRING_TYPES
 from .plcopen_network import FUNCTION_BLOCK_TYPES as NETWORK_FUNCTIONS
@@ -58,6 +58,7 @@ from .plcopen_xml import (
     milliseconds_duration as _milliseconds_duration,
     milliseconds_time_literal as _milliseconds_time_literal,
     qualified_name as _q,
+    xhtml_namespace_on_element,
 )
 
 __all__ = [
@@ -155,7 +156,7 @@ class PLCopenExporter:
             creation_time=creation_time,
         )
         ET.indent(root, space="  ")
-        xml = ET.tostring(root, encoding="unicode", xml_declaration=True)
+        xml = xhtml_namespace_on_element(ET.tostring(root, encoding="unicode", xml_declaration=True))
         if destination is not None:
             Path(destination).write_text(xml, encoding="utf-8")
         return PLCopenExportResult(xml=xml, diagnostics=list(self.diagnostics))
@@ -515,7 +516,8 @@ class PLCopenExporter:
     def _emit_generated_blocks(self, pous: ET.Element) -> None:
         """TwinForge-generated function block definitions the project uses."""
         for block in self._operands.generated_blocks:
-            emit_function_block_pou(pous, block, self.profile.namespace)
+            pou = emit_function_block_pou(pous, block, self.profile.namespace)
+            append_block_documentation(pou, block, self.profile.namespace)
 
     def _network_rung(self, ld: ET.Element, rung: LadderRung, program_name: str) -> None:
         assert rung.network is not None

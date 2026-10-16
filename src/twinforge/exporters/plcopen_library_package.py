@@ -21,16 +21,18 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 
 from .plcopen_library import (
-    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, XHTML_NAMESPACE, GeneratedFunctionBlock, array_bounds,
-    emit_array_value, emit_function_block_pou, emit_type,
+    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, XHTML_NAMESPACE, GeneratedFunctionBlock,
+    append_block_documentation, array_bounds, emit_array_value, emit_function_block_pou, emit_type,
 )
 from .plcopen_library_checks import CHECKS, Check, Expect, Scan, Value, Write
 from .plcopen_types import PLCopenProfile
 from .plcopen_xml import qualified_name as q
+from .plcopen_xml import xhtml_namespace_on_element
 
 LIBRARY_NAME = "TwinForge_MEBasic"
 # 0.2.0: the drum takes one PATTERN array instead of P0..P7.
-LIBRARY_VERSION = "0.2.0"
+# 0.2.1: documentation for each block and parameter.
+LIBRARY_VERSION = "0.2.1"
 LIBRARY_BLOCKS: tuple[GeneratedFunctionBlock, ...] = (MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM)
 TEST_PROGRAM = "TF_MEBasic_Tests"
 RESULTS = (("xDone", "BOOL"), ("iChecks", "INT"), ("iFailures", "INT"), ("iFirstFailure", "INT"))
@@ -162,12 +164,12 @@ def library_document(
     ET.SubElement(types, q(ns, "dataTypes"))
     pous = ET.SubElement(types, q(ns, "pous"))
     for block in blocks:
-        emit_function_block_pou(pous, block, ns)
+        append_block_documentation(emit_function_block_pou(pous, block, ns), block, ns)
     if include_tests:
         _emit_test_program(pous, checks_program(checks), ns)
     ET.SubElement(ET.SubElement(root, q(ns, "instances")), q(ns, "configurations"))
     ET.indent(root)
-    return ET.tostring(root, encoding="unicode", xml_declaration=True)
+    return xhtml_namespace_on_element(ET.tostring(root, encoding="unicode", xml_declaration=True))
 
 
 def _emit_test_program(pous: ET.Element, program: ChecksProgram, ns: str) -> None:

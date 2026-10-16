@@ -125,7 +125,8 @@ def test_generated_block_is_written_once_before_the_programs_using_it():
                 for v in definition.iter() if _local(v.tag) == "variable" and v.get("name")}
     assert declared == {**dict(MACHINE_EXPERT_BASIC_COUNTER.inputs), **dict(MACHINE_EXPERT_BASIC_COUNTER.outputs),
                         **dict(MACHINE_EXPERT_BASIC_COUNTER.locals)}
-    body = next(e for e in definition.iter() if _local(e.tag) == "xhtml").text or ""
+    st = next(e for e in definition.iter() if _local(e.tag) == "ST")
+    body = next(e for e in st if _local(e.tag) == "xhtml").text or ""
     assert body == MACHINE_EXPERT_BASIC_COUNTER.body
     assert not [d for d in result.diagnostics if d.code == "unsupported_network_rung"]
 
@@ -361,7 +362,7 @@ def test_library_document_holds_the_blocks_and_optionally_the_tests(include_test
     assert names == [("TF_MEBasic_Counter", "functionBlock"), ("TF_MEBasic_Drum", "functionBlock"),
                      *([(TEST_PROGRAM, "program")] if include_tests else [])]
     header = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "contentHeader")
-    assert header.get("version") == "0.2.0"
+    assert header.get("version") == "0.2.1"
 
 
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
@@ -470,3 +471,42 @@ RESERVED = frozenset("""
 def test_generated_block_names_avoid_reserved_words(block: GeneratedFunctionBlock):
     names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)]
     assert [name for name in names if name.upper() in RESERVED] == []
+
+
+@pytest.mark.parametrize("block", LIBRARY_BLOCKS, ids=lambda block: block.name)
+def test_every_parameter_is_documented_for_the_library_manager(block: GeneratedFunctionBlock):
+    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)]
+    assert block.summary
+    assert sorted(dict(block.descriptions)) == sorted(names)
+
+
+def test_library_document_carries_the_documentation():
+    root = ET.fromstring(library_document(creation_time=FIXED_TIME))
+
+    for pou in [e for e in root.iter() if _local(e.tag) == "pou"]:
+        assert _local(list(pou)[-1].tag) == "documentation"  # TC6: last in a POU
+        documented = [v.get("name") for v in pou.iter() if _local(v.tag) == "variable"
+                      and any(_local(c.tag) == "documentation" for c in v)]
+        (block,) = [b for b in LIBRARY_BLOCKS if b.name == pou.get("name")]
+        assert len(documented) == len(block.descriptions)
+
+
+def _tree(xml: str) -> list[tuple]:
+    return [(e.tag, sorted(e.attrib.items()), (e.text or "").strip()) for e in ET.fromstring(xml).iter()]
+
+
+def test_xhtml_is_written_as_codesys_writes_it_without_changing_the_document():
+    # CODESYS keeps a variable's documentation only in the form its own export
+    # uses: <xhtml xmlns="http://www.w3.org/1999/xhtml">, not a root prefix.
+    raw = library_document(creation_time=FIXED_TIME, include_tests=True)
+    assert "html:" not in raw and 'xmlns:html=' not in raw
+    assert raw.count('<xhtml xmlns="http://www.w3.org/1999/xhtml"') >= 3
+    prefixed = raw.replace('<project xmlns="http://www.plcopen.org/xml/tc6_0200"',
+                           '<project xmlns="http://www.plcopen.org/xml/tc6_0200" xmlns:h="http://www.w3.org/1999/xhtml"', 1)
+    prefixed = prefixed.replace('<xhtml xmlns="http://www.w3.org/1999/xhtml"', "<h:xhtml").replace("</xhtml>", "</h:xhtml>")
+    assert _tree(prefixed) == _tree(raw)  # the same document either way
+
+
+def test_exports_write_xhtml_without_a_prefix():
+    xml = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller, "codesys").xml
+    assert "html:" not in xml

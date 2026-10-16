@@ -106,6 +106,25 @@ variable. Imported into CODESYS, built and run in the SoftPLC: **29 checks,
 0 failures**. CODESYS accepts an array function block input and an
 initialised array variable from imported PLCopen XML.
 
+### Documentation, library 0.2.1 (2026-10-17)
+
+The Library Manager showed blank documentation: the Comment column was
+empty, and so was the library's Overview page, while `Standard` showed a
+full Overview, so the viewer works.
+
+- **Block and parameter comments: fixed.** TwinForge writes a TC6
+  `documentation` for each block and parameter. CODESYS's own export of a
+  `//` variable comment uses the same element, but with the namespace on
+  the element (`<xhtml xmlns="http://www.w3.org/1999/xhtml">`), whereas
+  TwinForge used a root prefix (`<html:xhtml>`): the same XML, but CODESYS's
+  import dropped every comment. Written CODESYS's way, the comments appear
+  in the declarations.
+- **Overview page: still blank**, including when saved as a compiled
+  library (so compiling does not generate it). Open: whether the
+  `DocFormat` = `reStructuredText` property is needed, or whether the
+  page is produced only by CODESYS's LibDoc tooling (named in `Standard`'s
+  Overview footer).
+
 ## Notes
 
 Anything surprising, write it here. Screenshots of the build messages and

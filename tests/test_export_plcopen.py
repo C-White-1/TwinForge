@@ -98,12 +98,15 @@ def _export(profile: PLCopenProfile):
 def test_fixed_time_profile_exports_are_byte_stable() -> None:
     """Protect the public façade and deterministic serialization contract."""
 
+    # Updated 2026-10-17: XHTML is written with its namespace on each xhtml
+    # element, as CODESYS writes it (same document; verified that the old
+    # serialisation still produced the previous hashes).
     expected_hashes = {
         PLCopenProfile.STANDARD_201: (
-            "bde3a3888a947a95119e4afd29941266bd9595f50d23f3067fcb6e13050dc346"
+            "0cca3dc880e3b2a0d0688cd23af8eb5dc1e32ee6d3d2e6615349d4d52136856f"
         ),
         PLCopenProfile.CODESYS: (
-            "ab7ea8f042138bfb9bfee62b15ce7f0061309b52ccd5627ec0fd5a48a3927a0f"
+            "8db2eccf56fc184255e0740433f7e1aad898040808dfff7d07e8f3e95f5fc9b8"
         ),
     }
 
