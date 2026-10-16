@@ -215,7 +215,11 @@ roadmaps linked from each item.
        is tested (`tests/test_codesys_drum_pattern_editor.py`); the dialog
        worked in CODESYS V3.5 SP22 Patch 3. Not an IDE plug-in (Automation
        Platform SDK: licensed, heavy, version-tied).
-     - [ ] Launch the editor from a toolbar button (CODESYS script commands).
+     - [x] Launch the editor from a toolbar button (2026-10-17): a
+       `config.json` and a 16x16 icon beside the script; copied with it into
+       `%LOCALAPPDATA%\CODESYS\Script Commands`, they appear (after a
+       restart) under Tools > Customize > ScriptEngine Commands. Worked in
+       CODESYS V3.5 SP22 Patch 3; steps in the library README.
      - [ ] Optional run-time pattern editor: a visualisation frame in the
        library (steps x bits checkboxes bound to the pattern array, the
        current step highlighted), for commissioning; may need a

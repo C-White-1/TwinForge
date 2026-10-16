@@ -175,6 +175,24 @@ pick it.
 - **Editing:** run it again for the same drum to load and edit that block.
 - **How to wire it:** the Messages window shows the call to use.
 
+**To put the editor on a toolbar**, rather than Tools → Scripting each time:
+
+1. **Copy the files.** Create the folder
+   `%LOCALAPPDATA%\CODESYS\Script Commands`, then copy these three files
+   from [`examples/CODESYS/scripts/`](../../examples/CODESYS/scripts/)
+   into it: `drum_pattern_editor.py`, `drum_pattern_editor.ico` and
+   `config.json`.
+2. **Restart CODESYS**, so it reads the folder.
+3. **Make the toolbar.** Tools → Customize → Toolbars tab. Select the empty
+   toolbar, click **Add Toolbar**, and name it (for example `TwinForge`).
+4. **Add the button.** From the **ScriptEngine Commands** category, add
+   **TwinForge drum pattern editor**, then close the dialog.
+
+The copy in `Script Commands` does not update itself. After updating
+TwinForge, copy `drum_pattern_editor.py` again. Alternatively, set `"Path"`
+in your copied `config.json` to the full path of the script in your
+TwinForge folder.
+
 ```
 VAR
     Seq : TF_MEBasic_Drum;

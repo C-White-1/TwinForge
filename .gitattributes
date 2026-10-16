@@ -14,3 +14,5 @@
 # Other XML in examples/PLCOpenXML is TwinForge's own output; this one is a
 # CODESYS export with mixed line endings in the original.
 examples/PLCOpenXML/12_enip_remote_adapter_diagnostics.xml -text
+# Binary assets TwinForge generates.
+*.ico binary
