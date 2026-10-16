@@ -119,11 +119,11 @@ full Overview, so the viewer works.
   TwinForge used a root prefix (`<html:xhtml>`): the same XML, but CODESYS's
   import dropped every comment. Written CODESYS's way, the comments appear
   in the declarations.
-- **Overview page: still blank**, including when saved as a compiled
-  library (so compiling does not generate it). Open: whether the
-  `DocFormat` = `reStructuredText` property is needed, or whether the
-  page is produced only by CODESYS's LibDoc tooling (named in `Standard`'s
-  Overview footer).
+- **Overview page: blank**, with `DocFormat` = `reStructuredText` set and
+  also when saved as a compiled library. It is produced by the separate,
+  licensed add-on "CODESYS Library Documentation Support" (LibDoc, named in
+  `Standard`'s Overview footer; https://www.codesys.com/ecosystem/release-lifecycle/releases-updates/library-documentation-support/).
+  Not pursued for now: the overview material goes in a README instead.
 
 ## Notes
 

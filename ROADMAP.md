@@ -222,9 +222,13 @@ roadmaps linked from each item.
        keeps a TC6 `documentation` only with the XHTML namespace declared on
        the element, as its own export writes it, so TwinForge now writes all
        XHTML that way.
-     - [ ] The library's Overview page in the Library Manager stays blank
-       (also when compiled): find what produces it (`DocFormat` property, or
-       CODESYS's LibDoc tooling).
+     - [x] Why the library's Overview page is blank (2026-10-17): it stays
+       blank with `DocFormat` = `reStructuredText` set and when compiled.
+       That page is produced by the separate, licensed add-on "CODESYS
+       Library Documentation Support" (LibDoc, Sphinx-based; output bundled
+       as `.lmd`). Decision for now: no add-on; the overview material goes
+       in a README, and the per-block documentation already shows. Revisit
+       if the library is published widely.
      - [ ] Library documentation: usage examples (ST and LD), the
        grid-to-pattern table, the behaviour and verification notes, and what
        is not modelled, as a README and as POU comments CODESYS shows in
