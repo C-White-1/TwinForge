@@ -64,5 +64,7 @@ def test_drum_names_must_make_iec_identifiers():
 
 def test_usage_wires_the_pattern_and_every_bit():
     text = editor.usage("DR0", NAMES)
-    assert "NSTEPS := DR0_NSTEPS, PATTERN := DR0_PATTERN" in text
+    # Qualified: CODESYS creates a new list with {attribute 'qualified_only'}.
+    assert "NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN" in text
+    assert "PATTERN := MyPatterns.DR0_PATTERN" in editor.usage("DR0", NAMES, "MyPatterns")
     assert "B0 := xLamp0" in text and "B15 := xSpare" in text

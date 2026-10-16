@@ -125,6 +125,20 @@ full Overview, so the viewer works.
   `Standard`'s Overview footer; https://www.codesys.com/ecosystem/release-lifecycle/releases-updates/library-documentation-support/).
   Not pursued for now: the overview material goes in a README instead.
 
+### End-to-end drum trial (2026-10-17)
+
+New project `TF_test3`: the installed library (0.2.x), the 0.2.x test
+program, and the pattern editor's `TF_DrumPatterns` list for drum `DR0`
+(fixture 14's pattern). `PLC_PRG` declares `Seq : TF_MEBasic_Drum` and
+wires it to that list and to `xLamp0`..`xLamp3`. Pulsing `xNext` stepped
+the drum through its pattern as expected.
+
+Found on the way: CODESYS creates a new global variable list with
+`{attribute 'qualified_only'}`, so the editor's constants must be named
+with the list in front (`TF_DrumPatterns.DR0_PATTERN`). The editor's wiring
+hint and the README now use that form, which also works without the
+attribute.
+
 ## Notes
 
 Anything surprising, write it here. Screenshots of the build messages and

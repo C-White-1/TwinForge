@@ -214,7 +214,11 @@ roadmaps linked from each item.
        back to edit, and replaces only that drum's block. Its text handling
        is tested (`tests/test_codesys_drum_pattern_editor.py`); the dialog
        worked in CODESYS V3.5 SP22 Patch 3. Not an IDE plug-in (Automation
-       Platform SDK: licensed, heavy, version-tied).
+       Platform SDK: licensed, heavy, version-tied). End-to-end trial: a
+       library drum wired to the editor's list stepped through its pattern.
+       Its wiring hint names the constants qualified
+       (`TF_DrumPatterns.DR0_PATTERN`), as CODESYS creates lists
+       `qualified_only`.
      - [x] Launch the editor from a toolbar button (2026-10-17): a
        `config.json` and a 16x16 icon beside the script; copied with it into
        `%LOCALAPPDATA%\CODESYS\Script Commands`, they appear (after a

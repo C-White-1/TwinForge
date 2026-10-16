@@ -17,8 +17,9 @@ TF_DrumPatterns) as a marked block per drum:
     // TwinForge drum pattern DR0: end
 
 Run again for the same drum to edit it: the block is read back and replaced;
-everything else in the list is left as it is. Wire the drum with
-NSTEPS := DR0_NSTEPS, PATTERN := DR0_PATTERN.
+everything else in the list is left as it is. Wire the drum with the
+list's name in front (CODESYS creates lists as qualified_only):
+NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN.
 
 Run with a project open: Tools > Scripting > Execute Script File... This
 file runs inside CODESYS's IronPython 2.7 ScriptEngine. The text functions
@@ -130,11 +131,16 @@ def merge_block(declaration, drum, block):
     return "\n".join(section) + "\n"
 
 
-def usage(drum, names):
-    """How to wire the drum to the pattern, for the Messages window."""
+def usage(drum, names, gvl=DEFAULT_GVL):
+    """How to wire the drum to the pattern, for the Messages window.
+
+    The constants are named with their list in front: CODESYS creates a new
+    global variable list with {attribute 'qualified_only'}, which makes that
+    form required (and it works without the attribute too).
+    """
     bound = ["B%d := %s" % (bit, names[bit].strip() or "xSpare") for bit in range(BITS)]
-    return ("%s(RESET := ..., U := ..., NSTEPS := %s_NSTEPS, PATTERN := %s_PATTERN,\n    %s);"
-            % (drum, drum, drum, ",\n    ".join(", ".join(bound[i:i + 4]) for i in range(0, BITS, 4))))
+    return ("%s(RESET := ..., U := ..., NSTEPS := %s.%s_NSTEPS, PATTERN := %s.%s_PATTERN,\n    %s);"
+            % (drum, gvl, drum, gvl, drum, ",\n    ".join(", ".join(bound[i:i + 4]) for i in range(0, BITS, 4))))
 
 
 # --- CODESYS dialog (runs only inside CODESYS) ----------------------------------
@@ -270,7 +276,7 @@ def main():  # pragma: no cover - needs CODESYS
     gvl.textual_declaration.replace(merge_block(gvl.textual_declaration.text, drum,
                                                 format_block(drum, steps, words, names)))
     print("Wrote drum pattern %s to %s. Wire the drum:" % (drum, gvl_name))
-    print(usage(drum, names))
+    print(usage(drum, names, gvl_name))
 
 
 try:

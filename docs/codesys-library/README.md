@@ -173,7 +173,10 @@ pick it.
   (default `TF_DrumPatterns`): the step count, the pattern, and your
   output names as comments.
 - **Editing:** run it again for the same drum to load and edit that block.
-- **How to wire it:** the Messages window shows the call to use.
+- **How to wire it:** the Messages window shows the call to use. The
+  constants are written with the list's name in front
+  (`TF_DrumPatterns.DR0_PATTERN`): CODESYS creates a new global variable
+  list with `{attribute 'qualified_only'}`, which requires that form.
 
 **To put the editor on a toolbar**, rather than Tools → Scripting each time:
 
@@ -199,7 +202,8 @@ VAR
     xLamp0, xLamp1, xLamp2, xLamp3, xSpare : BOOL;
 END_VAR
 
-Seq(RESET := xReset, U := xNext, NSTEPS := DR0_NSTEPS, PATTERN := DR0_PATTERN,
+Seq(RESET := xReset, U := xNext,
+    NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN,
     B0 := xLamp0, B1 := xLamp1, B2 := xLamp2, B3 := xLamp3,
     B4 := xSpare, B5 := xSpare, B6 := xSpare, B7 := xSpare,
     B8 := xSpare, B9 := xSpare, B10 := xSpare, B11 := xSpare,
