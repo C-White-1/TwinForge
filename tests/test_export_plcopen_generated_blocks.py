@@ -510,3 +510,16 @@ def test_xhtml_is_written_as_codesys_writes_it_without_changing_the_document():
 def test_exports_write_xhtml_without_a_prefix():
     xml = export(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller, "codesys").xml
     assert "html:" not in xml
+
+
+def test_library_readme_matches_the_blocks():
+    from twinforge.exporters.plcopen_library_package import LIBRARY_VERSION
+
+    readme = (ROOT / "docs/codesys-library/README.md").read_text(encoding="utf-8")
+    assert f"version {LIBRARY_VERSION}," in readme and f"| {LIBRARY_VERSION} |" in readme
+    for block in LIBRARY_BLOCKS:
+        section = readme.split(f"## {block.name}", 1)[1].split("\n## ", 1)[0]
+        for name, _ in (*block.inputs, *block.outputs):
+            assert f"| `{name}` |" in section, (block.name, name)
+        if block.in_outs:
+            assert "| `B0`..`B15` |" in section

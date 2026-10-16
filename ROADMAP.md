@@ -233,10 +233,14 @@ roadmaps linked from each item.
        as `.lmd`). Decision for now: no add-on; the overview material goes
        in a README, and the per-block documentation already shows. Revisit
        if the library is published widely.
-     - [ ] Library documentation: usage examples (ST and LD), the
-       grid-to-pattern table, the behaviour and verification notes, and what
-       is not modelled, as a README and as POU comments CODESYS shows in
-       the library browser.
+     - [x] Library documentation (2026-10-17):
+       [`docs/codesys-library/README.md`](docs/codesys-library/README.md),
+       the overview CODESYS cannot show without its licensed add-on: what
+       the blocks reproduce, how they were verified, what is not modelled,
+       building and installing the library, running the checks, interface
+       tables, ST examples, the pattern table and editor, versions, and the
+       no-warranty note. A test keeps its tables and version in step with
+       the blocks.
    - [ ] CODESYS export option: reference the library instead of embedding
      the blocks; standard/OpenPLC exports keep embedding.
    - [ ] Publishing (user's decision): readable `.library` in the
