@@ -32,6 +32,19 @@ def xhtml_namespace_on_element(xml: str) -> str:
     return xml
 
 
+def emit_input_assignments(variable: ET.Element, arguments, namespace: str) -> None:
+    """A function block instance's FB_init arguments, as a CODESYS export
+    writes them (`D : Block(NAME := value, ...)` in the declaration)."""
+    data = ET.SubElement(variable_add_data(variable, namespace), qualified_name(namespace, "data"),
+                         {"name": "http://www.3s-software.com/plcopenxml/inputassignments",
+                          "handleUnknown": "implementation"})
+    assignments = ET.SubElement(data, qualified_name(namespace, "InputAssignments"))
+    for name, value in arguments:
+        assignment = ET.SubElement(assignments, qualified_name(namespace, "InputAssignment"))
+        ET.SubElement(assignment, qualified_name(namespace, "Name")).text = name
+        ET.SubElement(assignment, qualified_name(namespace, "Value")).text = value
+
+
 def qualified_name(namespace: str, name: str) -> str:
     """Build an ElementTree expanded name."""
 

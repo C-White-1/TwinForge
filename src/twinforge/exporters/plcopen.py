@@ -124,6 +124,7 @@ class PLCopenExporter:
         self._operands = PLCopenOperandPlanner(
             rising_trigger_type=trigger_type,
             include_unverified_blocks=self._include_unverified_blocks,
+            codesys=self.profile is PLCopenProfile.CODESYS,
         ).prepare(controller)
         self.diagnostics.extend(self._operands.diagnostics)
         self._program_names = self._portable_program_names(controller)
@@ -202,7 +203,7 @@ class PLCopenExporter:
             emit_variables=lambda parent, tags: self._variables(
                 parent,
                 "globalVars",
-                list(tags),
+                self._initialisation_order(tags),
                 attributes={"name": "ControllerTags"},
             ),
             function_blocks=() if referenced else self._operands.generated_blocks,
@@ -391,6 +392,7 @@ class PLCopenExporter:
             report_diagnostic=self._diagnostic,
             function_block_type=function_block_type,
             declared_name=lambda tag: self._operands.tag_names.get(tag.name, tag.name),
+            init_arguments=lambda tag: instances[tag.name].init_arguments if tag.name in instances else (),
         ).emit(parent, list_name, tags, attributes=attributes)
 
     def _rung(
@@ -592,9 +594,50 @@ class PLCopenExporter:
         # input pins and every reader of its outputs.
         self._network_blocks = {}
         self._emit_series(ld, rung.network, [rail_id])
+        if self.profile is PLCopenProfile.CODESYS:
+            self._mark_unconnected_outputs(ld)
         right = ET.SubElement(ld, _q(ns, "rightPowerRail"), {"localId": str(self._id())})
         self._position(right)
         ET.SubElement(right, _q(ns, "connectionPointIn"))
+
+    def _initialisation_order(self, tags: Sequence[Tag]) -> list[Tag]:
+        """Variables an instance's FB_init arguments name come first.
+
+        CODESYS initialises a variable list in declaration order and runs an
+        instance's FB_init as its declaration is reached, so a table it reads
+        must be declared above it: otherwise "C0268: The uninitialized
+        variable TF_DR0_Pattern is used for initialization of TF_DR0" (V3.5
+        SP22 Patch 3). See docs/references/codesys-plcopen-import-rules.md.
+        """
+        used = {value for instance in self._operands.function_block_instances.values()
+                for _, value in instance.init_arguments}
+        if not used:
+            return list(tags)
+        declared = lambda tag: self._operands.tag_names.get(tag.name, tag.name)  # noqa: E731
+        return [tag for tag in tags if declared(tag) in used] + [tag for tag in tags if declared(tag) not in used]
+
+    def _mark_unconnected_outputs(self, ld: ET.Element) -> None:
+        """Give each block output nothing in the rung reads an empty expression.
+
+        That is how a CODESYS export writes an output pin left unused (its
+        empty variable field). A bare connection point instead reads, in
+        CODESYS's ladder, as one more output carrying the rung: with two such
+        (the drum's F and STEP_NO), its import reports "Block has too many
+        outputs" (CODESYS V3.5 SP22 Patch 3). See
+        docs/references/codesys-plcopen-import-rules.md.
+        """
+        ns = self.profile.namespace
+        read = {(connection.get("refLocalId"), connection.get("formalParameter"))
+                for connection in ld.iter(_q(ns, "connection"))}
+        for block_id, _ in self._network_blocks.values():
+            block = next(element for element in ld if element.get("localId") == str(block_id))
+            outputs = next(section for section in block if section.tag == _q(ns, "outputVariables"))
+            for variable in outputs:
+                if (str(block_id), variable.get("formalParameter")) in read:
+                    continue
+                point = variable.find(_q(ns, "connectionPointOut"))
+                if point is not None and point.find(_q(ns, "expression")) is None:
+                    ET.SubElement(point, _q(ns, "expression"))
 
     def _emit_series(
         self, ld: ET.Element, series: LadderSeries, inputs: list[ConnectionRef],

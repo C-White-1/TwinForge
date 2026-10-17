@@ -180,8 +180,13 @@ class PLCopenOperandPlan:
 class PLCopenOperandPlanner:
     """Discover deterministic symbols without serializing PLCopen XML."""
 
-    def __init__(self, *, rising_trigger_type: str = "R_TRIG", include_unverified_blocks: bool = False) -> None:
+    def __init__(
+        self, *, rising_trigger_type: str = "R_TRIG", include_unverified_blocks: bool = False, codesys: bool = False,
+    ) -> None:
         self._rising_trigger_type = rising_trigger_type
+        # A CODESYS target uses the CODESYS variant of a generated block where
+        # one exists (configured through FB_init rather than pins).
+        self._codesys = codesys
         # Export instances of generated blocks whose behaviour is not yet
         # verified (see plcopen_library.GeneratedFunctionBlock.verified).
         self._include_unverified_blocks = include_unverified_blocks
@@ -367,7 +372,7 @@ class PLCopenOperandPlanner:
         """Find IEC timer instances and give non-IEC tag names an IEC-safe name."""
         for tag in tags:
             inputs = tag.metadata.get("iec_function_block_inputs") or {}
-            generated = generated_block_for(tag)
+            generated = generated_block_for(tag, codesys=self._codesys)
             if tag.data_type in IEC_TIMER_TYPES and "PT" in inputs:
                 self._function_block_instances[tag.name] = timer_interface(tag.data_type, str(inputs["PT"]))
             elif generated is not None and not (generated.verified or self._include_unverified_blocks):
@@ -380,44 +385,7 @@ class PLCopenOperandPlanner:
                         generated.name,
                     )
             elif generated is not None:
-                constants = {pin: str(inputs[pin]) for pin, _ in generated.inputs if pin in inputs}
-                tables = tag.metadata.get("iec_function_block_tables") or {}
-                for pin, data_type in generated.inputs:
-                    if pin in tables:
-                        # An array input is fed from a variable declared with
-                        # the table as its initial value (an array literal is
-                        # not a portable pin expression).
-                        table = unique_portable_name(f"{tag.name}_{pin.title()}", names)
-                        names.add(table)
-                        self._generated_tags.append(Tag(
-                            name=table, data_type=data_type,
-                            description=f"{pin} table of {tag.name}",
-                            metadata={"plcopen_array_type": data_type,
-                                      "plcopen_array_values": [str(value) for value in tables[pin]]},
-                        ))
-                        constants[pin] = table
-                bound = {pin: str(operand) for pin, operand in
-                         (tag.metadata.get("iec_function_block_in_outs") or {}).items()}
-                for pin, _ in generated.in_outs:
-                    if pin in bound:
-                        self._declare_boolean_operand(bound[pin], names)
-                if any(pin not in bound for pin, _ in generated.in_outs):
-                    # IEC requires every in-out to be bound; the ones this
-                    # instance does not use share one spare variable.
-                    spare = unique_portable_name(f"{tag.name}_Unused", names)
-                    names.add(spare)
-                    self._generated_tags.append(Tag(
-                        name=spare, data_type="BOOL",
-                        description=f"Unused in-out parameters of {tag.name}",
-                    ))
-                    bound = {pin: bound.get(pin, spare) for pin, _ in generated.in_outs}
-                self._function_block_instances[tag.name] = BlockInterface(
-                    generated.name, tuple(pin for pin, _ in generated.inputs),
-                    tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
-                    tuple((pin, constants[pin]) for pin, _ in generated.inputs if pin in constants), standard=False,
-                    in_outs=tuple((pin, bound[pin]) for pin, _ in generated.in_outs),
-                    source_pins=generated.source_pins,
-                )
+                self._function_block_instances[tag.name] = self._generated_instance(tag, generated, names)
                 self._generated_blocks.setdefault(generated.name, generated)
             if _IEC_IDENTIFIER.fullmatch(tag.name):
                 continue
@@ -463,6 +431,65 @@ class PLCopenOperandPlanner:
                 self._operand_names[operand] = f"{self._operand_names.get(root, root)}.{name}"
                 continue
             self._declare_boolean_operand(operand, names)
+
+    def _generated_instance(self, tag: Tag, generated: GeneratedFunctionBlock, names: set[str]) -> BlockInterface:
+        """How an instance of a generated block is configured.
+
+        Its configuration items (a constant, a table, an output it writes)
+        become pins and in-outs of the plain block, or the FB_init arguments
+        of a block configured in its declaration (CODESYS).
+        """
+        init_names = dict(generated.init_names)
+        types = {**dict(generated.inputs), **dict(generated.in_outs),
+                 **{item: dict(generated.init_inputs)[parameter] for item, parameter in init_names.items()}}
+        values = {item: str(value) for item, value in (tag.metadata.get("iec_function_block_inputs") or {}).items()}
+        for item, table in (tag.metadata.get("iec_function_block_tables") or {}).items():
+            # A table is fed from a variable declared with it as its initial
+            # value (an array literal is not a portable pin expression, nor a
+            # CODESYS FB_init argument).
+            variable = unique_portable_name(f"{tag.name}_{item.title()}", names)
+            names.add(variable)
+            self._generated_tags.append(Tag(
+                name=variable, data_type=types[item],
+                description=f"{item} table of {tag.name}",
+                metadata={"plcopen_array_type": types[item],
+                          "plcopen_array_values": [str(value) for value in table]},
+            ))
+            values[item] = variable
+        outputs = [pin for pin, _ in generated.in_outs] if not generated.init_inputs else [
+            item for item, parameter in init_names.items()
+            if dict(generated.init_inputs)[parameter].startswith("REFERENCE TO ")]
+        bound = {item: str(operand) for item, operand in (tag.metadata.get("iec_function_block_in_outs") or {}).items()}
+        for item in outputs:
+            if item in bound:
+                self._declare_boolean_operand(bound[item], names)
+        if any(item not in bound for item in outputs):
+            # Every in-out (and FB_init reference) must be bound; the ones this
+            # instance does not use share one spare variable.
+            spare = unique_portable_name(f"{tag.name}_Unused", names)
+            names.add(spare)
+            self._generated_tags.append(Tag(name=spare, data_type="BOOL",
+                                            description=f"Unused outputs of {tag.name}"))
+            bound = {item: bound.get(item, spare) for item in outputs}
+        values.update({item: bound[item] for item in outputs})
+        if generated.init_inputs:
+            # Written into the declaration, so operands go in by their declared name.
+            arguments = {init_names[item]: self._operand_names.get(value, value)
+                         for item, value in values.items() if item in init_names}
+            init_arguments = tuple((parameter, arguments[parameter]) for parameter, _ in generated.init_inputs
+                                   if parameter in arguments)
+            return BlockInterface(
+                generated.name, tuple(pin for pin, _ in generated.inputs),
+                tuple(pin for pin, _ in generated.outputs), generated.bool_outputs, standard=False,
+                source_pins=generated.source_pins, init_arguments=init_arguments,
+            )
+        return BlockInterface(
+            generated.name, tuple(pin for pin, _ in generated.inputs),
+            tuple(pin for pin, _ in generated.outputs), generated.bool_outputs,
+            tuple((pin, values[pin]) for pin, _ in generated.inputs if pin in values), standard=False,
+            in_outs=tuple((pin, values[pin]) for pin, _ in generated.in_outs),
+            source_pins=generated.source_pins,
+        )
 
     def _declare_boolean_operand(self, operand: str, names: set[str]) -> None:
         """A BOOL operand; one IEC-safe surrogate when it is not an IEC identifier."""

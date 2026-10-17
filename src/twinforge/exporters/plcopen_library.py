@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
+import uuid
 import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
@@ -28,6 +29,8 @@ from twinforge.model import Tag
 from .plcopen_xml import qualified_name
 
 XHTML_NAMESPACE = "http://www.w3.org/1999/xhtml"
+CODESYS_PLCOPEN = "http://www.3s-software.com/plcopenxml"
+_METHOD_ID_NAMESPACE = uuid.UUID("5d1c7a2e-2b0e-4f4a-9c1e-7a6b3f0d9e21")
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,14 @@ class GeneratedFunctionBlock:
     # parameter (TC6 `documentation`, imported as declaration comments).
     summary: str = ""
     descriptions: tuple[tuple[str, str], ...] = ()
+    # CODESYS only: an FB_init method whose extra parameters are set in the
+    # instance's declaration, `D : Block(NSTEPS_INIT := 4, ...)`, so
+    # configuration is not wired as pins (as a configured block in the
+    # source is not). `init_names` maps a configuration item (as a tag's
+    # metadata names it: an input, a table or an in-out) to its parameter.
+    init_inputs: tuple[tuple[str, str], ...] = ()
+    init_body: str = ""
+    init_names: tuple[tuple[str, str], ...] = ()
 
     @property
     def input_pins(self) -> frozenset[str]:
@@ -241,9 +252,80 @@ MACHINE_EXPERT_BASIC_DRUM = GeneratedFunctionBlock(
 LIBRARY["machine-expert-basic.drum"] = MACHINE_EXPERT_BASIC_DRUM
 
 
-def generated_block_for(tag: Tag) -> GeneratedFunctionBlock | None:
+def _through_references(body: str) -> str:
+    """The drum body, writing each control bit through its reference."""
+    return re.sub(r"^    (B(\d+)) := (.*);$",
+                  r"    IF __ISVALIDREF(ref\1) THEN\n        ref\1 := \3;\n    END_IF;", body, flags=re.MULTILINE)
+
+
+# CODESYS: the same drum with Basic's box (RESET, U -> F, plus STEP_NO). The
+# step count, pattern and the 16 outputs are given once in the instance's
+# declaration (FB_init) and the outputs kept as references: verified in
+# CODESYS V3.5 SP22 Patch 3 to build, write through and survive an online
+# change (docs/experiments/codesys-library-compile.md). The stepping logic
+# is the plain drum's body, so both variants behave the same.
+MACHINE_EXPERT_BASIC_DRUM_CODESYS = GeneratedFunctionBlock(
+    name="TF_MEBasic_Drum",
+    inputs=(("RESET", "BOOL"), ("U", "BOOL")),
+    outputs=(("F", "BOOL"), ("STEP_NO", "INT")),
+    locals=(("NSTEPS", "INT"), ("PATTERN", "ARRAY[0..7] OF WORD"), ("U_LAST", "BOOL"), ("WRITE", "BOOL"),
+            ("CURRENT", "WORD"), *((f"refB{bit}", "REFERENCE TO BOOL") for bit in range(16))),
+    body=_through_references(_DRUM_BODY),
+    source=MACHINE_EXPERT_BASIC_DRUM.source,
+    verified=True,
+    source_pins=MACHINE_EXPERT_BASIC_DRUM.source_pins,
+    summary=(
+        "Drum sequencer reproducing Machine Expert - Basic's %DR drum, with Basic's box: RESET (R), U -> F, "
+        "plus STEP_NO. Configure it in its declaration, as the Drum Assistant does: "
+        "DR0 : TF_MEBasic_Drum(NSTEPS_INIT := ..., PATTERN_INIT := ..., B0 := xLamp0, ..., B15 := xSpare). "
+        "NSTEPS steps (1..8); each step's pattern switches up to 16 outputs B0..B15. A rising edge on U "
+        "advances one step, wrapping from the last step to step 0; F is TRUE on the last step. The outputs "
+        "are written only when the step changes (and every call while RESET is TRUE), so other logic's "
+        "writes stand in between, as on the M221. " + _VERIFIED
+    ),
+    descriptions=(
+        ("RESET", "Reset (Basic's R): holds step 0 while TRUE, writing step 0's pattern every call. Has priority."),
+        ("U", "Advance one step on a rising edge; from the last step, wraps to step 0."),
+        ("F", "Full: TRUE while the current step is the last (NSTEPS - 1)."),
+        ("STEP_NO", "Current step, 0..NSTEPS - 1 (Basic's %DRi.S)."),
+        ("NSTEPS", "Internal: number of steps, from NSTEPS_INIT."),
+        ("PATTERN", "Internal: the pattern table, from PATTERN_INIT."),
+        ("U_LAST", "Internal: U on the previous call (edge detection)."),
+        ("WRITE", "Internal: TRUE on a call that writes the outputs."),
+        ("CURRENT", "Internal: the pattern being written."),
+        *((f"refB{bit}", f"Internal: the output control bit {bit} drives, from B{bit}.") for bit in range(16)),
+        ("NSTEPS_INIT", "Number of steps, 1..8 (the Drum Assistant's 'Number of steps')."),
+        ("PATTERN_INIT", "The pattern table (a variable): element k is step k's pattern, bit n switches Bn. "
+                         "Example: 2#0000_0000_0000_0011 sets B0 and B1."),
+        *((f"B{bit}", f"The output control bit {bit} drives. Written only on a step change (and while RESET "
+                      f"is TRUE). Give unused bits one spare BOOL.") for bit in range(16)),
+    ),
+    init_inputs=(("NSTEPS_INIT", "INT"), ("PATTERN_INIT", "ARRAY[0..7] OF WORD"),
+                 *((f"B{bit}", "REFERENCE TO BOOL") for bit in range(16))),
+    init_body="NSTEPS := NSTEPS_INIT;\nPATTERN := PATTERN_INIT;\n"
+              + "".join(f"refB{bit} REF= B{bit};\n" for bit in range(16)) + "FB_init := TRUE;\n",
+    init_names=(("NSTEPS", "NSTEPS_INIT"), ("PATTERN", "PATTERN_INIT"),
+                *((f"B{bit}", f"B{bit}") for bit in range(16))),
+)
+
+# function_block_semantics identifier -> the block a CODESYS target uses
+# instead of the plain one.
+LIBRARY_CODESYS: dict[str, GeneratedFunctionBlock] = {
+    "machine-expert-basic.drum": MACHINE_EXPERT_BASIC_DRUM_CODESYS,
+}
+
+
+def generated_block_for(tag: Tag, *, codesys: bool = False) -> GeneratedFunctionBlock | None:
     """The generated block whose behaviour `tag` names, if TwinForge has one."""
-    return LIBRARY.get(tag.metadata.get("function_block_semantics") or "")
+    semantics = tag.metadata.get("function_block_semantics") or ""
+    if codesys and semantics in LIBRARY_CODESYS:
+        return LIBRARY_CODESYS[semantics]
+    return LIBRARY.get(semantics)
+
+
+def method_object_id(block: GeneratedFunctionBlock, method: str) -> str:
+    """A stable CODESYS object id for a generated block's method."""
+    return str(uuid.uuid5(_METHOD_ID_NAMESPACE, f"TwinForge/{block.name}/{method}"))
 
 
 def emit_function_block_pou(parent: ET.Element, block: GeneratedFunctionBlock, namespace: str) -> ET.Element:
@@ -266,7 +348,29 @@ def emit_function_block_pou(parent: ET.Element, block: GeneratedFunctionBlock, n
     # The block's own documentation is appended by `append_block_documentation`
     # once a target has added any <addData>, which TC6 orders before it.
     ET.SubElement(st, qualified_name(XHTML_NAMESPACE, "xhtml")).text = block.body
+    if block.init_inputs:
+        _emit_fb_init(ET.SubElement(pou, qualified_name(namespace, "addData")), block, namespace, descriptions)
     return pou
+
+
+def _emit_fb_init(add_data: ET.Element, block: GeneratedFunctionBlock, namespace: str,
+                  descriptions: dict[str, str]) -> None:
+    """The FB_init method, as a CODESYS PLCopen export writes a method."""
+    data = ET.SubElement(add_data, qualified_name(namespace, "data"),
+                         {"name": f"{CODESYS_PLCOPEN}/method", "handleUnknown": "implementation"})
+    method = ET.SubElement(data, qualified_name(namespace, "Method"),
+                           {"name": "FB_init", "ObjectId": method_object_id(block, "FB_init")})
+    interface = ET.SubElement(method, qualified_name(namespace, "interface"))
+    ET.SubElement(ET.SubElement(interface, qualified_name(namespace, "returnType")), qualified_name(namespace, "BOOL"))
+    inputs = ET.SubElement(interface, qualified_name(namespace, "inputVars"))
+    for name, data_type in (("bInitRetains", "BOOL"), ("bInCopyCode", "BOOL"), *block.init_inputs):
+        variable = ET.SubElement(inputs, qualified_name(namespace, "variable"), {"name": name})
+        emit_type(ET.SubElement(variable, qualified_name(namespace, "type")), data_type, namespace)
+        if name in descriptions:
+            emit_documentation(variable, descriptions[name], namespace)
+    st = ET.SubElement(ET.SubElement(method, qualified_name(namespace, "body")), qualified_name(namespace, "ST"))
+    ET.SubElement(st, qualified_name(XHTML_NAMESPACE, "xhtml")).text = block.init_body
+    ET.SubElement(method, qualified_name(namespace, "addData"))
 
 
 def append_block_documentation(pou: ET.Element, block: GeneratedFunctionBlock, namespace: str) -> None:
@@ -292,6 +396,10 @@ def array_bounds(data_type: str) -> tuple[int, int, str] | None:
 
 def emit_type(type_element: ET.Element, data_type: str, namespace: str) -> None:
     """Fill a TC6 `type`: an elementary type, or a one-dimensional array of one."""
+    if data_type.startswith("REFERENCE TO "):
+        # As a CODESYS export writes it.
+        ET.SubElement(type_element, qualified_name(namespace, "derived"), {"name": data_type})
+        return
     bounds = array_bounds(data_type)
     if bounds is None:
         ET.SubElement(type_element, qualified_name(namespace, data_type))

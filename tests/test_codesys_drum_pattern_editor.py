@@ -62,9 +62,11 @@ def test_drum_names_must_make_iec_identifiers():
     assert not any(editor.valid_drum_name(name) for name in ("0DR", "DR 0", "DR__0", "DR0_", "%DR0", ""))
 
 
-def test_usage_wires_the_pattern_and_every_bit():
+def test_usage_declares_the_drum_configured_like_the_drum_assistant():
     text = editor.usage("DR0", NAMES)
     # Qualified: CODESYS creates a new list with {attribute 'qualified_only'}.
-    assert "NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN" in text
-    assert "PATTERN := MyPatterns.DR0_PATTERN" in editor.usage("DR0", NAMES, "MyPatterns")
+    assert ("DR0 : TF_MEBasic_Drum(NSTEPS_INIT := TF_DrumPatterns.DR0_NSTEPS, "
+            "PATTERN_INIT := TF_DrumPatterns.DR0_PATTERN,") in text
+    assert "PATTERN_INIT := MyPatterns.DR0_PATTERN" in editor.usage("DR0", NAMES, "MyPatterns")
     assert "B0 := xLamp0" in text and "B15 := xSpare" in text
+    assert "DR0(RESET := ..., U := ...);" in text  # Basic's box: R, U -> F

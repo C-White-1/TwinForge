@@ -77,6 +77,10 @@ class _Lexer:
             self._block_comment("(*", "*)")
         elif character == "'":
             self._string()
+        elif self._starts_with_reference_assignment():
+            # CODESYS reference assignment (`refOut REF= xLamp0;`): one token,
+            # parsed like `:=`, with the operator kept as written.
+            self._fixed(4, TokenKind.ASSIGN)
         elif character.isalpha() or character == "_":
             self._word_or_typed_literal()
         elif character.isdigit():
@@ -295,6 +299,11 @@ class _Lexer:
 
     def _starts_with(self, value: str) -> bool:
         return self.source.startswith(value, self.position)
+
+    def _starts_with_reference_assignment(self) -> bool:
+        """`REF=` (any case), not followed by another `=`."""
+        here = self.source[self.position:self.position + 5]
+        return here[:4].upper() == "REF=" and here[4:] != "="
 
     def _advance(self) -> None:
         character = self.source[self.position]

@@ -21,19 +21,24 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 
 from .plcopen_library import (
-    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, XHTML_NAMESPACE, GeneratedFunctionBlock,
+    MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, MACHINE_EXPERT_BASIC_DRUM_CODESYS, XHTML_NAMESPACE,
+    GeneratedFunctionBlock,
     append_block_documentation, array_bounds, emit_array_value, emit_function_block_pou, emit_type,
 )
 from .plcopen_library_checks import CHECKS, Check, Expect, Scan, Value, Write
 from .plcopen_types import PLCopenProfile
 from .plcopen_xml import qualified_name as q
-from .plcopen_xml import xhtml_namespace_on_element
+from .plcopen_xml import emit_input_assignments, xhtml_namespace_on_element
 
 LIBRARY_NAME = "TwinForge_MEBasic"
 # 0.2.0: the drum takes one PATTERN array instead of P0..P7.
 # 0.2.1: documentation for each block and parameter.
-LIBRARY_VERSION = "0.2.1"
-LIBRARY_BLOCKS: tuple[GeneratedFunctionBlock, ...] = (MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM)
+# 0.3.0: the drum has Basic's box (RESET, U -> F, STEP_NO), configured in
+#        its declaration through FB_init.
+LIBRARY_VERSION = "0.3.0"
+LIBRARY_BLOCKS: tuple[GeneratedFunctionBlock, ...] = (MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM_CODESYS)
+# The block a recorded check names -> the library's variant of it.
+_LIBRARY_VARIANT = {MACHINE_EXPERT_BASIC_DRUM.name: MACHINE_EXPERT_BASIC_DRUM_CODESYS}
 TEST_PROGRAM = "TF_MEBasic_Tests"
 RESULTS = (("xDone", "BOOL"), ("iChecks", "INT"), ("iFailures", "INT"), ("iFirstFailure", "INT"))
 
@@ -47,6 +52,8 @@ class ProgramVariable:
     data_type: str
     instance: bool = False
     initial: tuple[str, ...] = ()
+    # FB_init arguments, for an instance configured in its declaration.
+    init_arguments: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -64,20 +71,38 @@ def checks_program(checks: Sequence[Check] = CHECKS) -> ChecksProgram:
     statements: list[str] = []
     labels: list[str] = []
     for check in checks:
-        block = check.block
-        types = dict((*block.inputs, *block.outputs, *block.in_outs))
-        variables.append(ProgramVariable(check.name, block.name, instance=True))
-        bound = {pin: f"{check.name}_{pin}" for pin, _ in block.in_outs}
+        block = _LIBRARY_VARIANT.get(check.block.name, check.block)
+        init_names = dict(block.init_names)
+        init_types = dict(block.init_inputs)
+        # The type of each configuration item: a pin, or an FB_init parameter.
+        types = {**dict((*block.inputs, *block.outputs, *block.in_outs)),
+                 **{item: init_types[parameter] for item, parameter in init_names.items()}}
+        # Outputs the block writes in place: in-outs, or FB_init references.
+        written = [pin for pin, _ in block.in_outs] or [
+            item for item, parameter in init_names.items() if init_types[parameter].startswith("REFERENCE TO ")]
+        bound = {item: f"{check.name}_{item}" for item in written}
         variables.extend(ProgramVariable(name, "BOOL") for name in bound.values())
-        # An array input is fed from a variable initialised with its table.
-        tables = {pin: f"{check.name}_{pin}" for pin, data_type in block.inputs if array_bounds(data_type)}
-        for pin, name in tables.items():
-            base = array_bounds(types[pin])
+        # An array (an input or an FB_init parameter) is fed from a variable
+        # initialised with its table.
+        tables = {item: f"{check.name}_{item}" for item, data_type in types.items()
+                  if array_bounds(data_type) and item in check.constants}
+        for item, name in tables.items():
+            base = array_bounds(types[item])
             assert base is not None
-            table = check.constants[pin]
+            table = check.constants[item]
             assert isinstance(table, tuple)
-            variables.append(ProgramVariable(name, types[pin], initial=tuple(_literal(word, base[2]) for word in table)))
-        current: dict[str, Value] = dict(check.constants)
+            variables.append(ProgramVariable(name, types[item], initial=tuple(_literal(word, base[2]) for word in table)))
+        init_arguments: dict[str, str] = {}
+        for item, parameter in init_names.items():
+            if item in bound:
+                init_arguments[parameter] = bound[item]
+            elif item in tables:
+                init_arguments[parameter] = tables[item]
+            elif item in check.constants:
+                init_arguments[parameter] = _literal(check.constants[item], init_types[parameter])
+        variables.append(ProgramVariable(check.name, block.name, instance=True, init_arguments=tuple(
+            (parameter, init_arguments[parameter]) for parameter, _ in block.init_inputs if parameter in init_arguments)))
+        current: dict[str, Value] = {item: value for item, value in check.constants.items() if item not in init_names}
         statements.append(f"    (* {check.name} *)")
         for step in check.steps:
             if isinstance(step, Scan):
@@ -86,7 +111,7 @@ def checks_program(checks: Sequence[Check] = CHECKS) -> ChecksProgram:
                              for pin, data_type in block.inputs if data_type == "BOOL"]
                 arguments += [f"{pin} := {tables[pin] if pin in tables else _literal(current[pin], data_type)}"
                               for pin, data_type in block.inputs if data_type != "BOOL"]
-                arguments += [f"{pin} := {name}" for pin, name in bound.items()]
+                arguments += [f"{pin} := {name}" for pin, name in bound.items() if not block.init_inputs]
                 statements.append(f"    {check.name}({', '.join(arguments)});")
             elif isinstance(step, Write):
                 statements.append(f"    {bound[step.variable]} := {_literal(step.value, types[step.variable])};")
@@ -184,5 +209,7 @@ def _emit_test_program(pous: ET.Element, program: ChecksProgram, ns: str) -> Non
             emit_type(type_element, variable.data_type, ns)
         if variable.initial:
             emit_array_value(element, list(variable.initial), ns)
+        if variable.init_arguments:
+            emit_input_assignments(element, variable.init_arguments, ns)
     st = ET.SubElement(ET.SubElement(pou, q(ns, "body")), q(ns, "ST"))
     ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml")).text = program.body

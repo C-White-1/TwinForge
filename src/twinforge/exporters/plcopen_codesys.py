@@ -13,7 +13,9 @@ from collections.abc import Callable, Mapping, Sequence
 
 from twinforge.model import Controller, Program, Tag, Task
 
-from .plcopen_library import GeneratedFunctionBlock, append_block_documentation, emit_function_block_pou
+from .plcopen_library import (
+    GeneratedFunctionBlock, append_block_documentation, emit_function_block_pou, method_object_id,
+)
 from .plcopen_xml import qualified_name as q
 
 
@@ -132,7 +134,7 @@ class CodesysProfileSupport:
             controller,
             has_global_variables=global_variables is not None,
             needs_standard_library=needs_standard_library or bool(referenced_libraries),
-            function_block_names=[block.name for block in function_blocks],
+            function_blocks=function_blocks,
             program_names=program_names,
         )
 
@@ -197,9 +199,12 @@ class CodesysProfileSupport:
         call_type.text = call_type_name
 
     def append_object_id(self, parent: ET.Element, object_id: str) -> None:
-        """Append an object ID in a new PLCopen ``addData`` container."""
+        """Append an object ID to the element's ``addData`` (one per element in
+        TC6), creating it if the element has none yet."""
 
-        add_data = ET.SubElement(parent, q(self.namespace, "addData"))
+        add_data = next((child for child in parent if child.tag == q(self.namespace, "addData")), None)
+        if add_data is None:
+            add_data = ET.SubElement(parent, q(self.namespace, "addData"))
         self.append_object_id_data(add_data, object_id)
 
     def append_object_id_data(
@@ -228,7 +233,7 @@ class CodesysProfileSupport:
         *,
         has_global_variables: bool,
         needs_standard_library: bool,
-        function_block_names: Sequence[str] = (),
+        function_blocks: Sequence[GeneratedFunctionBlock] = (),
         program_names: Mapping[str, str] | None = None,
     ) -> None:
         """Describe CODESYS navigator objects independently of IEC content.
@@ -261,8 +266,11 @@ class CodesysProfileSupport:
                 "Library Manager",
                 "Application/Library Manager",
             )
-        for name in function_block_names:
-            self._append_structure_object(application, name, f"Application/pou/{name}")
+        for block in function_blocks:
+            block_object = self._append_structure_object(application, block.name, f"Application/pou/{block.name}")
+            if block.init_inputs:
+                ET.SubElement(block_object, q(self.namespace, "Object"),
+                              {"Name": "FB_init", "ObjectId": method_object_id(block, "FB_init")})
         for program in controller.iter_programs():
             name = (program_names or {}).get(program.name, program.name)
             program_object = self._append_structure_object(

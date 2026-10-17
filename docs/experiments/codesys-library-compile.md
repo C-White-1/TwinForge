@@ -174,6 +174,29 @@ POU (`<Method name="FB_init" ObjectId>` with its own interface, return type
 and ST body, and an entry under the block in the project structure), and an
 attribute as `attributes` data.
 
+### Three-pin drum, library 0.3.0 (2026-10-18)
+
+- The 0.3.0 test program (drum with `FB_init`) imported, built and ran:
+  **29 checks, 0 failures**.
+- Library 0.3.0 imported with `FB_init` under the drum, and installed.
+- The converted fixture 14, referencing 0.3.0, still reported "Block has
+  too many outputs". The cause: the unused output pin `STEP_NO` was written
+  with a bare connection point, where CODESYS writes an empty
+  `<expression/>`. Fixed for the CODESYS profile.
+- Retry: one error left, "C0268: The uninitialized variable TF_DR0_Pattern
+  is used for initialization of TF_DR0": the table was declared after the
+  drum. The CODESYS export now declares what FB_init reads first.
+- **Retry: 0 errors.** The converted fixture 14 runs on the installed
+  library: the drum box has Basic's pins (`RESET` from `TF_I0_1`, `U` from
+  `TF_I0_0`, `F` to `TF_Q0_7`); pulsing `TF_I0_0` stepped it to 1 and lit
+  `TF_Q0_0`, while `TF_Q0_1` stayed off because rung 2's plain coil on it
+  writes FALSE every scan after the drum, as the M221 did (step A2). The
+  whole chain works: Machine Expert - Basic project -> TwinForge -> a CODESYS
+  project that builds, runs and uses the installed library.
+
+All rules found so far are collected in
+[CODESYS PLCopen import rules](../references/codesys-plcopen-import-rules.md).
+
 ## Notes
 
 Anything surprising, write it here. Screenshots of the build messages and

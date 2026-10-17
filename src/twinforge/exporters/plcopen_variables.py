@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 import xml.etree.ElementTree as ET
 
 from twinforge.model import Tag
@@ -10,6 +10,7 @@ from twinforge.model import Tag
 from .plcopen_library import emit_array_value, emit_type
 from .plcopen_operands import PLCOPEN_PRIMITIVE_TYPES, plcopen_type_element
 from .plcopen_xml import (
+    emit_input_assignments,
     plcopen_scalar_value,
     qualified_name,
     variable_add_data,
@@ -40,6 +41,7 @@ class PLCopenVariableEmitter:
         report_diagnostic: DiagnosticReporter,
         function_block_type: Callable[[Tag], str | None] = lambda tag: None,
         declared_name: Callable[[Tag], str] = lambda tag: tag.name,
+        init_arguments: Callable[[Tag], Sequence[tuple[str, str]]] = lambda tag: (),
     ) -> None:
         self._namespace = namespace
         self._tag_export_type = tag_export_type
@@ -49,6 +51,9 @@ class PLCopenVariableEmitter:
         # (e.g. "Standard.TON"), or None for any other tag.
         self._function_block_type = function_block_type
         self._declared_name = declared_name
+        # FB_init arguments of a function block instance (CODESYS), written
+        # in the declaration: `D : Block(NAME := value, ...)`.
+        self._init_arguments = init_arguments
 
     def emit(
         self,
@@ -123,6 +128,7 @@ class PLCopenVariableEmitter:
         )
         self._type(variable, tag)
         self._initial_value(variable, tag)
+        self._input_assignments(variable, tag)
         self._source_operand(variable, tag)
         self._ccw_io_evidence(variable, tag)
         self._oneshot_storage(variable, tag)
@@ -257,6 +263,12 @@ class PLCopenVariableEmitter:
             qualified_name(XHTML_NAMESPACE, "xhtml"),
         )
         xhtml.text = tag.description
+
+    def _input_assignments(self, variable: ET.Element, tag: Tag) -> None:
+        """An instance's FB_init arguments, as a CODESYS export writes them."""
+        arguments = self._init_arguments(tag)
+        if arguments:
+            emit_input_assignments(variable, arguments, self._namespace)
 
     def _extension(self, variable: ET.Element, name: str) -> ET.Element:
         add_data = variable_add_data(variable, self._namespace)

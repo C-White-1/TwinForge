@@ -10,11 +10,14 @@ an M221 to a CODESYS controller:
 | `TF_MEBasic_Drum` | `%DR` drum | Step sequencer, up to 8 steps × 16 control bits |
 
 Neither has an IEC equivalent: IEC `CTUD` does not wrap or set flags the
-way `%C` does, and IEC 61131-3 has no drum sequencer at all. Schneider's
+way `%C` does, and IEC 61131-3 has no drum sequencer at all. The drum here
+uses two CODESYS features (configuration through `FB_init`, and references);
+TwinForge's exports for other targets use a plain IEC drum with the same
+behaviour. Schneider's
 own compatible blocks (the TwidoEmulationSupport library) run only inside
 Schneider's Machine Expert.
 
-**Status:** version 0.2.1, built and tested with CODESYS V3.5 SP22 Patch 3.
+**Status:** version 0.3.0, built and tested with CODESYS V3.5 SP22 Patch 3.
 **Licence:** MIT, as part of [TwinForge](../../README.md).
 **Not affiliated with or endorsed by Schneider Electric.**
 
@@ -62,7 +65,7 @@ minutes):
 2. **Create the library project.** In CODESYS: File → New Project →
    Libraries → Empty library.
 3. **Fill in Project Information.**
-   - Company `TwinForge`, Title `TwinForge_MEBasic`, Version `0.2.1`.
+   - Company `TwinForge`, Title `TwinForge_MEBasic`, Version `0.3.0`.
    - On the Properties tab, add `DocFormat` (text) = `reStructuredText`.
 4. **Import the blocks.** In the POUs view (View → POUs): Project → Import
    PLCopenXML…, then `TwinForge_MEBasic.xml`.
@@ -124,25 +127,33 @@ xBatchDone := Parts.D;
 ## TF_MEBasic_Drum
 
 A drum steps through up to 8 steps. Each step's pattern switches up to 16
-control bits, `B0`..`B15`.
+outputs, `B0`..`B15`. Its box looks like Basic's: `RESET` (Basic's `R`) and
+`U` in, `F` out, plus `STEP_NO`. Everything the Drum Assistant sets is given
+once, in the drum's **declaration**: the step count, the pattern, and the
+output each bit drives.
 
 - **Advance:** a rising edge on `U` advances one step. From the last step it
   wraps to step 0.
 - **Last step:** `F` is TRUE on the last step.
-- **When bits are written:** only when the step changes, and every call
+- **When outputs are written:** only when the step changes, and every call
   while `RESET` is TRUE. In between, other logic can write the same outputs
-  and its writes stand. This is how the M221 behaves, and why the bits are
-  `VAR_IN_OUT` rather than outputs.
+  and its writes stand. This is how the M221 behaves. The drum holds a
+  reference to each output and writes through it.
 
 | Pin | Type | | Meaning |
 | --- | --- | --- | --- |
 | `RESET` | BOOL | in | Reset (Basic's `R`): holds step 0 while TRUE, writing step 0's pattern every call. Has priority. |
 | `U` | BOOL | in | Advance one step on a rising edge. |
-| `NSTEPS` | INT | in | Number of steps, 1..8. |
-| `PATTERN` | ARRAY[0..7] OF WORD | in | `PATTERN[k]` is step k's pattern: bit n switches `Bn`. |
-| `F` | BOOL | out | TRUE on the last step (`NSTEPS - 1`). |
+| `F` | BOOL | out | TRUE on the last step. |
 | `STEP_NO` | INT | out | Current step (Basic's `%DRi.S`). |
-| `B0`..`B15` | BOOL | in/out | The control bits. All 16 must be bound; bind unused ones to one spare BOOL. |
+
+**In the declaration** (CODESYS `FB_init` parameters, all required):
+
+| Parameter | Type | Meaning |
+| --- | --- | --- |
+| `NSTEPS_INIT` | INT | Number of steps, 1..8. |
+| `PATTERN_INIT` | ARRAY[0..7] OF WORD | The pattern table, as a variable (CODESYS does not accept an array literal here). Element k is step k's pattern: bit n switches `Bn`. |
+| `B0`..`B15` | REFERENCE TO BOOL | The output each bit drives. Give unused bits one spare BOOL. |
 
 ### The pattern
 
@@ -173,10 +184,11 @@ pick it.
   (default `TF_DrumPatterns`): the step count, the pattern, and your
   output names as comments.
 - **Editing:** run it again for the same drum to load and edit that block.
-- **How to wire it:** the Messages window shows the call to use. The
-  constants are written with the list's name in front
-  (`TF_DrumPatterns.DR0_PATTERN`): CODESYS creates a new global variable
-  list with `{attribute 'qualified_only'}`, which requires that form.
+- **How to declare it:** the Messages window shows the drum's declaration,
+  configured from your grid, and its call. The constants are written with
+  the list's name in front (`TF_DrumPatterns.DR0_PATTERN`): CODESYS creates
+  a new global variable list with `{attribute 'qualified_only'}`, which
+  requires that form.
 
 **To put the editor on a toolbar**, rather than Tools → Scripting each time:
 
@@ -198,23 +210,27 @@ TwinForge folder.
 
 ```
 VAR
-    Seq : TF_MEBasic_Drum;
+    DR0 : TF_MEBasic_Drum(NSTEPS_INIT := TF_DrumPatterns.DR0_NSTEPS,
+        PATTERN_INIT := TF_DrumPatterns.DR0_PATTERN,
+        B0 := xLamp0, B1 := xLamp1, B2 := xLamp2, B3 := xLamp3,
+        B4 := xSpare, B5 := xSpare, B6 := xSpare, B7 := xSpare,
+        B8 := xSpare, B9 := xSpare, B10 := xSpare, B11 := xSpare,
+        B12 := xSpare, B13 := xSpare, B14 := xSpare, B15 := xSpare);
     xLamp0, xLamp1, xLamp2, xLamp3, xSpare : BOOL;
 END_VAR
 
-Seq(RESET := xReset, U := xNext,
-    NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN,
-    B0 := xLamp0, B1 := xLamp1, B2 := xLamp2, B3 := xLamp3,
-    B4 := xSpare, B5 := xSpare, B6 := xSpare, B7 := xSpare,
-    B8 := xSpare, B9 := xSpare, B10 := xSpare, B11 := xSpare,
-    B12 := xSpare, B13 := xSpare, B14 := xSpare, B15 := xSpare);
-xLastStep := Seq.F;
+DR0(RESET := xReset, U := xNext);
+xLastStep := DR0.F;
 ```
 
-In ladder or FBD, insert a box of type `TF_MEBasic_Drum` and wire the same
-pins.
+In ladder or FBD, insert a box of type `TF_MEBasic_Drum` with instance
+`DR0`: it has Basic's pins, and contacts can drive both `RESET` and `U`.
 
 ## Converting whole programs
+
+(For anyone changing what TwinForge writes for CODESYS: read the
+[CODESYS PLCopen import rules](../references/codesys-plcopen-import-rules.md)
+first.)
 
 TwinForge also converts Machine Expert – Basic projects (`.smbp`) to
 PLCopen XML. It uses these blocks for every `%C` and `%DR`, and fills in
@@ -228,3 +244,4 @@ presets and drum patterns from the project's configuration. See the
 | 0.1.0 | Counter and drum; drum pattern as 8 inputs `P0`..`P7`. |
 | 0.2.0 | The drum takes one `PATTERN : ARRAY[0..7] OF WORD`. |
 | 0.2.1 | Descriptions for every block and parameter. |
+| 0.3.0 | The drum has Basic's box (`RESET`, `U` → `F`, plus `STEP_NO`), configured in its declaration. |

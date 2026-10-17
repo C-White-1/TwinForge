@@ -83,6 +83,8 @@ class BlockInterface:
     # Source pin -> block parameter, where the source's pin name is not usable
     # (Machine Expert - Basic's `R`/`S` are reserved words in CODESYS).
     source_pins: tuple[tuple[str, str], ...] = ()
+    # FB_init arguments written into the instance's declaration (CODESYS).
+    init_arguments: tuple[tuple[str, str], ...] = ()
 
     def parameter(self, pin: str) -> str:
         """The block parameter for a pin named as the source names it."""

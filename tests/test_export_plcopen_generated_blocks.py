@@ -15,7 +15,8 @@ import pytest
 
 from twinforge.exporters.plcopen import PLCopenExporter
 from twinforge.exporters.plcopen_library import (
-    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, GeneratedFunctionBlock, array_bounds,
+    LIBRARY, MACHINE_EXPERT_BASIC_COUNTER, MACHINE_EXPERT_BASIC_DRUM, MACHINE_EXPERT_BASIC_DRUM_CODESYS,
+    GeneratedFunctionBlock, array_bounds,
     generated_block_for,
 )
 from twinforge.exporters.plcopen_library_checks import CHECKS, DRUM_CONSTANTS, Check, Expect, Scan, Value, Write
@@ -225,6 +226,12 @@ class BlockRun:
                             for name, data_type in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)}
         self.state.update({pin: list(value) if isinstance(value, tuple) else value for pin, value in constants.items()})
 
+    def read(self, name: str):
+        return self.state[name]
+
+    def write(self, name: str, value) -> None:
+        self.state[name] = value
+
     def scan(self, **inputs: Value) -> None:
         """One call: BOOL inputs not given are FALSE, others keep their value."""
         for pin in self.inputs:
@@ -267,21 +274,93 @@ class BlockRun:
         raise AssertionError(f"unexpected expression {expression!r}")
 
 
+class InitRun(BlockRun):
+    """A block configured through FB_init (CODESYS).
+
+    FB_init runs once with the declaration's arguments; a REFERENCE
+    argument names a variable in `outside`, which `REF=` stores and
+    assignments write through.
+    """
+
+    def __init__(self, block: GeneratedFunctionBlock, arguments: dict[str, Any], outside: dict[str, Any]):
+        super().__init__(block)
+        self.references: dict[str, str] = {}  # reference variable -> outside variable
+        self.outside = outside
+        self.state.update(arguments)
+        document = parse_structured_text(block.init_body)
+        assert not document.diagnostics
+        self.state["FB_init"] = False
+        self._run(document.statements)
+        assert self.state["FB_init"] is True
+
+    @classmethod
+    def configured(cls, block: GeneratedFunctionBlock, **configuration) -> "InitRun":
+        """Configured as a recorded check names it, outputs bound to their own variables."""
+        names, types = dict(block.init_names), dict(block.init_inputs)
+        arguments = {names[item]: list(value) if isinstance(value, tuple) else value
+                     for item, value in configuration.items()}
+        outside: dict[str, Any] = {}
+        for item, parameter in block.init_names:
+            if types[parameter].startswith("REFERENCE TO "):
+                outside[item] = False
+                arguments[parameter] = item
+        return cls(block, arguments, outside)
+
+    def read(self, name: str):
+        return self.outside[name] if name in self.outside else self.state[name]
+
+    def write(self, name: str, value) -> None:
+        if name in self.outside:
+            self.outside[name] = value
+        else:
+            self.state[name] = value
+
+    def _run(self, statements) -> None:
+        for statement in statements:
+            if isinstance(statement, AssignmentStatement) and statement.operator.upper() == "REF=":
+                assert isinstance(statement.target, NameExpression) and isinstance(statement.value, NameExpression)
+                self.references[statement.target.name] = self.state[statement.value.name]
+            elif isinstance(statement, AssignmentStatement) and isinstance(statement.target, NameExpression) \
+                    and statement.target.name in self.references:
+                self.outside[self.references[statement.target.name]] = self._value(statement.value)
+            else:
+                super()._run([statement])
+
+    def _value(self, expression) -> Any:
+        if isinstance(expression, CallExpression) and isinstance(expression.callee, NameExpression) \
+                and expression.callee.name.upper() == "__ISVALIDREF":
+            (argument,) = expression.arguments
+            assert isinstance(argument.value, NameExpression)
+            return argument.value.name in self.references
+        if isinstance(expression, NameExpression) and expression.name in self.references:
+            return self.outside[self.references[expression.name]]
+        return super()._value(expression)
+
+
 def replay(check: Check) -> None:
     """Run a recorded check on the block's Structured Text."""
-    run = BlockRun(check.block, **check.constants)
+    run = InitRun.configured(check.block, **check.constants) if check.block.init_inputs \
+        else BlockRun(check.block, **check.constants)
     for step in check.steps:
         if isinstance(step, Scan):
             run.scan(**step.inputs)
         elif isinstance(step, Write):
-            run.state[step.variable] = step.value
+            run.write(step.variable, step.value)
         else:
-            assert {name: run.state[name] for name in step.values} == dict(step.values), step.label
+            assert {name: run.read(name) for name in step.values} == dict(step.values), step.label
 
 
 @pytest.mark.parametrize("check", CHECKS, ids=lambda check: check.name)
 def test_block_reproduces_the_recorded_simulator_sequence(check: Check):
     replay(check)
+
+
+@pytest.mark.parametrize("check", [check for check in CHECKS if check.block is MACHINE_EXPERT_BASIC_DRUM],
+                         ids=lambda check: check.name)
+def test_codesys_drum_reproduces_the_recorded_simulator_sequence(check: Check):
+    # Basic's box (RESET, U -> F), configured in its declaration, outputs
+    # written through references: the same observations must hold.
+    replay(replace(check, block=MACHINE_EXPERT_BASIC_DRUM_CODESYS))
 
 
 # --- drums (%DR) ------------------------------------------------------------
@@ -294,10 +373,27 @@ class ProgramRun(BlockRun):
         assert not document.diagnostics
         self.statements = document.statements
         self.inputs = []
-        self.instances = {v.name: BlockRun(blocks[v.data_type]) for v in variables if v.instance}
-        self.in_outs = {v.name: {pin for pin, _ in blocks[v.data_type].in_outs} for v in variables if v.instance}
         self.state = {v.name: [literal_value(value) for value in v.initial] if v.initial else initial_state(v.data_type)
                       for v in variables if not v.instance}
+        self.instances = {v.name: self._instance(blocks[v.data_type], v.init_arguments) for v in variables if v.instance}
+        self.in_outs = {v.name: {pin for pin, _ in blocks[v.data_type].in_outs} for v in variables if v.instance}
+
+    def _instance(self, block: GeneratedFunctionBlock, init_arguments) -> BlockRun:
+        """A block instance; one with FB_init arguments is initialised from them,
+        its references bound to this program's variables."""
+        if not init_arguments:
+            return BlockRun(block)
+        types = dict(block.init_inputs)
+        arguments: dict[str, Any] = {}
+        for parameter, text in init_arguments:
+            if types[parameter].startswith("REFERENCE TO "):
+                arguments[parameter] = text
+            elif text in self.state:
+                value = self.state[text]
+                arguments[parameter] = list(value) if isinstance(value, list) else value
+            else:
+                arguments[parameter] = literal_value(text)
+        return InitRun(block, arguments, self.state)
 
     def _run(self, statements) -> None:
         for statement in statements:
@@ -347,7 +443,8 @@ def test_generated_test_program_reports_the_first_failure_of_a_broken_block():
     broken = replace(MACHINE_EXPERT_BASIC_COUNTER, body=MACHINE_EXPERT_BASIC_COUNTER.body.replace(
         "        END_IF;\n        E := FALSE;\n", "        END_IF;\n", 1))
     assert broken.body != MACHINE_EXPERT_BASIC_COUNTER.body
-    results = run_test_program({broken.name: broken, MACHINE_EXPERT_BASIC_DRUM.name: MACHINE_EXPERT_BASIC_DRUM})
+    results = run_test_program({broken.name: broken,
+                                MACHINE_EXPERT_BASIC_DRUM_CODESYS.name: MACHINE_EXPERT_BASIC_DRUM_CODESYS})
 
     assert results["iFailures"] > 0
     first_failure = checks_program().labels[results["iFirstFailure"] - 1]
@@ -362,7 +459,7 @@ def test_library_document_holds_the_blocks_and_optionally_the_tests(include_test
     assert names == [("TF_MEBasic_Counter", "functionBlock"), ("TF_MEBasic_Drum", "functionBlock"),
                      *([(TEST_PROGRAM, "program")] if include_tests else [])]
     header = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "contentHeader")
-    assert header.get("version") == "0.2.1"
+    assert header.get("version") == "0.3.0"
 
 
 @pytest.mark.skipif(not XSD.exists(), reason="TC6 XSD is local-only (reference/ is gitignored)")
@@ -469,13 +566,13 @@ RESERVED = frozenset("""
 
 @pytest.mark.parametrize("block", LIBRARY_BLOCKS, ids=lambda block: block.name)
 def test_generated_block_names_avoid_reserved_words(block: GeneratedFunctionBlock):
-    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)]
+    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals, *block.init_inputs)]
     assert [name for name in names if name.upper() in RESERVED] == []
 
 
 @pytest.mark.parametrize("block", LIBRARY_BLOCKS, ids=lambda block: block.name)
 def test_every_parameter_is_documented_for_the_library_manager(block: GeneratedFunctionBlock):
-    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals)]
+    names = [name for name, _ in (*block.inputs, *block.outputs, *block.in_outs, *block.locals, *block.init_inputs)]
     assert block.summary
     assert sorted(dict(block.descriptions)) == sorted(names)
 
@@ -521,8 +618,11 @@ def test_library_readme_matches_the_blocks():
         section = readme.split(f"## {block.name}", 1)[1].split("\n## ", 1)[0]
         for name, _ in (*block.inputs, *block.outputs):
             assert f"| `{name}` |" in section, (block.name, name)
-        if block.in_outs:
+        if block.in_outs or block.init_inputs:
             assert "| `B0`..`B15` |" in section
+        for name, _ in block.init_inputs:
+            if not name.startswith("B"):
+                assert f"| `{name}` |" in section, (block.name, name)
 
 
 def _libraries(xml: str) -> list[dict[str, str]]:
@@ -537,7 +637,7 @@ def test_codesys_export_can_reference_the_installed_library():
     assert "TF_MEBasic_Drum" not in [p.get("name") for p in pous(xml)]  # no embedded copy
     # As CODESYS V3.5 SP22 Patch 3 exported a project referencing the library:
     assert _libraries(xml) == [{
-        "Name": "TwinForge_MEBasic, 0.2.1 (TwinForge)", "Namespace": "TwinForge_MEBasic",
+        "Name": "TwinForge_MEBasic, 0.3.0 (TwinForge)", "Namespace": "TwinForge_MEBasic",
         "HideWhenReferencedAsDependency": "false", "PublishSymbolsInContainer": "false",
         "SystemLibrary": "false", "LinkAllContent": "false",
     }]
@@ -556,7 +656,7 @@ def test_library_reference_sits_beside_standard_when_both_are_needed():
     plc.add_tag(counter_tag("%C0"))
     xml = PLCopenExporter("codesys", reference_block_library=True).export(plc).xml
 
-    assert [library["Name"] for library in _libraries(xml)] == ["#Standard", "TwinForge_MEBasic, 0.2.1 (TwinForge)"]
+    assert [library["Name"] for library in _libraries(xml)] == ["#Standard", "TwinForge_MEBasic, 0.3.0 (TwinForge)"]
     libraries = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "Libraries")
     assert [_local(c.tag) for c in libraries] == ["Library", "Library", "PlaceholderRedirections", "addData"]
 
@@ -584,3 +684,14 @@ def test_program_names_become_iec_identifiers_everywhere_they_are_used():
     assert [i.get("name") for i in root.iter() if _local(i.tag) == "pouInstance"] == ["New_POU"]
     assert 'Object Name="New_POU"' in result.xml and "New POU" not in result.xml.split("<addData>")[0]
     assert plc.programs["New POU"].name == "New POU"  # the model keeps the source name
+
+
+def test_what_fb_init_reads_is_declared_before_the_instance():
+    # CODESYS initialises a list in declaration order (C0268 otherwise).
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    root = ET.fromstring(PLCopenExporter("codesys").export(plc).xml)
+    globals_ = next(e for e in root.iter() if _local(e.tag) == "globalVars")
+    names = [v.get("name") for v in globals_ if _local(v.tag) == "variable"]
+    (drum,) = [v for v in root.iter() if _local(v.tag) == "variable" and v.get("name") == "TF_DR0"]
+    read = [a[1].text for a in drum.iter() if _local(a.tag) == "InputAssignment" if a[1].text in names]
+    assert read and all(names.index(name) < names.index("TF_DR0") for name in read)

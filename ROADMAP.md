@@ -249,8 +249,19 @@ roadmaps linked from each item.
        tables, ST examples, the pattern table and editor, versions, and the
        no-warranty note. A test keeps its tables and version in step with
        the blocks.
-   - [ ] CODESYS export option: reference the library instead of embedding
-     the blocks; standard/OpenPLC exports keep embedding.
+   - [x] CODESYS export option (2026-10-18):
+     `PLCopenExporter("codesys", reference_block_library=True)` references
+     the installed library instead of embedding the blocks; standard/OpenPLC
+     exports keep embedding. Converted fixture 14 builds and runs in CODESYS
+     on library 0.3.0.
+   - [x] Basic's drum box in CODESYS (2026-10-18, library 0.3.0): pins
+     `RESET`, `U` -> `F`, `STEP_NO`; step count, pattern and outputs in the
+     declaration (`FB_init`, references), derived from the plain drum's
+     body, which other targets keep. The recorded checks pass on both.
+     Getting a converted program to build found three CODESYS import rules
+     (unused output pins need an empty expression; FB_init's dependencies
+     must be declared first; plus the earlier ones), now collected in
+     [CODESYS PLCopen import rules](docs/references/codesys-plcopen-import-rules.md).
    - [ ] Publishing (user's decision): readable `.library` in the
      repository, then optionally CODESYS Forge; README with verification
      status, what is not modelled, a no-warranty note, and the CODESYS

@@ -17,9 +17,15 @@ TF_DrumPatterns) as a marked block per drum:
     // TwinForge drum pattern DR0: end
 
 Run again for the same drum to edit it: the block is read back and replaced;
-everything else in the list is left as it is. Wire the drum with the
-list's name in front (CODESYS creates lists as qualified_only):
-NSTEPS := TF_DrumPatterns.DR0_NSTEPS, PATTERN := TF_DrumPatterns.DR0_PATTERN.
+everything else in the list is left as it is. The Messages window shows the
+drum's declaration, configured like the Drum Assistant's (library 0.3.0):
+
+    DR0 : TF_MEBasic_Drum(NSTEPS_INIT := TF_DrumPatterns.DR0_NSTEPS,
+        PATTERN_INIT := TF_DrumPatterns.DR0_PATTERN,
+        B0 := xLamp0, ..., B15 := xSpare);
+
+and its call, `DR0(RESET := ..., U := ...);`. The constants are named with
+the list in front, as CODESYS creates lists qualified_only.
 
 Run with a project open: Tools > Scripting > Execute Script File... This
 file runs inside CODESYS's IronPython 2.7 ScriptEngine. The text functions
@@ -132,15 +138,19 @@ def merge_block(declaration, drum, block):
 
 
 def usage(drum, names, gvl=DEFAULT_GVL):
-    """How to wire the drum to the pattern, for the Messages window.
+    """The drum's declaration and call, for the Messages window.
 
-    The constants are named with their list in front: CODESYS creates a new
-    global variable list with {attribute 'qualified_only'}, which makes that
-    form required (and it works without the attribute too).
+    The drum (library 0.3.0) is configured in its declaration, as the Drum
+    Assistant configures Basic's: step count, pattern, and the output each
+    bit drives (unused bits share xSpare). The constants are named with
+    their list in front: CODESYS creates a new global variable list with
+    {attribute 'qualified_only'}, which makes that form required (and it
+    works without the attribute too).
     """
     bound = ["B%d := %s" % (bit, names[bit].strip() or "xSpare") for bit in range(BITS)]
-    return ("%s(RESET := ..., U := ..., NSTEPS := %s.%s_NSTEPS, PATTERN := %s.%s_PATTERN,\n    %s);"
-            % (drum, gvl, drum, gvl, drum, ",\n    ".join(", ".join(bound[i:i + 4]) for i in range(0, BITS, 4))))
+    outputs = ",\n    ".join(", ".join(bound[i:i + 4]) for i in range(0, BITS, 4))
+    return ("Declaration:\n%s : TF_MEBasic_Drum(NSTEPS_INIT := %s.%s_NSTEPS, PATTERN_INIT := %s.%s_PATTERN,\n"
+            "    %s);\nCall:\n%s(RESET := ..., U := ...);" % (drum, gvl, drum, gvl, drum, outputs, drum))
 
 
 # --- CODESYS dialog (runs only inside CODESYS) ----------------------------------

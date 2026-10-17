@@ -79,4 +79,4 @@ def test_codesys_library_command_writes_the_library_and_its_tests(
     tests = (tmp_path / "TwinForge_MEBasic_Tests.xml").read_text(encoding="utf-8")
     assert 'name="TF_MEBasic_Drum"' in library and 'name="TF_MEBasic_Tests"' not in library
     assert 'name="TF_MEBasic_Tests"' in tests
-    assert "TwinForge_MEBasic 0.2.1" in output.getvalue()
+    assert "TwinForge_MEBasic 0.3.0" in output.getvalue()
