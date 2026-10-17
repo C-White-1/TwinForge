@@ -135,6 +135,8 @@ class PLCopenOperandPlan:
     # id() of a shift `call` node -> its two bit-string temporaries: the
     # converted input and the shifted value.
     expression_bit_temps: dict[int, tuple[str, str]] = field(default_factory=dict)
+    # Operands (and member roots) the exported networks use.
+    used_operands: frozenset[str] = frozenset()
 
     @classmethod
     def empty(cls) -> PLCopenOperandPlan:
@@ -207,12 +209,14 @@ class PLCopenOperandPlanner:
         self._expression_temps: dict[int, str] = {}
         self._expression_bit_temps: dict[int, tuple[str, str]] = {}
         self._expression_temp_count = 0
+        self._used_operands: set[str] = set()
 
     def prepare(self, controller: Controller) -> PLCopenOperandPlan:
         """Discover all required symbols in deterministic source order."""
 
         self._reset()
         self._prepare_operands(controller)
+        self._report_runtime_maintained(controller)
         self._prepare_timers(controller)
         self._prepare_oneshots(controller)
         return PLCopenOperandPlan(
@@ -237,6 +241,7 @@ class PLCopenOperandPlanner:
             tag_names=dict(self._tag_names),
             expression_temps=dict(self._expression_temps),
             expression_bit_temps=dict(self._expression_bit_temps),
+            used_operands=frozenset(self._used_operands),
         )
 
     def _reset(self) -> None:
@@ -257,6 +262,7 @@ class PLCopenOperandPlanner:
         self._expression_temps = {}
         self._expression_bit_temps = {}
         self._expression_temp_count = 0
+        self._used_operands = set()
 
     def _prepare_operands(self, controller: Controller) -> None:
         tags = list(controller.tags.values())
@@ -414,6 +420,13 @@ class PLCopenOperandPlanner:
         if network_unsupported_reason(network, self._function_block_instances) is not None:
             return
         for instruction in network_instructions(network):
+            if instruction.expression is not None:
+                self._used_operands.update(node.text for node in instruction.expression.iter_nodes()
+                                           if node.kind == "variable")
+            elif instruction.operand:
+                member = split_member(instruction.operand)
+                self._used_operands.add(member[0] if member else instruction.operand)
+        for instruction in network_instructions(network):
             operand = instruction.operand or ""
             if instruction.expression is not None:
                 self._prepare_expression(instruction.expression, names, program, routine, rung)
@@ -431,6 +444,26 @@ class PLCopenOperandPlanner:
                 self._operand_names[operand] = f"{self._operand_names.get(root, root)}.{name}"
                 continue
             self._declare_boolean_operand(operand, names)
+
+    def _report_runtime_maintained(self, controller: Controller) -> None:
+        """Say so for each object the source controller maintains that the logic uses.
+
+        The exported variable exists, but nothing in the target updates it: a
+        clock bit stays FALSE, a scan-time word stays 0. Unused ones are not
+        declared at all (see `PLCopenExporter._variables`).
+        """
+        for tag in controller.tags.values():
+            if not tag.metadata.get("runtime_maintained") or tag.name not in self._used_operands:
+                continue
+            address = tag.metadata.get("source_memory_address")
+            meaning = f": {tag.description}" if tag.description else ""
+            self._diagnostic(
+                "runtime_object_not_driven",
+                f"{tag.name}{f' ({address})' if address else ''} is maintained by the source controller"
+                f"{meaning}; it is declared, but nothing in the target updates it",
+                tag.name,
+                raw_value=address,
+            )
 
     def _generated_instance(self, tag: Tag, generated: GeneratedFunctionBlock, names: set[str]) -> BlockInterface:
         """How an instance of a generated block is configured.

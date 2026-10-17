@@ -695,3 +695,35 @@ def test_what_fb_init_reads_is_declared_before_the_instance():
     (drum,) = [v for v in root.iter() if _local(v.tag) == "variable" and v.get("name") == "TF_DR0"]
     read = [a[1].text for a in drum.iter() if _local(a.tag) == "InputAssignment" if a[1].text in names]
     assert read and all(names.index(name) < names.index("TF_DR0") for name in read)
+
+
+def _globals(xml: str) -> list[str]:
+    root = ET.fromstring(xml)
+    return [v.get("name") or "" for section in root.iter() if _local(section.tag) == "globalVars"
+            for v in section if _local(v.tag) == "variable"]
+
+
+def test_unused_system_objects_are_not_declared():
+    # Every .smbp lists all %S/%SW system objects; none drives anything in CODESYS.
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    assert sum(1 for tag in plc.tags.values() if tag.metadata.get("runtime_maintained")) > 100  # kept in the model
+    result = export(plc, "codesys")
+
+    assert not [name for name in _globals(result.xml) if name.startswith(("SB_", "SW_"))]
+    assert "runtime_object_not_driven" not in [d.code for d in result.diagnostics]
+
+
+def test_a_used_system_object_is_declared_and_reported():
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    rung = LadderRung(number=9, network=LadderSeries((
+        LadderInstruction(Op.NORMALLY_OPEN_CONTACT, "NormalContact", "SB_TB1S"),
+        LadderInstruction(Op.COIL, "Coil", "%Q0.5"))))
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    main.ladder_rungs.append(rung)
+    result = export(plc, "codesys")
+
+    assert [name for name in _globals(result.xml) if name.startswith(("SB_", "SW_"))] == ["SB_TB1S"]
+    (diagnostic,) = [d for d in result.diagnostics if d.code == "runtime_object_not_driven"]
+    assert (diagnostic.object_name, diagnostic.raw_value) == ("SB_TB1S", "%S6")
+    assert "Time base of 1 s" in diagnostic.message and "nothing in the target updates it" in diagnostic.message

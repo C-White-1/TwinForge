@@ -141,9 +141,11 @@ roadmaps linked from each item.
    - [ ] Close the gaps in the
      [Machine Expert – Basic to CODESYS conversion table](docs/references/machine-expert-basic-to-codesys.md)
      (2026-10-18), which gives every M221 object's CODESYS equivalent and
-     TwinForge's status. In order: (1) system bits/words are declared but
-     never driven, so declare only those used, flag each, then map the
-     common ones (`%S13`, `%S4`-`%S7`, the real-time clock); (2) constants
+     TwinForge's status. In order: (1) system bits/words: [x] only those the
+     logic uses are declared, each with a `runtime_object_not_driven`
+     diagnostic (2026-10-18; fixture 14: 190 globals -> 12); [ ] map the
+     common ones, by sample use: `%S13` first cycle, `%S0`/`%S1` cold/warm
+     start (3 of 63 samples each), then clocks `%S4`-`%S7`; (2) constants
      `%KW`/`%KD`/`%KF` are typed but their values are not read (fixture
      needed); (3) physical I/O binding; (4) remaining function blocks
      (retentive timer, shift bit register, FIFO/LIFO, step counter), then

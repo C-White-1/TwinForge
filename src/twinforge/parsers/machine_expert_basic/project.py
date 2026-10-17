@@ -83,6 +83,8 @@ def _tags(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> No
                 tag = Tag(name=name, data_type=table.data_type, description=_text(entry, spec.entry_comment),
                           source_extensions=[_extension(entry)])
                 tag.metadata["source_symbol_table"] = table.name
+                if table.runtime_maintained:
+                    tag.metadata["runtime_maintained"] = True
                 address = _text(entry, spec.entry_address)
                 if address is not None:
                     tag.metadata["source_memory_address"] = address

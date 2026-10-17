@@ -378,6 +378,11 @@ class PLCopenExporter:
         )
         instances = self._operands.function_block_instances
         codesys = self.profile is PLCopenProfile.CODESYS
+        # An object the source controller maintains (a system bit or word) is
+        # declared only where the exported logic uses it: elsewhere it would
+        # be a variable nothing updates, in a list of hundreds.
+        tags = [tag for tag in tags
+                if not tag.metadata.get("runtime_maintained") or tag.name in self._operands.used_operands]
 
         def function_block_type(tag: Tag) -> str | None:
             if tag.name not in instances:

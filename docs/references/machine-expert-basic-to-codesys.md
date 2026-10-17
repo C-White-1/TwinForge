@@ -81,9 +81,21 @@ only inside Schneider's Machine Expert.
 ## System bits (`%S`)
 
 The M221 drives or reads these; your program reads or sets them. Every
-`.smbp` lists them, and TwinForge declares them all as plain variables. So
-today **every system bit is "Declared only"**: nothing updates it in
-CODESYS, and a program reading one gets FALSE without any warning.
+`.smbp` lists them all. TwinForge keeps them all in its model, but exports
+**only those the converted logic uses** (since 2026-10-18), each with a
+`runtime_object_not_driven` diagnostic. A used system bit is still
+**"Declared only"**: nothing updates it in CODESYS, but the diagnostic now
+says so.
+
+**Which are used in practice** (the 63 downloaded samples; 8 use any system
+object at all):
+
+| Samples | Objects |
+| --- | --- |
+| 3 | `%S13` first cycle; `%S0` cold start; `%S1` warm start |
+| 1 each | `%S4`–`%S7` clocks; `%S9`; `%S12`; `%S14`–`%S20`; `%SW6`, `%SW7`, `%SW15`, `%SW16`, `%SW30`, `%SW70`, `%SW94` |
+
+So the first to map are first cycle and cold/warm start, then the clocks.
 
 | Bit | M221 meaning | CODESYS *(candidate)* |
 | --- | --- | --- |
@@ -106,7 +118,8 @@ CODESYS, and a program reading one gets FALSE without any warning.
 
 ## System words (`%SW`)
 
-Also **"Declared only"** today, for the same reason.
+Also exported only when used, with the same diagnostic, and **"Declared
+only"** when they are.
 
 | Words | M221 meaning | CODESYS *(candidate)* |
 | --- | --- | --- |
@@ -127,10 +140,9 @@ Also **"Declared only"** today, for the same reason.
 
 ## What would close the biggest gaps
 
-1. **System objects:** declare only those a program uses, and report each
-   one used with a diagnostic, so nobody silently reads a dead variable.
-   Then map the common ones (first cycle `%S13`, clocks `%S4`–`%S7`, the
-   real-time clock) after checking each in CODESYS.
+1. **System objects:** done: only those a program uses are declared, each
+   reported. Next: map the common ones (first cycle `%S13`, cold/warm start
+   `%S0`/`%S1`, clocks `%S4`–`%S7`), after checking each in CODESYS.
 2. **Constants (`%KW`/`%KD`/`%KF`):** a fixture with configured constants,
    to read their values.
 3. **Physical I/O:** binding variables to CODESYS I/O (needs CODESYS

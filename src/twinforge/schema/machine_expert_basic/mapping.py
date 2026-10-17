@@ -36,6 +36,11 @@ class SymbolTable:
     container: PathSpec
     entry: str
     data_type: str | None = None
+    # Objects the controller's own runtime maintains (system bits and words:
+    # clocks, first scan, scan times, the real-time clock). A target does not
+    # reproduce that by declaring a variable; see the conversion table,
+    # docs/references/machine-expert-basic-to-codesys.md.
+    runtime_maintained: bool = False
 
 
 @dataclass(frozen=True)
@@ -200,8 +205,10 @@ class MappingSpec:
         # Written only when the counter is named or has non-default settings.
         SymbolTable("Counters", ("SoftwareConfiguration", "Counters"), "Counter"),
         # Vendor-predefined system objects; every entry carries a symbol.
-        SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit", "BOOL"),
-        SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord", "INT"),
+        SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit", "BOOL",
+                    runtime_maintained=True),
+        SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord", "INT",
+                    runtime_maintained=True),
     )
 
 
