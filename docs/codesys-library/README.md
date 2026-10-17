@@ -193,10 +193,12 @@ pick it.
 **To put the editor on a toolbar**, rather than Tools → Scripting each time:
 
 1. **Copy the files.** Create the folder
-   `%LOCALAPPDATA%\CODESYS\Script Commands`, then copy these three files
-   from [`examples/CODESYS/scripts/`](../../examples/CODESYS/scripts/)
-   into it: `drum_pattern_editor.py`, `drum_pattern_editor.ico` and
-   `config.json`.
+   `%LOCALAPPDATA%\CODESYS\Script Commands`, then copy these files from
+   [`examples/CODESYS/scripts/`](../../examples/CODESYS/scripts/) into it:
+   `config.json`, `drum_pattern_editor.py`, `drum_pattern_editor.ico`,
+   `bind_system_events.py` and `bind_system_events.ico`. (`config.json`
+   lists both scripts; the second binds the system-event handlers of a
+   converted project after its import.)
 2. **Restart CODESYS**, so it reads the folder.
 3. **Make the toolbar.** Tools → Customize → Toolbars tab. Select the empty
    toolbar, click **Add Toolbar**, and name it (for example `TwinForge`).

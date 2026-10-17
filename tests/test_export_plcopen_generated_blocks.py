@@ -727,3 +727,66 @@ def test_a_used_system_object_is_declared_and_reported():
     (diagnostic,) = [d for d in result.diagnostics if d.code == "runtime_object_not_driven"]
     assert (diagnostic.object_name, diagnostic.raw_value) == ("SB_TB1S", "%S6")
     assert "Time base of 1 s" in diagnostic.message and "nothing in the target updates it" in diagnostic.message
+
+
+def _with_first_cycle_rung(plc: Controller) -> Controller:
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    main.ladder_rungs.append(LadderRung(number=9, network=LadderSeries((
+        LadderInstruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", "SB_FIRSTRUN"),
+        LadderInstruction(LadderOperation.SET_COIL, "SetCoil", "%Q0.5")))))
+    return plc
+
+
+def test_the_first_cycle_bit_is_set_by_a_prepare_start_handler():
+    # %S13: TRUE for the first scan after every start. In CODESYS a PrepareStart
+    # handler sets it before that scan, including after stop -> start, and a
+    # program called last clears it (docs/experiments/codesys-first-cycle.md).
+    plc = _with_first_cycle_rung(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+    assert plc.tags["SB_FIRSTRUN"].metadata["runtime_role"] == "first_cycle"
+    result = export(plc, "codesys")
+    root = ET.fromstring(result.xml)
+    by_name = {p.get("name"): p for p in pous(result.xml)}
+
+    handler = by_name["TF_OnPrepareStart"]
+    assert handler.get("pouType") == "function"
+    (interface,) = [c for c in handler if _local(c.tag) == "interface"]
+    assert [_local(e.tag) for e in next(c for c in interface if _local(c.tag) == "returnType")] == ["DWORD"]
+    (parameter,) = [v for v in interface.iter() if _local(v.tag) == "variable"]
+    assert parameter.get("name") == "EventPrm"
+    assert [d.get("name") for d in parameter.iter() if _local(d.tag) == "derived"] == ["CmpApp.EVTPARAM_CmpApp"]
+    assert any(_local(c.tag) == "inOutVars" for c in interface)
+
+    def st(pou: ET.Element) -> str:
+        return "".join(e.text or "" for e in pou.iter() if _local(e.tag) == "xhtml" and e.text and ":=" in e.text)
+
+    assert st(handler) == "ControllerTags.SB_FIRSTRUN := TRUE;\n"
+    assert by_name["TF_EndOfScan"].get("pouType") == "program"
+    assert st(by_name["TF_EndOfScan"]) == "ControllerTags.SB_FIRSTRUN := FALSE;\n"
+    (task,) = [t for t in root.iter() if _local(t.tag) == "task"]
+    assert [i.get("name") for i in task if _local(i.tag) == "pouInstance"] == ["New_POU", "TF_EndOfScan"]
+    assert "SB_FIRSTRUN" in _globals(result.xml)
+
+    libraries = [lib.get("Name") for lib in root.iter() if _local(lib.tag) == "Library"]
+    assert {"#CmpApp", "#CmpEventMgr", "#Component Manager", "#CmpIecTask"} <= set(libraries)
+    structure = {o.get("Name") for o in root.iter() if _local(o.tag) == "Object"}
+    assert {"TF_OnPrepareStart", "TF_EndOfScan", "Library Manager"} <= structure
+
+    codes = [d.code for d in result.diagnostics]
+    assert "runtime_object_not_driven" not in codes
+    (diagnostic,) = [d for d in result.diagnostics if d.code == "system_event_binding_required"]
+    assert (diagnostic.object_name, diagnostic.raw_value) == ("SB_FIRSTRUN", "%S13")
+    assert "bind_system_events.py" in diagnostic.message
+
+
+def test_without_the_first_cycle_bit_there_is_no_handler():
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    xml = export(plc, "codesys").xml
+    assert "TF_OnPrepareStart" not in xml and "TF_EndOfScan" not in xml and "#CmpApp" not in xml
+
+
+def test_other_targets_still_report_the_first_cycle_bit_as_not_driven():
+    plc = _with_first_cycle_rung(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+    result = export(plc)
+    assert "TF_OnPrepareStart" not in result.xml
+    assert [d.object_name for d in result.diagnostics if d.code == "runtime_object_not_driven"] == ["SB_FIRSTRUN"]

@@ -147,6 +147,9 @@ All are `addData` under `http://www.3s-software.com/plcopenxml/`:
   the binding (`alSysEventList`). A script can add the entry and import it
   back, but must **remove** the Task Configuration first: importing over it
   replaces only its tasks. An empty list is written `<Null Name="alSysEventList" />`.
+- **In TwinForge:** `examples/CODESYS/scripts/bind_system_events.py` binds
+  each `TF_On<Event>` handler of an export; the export reports
+  `system_event_binding_required`.
 - **Evidence:** [first-cycle run](../experiments/codesys-first-cycle.md).
 
 ### The library Overview page needs a licensed add-on

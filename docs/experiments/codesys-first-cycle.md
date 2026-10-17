@@ -153,8 +153,32 @@ The scripting objects list nothing through `dir()`, so the API's own
 members were no help; `NativeImportResolve` has `replace`, `skip` and
 `cancel`.
 
+## The converted sample
+
+TwinForge's CODESYS export now writes, when the logic uses `%S13`:
+`TF_OnPrepareStart` (the handler's interface as CODESYS generates it, body
+`ControllerTags.SB_FIRSTRUN := TRUE;`), `TF_EndOfScan` (clears it, called
+last in `MAST`), the four libraries above, and a
+`system_event_binding_required` diagnostic. The script, as
+[`bind_system_events.py`](../../examples/CODESYS/scripts/bind_system_events.py),
+binds each `TF_On<Event>` handler it finds.
+
+Run on 2026-10-18 with `ld_laba2.smbp` (a downloaded sample whose rung 0 is
+`%S13` → set `S_IDLE`, reset the other step bits):
+
+1. Imported into a new project (template Application deleted), ran the
+   script, built: no errors.
+2. Login → Start: `S_IDLE` TRUE, the other step bits FALSE.
+3. Wrote `S_IDLE` := FALSE, `S_LOAD1` := TRUE; Stop → Start: `S_IDLE` TRUE
+   and `S_LOAD1` FALSE again.
+
+So the converted program sees `%S13` on the first scan after a plain
+stop → start, as on the M221.
+
 ## Not yet established
 
+- **Online change:** whether `PrepareStart` also fires on an online
+  change (`%S13` should not).
 - **Cold versus warm start (`%S0`/`%S1`):** needs a separate test, for example
   with a RETAIN variable.
 - **Other targets:** the events offered depend on the device; only the

@@ -88,6 +88,9 @@ def _tags(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> No
                 address = _text(entry, spec.entry_address)
                 if address is not None:
                     tag.metadata["source_memory_address"] = address
+                    role = dict(table.runtime_roles).get(address)
+                    if role is not None:
+                        tag.metadata["runtime_role"] = role
                 result.controller.add_tag(tag)
     # A named entry outside every declared table is real data the profile
     # does not yet cover; say so instead of dropping it silently.

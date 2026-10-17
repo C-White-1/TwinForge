@@ -457,6 +457,19 @@ class PLCopenOperandPlanner:
                 continue
             address = tag.metadata.get("source_memory_address")
             meaning = f": {tag.description}" if tag.description else ""
+            if self._codesys and tag.metadata.get("runtime_role") == "first_cycle":
+                # PLCopenExporter writes the handler and its clear; only the
+                # event binding cannot travel in PLCopen XML.
+                self._diagnostic(
+                    "system_event_binding_required",
+                    f"{tag.name}{f' ({address})' if address else ''} is TRUE for the first scan after every "
+                    "start once TF_OnPrepareStart is bound to the PrepareStart system event: after the import, "
+                    "run bind_system_events.py (or bind it in Task Configuration -> System Events); "
+                    "until then it stays FALSE",
+                    tag.name,
+                    raw_value=address,
+                )
+                continue
             self._diagnostic(
                 "runtime_object_not_driven",
                 f"{tag.name}{f' ({address})' if address else ''} is maintained by the source controller"

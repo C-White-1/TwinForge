@@ -82,10 +82,9 @@ only inside Schneider's Machine Expert.
 
 The M221 drives or reads these; your program reads or sets them. Every
 `.smbp` lists them all. TwinForge keeps them all in its model, but exports
-**only those the converted logic uses** (since 2026-10-18), each with a
-`runtime_object_not_driven` diagnostic. A used system bit is still
-**"Declared only"**: nothing updates it in CODESYS, but the diagnostic now
-says so.
+**only those the converted logic uses** (since 2026-10-18). A used system
+bit is **"Declared only"**, with a `runtime_object_not_driven` diagnostic
+(nothing updates it), except `%S13`, which is reproduced (below).
 
 **Which are used in practice** (the 63 downloaded samples; 8 use any system
 object at all):
@@ -104,7 +103,7 @@ So the first to map are first cycle and cold/warm start, then the clocks.
 | `%S9` | Apply fallback outputs | Device configuration, not a variable |
 | `%S11` | Watchdog overflow | Task watchdog configuration |
 | `%S12` | Controller running | Always TRUE while the program runs |
-| `%S13` | First cycle after RUN | A flag set by a `PrepareStart` system-event handler and cleared after the first scan: **checked in CODESYS**, fires on every start including stop → start. PLCopen drops the event binding; a script restores it ([run](../experiments/codesys-first-cycle.md)). Exporter support next |
+| `%S13` | First cycle after RUN | **Verified.** Set by `TF_OnPrepareStart`, a `PrepareStart` system-event handler, and cleared by `TF_EndOfScan`, called last in the task: TRUE for the first scan of every start, including stop → start. PLCopen cannot carry the event binding: after the import, run [`bind_system_events.py`](../../examples/CODESYS/scripts/bind_system_events.py) (diagnostic `system_event_binding_required`). CODESYS profile only ([runs](../experiments/codesys-first-cycle.md)). |
 | `%S14`–`%S16` | Forcing active | None portable |
 | `%S17`, `%S18`, `%S20`, `%S28` | Last bit shifted out, arithmetic overflow, index overflow, string overflow | None: IEC has no such flags |
 | `%S19` | Scan period overrun | Task monitoring |
@@ -141,8 +140,8 @@ only"** when they are.
 ## What would close the biggest gaps
 
 1. **System objects:** done: only those a program uses are declared, each
-   reported. Next: map the common ones (first cycle `%S13`, cold/warm start
-   `%S0`/`%S1`, clocks `%S4`–`%S7`), after checking each in CODESYS.
+   reported; first cycle `%S13` is reproduced. Next: cold/warm start
+   `%S0`/`%S1`, then the clocks `%S4`–`%S7`, after checking each in CODESYS.
 2. **Constants (`%KW`/`%KD`/`%KF`):** a fixture with configured constants,
    to read their values.
 3. **Physical I/O:** binding variables to CODESYS I/O (needs CODESYS

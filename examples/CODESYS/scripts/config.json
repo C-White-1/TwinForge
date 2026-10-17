@@ -4,5 +4,11 @@
     "Desc": "Edit a TF_MEBasic_Drum pattern in a step x bit grid (TwinForge_MEBasic library)",
     "Icon": "drum_pattern_editor.ico",
     "Path": "drum_pattern_editor.py"
+  },
+  {
+    "Name": "TwinForge bind system events",
+    "Desc": "Bind TwinForge's event handlers (TF_On<Event>) in Task Configuration > System Events after a PLCopen import",
+    "Icon": "bind_system_events.ico",
+    "Path": "bind_system_events.py"
   }
 ]

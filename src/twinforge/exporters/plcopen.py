@@ -209,6 +209,11 @@ class PLCopenExporter:
             function_blocks=() if referenced else self._operands.generated_blocks,
             program_names=self._program_names,
             referenced_libraries=referenced,
+            first_cycle_flags=[
+                f"ControllerTags.{self._operands.tag_names.get(tag.name, tag.name)}"
+                for tag in controller.tags.values()
+                if tag.metadata.get("runtime_role") == "first_cycle" and tag.name in self._operands.used_operands
+            ],
             emit_program=lambda parent, program: self._program(
                 parent,
                 program,

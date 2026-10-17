@@ -14,13 +14,30 @@ from collections.abc import Callable, Mapping, Sequence
 from twinforge.model import Controller, Program, Tag, Task
 
 from .plcopen_library import (
-    GeneratedFunctionBlock, append_block_documentation, emit_function_block_pou, method_object_id,
+    XHTML_NAMESPACE, GeneratedFunctionBlock, append_block_documentation, emit_function_block_pou, method_object_id,
 )
 from .plcopen_xml import qualified_name as q
 
 
 CODESYS_NAMESPACE = "http://www.3s-software.com/plcopenxml"
 CODESYS_ID_NAMESPACE = uuid.UUID("012486d2-49b8-5be4-aeca-4a70ed56cfa8")
+
+# A first-cycle flag (Machine Expert - Basic's %S13) is set by a handler of
+# the runtime's PrepareStart system event, which runs before the first scan
+# of every start, including stop -> start, and cleared by a program called
+# last in the first task. PLCopen XML cannot bind the handler to the event:
+# examples/CODESYS/scripts/bind_system_events.py does, by the handler's name
+# (TF_On<Event>). See docs/experiments/codesys-first-cycle.md.
+FIRST_CYCLE_HANDLER = "TF_OnPrepareStart"
+END_OF_SCAN_PROGRAM = "TF_EndOfScan"
+# What a CODESYS project gains with a system-event handler, as CODESYS
+# exports it (V3.5 SP22 Patch 3): (placeholder, namespace, default resolution).
+SYSTEM_EVENT_LIBRARIES = (
+    ("CmpEventMgr", "CmpEventMgr", "CmpEventMgr, 3.5.17.0 (System)"),
+    ("Component Manager", "Component_Manager", "Component Manager, 3.5.21.0 (System)"),
+    ("CmpApp", "CmpApp", "CmpApp, 3.5.21.0 (System)"),
+    ("CmpIecTask", "CmpIecTask", "CmpIecTask, 3.5.21.0 (System)"),
+)
 
 TaskEmitter = Callable[[ET.Element, Task], None]
 VariableEmitter = Callable[[ET.Element, Sequence[Tag]], ET.Element | None]
@@ -65,11 +82,14 @@ class CodesysProfileSupport:
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
         referenced_libraries: Sequence[tuple[str, str]] = (),
         program_names: Mapping[str, str] | None = None,
+        first_cycle_flags: Sequence[str] = (),
     ) -> None:
         """Wrap generic controller content in a CODESYS application object.
 
         `referenced_libraries` are installed libraries the application
-        references, as (CODESYS display name, namespace).
+        references, as (CODESYS display name, namespace). `first_cycle_flags`
+        are the (qualified) variables to hold TRUE for the first scan after
+        every start; see FIRST_CYCLE_HANDLER.
         """
 
         ns = self.namespace
@@ -87,8 +107,10 @@ class CodesysProfileSupport:
             q(ns, "resource"),
             {"name": "Application"},
         )
-        for task in controller.iter_tasks():
+        for index, task in enumerate(controller.iter_tasks()):
             emit_task(resource, task)
+            if first_cycle_flags and index == 0:
+                self._append_program_call(resource[-1], END_OF_SCAN_PROGRAM)
         global_variables = emit_variables(
             resource,
             [*controller.tags.values(), *generated_tags],
@@ -122,9 +144,12 @@ class CodesysProfileSupport:
                 },
             )
             emit_program(wrapper, program)
-        if needs_standard_library or referenced_libraries:
+        if first_cycle_flags:
+            self._append_first_cycle_pous(resource_add_data, first_cycle_flags)
+        if needs_standard_library or referenced_libraries or first_cycle_flags:
             self.append_libraries(resource_add_data, standard=needs_standard_library,
-                                  referenced=referenced_libraries)
+                                  referenced=referenced_libraries,
+                                  placeholders=SYSTEM_EVENT_LIBRARIES if first_cycle_flags else ())
         self.append_object_id_data(
             resource_add_data,
             self.object_id("Application"),
@@ -133,10 +158,57 @@ class CodesysProfileSupport:
             add_data,
             controller,
             has_global_variables=global_variables is not None,
-            needs_standard_library=needs_standard_library or bool(referenced_libraries),
+            needs_standard_library=needs_standard_library or bool(referenced_libraries) or bool(first_cycle_flags),
             function_blocks=function_blocks,
             program_names=program_names,
+            first_cycle=bool(first_cycle_flags),
         )
+
+    def _append_program_call(self, task_element: ET.Element, program: str) -> None:
+        """Call `program` last in a task, as CODESYS writes a program call."""
+
+        ns = self.namespace
+        instance = ET.Element(q(ns, "pouInstance"), {"name": program, "typeName": ""})
+        ET.SubElement(ET.SubElement(instance, q(ns, "documentation")), q(XHTML_NAMESPACE, "xhtml"))
+        calls = [child for child in task_element if child.tag == q(ns, "pouInstance")]
+        position = list(task_element).index(calls[-1]) + 1 if calls else 0
+        task_element.insert(position, instance)
+
+    def _append_first_cycle_pous(self, resource_add_data: ET.Element, flags: Sequence[str]) -> None:
+        """The PrepareStart handler that sets the flags, and the program that clears them.
+
+        The handler's interface is the one CODESYS generates for a
+        PrepareStart handler; the runtime calls it with that signature.
+        """
+
+        ns = self.namespace
+
+        def pou(name: str, pou_type: str) -> ET.Element:
+            wrapper = ET.SubElement(resource_add_data, q(ns, "data"),
+                                    {"name": f"{CODESYS_NAMESPACE}/pou", "handleUnknown": "implementation"})
+            return ET.SubElement(wrapper, q(ns, "pou"), {"name": name, "pouType": pou_type})
+
+        def body(element: ET.Element, text: str) -> None:
+            st = ET.SubElement(ET.SubElement(element, q(ns, "body")), q(ns, "ST"))
+            ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml")).text = text
+
+        handler = pou(FIRST_CYCLE_HANDLER, "function")
+        interface = ET.SubElement(handler, q(ns, "interface"))
+        ET.SubElement(ET.SubElement(interface, q(ns, "returnType")), q(ns, "DWORD"))
+        parameter = ET.SubElement(ET.SubElement(interface, q(ns, "inOutVars")), q(ns, "variable"),
+                                  {"name": "EventPrm"})
+        ET.SubElement(ET.SubElement(parameter, q(ns, "type")), q(ns, "derived"), {"name": "CmpApp.EVTPARAM_CmpApp"})
+        ET.SubElement(ET.SubElement(interface, q(ns, "documentation")), q(XHTML_NAMESPACE, "xhtml")).text = (
+            " Do not change the interface of this function!\n"
+            " Called by the runtime system's PrepareStart event, before the first scan of every start.\n"
+            " Bind it in Task Configuration -> System Events: run bind_system_events.py after the import.")
+        body(handler, "".join(f"{flag} := TRUE;\n" for flag in flags))
+        self.append_object_id(handler, self.object_id(f"Application/pou/{FIRST_CYCLE_HANDLER}"))
+
+        program = pou(END_OF_SCAN_PROGRAM, "program")
+        ET.SubElement(program, q(ns, "interface"))
+        body(program, "".join(f"{flag} := FALSE;\n" for flag in flags))
+        self.append_object_id(program, self.object_id(f"Application/program/{END_OF_SCAN_PROGRAM}"))
 
     def append_task_settings(
         self,
@@ -235,6 +307,7 @@ class CodesysProfileSupport:
         needs_standard_library: bool,
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
         program_names: Mapping[str, str] | None = None,
+        first_cycle: bool = False,
     ) -> None:
         """Describe CODESYS navigator objects independently of IEC content.
 
@@ -289,6 +362,9 @@ class CodesysProfileSupport:
                         f"{routine.name}"
                     ),
                 )
+        if first_cycle:
+            self._append_structure_object(application, END_OF_SCAN_PROGRAM,
+                                          f"Application/program/{END_OF_SCAN_PROGRAM}")
         for task in controller.iter_tasks():
             self._append_structure_object(
                 application,
@@ -301,6 +377,9 @@ class CodesysProfileSupport:
                 "ControllerTags",
                 "Application/ControllerTags",
             )
+        if first_cycle:
+            self._append_structure_object(application, FIRST_CYCLE_HANDLER,
+                                          f"Application/pou/{FIRST_CYCLE_HANDLER}")
 
     def append_standard_library(self, parent: ET.Element) -> None:
         """Add the CODESYS Standard library used by TON and R_TRIG blocks."""
@@ -313,8 +392,13 @@ class CodesysProfileSupport:
         *,
         standard: bool,
         referenced: Sequence[tuple[str, str]] = (),
+        placeholders: Sequence[tuple[str, str, str]] = (),
     ) -> None:
-        """The Library Manager: Standard (a placeholder) and installed libraries.
+        """The Library Manager: Standard and other placeholders, and installed libraries.
+
+        `placeholders` are further library placeholders, as (placeholder,
+        namespace, default resolution), written as CODESYS writes them
+        (`Name="#CmpApp"`), after Standard.
 
         An installed library is referenced directly, by its display name and
         namespace, as a CODESYS export writes it (V3.5 SP22 Patch 3):
@@ -345,6 +429,20 @@ class CodesysProfileSupport:
                     "SystemLibrary": "false",
                     "LinkAllContent": "false",
                     "DefaultResolution": "Standard, * (System)",
+                },
+            )
+        for placeholder, namespace, resolution in placeholders:
+            ET.SubElement(
+                libraries,
+                q(ns, "Library"),
+                {
+                    "Name": f"#{placeholder}",
+                    "Namespace": namespace,
+                    "HideWhenReferencedAsDependency": "false",
+                    "PublishSymbolsInContainer": "false",
+                    "SystemLibrary": "false",
+                    "LinkAllContent": "false",
+                    "DefaultResolution": resolution,
                 },
             )
         for name, namespace in referenced:

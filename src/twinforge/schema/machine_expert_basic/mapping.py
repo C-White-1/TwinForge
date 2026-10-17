@@ -41,6 +41,12 @@ class SymbolTable:
     # reproduce that by declaring a variable; see the conversion table,
     # docs/references/machine-expert-basic-to-codesys.md.
     runtime_maintained: bool = False
+    # Vendor-neutral roles of individual runtime-maintained objects, by
+    # address, for targets that can reproduce them. `first_cycle`: "Set to 1
+    # by the system during the first scan after the controller state has been
+    # changed to RUNNING" (%S13; M221 Programming Guide EIO0000003297.04,
+    # "System Bits (%S)").
+    runtime_roles: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -206,7 +212,7 @@ class MappingSpec:
         SymbolTable("Counters", ("SoftwareConfiguration", "Counters"), "Counter"),
         # Vendor-predefined system objects; every entry carries a symbol.
         SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit", "BOOL",
-                    runtime_maintained=True),
+                    runtime_maintained=True, runtime_roles=(("%S13", "first_cycle"),)),
         SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord", "INT",
                     runtime_maintained=True),
     )
