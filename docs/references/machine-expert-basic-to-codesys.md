@@ -104,7 +104,7 @@ So the first to map are first cycle and cold/warm start, then the clocks.
 | `%S9` | Apply fallback outputs | Device configuration, not a variable |
 | `%S11` | Watchdog overflow | Task watchdog configuration |
 | `%S12` | Controller running | Always TRUE while the program runs |
-| `%S13` | First cycle after RUN | A variable TRUE for one scan |
+| `%S13` | First cycle after RUN | A flag set by a `PrepareStart` system-event handler and cleared after the first scan: **checked in CODESYS**, fires on every start including stop → start. PLCopen drops the event binding; a script restores it ([run](../experiments/codesys-first-cycle.md)). Exporter support next |
 | `%S14`–`%S16` | Forcing active | None portable |
 | `%S17`, `%S18`, `%S20`, `%S28` | Last bit shifted out, arithmetic overflow, index overflow, string overflow | None: IEC has no such flags |
 | `%S19` | Scan period overrun | Task monitoring |

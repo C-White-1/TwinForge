@@ -134,6 +134,21 @@ All are `addData` under `http://www.3s-software.com/plcopenxml/`:
 - **Workaround:** delete the template's Application before importing. A
   cleaner import is still open.
 
+### System event bindings are not exported or imported
+
+- **Behaviour:** Task Configuration → System Events (for example
+  `PrepareStart` → a handler function) is not in PLCopen XML. The export
+  dialog has no Task Configuration entry; the handler functions and their
+  libraries (`CmpApp` and others) are exported, the binding is not, and
+  after an import the System Events tab is empty.
+- **Consequence:** an exported handler is never called until it is bound.
+  TwinForge must say so with a diagnostic.
+- **Restoring it:** the native export of the Task Configuration does hold
+  the binding (`alSysEventList`). A script can add the entry and import it
+  back, but must **remove** the Task Configuration first: importing over it
+  replaces only its tasks. An empty list is written `<Null Name="alSysEventList" />`.
+- **Evidence:** [first-cycle run](../experiments/codesys-first-cycle.md).
+
 ### The library Overview page needs a licensed add-on
 
 - **Behaviour:** a library's Overview page in the Library Manager stays
