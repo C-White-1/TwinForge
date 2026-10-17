@@ -139,6 +139,41 @@ with the list in front (`TF_DrumPatterns.DR0_PATTERN`). The editor's wiring
 hint and the README now use that form, which also works without the
 attribute.
 
+### Converted project referencing the library (2026-10-17)
+
+Fixture 14 exported with `reference_block_library=True` and imported into a
+new standard project (after deleting the template's Application, which the
+import would otherwise duplicate). Two TwinForge fixes came out of it: the
+program name `New POU` (Basic's default) is exported as the IEC identifier
+`New_POU`, and the master task is now converted (`MAST`, Freewheeling, from
+`MastTask`). The library reference resolved. One error remains: "Block has
+too many outputs" on the drum's ladder rung.
+
+### A three-pin drum: experiments (2026-10-17)
+
+Basic's drum box has three pins (`R`, `U`, `F`); ours shows every
+configuration item as a pin. Hand-built tests in CODESYS V3.5 SP22 Patch 3:
+
+| # | Question | Result |
+| --- | --- | --- |
+| E1 | Can `{attribute 'pingroup'}` collapse pins on a ladder box? | No collapse control appears. |
+| E2 | Configuration in the instance declaration through `FB_init` parameters? | Yes, with a variable (an array literal is refused: "An array initialisation is not possible as parameter of an initial function call. Use a variable instead"). |
+| E3 | Can a contact drive a second input (`U`) in ladder? | Yes, alongside `EN`. |
+| E4 | Can `FB_init` take a `REFERENCE TO BOOL` to an output variable, keep it (`REF=`), and write through it? | Yes: a block with no output pins wrote `xLamp0`. |
+
+So a Basic-like drum (pins `RESET`, `U`, `F`; step count, pattern and the
+outputs given in the declaration) is possible. E3 also means the "too many
+outputs" error comes from the output side (the in-out pins). An online
+change with such references is still to be tested.
+
+CODESYS's PLCopen export (`fb_init_export.xml`) shows how these are written,
+all as CODESYS `addData`: an instance's `FB_init` arguments as
+`inputassignments` (`<InputAssignment><Name>`/`<Value>`), a reference type as
+`<derived name="REFERENCE TO BOOL" />`, the method as `method` data on the
+POU (`<Method name="FB_init" ObjectId>` with its own interface, return type
+and ST body, and an entry under the block in the project structure), and an
+attribute as `attributes` data.
+
 ## Notes
 
 Anything surprising, write it here. Screenshots of the build messages and

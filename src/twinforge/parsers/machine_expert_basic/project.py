@@ -19,7 +19,7 @@ import re
 
 from twinforge.model import (
     Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
-    Routine, Tag,
+    Routine, Tag, Task,
 )
 from twinforge.schema.machine_expert_basic import BASIC_MAPPING, MappingSpec
 
@@ -345,6 +345,27 @@ def _programs(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -
         result.controller.add_program(program)
 
 
+def _mast_task(result: ParsedProject, root: CapturedSection, spec: MappingSpec) -> None:
+    """The master task, running every program POU in order."""
+    mast = spec.mast_task
+    found = _select(root, mast.path)
+    if not found:
+        return
+    periodic = (_text(found[0], mast.period_mode) or "").strip().lower() == "true"
+    period = _text(found[0], mast.period)
+    programs = list(result.controller.iter_programs())
+    task = Task(
+        name=mast.name,
+        task_type="Periodic" if periodic else "Continuous",
+        rate=int(period) if periodic and period and period.isdigit() else None,
+        scheduled_program_names=[program.name for program in programs],
+        scheduled_programs=programs,
+        source_extensions=[_extension(found[0])],
+    )
+    task.metadata["machine_expert_basic_scan_mode"] = "periodic" if periodic else "freewheeling"
+    result.controller.add_task(task)
+
+
 def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPING) -> ParsedProject:
     """Map one captured `.smbp`. An encrypted project yields only its public name."""
     root = artifact.section
@@ -371,4 +392,5 @@ def parse_project(artifact: CapturedArtifact, *, spec: MappingSpec = BASIC_MAPPI
     _counters(result, root, spec)
     _drums(result, root, spec)
     _programs(result, root, spec)
+    _mast_task(result, root, spec)
     return result

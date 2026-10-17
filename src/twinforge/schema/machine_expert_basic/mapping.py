@@ -125,6 +125,22 @@ class DrumSpec:
 
 
 @dataclass(frozen=True)
+class MastTaskSpec:
+    """The master task that runs the program POUs.
+
+    `UsePeriodScanMode` false (every sample and fixture) is Basic's
+    freewheeling scan: run again as soon as a scan ends, a continuous task.
+    True runs it every `PeriodScan` ms; that mode appears in no sample yet,
+    so the periodic mapping follows the field names, unverified.
+    """
+
+    path: PathSpec = ("SoftwareConfiguration", "MastTask")
+    period_mode: PathSpec = ("UsePeriodScanMode",)
+    period: PathSpec = ("PeriodScan",)
+    name: str = "MAST"
+
+
+@dataclass(frozen=True)
 class MappingSpec:
     project_root: str = "ProjectDescriptor"
     encrypted_root: str = "CryptedProject"
@@ -148,6 +164,7 @@ class MappingSpec:
     timers: TimerSpec = TimerSpec()
     counters: CounterSpec = CounterSpec()
     drums: DrumSpec = DrumSpec()
+    mast_task: MastTaskSpec = MastTaskSpec()
     # Where block instances are named in logic: grid cells and IL `BLK x` lines.
     cell_descriptor: PathSpec = ("Descriptor",)
     expression_fields: tuple[PathSpec, ...] = (("ComparisonExpression",), ("OperationExpression",))

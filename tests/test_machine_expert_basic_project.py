@@ -313,3 +313,17 @@ def test_counters_carry_their_own_type_semantics_and_preset():
         "PARTS": ("Counter", {"PV": "10"}, "machine-expert-basic.counter"),
     }
     assert _codes(result) == []
+
+
+def test_master_task_runs_the_programs_freewheeling():
+    from twinforge.parsers.machine_expert_basic import capture_file
+    from pathlib import Path
+
+    fixture = Path(__file__).parents[1] / "examples/machine_expert_basic/14_drum_simulation.smbp"
+    controller = parse_project(capture_file(fixture)).controller
+
+    (task,) = controller.tasks.values()
+    # UsePeriodScanMode false: Basic's freewheeling scan, a continuous task.
+    assert (task.name, task.task_type, task.rate) == ("MAST", "Continuous", None)
+    assert [program.name for program in task.scheduled_programs] == ["New POU"]
+    assert task.metadata["machine_expert_basic_scan_mode"] == "freewheeling"

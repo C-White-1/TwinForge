@@ -523,3 +523,64 @@ def test_library_readme_matches_the_blocks():
             assert f"| `{name}` |" in section, (block.name, name)
         if block.in_outs:
             assert "| `B0`..`B15` |" in section
+
+
+def _libraries(xml: str) -> list[dict[str, str]]:
+    return [dict(e.attrib) for e in ET.fromstring(xml).iter() if _local(e.tag) == "Library"]
+
+
+def test_codesys_export_can_reference_the_installed_library():
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    xml = PLCopenExporter("codesys", reference_block_library=True).export(plc).xml
+    root = ET.fromstring(xml)
+
+    assert "TF_MEBasic_Drum" not in [p.get("name") for p in pous(xml)]  # no embedded copy
+    # As CODESYS V3.5 SP22 Patch 3 exported a project referencing the library:
+    assert _libraries(xml) == [{
+        "Name": "TwinForge_MEBasic, 0.2.1 (TwinForge)", "Namespace": "TwinForge_MEBasic",
+        "HideWhenReferencedAsDependency": "false", "PublishSymbolsInContainer": "false",
+        "SystemLibrary": "false", "LinkAllContent": "false",
+    }]
+    # Instances keep the unqualified type name, as in that export.
+    declared = {v.get("name"): next(c for c in v if _local(c.tag) == "type")[0].get("name")
+                for v in root.iter() if _local(v.tag) == "variable" and v.get("name") == "TF_DR0"}
+    assert declared == {"TF_DR0": "TF_MEBasic_Drum"}
+    assert 'Object Name="Library Manager"' in xml
+    assert not [d for d in PLCopenExporter("codesys", reference_block_library=True).export(plc).diagnostics
+                if d.code == "unsupported_network_rung"]
+
+
+def test_library_reference_sits_beside_standard_when_both_are_needed():
+    # Fixture 05 has an IEC timer (Standard library); add a counter to it.
+    plc = parse_project(capture_file(FIXTURES / "05_timer.smbp")).controller
+    plc.add_tag(counter_tag("%C0"))
+    xml = PLCopenExporter("codesys", reference_block_library=True).export(plc).xml
+
+    assert [library["Name"] for library in _libraries(xml)] == ["#Standard", "TwinForge_MEBasic, 0.2.1 (TwinForge)"]
+    libraries = next(e for e in ET.fromstring(xml).iter() if _local(e.tag) == "Libraries")
+    assert [_local(c.tag) for c in libraries] == ["Library", "Library", "PlaceholderRedirections", "addData"]
+
+
+def test_library_reference_needs_the_codesys_profile():
+    with pytest.raises(ValueError, match="CODESYS profile"):
+        PLCopenExporter("standard_201", reference_block_library=True)
+
+
+def test_without_generated_blocks_no_library_is_referenced():
+    plc = parse_project(capture_file(FIXTURES / "01_series.smbp")).controller
+    xml = PLCopenExporter("codesys", reference_block_library=True).export(plc).xml
+    assert "TwinForge_MEBasic" not in xml
+
+
+def test_program_names_become_iec_identifiers_everywhere_they_are_used():
+    # Machine Expert - Basic's default program is "New POU": CODESYS rejects the space.
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    result = export(plc, "codesys")
+    root = ET.fromstring(result.xml)
+
+    assert [(d.raw_value, d.object_name) for d in result.diagnostics if d.code == "program_name_rewritten"] == [
+        ("New POU", "New_POU")]
+    assert [p.get("name") for p in pous(result.xml) if p.get("pouType") == "program"] == ["New_POU"]
+    assert [i.get("name") for i in root.iter() if _local(i.tag) == "pouInstance"] == ["New_POU"]
+    assert 'Object Name="New_POU"' in result.xml and "New POU" not in result.xml.split("<addData>")[0]
+    assert plc.programs["New POU"].name == "New POU"  # the model keeps the source name

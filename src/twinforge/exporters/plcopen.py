@@ -36,6 +36,7 @@ from .plcopen_operands import (
     PLCopenOperandPlanner,
 )
 from .plcopen_library import append_block_documentation, emit_function_block_pou
+from .plcopen_library_package import LIBRARY_BLOCKS, LIBRARY_NAME, LIBRARY_VERSION
 from .plcopen_network import ENCODINGS as NETWORK_ENCODINGS
 from .plcopen_network import BIT_STRING_TYPES
 from .plcopen_network import FUNCTION_BLOCK_TYPES as NETWORK_FUNCTIONS
@@ -79,22 +80,31 @@ TWINFORGE_RLL_EXTENSION = "https://twinforge.dev/plcopenxml/rockwell-rll"
 ConnectionRef = int | tuple[int, str]
 
 _NOP_INSTRUCTION = re.compile(r"\s*NOP\s*\(\s*\)\s*;\s*")
+_IEC_PROGRAM_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 class PLCopenExporter:
     def __init__(
         self, profile: PLCopenProfile | str = PLCopenProfile.STANDARD_201, *, include_unverified_blocks: bool = False,
+        reference_block_library: bool = False,
     ):
         self.profile = PLCopenProfile(profile)
         # Also export TwinForge-generated blocks whose behaviour is not yet
         # verified against the vendor (plcopen_library); off by default.
         self._include_unverified_blocks = include_unverified_blocks
+        # CODESYS only: reference the installed TwinForge_MEBasic library
+        # instead of writing the generated blocks into the project.
+        if reference_block_library and self.profile is not PLCopenProfile.CODESYS:
+            raise ValueError("reference_block_library needs the CODESYS profile (a CODESYS library reference)")
+        self._reference_block_library = reference_block_library
         self.diagnostics: list[ConversionDiagnostic] = []
         self._next_local_id = 1
         self._codesys = CodesysProfileSupport(PLCOPEN_CODESYS_NAMESPACE)
         self._operands = PLCopenOperandPlan.empty()
         # Per network rung: timer instance -> (block localId, input points).
         self._network_blocks: dict[str, tuple[int, dict[str, ET.Element]]] = {}
+        # Source program name -> the IEC identifier it is exported under.
+        self._program_names: dict[str, str] = {}
 
     def build(
         self,
@@ -116,6 +126,7 @@ class PLCopenExporter:
             include_unverified_blocks=self._include_unverified_blocks,
         ).prepare(controller)
         self.diagnostics.extend(self._operands.diagnostics)
+        self._program_names = self._portable_program_names(controller)
         target_application = (
             self._codesys_application
             if self.profile is PLCopenProfile.CODESYS
@@ -169,6 +180,12 @@ class PLCopenExporter:
     ) -> None:
         """Delegate CODESYS project wrapping to the target adapter."""
 
+        referenced: list[tuple[str, str]] = []
+        if self._reference_block_library and self._operands.generated_blocks:
+            missing = [block.name for block in self._operands.generated_blocks if block not in LIBRARY_BLOCKS]
+            if missing:
+                raise ValueError(f"generated blocks not in {LIBRARY_NAME}: {missing}")
+            referenced.append((f"{LIBRARY_NAME}, {LIBRARY_VERSION} (TwinForge)", LIBRARY_NAME))
         self._codesys.emit_application(
             root,
             controller,
@@ -188,7 +205,9 @@ class PLCopenExporter:
                 list(tags),
                 attributes={"name": "ControllerTags"},
             ),
-            function_blocks=self._operands.generated_blocks,
+            function_blocks=() if referenced else self._operands.generated_blocks,
+            program_names=self._program_names,
+            referenced_libraries=referenced,
             emit_program=lambda parent, program: self._program(
                 parent,
                 program,
@@ -217,7 +236,7 @@ class PLCopenExporter:
             instance = ET.SubElement(
                 task_element,
                 _q(ns, "pouInstance"),
-                {"name": program.name, "typeName": "" if codesys else program.name},
+                {"name": self._program_name(program), "typeName": "" if codesys else self._program_name(program)},
             )
             if codesys:
                 documentation = ET.SubElement(instance, _q(ns, "documentation"))
@@ -230,7 +249,7 @@ class PLCopenExporter:
     ) -> None:
         ns = self.profile.namespace
         pou = ET.SubElement(
-            parent, _q(ns, "pou"), {"name": program.name, "pouType": "program"}
+            parent, _q(ns, "pou"), {"name": self._program_name(program), "pouType": "program"}
         )
         interface = ET.SubElement(pou, _q(ns, "interface"))
         self._variables(
@@ -273,7 +292,7 @@ class PLCopenExporter:
                     self._codesys.append_object_id(
                         action,
                         self._codesys.object_id(
-                            f"Application/program/{program.name}/action/{action_routine.name}"
+                            f"Application/program/{self._program_name(program)}/action/{action_routine.name}"
                         ),
                     )
         self._routine_body(
@@ -286,8 +305,38 @@ class PLCopenExporter:
         if codesys:
             self._codesys.append_object_id(
                 pou,
-                self._codesys.object_id(f"Application/program/{program.name}"),
+                self._codesys.object_id(f"Application/program/{self._program_name(program)}"),
             )
+
+    def _program_name(self, program: Program) -> str:
+        return self._program_names.get(program.name, program.name)
+
+    def _portable_program_names(self, controller: Controller) -> dict[str, str]:
+        """An IEC identifier for each program whose source name is not one.
+
+        Machine Expert - Basic names its default program `New POU`; a space
+        cannot appear in an IEC name, and CODESYS rejects the program.
+        """
+        names: dict[str, str] = {}
+        taken = {program.name for program in controller.iter_programs()}
+        for program in controller.iter_programs():
+            if _IEC_PROGRAM_NAME.fullmatch(program.name):
+                continue
+            base = re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9_]", "_", program.name)).strip("_") or "Program"
+            if base[0].isdigit():
+                base = f"P_{base}"
+            portable, suffix = base, 2
+            while portable in taken:
+                portable, suffix = f"{base}_{suffix}", suffix + 1
+            taken.add(portable)
+            names[program.name] = portable
+            self._diagnostic(
+                "program_name_rewritten",
+                "source program name is not an IEC identifier and was exported under an IEC-safe name",
+                portable,
+                raw_value=program.name,
+            )
+        return names
 
     def _routine_body(
         self,

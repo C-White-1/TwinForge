@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from twinforge.model import Controller, Program, Tag, Task
 
@@ -61,8 +61,14 @@ class CodesysProfileSupport:
         emit_variables: VariableEmitter,
         emit_program: ProgramEmitter,
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
+        referenced_libraries: Sequence[tuple[str, str]] = (),
+        program_names: Mapping[str, str] | None = None,
     ) -> None:
-        """Wrap generic controller content in a CODESYS application object."""
+        """Wrap generic controller content in a CODESYS application object.
+
+        `referenced_libraries` are installed libraries the application
+        references, as (CODESYS display name, namespace).
+        """
 
         ns = self.namespace
         add_data = ET.SubElement(root, q(ns, "addData"))
@@ -114,8 +120,9 @@ class CodesysProfileSupport:
                 },
             )
             emit_program(wrapper, program)
-        if needs_standard_library:
-            self.append_standard_library(resource_add_data)
+        if needs_standard_library or referenced_libraries:
+            self.append_libraries(resource_add_data, standard=needs_standard_library,
+                                  referenced=referenced_libraries)
         self.append_object_id_data(
             resource_add_data,
             self.object_id("Application"),
@@ -124,8 +131,9 @@ class CodesysProfileSupport:
             add_data,
             controller,
             has_global_variables=global_variables is not None,
-            needs_standard_library=needs_standard_library,
+            needs_standard_library=needs_standard_library or bool(referenced_libraries),
             function_block_names=[block.name for block in function_blocks],
+            program_names=program_names,
         )
 
     def append_task_settings(
@@ -221,8 +229,13 @@ class CodesysProfileSupport:
         has_global_variables: bool,
         needs_standard_library: bool,
         function_block_names: Sequence[str] = (),
+        program_names: Mapping[str, str] | None = None,
     ) -> None:
-        """Describe CODESYS navigator objects independently of IEC content."""
+        """Describe CODESYS navigator objects independently of IEC content.
+
+        `program_names` maps a source program name to the IEC name it is
+        exported under, where they differ.
+        """
 
         ns = self.namespace
         data = ET.SubElement(
@@ -251,10 +264,11 @@ class CodesysProfileSupport:
         for name in function_block_names:
             self._append_structure_object(application, name, f"Application/pou/{name}")
         for program in controller.iter_programs():
+            name = (program_names or {}).get(program.name, program.name)
             program_object = self._append_structure_object(
                 application,
-                program.name,
-                f"Application/program/{program.name}",
+                name,
+                f"Application/program/{name}",
             )
             for routine in program.iter_routines():
                 if routine is program.main_routine:
@@ -263,7 +277,7 @@ class CodesysProfileSupport:
                     program_object,
                     routine.name,
                     (
-                        f"Application/program/{program.name}/action/"
+                        f"Application/program/{name}/action/"
                         f"{routine.name}"
                     ),
                 )
@@ -283,6 +297,24 @@ class CodesysProfileSupport:
     def append_standard_library(self, parent: ET.Element) -> None:
         """Add the CODESYS Standard library used by TON and R_TRIG blocks."""
 
+        self.append_libraries(parent, standard=True)
+
+    def append_libraries(
+        self,
+        parent: ET.Element,
+        *,
+        standard: bool,
+        referenced: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """The Library Manager: Standard (a placeholder) and installed libraries.
+
+        An installed library is referenced directly, by its display name and
+        namespace, as a CODESYS export writes it (V3.5 SP22 Patch 3):
+        `<Library Name="TwinForge_MEBasic, 0.2.1 (TwinForge)"
+        Namespace="TwinForge_MEBasic" ... />`, after the placeholder entries
+        and before the placeholder redirections.
+        """
+
         ns = self.namespace
         data = ET.SubElement(
             parent,
@@ -293,31 +325,46 @@ class CodesysProfileSupport:
             },
         )
         libraries = ET.SubElement(data, q(ns, "Libraries"))
-        ET.SubElement(
-            libraries,
-            q(ns, "Library"),
-            {
-                "Name": "#Standard",
-                "Namespace": "Standard",
-                "HideWhenReferencedAsDependency": "false",
-                "PublishSymbolsInContainer": "false",
-                "SystemLibrary": "false",
-                "LinkAllContent": "false",
-                "DefaultResolution": "Standard, * (System)",
-            },
-        )
-        redirections = ET.SubElement(
-            libraries,
-            q(ns, "PlaceholderRedirections"),
-        )
-        ET.SubElement(
-            redirections,
-            q(ns, "PlaceholderRedirection"),
-            {
-                "Placeholder": "Standard",
-                "Redirection": "Standard, 3.5.22.0 (System)",
-            },
-        )
+        if standard:
+            ET.SubElement(
+                libraries,
+                q(ns, "Library"),
+                {
+                    "Name": "#Standard",
+                    "Namespace": "Standard",
+                    "HideWhenReferencedAsDependency": "false",
+                    "PublishSymbolsInContainer": "false",
+                    "SystemLibrary": "false",
+                    "LinkAllContent": "false",
+                    "DefaultResolution": "Standard, * (System)",
+                },
+            )
+        for name, namespace in referenced:
+            ET.SubElement(
+                libraries,
+                q(ns, "Library"),
+                {
+                    "Name": name,
+                    "Namespace": namespace,
+                    "HideWhenReferencedAsDependency": "false",
+                    "PublishSymbolsInContainer": "false",
+                    "SystemLibrary": "false",
+                    "LinkAllContent": "false",
+                },
+            )
+        if standard:
+            redirections = ET.SubElement(
+                libraries,
+                q(ns, "PlaceholderRedirections"),
+            )
+            ET.SubElement(
+                redirections,
+                q(ns, "PlaceholderRedirection"),
+                {
+                    "Placeholder": "Standard",
+                    "Redirection": "Standard, 3.5.22.0 (System)",
+                },
+            )
         self.append_object_id(
             libraries,
             self.object_id("Application/Library Manager"),
