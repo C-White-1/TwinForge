@@ -138,6 +138,16 @@ roadmaps linked from each item.
    and its export is byte-identical. The exporter now also refuses a
    network with no output instead of emitting a dangling rung. See
    "PLCopen conversion".
+   - [ ] Close the gaps in the
+     [Machine Expert – Basic to CODESYS conversion table](docs/references/machine-expert-basic-to-codesys.md)
+     (2026-10-18), which gives every M221 object's CODESYS equivalent and
+     TwinForge's status. In order: (1) system bits/words are declared but
+     never driven, so declare only those used, flag each, then map the
+     common ones (`%S13`, `%S4`-`%S7`, the real-time clock); (2) constants
+     `%KW`/`%KD`/`%KF` are typed but their values are not read (fixture
+     needed); (3) physical I/O binding; (4) remaining function blocks
+     (retentive timer, shift bit register, FIFO/LIFO, step counter), then
+     Grafcet and PID (fixtures needed: no sample uses them).
 5. [ ] **Full Machine Expert (CODESYS-based): PLCopen XML import.** A new
    input format; 13 Logic Builder exports are already in the local
    `reference/machine-expert/plcopen/`.
