@@ -472,6 +472,25 @@ class PLCopenOperandPlanner:
                     raw_value=address,
                 )
                 continue
+            reproduced = {
+                **dict.fromkeys(("clock_10ms", "clock_100ms", "clock_1s", "clock_1min"),
+                                "set once per scan, at its start, from the runtime's millisecond clock; the "
+                                "source controller changes it independently of the scan"),
+                **dict.fromkeys(("rtc_day_of_week", "rtc_seconds", "rtc_hour_minute", "rtc_month_day",
+                                 "rtc_century_year"),
+                                "set once per scan, at its start, from the device's real-time clock (local time), "
+                                "in the source controller's BCD format"),
+                "rtc_hold": "holds the real-time clock words while set, so the program can write them; setting "
+                            "the device's clock on its falling edge is not converted",
+            }
+            if self._codesys and tag.metadata.get("runtime_role") in reproduced:
+                self._diagnostic(
+                    "runtime_object_reproduced",
+                    f"{tag.name}{f' ({address})' if address else ''} is {reproduced[tag.metadata['runtime_role']]}",
+                    tag.name,
+                    raw_value=address,
+                )
+                continue
             self._diagnostic(
                 "runtime_object_not_driven",
                 f"{tag.name}{f' ({address})' if address else ''} is maintained by the source controller"

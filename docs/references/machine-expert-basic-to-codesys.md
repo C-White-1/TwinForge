@@ -84,8 +84,10 @@ The M221 drives or reads these; your program reads or sets them. Every
 `.smbp` lists them all. TwinForge keeps them all in its model, but exports
 **only those the converted logic uses** (since 2026-10-18). A used system
 bit is **"Declared only"**, with a `runtime_object_not_driven` diagnostic
-(nothing updates it), except `%S0`, `%S1` and `%S13`, which are
-reproduced (below).
+(nothing updates it), except the start bits `%S0`, `%S1`, `%S13`, the
+clocks `%S4`–`%S7`, `%S50` and the real-time-clock words `%SW49`–`%SW53`,
+which are reproduced (below, `runtime_object_reproduced` or
+`system_event_binding_required`).
 
 **Which are used in practice** (the 63 downloaded samples; 8 use any system
 object at all):
@@ -100,7 +102,7 @@ So the first to map are first cycle and cold/warm start, then the clocks.
 | Bit | M221 meaning | CODESYS *(candidate)* |
 | --- | --- | --- |
 | `%S0`, `%S1` | Cold start, warm start (TRUE for the first scan) | **Verified.** Set by the same `TF_OnPrepareStart` from two flags in `TF_StartFlags`, one RETAIN: cold = download or Reset cold, warm = Reset warm or a runtime restart; cleared by `TF_EndOfScan` ([runs](../experiments/codesys-first-cycle.md)). |
-| `%S4`–`%S7` | 10 ms, 100 ms, 1 s, 1 min square waves | A timer-driven toggle |
+| `%S4`–`%S7` | 10 ms, 100 ms, 1 s, 1 min square waves | **Verified** (1 s, 1 min measured). Set once per scan by `TF_StartOfScan`, called first in the task, from `TIME()`; the M221 changes them independently of the scan ([runs](../experiments/codesys-clocks-and-rtc.md)). |
 | `%S9` | Apply fallback outputs | Device configuration, not a variable |
 | `%S11` | Watchdog overflow | Task watchdog configuration |
 | `%S12` | Controller running | Always TRUE while the program runs |
@@ -109,7 +111,8 @@ So the first to map are first cycle and cold/warm start, then the clocks.
 | `%S17`, `%S18`, `%S20`, `%S28` | Last bit shifted out, arithmetic overflow, index overflow, string overflow | None: IEC has no such flags |
 | `%S19` | Scan period overrun | Task monitoring |
 | `%S21`–`%S23` | Grafcet initialise, reset, freeze | SFC controls, if Grafcet is converted |
-| `%S50`, `%S51`, `%S59` | Real-time clock update and status | CODESYS real-time-clock library |
+| `%S50` | Hold the RTC words so the program can write them | **Verified:** while TRUE, `TF_StartOfScan` leaves `%SW49`–`%SW53` alone. Setting the clock on its falling edge is **not converted** (on Control Win it would set the Windows clock). |
+| `%S51`, `%S59` | Real-time clock status; adjust with `%SW59` | Not converted |
 | `%S90`–`%S96` | Back up / restore memory words, program backup | Persistent (retain) variables |
 | `%S32`–`%S36`, `%S101`–`%S115` | Ethernet, Modbus, ASCII, IO scanner | Target-specific, none portable |
 | `%S106`, `%S107`, `%S119` | I/O bus behaviour, restart, local I/O error | Target-specific |
@@ -126,7 +129,7 @@ only"** when they are.
 | `%SW0`, `%SW1` | Master/periodic task period | Task configuration |
 | `%SW11` | Software watchdog value | Task watchdog configuration |
 | `%SW30`–`%SW32`, `%SW70`–`%SW72` | Last/max/min scan time (ms, µs) | Task information library |
-| `%SW49`–`%SW53` | Real-time clock: day, seconds, hour:minute, month-day, year | CODESYS real-time-clock library |
+| `%SW49`–`%SW53` | Real-time clock: day, seconds, hour:minute, month-day, year (BCD) | **Verified.** Local date and time from the SysTimeRtc library, in the M221's BCD words, set by `TF_StartOfScan` ([runs](../experiments/codesys-clocks-and-rtc.md)). |
 | `%SW54`–`%SW58` | Date, time and code of the last stop | None portable |
 | `%SW59` | Adjust current date | Real-time-clock library |
 | `%SW75` | Processor load | Target-specific |
@@ -142,7 +145,8 @@ only"** when they are.
 
 1. **System objects:** done: only those a program uses are declared, each
    reported; first cycle `%S13` and cold/warm start `%S0`/`%S1` are
-   reproduced. Next: the clocks `%S4`–`%S7`, after checking them in CODESYS.
+   reproduced, and so are the clocks `%S4`–`%S7` and reading the real-time
+   clock. Next: setting the clock (`%S50`, `%S59`), on a test device.
    Related: on a warm start the M221 keeps all its data, CODESYS only
    RETAIN variables (see `%M` above).
 2. **Constants (`%KW`/`%KD`/`%KF`):** a fixture with configured constants,

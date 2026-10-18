@@ -149,8 +149,12 @@ roadmaps linked from each item.
      the binding (2026-10-18, verified on `ld_laba2`;
      [runs](docs/experiments/codesys-first-cycle.md)); [x] `%S0`/`%S1`
      cold/warm start: the same handler, from a RETAIN and an ordinary flag
-     (2026-10-18, verified on fixture 14 with three added rungs); [ ] clocks
-     `%S4`-`%S7`; [ ] decide whether converted `%M`/`%MW` become RETAIN, as
+     (2026-10-18, verified on fixture 14 with three added rungs); [x] clocks
+     `%S4`-`%S7` and reading the real-time clock `%SW49`-`%SW53` (with
+     `%S50` holding them), set each scan by `TF_StartOfScan` (2026-10-18,
+     [runs](docs/experiments/codesys-clocks-and-rtc.md)); [ ] setting the
+     clock (`%S50` falling edge, `%S59`/`%SW59`), to try on a virtual machine
+     or Raspberry Pi rather than the PC's own clock; [ ] decide whether converted `%M`/`%MW` become RETAIN, as
      the M221 keeps them on a warm start; (2) constants
      `%KW`/`%KD`/`%KF` are typed but their values are not read (fixture
      needed); (3) physical I/O binding; (4) remaining function blocks

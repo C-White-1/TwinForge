@@ -40,6 +40,20 @@ START_FLAGS_LIST = "TF_StartFlags"
 NON_RETAIN_INIT = "TF_NonRetainInit"
 RETAIN_INIT = "TF_RetainInit"
 START_ROLES = ("first_cycle", "cold_start", "warm_start")
+# Clocks and the real-time clock are set by a program called first in the
+# first task, once per scan (docs/experiments/codesys-clocks-and-rtc.md).
+START_OF_SCAN_PROGRAM = "TF_StartOfScan"
+# Half the period of each clock, in milliseconds of TIME() (since the
+# runtime started; it wraps after about 49.7 days, which gives one irregular
+# half-period).
+CLOCK_HALF_PERIODS = {"clock_10ms": 5, "clock_100ms": 50, "clock_1s": 500, "clock_1min": 30000}
+# The real-time clock as the M221's BCD words, from the device's local time
+# (SysTimeRtc: UTC seconds -> local seconds -> SYSTIMEDATE fields).
+RTC_WORDS = ("rtc_day_of_week", "rtc_seconds", "rtc_hour_minute", "rtc_month_day", "rtc_century_year")
+SCAN_ROLES = (*CLOCK_HALF_PERIODS, *RTC_WORDS, "rtc_hold")
+RUNTIME_ROLES = (*START_ROLES, *SCAN_ROLES)
+# As CODESYS writes it after Library Manager -> Add Library (V3.5 SP22 Patch 3).
+RTC_LIBRARY = ("SysTimeRtc", "SysTimeRtc", "SysTimeRtc, * (System)")
 # What a CODESYS project gains with a system-event handler, as CODESYS
 # exports it (V3.5 SP22 Patch 3): (placeholder, namespace, default resolution).
 SYSTEM_EVENT_LIBRARIES = (
@@ -92,16 +106,23 @@ class CodesysProfileSupport:
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
         referenced_libraries: Sequence[tuple[str, str]] = (),
         program_names: Mapping[str, str] | None = None,
-        start_flags: Sequence[tuple[str, str]] = (),
+        runtime_objects: Sequence[tuple[str, str]] = (),
     ) -> None:
         """Wrap generic controller content in a CODESYS application object.
 
         `referenced_libraries` are installed libraries the application
-        references, as (CODESYS display name, namespace). `start_flags` are
-        (role, qualified variable) pairs, a role from START_ROLES: variables
-        TRUE for the first scan after a start of that kind; see
-        FIRST_CYCLE_HANDLER.
+        references, as (CODESYS display name, namespace). `runtime_objects`
+        are (role, qualified variable) pairs, a role from RUNTIME_ROLES: the
+        source controller's objects this target reproduces (start flags: see
+        FIRST_CYCLE_HANDLER; clocks and the real-time clock: see
+        START_OF_SCAN_PROGRAM).
         """
+        start_flags = [(role, name) for role, name in runtime_objects if role in START_ROLES]
+        scan_objects = [(role, name) for role, name in runtime_objects if role in SCAN_ROLES]
+        if not any(role != "rtc_hold" for role, _ in scan_objects):
+            scan_objects = []  # holding RTC words nothing reads changes nothing
+        rtc = any(role in RTC_WORDS for role, _ in scan_objects)
+        placeholders = [*(SYSTEM_EVENT_LIBRARIES if start_flags else ()), *((RTC_LIBRARY,) if rtc else ())]
 
         ns = self.namespace
         add_data = ET.SubElement(root, q(ns, "addData"))
@@ -122,6 +143,8 @@ class CodesysProfileSupport:
             emit_task(resource, task)
             if start_flags and index == 0:
                 self._append_program_call(resource[-1], END_OF_SCAN_PROGRAM)
+            if scan_objects and index == 0:
+                self._append_program_call(resource[-1], START_OF_SCAN_PROGRAM, first=True)
         global_variables = emit_variables(
             resource,
             [*controller.tags.values(), *generated_tags],
@@ -160,10 +183,11 @@ class CodesysProfileSupport:
             emit_program(wrapper, program)
         if start_flags:
             self._append_start_pous(resource_add_data, start_flags)
-        if needs_standard_library or referenced_libraries or start_flags:
+        if scan_objects:
+            self._append_start_of_scan_pou(resource_add_data, scan_objects)
+        if needs_standard_library or referenced_libraries or placeholders:
             self.append_libraries(resource_add_data, standard=needs_standard_library,
-                                  referenced=referenced_libraries,
-                                  placeholders=SYSTEM_EVENT_LIBRARIES if start_flags else ())
+                                  referenced=referenced_libraries, placeholders=placeholders)
         self.append_object_id_data(
             resource_add_data,
             self.object_id("Application"),
@@ -172,22 +196,90 @@ class CodesysProfileSupport:
             add_data,
             controller,
             has_global_variables=global_variables is not None,
-            needs_standard_library=needs_standard_library or bool(referenced_libraries) or bool(start_flags),
+            needs_standard_library=needs_standard_library or bool(referenced_libraries) or bool(placeholders),
             function_blocks=function_blocks,
             program_names=program_names,
             start_handler=bool(start_flags),
+            start_of_scan=bool(scan_objects),
             start_flags_list=start_kinds,
         )
 
-    def _append_program_call(self, task_element: ET.Element, program: str) -> None:
-        """Call `program` last in a task, as CODESYS writes a program call."""
+    def _append_program_call(self, task_element: ET.Element, program: str, *, first: bool = False) -> None:
+        """Call `program` last (or first) in a task, as CODESYS writes a program call."""
 
         ns = self.namespace
         instance = ET.Element(q(ns, "pouInstance"), {"name": program, "typeName": ""})
         ET.SubElement(ET.SubElement(instance, q(ns, "documentation")), q(XHTML_NAMESPACE, "xhtml"))
         calls = [child for child in task_element if child.tag == q(ns, "pouInstance")]
-        position = list(task_element).index(calls[-1]) + 1 if calls else 0
+        if first or not calls:
+            position = list(task_element).index(calls[0]) if calls else 0
+        else:
+            position = list(task_element).index(calls[-1]) + 1
         task_element.insert(position, instance)
+
+    def _append_start_of_scan_pou(self, resource_add_data: ET.Element, objects: Sequence[tuple[str, str]]) -> None:
+        """TF_StartOfScan: the clocks and the real-time clock words, once per scan.
+
+        A clock is TRUE for the second half of each period of TIME(). The RTC
+        words are the local date and time in BCD, read through SysTimeRtc
+        with the plain types its aliases stand for (RTS_IEC_RESULT = UDINT),
+        so no further library is needed; while an `rtc_hold` bit is set they
+        are left for the program to write.
+        """
+
+        ns = self.namespace
+        wrapper = ET.SubElement(resource_add_data, q(ns, "data"),
+                                {"name": f"{CODESYS_NAMESPACE}/pou", "handleUnknown": "implementation"})
+        program = ET.SubElement(wrapper, q(ns, "pou"), {"name": START_OF_SCAN_PROGRAM, "pouType": "program"})
+        interface = ET.SubElement(program, q(ns, "interface"))
+        local_vars = ET.SubElement(interface, q(ns, "localVars"))
+        clocks = [(role, name) for role, name in objects if role in CLOCK_HALF_PERIODS]
+        words = [(role, name) for role, name in objects if role in RTC_WORDS]
+        hold = [name for role, name in objects if role == "rtc_hold"]
+        declarations = [("nMs", "UDINT")] if clocks else []
+        if words:
+            declarations += [("dwUtc", "DWORD"), ("dwLocal", "DWORD"), ("eGet", "UDINT"), ("eLocal", "UDINT"),
+                             ("eDate", "UDINT"), ("stDate", "SYSTIMEDATE")]
+        for name, type_name in declarations:
+            variable = ET.SubElement(local_vars, q(ns, "variable"), {"name": name})
+            type_element = ET.SubElement(variable, q(ns, "type"))
+            if type_name == "SYSTIMEDATE":
+                ET.SubElement(type_element, q(ns, "derived"), {"name": type_name})
+            else:
+                ET.SubElement(type_element, q(ns, type_name))
+
+        def bcd(field: str) -> str:
+            return f"(stDate.{field} / 10) * 16 + stDate.{field} MOD 10"
+
+        word_values = {
+            "rtc_day_of_week": "stDate.wDayOfWeek",
+            "rtc_seconds": bcd("wSecond"),
+            "rtc_hour_minute": f"({bcd('wHour')}) * 256 + {bcd('wMinute')}",
+            "rtc_month_day": f"({bcd('wMonth')}) * 256 + {bcd('wDay')}",
+            "rtc_century_year": ("((stDate.wYear / 1000) * 16 + (stDate.wYear / 100) MOD 10) * 256"
+                                 " + ((stDate.wYear MOD 100) / 10) * 16 + stDate.wYear MOD 10"),
+        }
+        lines: list[str] = []
+        if clocks:
+            lines.append("nMs := TIME_TO_UDINT(TIME());\n")
+            lines += [f"{name} := (nMs / {CLOCK_HALF_PERIODS[role]}) MOD 2 = 1;\n" for role, name in clocks]
+        if words:
+            indent = "    " if hold else ""
+            if hold:
+                lines.append(f"IF NOT ({' OR '.join(hold)}) THEN\n")
+            lines += [
+                f"{indent}dwUtc := SysTimeRtcGet(pResult := eGet);\n",
+                f"{indent}eLocal := SysTimeRtcConvertUtcToLocal(dwTimestampUtc := dwUtc, pdwTimestampLocal := dwLocal);\n",
+                f"{indent}eDate := SysTimeRtcConvertUtcToDate(dwTimestampUtc := dwLocal, pDate := stDate);\n",
+                f"{indent}IF eGet = 0 AND eLocal = 0 AND eDate = 0 THEN\n",
+            ]
+            lines += [f"{indent}    {name} := UINT_TO_INT({word_values[role]});\n" for role, name in words]
+            lines.append(f"{indent}END_IF;\n")
+            if hold:
+                lines.append("END_IF;\n")
+        st = ET.SubElement(ET.SubElement(program, q(ns, "body")), q(ns, "ST"))
+        ET.SubElement(st, q(XHTML_NAMESPACE, "xhtml")).text = "".join(lines)
+        self.append_object_id(program, self.object_id(f"Application/program/{START_OF_SCAN_PROGRAM}"))
 
     def _append_start_flags_list(self, resource: ET.Element) -> None:
         """TF_StartFlags: NON_RETAIN_INIT and RETAIN_INIT, both TRUE until cleared.
@@ -362,6 +454,7 @@ class CodesysProfileSupport:
         program_names: Mapping[str, str] | None = None,
         start_handler: bool = False,
         start_flags_list: bool = False,
+        start_of_scan: bool = False,
     ) -> None:
         """Describe CODESYS navigator objects independently of IEC content.
 
@@ -416,6 +509,9 @@ class CodesysProfileSupport:
                         f"{routine.name}"
                     ),
                 )
+        if start_of_scan:
+            self._append_structure_object(application, START_OF_SCAN_PROGRAM,
+                                          f"Application/program/{START_OF_SCAN_PROGRAM}")
         if start_handler:
             self._append_structure_object(application, END_OF_SCAN_PROGRAM,
                                           f"Application/program/{END_OF_SCAN_PROGRAM}")

@@ -6,6 +6,7 @@ the sequences recorded in the Machine Expert - Basic simulator
 what marks the counter verified, so it exports by default.
 """
 from dataclasses import replace
+import re
 from typing import Any
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +24,7 @@ from twinforge.exporters.plcopen_library_checks import CHECKS, DRUM_CONSTANTS, C
 from twinforge.exporters.plcopen_validation import validate_plcopen_xml
 from twinforge.exporters.plcopen_library_package import LIBRARY_BLOCKS, TEST_PROGRAM, library_document, checks_program
 from twinforge.model import (
-    Controller, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
+    Controller, Expression, Identity, LadderInstruction, LadderOperation, LadderParallel, LadderRung, LadderSeries, Program,
     Routine, Tag,
 )
 from twinforge.parsers.machine_expert_basic import capture_file, parse_project
@@ -716,17 +717,17 @@ def test_unused_system_objects_are_not_declared():
 def test_a_used_system_object_is_declared_and_reported():
     plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
     rung = LadderRung(number=9, network=LadderSeries((
-        LadderInstruction(Op.NORMALLY_OPEN_CONTACT, "NormalContact", "SB_TB1S"),
+        LadderInstruction(Op.NORMALLY_OPEN_CONTACT, "NormalContact", "SB_OVERRUN"),
         LadderInstruction(Op.COIL, "Coil", "%Q0.5"))))
     main = plc.programs["New POU"].main_routine
     assert main is not None
     main.ladder_rungs.append(rung)
     result = export(plc, "codesys")
 
-    assert [name for name in _globals(result.xml) if name.startswith(("SB_", "SW_"))] == ["SB_TB1S"]
+    assert [name for name in _globals(result.xml) if name.startswith(("SB_", "SW_"))] == ["SB_OVERRUN"]
     (diagnostic,) = [d for d in result.diagnostics if d.code == "runtime_object_not_driven"]
-    assert (diagnostic.object_name, diagnostic.raw_value) == ("SB_TB1S", "%S6")
-    assert "Time base of 1 s" in diagnostic.message and "nothing in the target updates it" in diagnostic.message
+    assert (diagnostic.object_name, diagnostic.raw_value) == ("SB_OVERRUN", "%S19")
+    assert "scan time greater" in diagnostic.message and "nothing in the target updates it" in diagnostic.message
 
 
 def _with_first_cycle_rung(plc: Controller) -> Controller:
@@ -840,3 +841,110 @@ def test_cold_and_warm_start_bits_come_from_what_the_start_initialised():
 def test_the_first_cycle_bit_alone_needs_no_start_flags():
     plc = _with_first_cycle_rung(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
     assert "TF_StartFlags" not in export(plc, "codesys").xml
+
+
+def _with_rungs(plc: Controller, *contacts_and_outputs: tuple[str, str]) -> Controller:
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    for number, (operand, output) in enumerate(contacts_and_outputs):
+        main.ladder_rungs.append(LadderRung(number=20 + number, network=LadderSeries((
+            LadderInstruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", operand),
+            LadderInstruction(LadderOperation.COIL, "Coil", output)))))
+    return plc
+
+
+def _start_of_scan(xml: str) -> str:
+    (program,) = [p for p in pous(xml) if p.get("name") == "TF_StartOfScan"]
+    return "".join(e.text or "" for e in program.iter() if _local(e.tag) == "xhtml" and e.text)
+
+
+def test_clock_bits_are_square_waves_of_the_runtime_millisecond_clock():
+    # %S4-%S7: 10 ms, 100 ms, 1 s, 1 min time bases (M221 Programming Guide, "System Bits (%S)").
+    plc = _with_rungs(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller,
+                      ("SB_TB10MS", "%Q0.5"), ("SB_TB1MIN", "%Q0.6"))
+    result = export(plc, "codesys")
+    body = _start_of_scan(result.xml)
+
+    assert body == ("nMs := TIME_TO_UDINT(TIME());\n"
+                    "ControllerTags.SB_TB10MS := (nMs / 5) MOD 2 = 1;\n"
+                    "ControllerTags.SB_TB1MIN := (nMs / 30000) MOD 2 = 1;\n")
+    assert not parse_structured_text(body).diagnostics
+    (task,) = [t for t in ET.fromstring(result.xml).iter() if _local(t.tag) == "task"]
+    assert [i.get("name") for i in task if _local(i.tag) == "pouInstance"] == ["TF_StartOfScan", "New_POU"]
+    assert "SysTimeRtc" not in result.xml and "TF_OnPrepareStart" not in result.xml  # clocks need neither
+    assert {d.object_name for d in result.diagnostics if d.code == "runtime_object_reproduced"} == {
+        "SB_TB10MS", "SB_TB1MIN"}
+    assert "runtime_object_not_driven" not in [d.code for d in result.diagnostics]
+
+
+def _rtc_words(body: str, year: int, month: int, day: int, hour: int, minute: int, second: int, weekday: int):
+    """Evaluate the generated word assignments for one SYSTIMEDATE."""
+    fields = {"wYear": year, "wMonth": month, "wDay": day, "wHour": hour, "wMinute": minute, "wSecond": second,
+              "wDayOfWeek": weekday}
+    words = {}
+    for name, expression in re.findall(r"ControllerTags\.(\w+) := UINT_TO_INT\((.*)\);", body):
+        python = re.sub(r"stDate\.(\w+)", lambda m: str(fields[m.group(1)]), expression)
+        words[name] = eval(python.replace(" MOD ", " % ").replace("/", "//"))  # noqa: S307 - our own arithmetic
+    return words
+
+
+def test_rtc_words_are_the_local_date_and_time_in_bcd():
+    # %SW49 day of week (1 = Monday), %SW50 00SS, %SW51 HHMM, %SW52 MMDD, %SW53 CCYY, in BCD
+    # (M221 Programming Guide, "System Words (%SW)"). SYSTIMEDATE.wDayOfWeek also counts Monday = 1.
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    assert plc.tags["SW_RTCHHMM"].metadata["runtime_role"] == "rtc_hour_minute"
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    for number, word in enumerate(("SW_RTCDAY", "SW_RTCSEC", "SW_RTCHHMM", "SW_RTCMMDD", "SW_RTCCCYY")):
+        main.ladder_rungs.append(LadderRung(number=30 + number, network=LadderSeries((
+            LadderInstruction(LadderOperation.COMPARISON, "Comparison", f"{word} > 0", expression=Expression(
+                kind="binary", data_type="BOOL", text="", operator=">",
+                left=Expression(kind="variable", data_type="INT", text=word),
+                right=Expression(kind="literal", data_type="INT", text="0"))),
+            LadderInstruction(LadderOperation.COIL, "Coil", "%Q0.5")))))
+    result = export(plc, "codesys")
+    body = _start_of_scan(result.xml)
+
+    assert not parse_structured_text(body).diagnostics
+    assert "dwUtc := SysTimeRtcGet(pResult := eGet);" in body
+    assert "SysTimeRtcConvertUtcToDate(dwTimestampUtc := dwLocal, pDate := stDate)" in body  # local fields
+    assert _rtc_words(body, 2026, 10, 18, 14, 35, 7, 7) == {
+        "SW_RTCDAY": 0x0007, "SW_RTCSEC": 0x0007, "SW_RTCHHMM": 0x1435, "SW_RTCMMDD": 0x1018, "SW_RTCCCYY": 0x2026}
+    assert _rtc_words(body, 1999, 12, 31, 23, 59, 59, 5) == {
+        "SW_RTCDAY": 0x0005, "SW_RTCSEC": 0x0059, "SW_RTCHHMM": 0x2359, "SW_RTCMMDD": 0x1231, "SW_RTCCCYY": 0x1999}
+    assert max(_rtc_words(body, 2099, 12, 31, 23, 59, 59, 7).values()) <= 32767  # fits the INT words
+
+    root = ET.fromstring(result.xml)
+    (library,) = [lib for lib in root.iter() if _local(lib.tag) == "Library" and lib.get("Name") == "#SysTimeRtc"]
+    assert (library.get("Namespace"), library.get("DefaultResolution")) == ("SysTimeRtc", "SysTimeRtc, * (System)")
+    (program,) = [p for p in pous(result.xml) if p.get("name") == "TF_StartOfScan"]
+    assert {v.get("name") for v in program.iter() if _local(v.tag) == "variable"} == {
+        "dwUtc", "dwLocal", "eGet", "eLocal", "eDate", "stDate"}
+
+
+def test_rtc_hold_leaves_the_words_to_the_program():
+    # %S50 = 1: the controller stops updating %SW49-53 so the program can write them.
+    plc = _with_rungs(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller,
+                      ("SB_RTCUPDATE", "%Q0.5"))
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    main.ladder_rungs.append(LadderRung(number=40, network=LadderSeries((
+        LadderInstruction(LadderOperation.COMPARISON, "Comparison", "SW_RTCSEC > 0", expression=Expression(
+            kind="binary", data_type="BOOL", text="", operator=">",
+            left=Expression(kind="variable", data_type="INT", text="SW_RTCSEC"),
+            right=Expression(kind="literal", data_type="INT", text="0"))),
+        LadderInstruction(LadderOperation.COIL, "Coil", "%Q0.6")))))
+    result = export(plc, "codesys")
+    body = _start_of_scan(result.xml)
+
+    assert body.startswith("IF NOT (ControllerTags.SB_RTCUPDATE) THEN\n") and body.endswith("END_IF;\n")
+    (diagnostic,) = [d for d in result.diagnostics if d.object_name == "SB_RTCUPDATE"]
+    assert "falling edge is not converted" in diagnostic.message
+
+
+def test_other_targets_still_report_clocks_as_not_driven():
+    plc = _with_rungs(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller,
+                      ("SB_TB1S", "%Q0.5"))
+    result = export(plc)
+    assert "TF_StartOfScan" not in result.xml
+    assert [d.object_name for d in result.diagnostics if d.code == "runtime_object_not_driven"] == ["SB_TB1S"]

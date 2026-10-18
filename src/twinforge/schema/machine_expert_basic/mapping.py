@@ -51,7 +51,14 @@ class SymbolTable:
     #   cold start, "all data initialized to its default values" (download,
     #   Initialize controller, power-up without backup);
     # - `warm_start` (%S1): set to 1 by "a power return with data backup",
-    #   reset at the end of that scan.
+    #   reset at the end of that scan;
+    # - `clock_10ms` .. `clock_1min` (%S4-%S7): square waves, "Time base:
+    #   10 ms" .. "1 min", "not synchronized with the controller scan";
+    # - `rtc_hold` (%S50): while 1, the controller stops updating %SW49-53
+    #   so the program can write them; a falling edge sets the clock;
+    # - `rtc_day_of_week` .. `rtc_century_year` (%SW49-%SW53, "System Words
+    #   (%SW)"): the date and time in BCD: day of the week (1 = Monday),
+    #   00SS, HHMM, MMDD, CCYY.
     runtime_roles: tuple[tuple[str, str], ...] = ()
 
 
@@ -219,9 +226,14 @@ class MappingSpec:
         # Vendor-predefined system objects; every entry carries a symbol.
         SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit", "BOOL",
                     runtime_maintained=True,
-                    runtime_roles=(("%S0", "cold_start"), ("%S1", "warm_start"), ("%S13", "first_cycle"))),
+                    runtime_roles=(("%S0", "cold_start"), ("%S1", "warm_start"), ("%S13", "first_cycle"),
+                                   ("%S4", "clock_10ms"), ("%S5", "clock_100ms"), ("%S6", "clock_1s"),
+                                   ("%S7", "clock_1min"), ("%S50", "rtc_hold"))),
         SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord", "INT",
-                    runtime_maintained=True),
+                    runtime_maintained=True,
+                    runtime_roles=(("%SW49", "rtc_day_of_week"), ("%SW50", "rtc_seconds"),
+                                   ("%SW51", "rtc_hour_minute"), ("%SW52", "rtc_month_day"),
+                                   ("%SW53", "rtc_century_year"))),
     )
 
 
