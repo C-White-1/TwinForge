@@ -15,7 +15,7 @@ from twinforge.model import (
 )
 from twinforge.model.expression import ASSIGNMENT_OPERATOR
 
-from .plcopen_codesys import CodesysProfileSupport
+from .plcopen_codesys import START_ROLES, CodesysProfileSupport
 from .plcopen_instructions import (
     ConditionInstruction,
     OutputInstruction,
@@ -209,10 +209,10 @@ class PLCopenExporter:
             function_blocks=() if referenced else self._operands.generated_blocks,
             program_names=self._program_names,
             referenced_libraries=referenced,
-            first_cycle_flags=[
-                f"ControllerTags.{self._operands.tag_names.get(tag.name, tag.name)}"
+            start_flags=[
+                (tag.metadata["runtime_role"], f"ControllerTags.{self._operands.tag_names.get(tag.name, tag.name)}")
                 for tag in controller.tags.values()
-                if tag.metadata.get("runtime_role") == "first_cycle" and tag.name in self._operands.used_operands
+                if tag.metadata.get("runtime_role") in START_ROLES and tag.name in self._operands.used_operands
             ],
             emit_program=lambda parent, program: self._program(
                 parent,

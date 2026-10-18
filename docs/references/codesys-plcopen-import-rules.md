@@ -120,6 +120,19 @@ All are `addData` under `http://www.3s-software.com/plcopenxml/`:
 
 ## Project and import behaviour
 
+### RETAIN variables: the mixed-list form
+
+- **Rule:** to make a variable RETAIN, write its list as CODESYS exports a
+  list mixing ordinary and RETAIN variables: every variable in the
+  `globalVars` itself, then, in its `addData`, a `mixedattrsvarlist` data
+  holding `<MixedAttrsVarList>` with the list split in two:
+  `<globalVars name="L">` (ordinary) and `<globalVars name="L"
+  retain="true">`.
+- **Why:** the main section carries no RETAIN marking; an importer that
+  ignores the CODESYS section would silently drop RETAIN.
+- **In TwinForge:** the start flags list `TF_StartFlags`
+  (`_append_start_flags_list`); verified to import as `VAR_GLOBAL RETAIN`.
+
 ### Global variable lists are qualified_only
 
 - **Rule:** use `List.Variable` (for example `TF_DrumPatterns.DR0_PATTERN`).

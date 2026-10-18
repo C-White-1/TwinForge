@@ -22,14 +22,24 @@ from .plcopen_xml import qualified_name as q
 CODESYS_NAMESPACE = "http://www.3s-software.com/plcopenxml"
 CODESYS_ID_NAMESPACE = uuid.UUID("012486d2-49b8-5be4-aeca-4a70ed56cfa8")
 
-# A first-cycle flag (Machine Expert - Basic's %S13) is set by a handler of
-# the runtime's PrepareStart system event, which runs before the first scan
-# of every start, including stop -> start, and cleared by a program called
+# Start flags (Machine Expert - Basic's %S13 first cycle, %S0 cold start,
+# %S1 warm start) are set by a handler of the runtime's PrepareStart system
+# event, which runs before the first scan of every start, including
+# stop -> start but not an online change, and cleared by a program called
 # last in the first task. PLCopen XML cannot bind the handler to the event:
 # examples/CODESYS/scripts/bind_system_events.py does, by the handler's name
 # (TF_On<Event>). See docs/experiments/codesys-first-cycle.md.
 FIRST_CYCLE_HANDLER = "TF_OnPrepareStart"
 END_OF_SCAN_PROGRAM = "TF_EndOfScan"
+# Which data the last initialisation reset tells cold from warm: a RETAIN
+# variable is re-initialised by download and Reset cold (cold), an ordinary
+# one also by Reset warm and a runtime restart (warm). Both start TRUE and
+# the handler clears them. They share a list of their own, in the form
+# CODESYS exports a list mixing RETAIN and ordinary variables.
+START_FLAGS_LIST = "TF_StartFlags"
+NON_RETAIN_INIT = "TF_NonRetainInit"
+RETAIN_INIT = "TF_RetainInit"
+START_ROLES = ("first_cycle", "cold_start", "warm_start")
 # What a CODESYS project gains with a system-event handler, as CODESYS
 # exports it (V3.5 SP22 Patch 3): (placeholder, namespace, default resolution).
 SYSTEM_EVENT_LIBRARIES = (
@@ -82,14 +92,15 @@ class CodesysProfileSupport:
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
         referenced_libraries: Sequence[tuple[str, str]] = (),
         program_names: Mapping[str, str] | None = None,
-        first_cycle_flags: Sequence[str] = (),
+        start_flags: Sequence[tuple[str, str]] = (),
     ) -> None:
         """Wrap generic controller content in a CODESYS application object.
 
         `referenced_libraries` are installed libraries the application
-        references, as (CODESYS display name, namespace). `first_cycle_flags`
-        are the (qualified) variables to hold TRUE for the first scan after
-        every start; see FIRST_CYCLE_HANDLER.
+        references, as (CODESYS display name, namespace). `start_flags` are
+        (role, qualified variable) pairs, a role from START_ROLES: variables
+        TRUE for the first scan after a start of that kind; see
+        FIRST_CYCLE_HANDLER.
         """
 
         ns = self.namespace
@@ -109,7 +120,7 @@ class CodesysProfileSupport:
         )
         for index, task in enumerate(controller.iter_tasks()):
             emit_task(resource, task)
-            if first_cycle_flags and index == 0:
+            if start_flags and index == 0:
                 self._append_program_call(resource[-1], END_OF_SCAN_PROGRAM)
         global_variables = emit_variables(
             resource,
@@ -120,6 +131,9 @@ class CodesysProfileSupport:
                 global_variables,
                 self.object_id("Application/ControllerTags"),
             )
+        start_kinds = any(role != "first_cycle" for role, _ in start_flags)
+        if start_kinds:
+            self._append_start_flags_list(resource)
 
         resource_add_data = ET.SubElement(resource, q(ns, "addData"))
         for block in function_blocks:
@@ -144,12 +158,12 @@ class CodesysProfileSupport:
                 },
             )
             emit_program(wrapper, program)
-        if first_cycle_flags:
-            self._append_first_cycle_pous(resource_add_data, first_cycle_flags)
-        if needs_standard_library or referenced_libraries or first_cycle_flags:
+        if start_flags:
+            self._append_start_pous(resource_add_data, start_flags)
+        if needs_standard_library or referenced_libraries or start_flags:
             self.append_libraries(resource_add_data, standard=needs_standard_library,
                                   referenced=referenced_libraries,
-                                  placeholders=SYSTEM_EVENT_LIBRARIES if first_cycle_flags else ())
+                                  placeholders=SYSTEM_EVENT_LIBRARIES if start_flags else ())
         self.append_object_id_data(
             resource_add_data,
             self.object_id("Application"),
@@ -158,10 +172,11 @@ class CodesysProfileSupport:
             add_data,
             controller,
             has_global_variables=global_variables is not None,
-            needs_standard_library=needs_standard_library or bool(referenced_libraries) or bool(first_cycle_flags),
+            needs_standard_library=needs_standard_library or bool(referenced_libraries) or bool(start_flags),
             function_blocks=function_blocks,
             program_names=program_names,
-            first_cycle=bool(first_cycle_flags),
+            start_handler=bool(start_flags),
+            start_flags_list=start_kinds,
         )
 
     def _append_program_call(self, task_element: ET.Element, program: str) -> None:
@@ -174,11 +189,44 @@ class CodesysProfileSupport:
         position = list(task_element).index(calls[-1]) + 1 if calls else 0
         task_element.insert(position, instance)
 
-    def _append_first_cycle_pous(self, resource_add_data: ET.Element, flags: Sequence[str]) -> None:
+    def _append_start_flags_list(self, resource: ET.Element) -> None:
+        """TF_StartFlags: NON_RETAIN_INIT and RETAIN_INIT, both TRUE until cleared.
+
+        As CODESYS exports a list mixing ordinary and RETAIN variables (V3.5
+        SP22 Patch 3): every variable in the list itself, and the split in a
+        `mixedattrsvarlist` section, with `retain="true"` on the RETAIN part.
+        A list of RETAIN variables only was exported without any RETAIN
+        marking, so the flags share one list.
+        """
+
+        ns = self.namespace
+
+        def flag(parent: ET.Element, name: str) -> None:
+            variable = ET.SubElement(parent, q(ns, "variable"), {"name": name})
+            ET.SubElement(ET.SubElement(variable, q(ns, "type")), q(ns, "BOOL"))
+            ET.SubElement(ET.SubElement(variable, q(ns, "initialValue")), q(ns, "simpleValue"), {"value": "TRUE"})
+
+        variables = ET.SubElement(resource, q(ns, "globalVars"), {"name": START_FLAGS_LIST})
+        flag(variables, NON_RETAIN_INIT)
+        flag(variables, RETAIN_INIT)
+        add_data = ET.SubElement(variables, q(ns, "addData"))
+        attributes = ET.SubElement(ET.SubElement(add_data, q(ns, "data"), {
+            "name": f"{CODESYS_NAMESPACE}/attributes", "handleUnknown": "implementation"}), q(ns, "Attributes"))
+        ET.SubElement(attributes, q(ns, "Attribute"), {"Name": "qualified_only", "Value": ""})
+        self.append_object_id_data(add_data, self.object_id(f"Application/{START_FLAGS_LIST}"))
+        mixed = ET.SubElement(ET.SubElement(add_data, q(ns, "data"), {
+            "name": f"{CODESYS_NAMESPACE}/mixedattrsvarlist", "handleUnknown": "implementation"}),
+            q(ns, "MixedAttrsVarList"))
+        flag(ET.SubElement(mixed, q(ns, "globalVars"), {"name": START_FLAGS_LIST}), NON_RETAIN_INIT)
+        flag(ET.SubElement(mixed, q(ns, "globalVars"), {"name": START_FLAGS_LIST, "retain": "true"}), RETAIN_INIT)
+
+    def _append_start_pous(self, resource_add_data: ET.Element, flags: Sequence[tuple[str, str]]) -> None:
         """The PrepareStart handler that sets the flags, and the program that clears them.
 
         The handler's interface is the one CODESYS generates for a
-        PrepareStart handler; the runtime calls it with that signature.
+        PrepareStart handler; the runtime calls it with that signature. It
+        runs after the start's initialisation, so TF_StartFlags tells which
+        data that reset.
         """
 
         ns = self.namespace
@@ -202,12 +250,17 @@ class CodesysProfileSupport:
             " Do not change the interface of this function!\n"
             " Called by the runtime system's PrepareStart event, before the first scan of every start.\n"
             " Bind it in Task Configuration -> System Events: run bind_system_events.py after the import.")
-        body(handler, "".join(f"{flag} := TRUE;\n" for flag in flags))
+        non_retain, retain = f"{START_FLAGS_LIST}.{NON_RETAIN_INIT}", f"{START_FLAGS_LIST}.{RETAIN_INIT}"
+        value = {"first_cycle": "TRUE", "cold_start": retain, "warm_start": f"{non_retain} AND NOT {retain}"}
+        lines = [f"{variable} := {value[role]};\n" for role, variable in flags]
+        if any(role != "first_cycle" for role, _ in flags):
+            lines += [f"{non_retain} := FALSE;\n", f"{retain} := FALSE;\n"]
+        body(handler, "".join(lines))
         self.append_object_id(handler, self.object_id(f"Application/pou/{FIRST_CYCLE_HANDLER}"))
 
         program = pou(END_OF_SCAN_PROGRAM, "program")
         ET.SubElement(program, q(ns, "interface"))
-        body(program, "".join(f"{flag} := FALSE;\n" for flag in flags))
+        body(program, "".join(f"{variable} := FALSE;\n" for _, variable in flags))
         self.append_object_id(program, self.object_id(f"Application/program/{END_OF_SCAN_PROGRAM}"))
 
     def append_task_settings(
@@ -307,7 +360,8 @@ class CodesysProfileSupport:
         needs_standard_library: bool,
         function_blocks: Sequence[GeneratedFunctionBlock] = (),
         program_names: Mapping[str, str] | None = None,
-        first_cycle: bool = False,
+        start_handler: bool = False,
+        start_flags_list: bool = False,
     ) -> None:
         """Describe CODESYS navigator objects independently of IEC content.
 
@@ -362,7 +416,7 @@ class CodesysProfileSupport:
                         f"{routine.name}"
                     ),
                 )
-        if first_cycle:
+        if start_handler:
             self._append_structure_object(application, END_OF_SCAN_PROGRAM,
                                           f"Application/program/{END_OF_SCAN_PROGRAM}")
         for task in controller.iter_tasks():
@@ -377,7 +431,9 @@ class CodesysProfileSupport:
                 "ControllerTags",
                 "Application/ControllerTags",
             )
-        if first_cycle:
+        if start_flags_list:
+            self._append_structure_object(application, START_FLAGS_LIST, f"Application/{START_FLAGS_LIST}")
+        if start_handler:
             self._append_structure_object(application, FIRST_CYCLE_HANDLER,
                                           f"Application/pou/{FIRST_CYCLE_HANDLER}")
 

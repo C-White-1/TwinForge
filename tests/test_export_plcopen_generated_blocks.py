@@ -790,3 +790,53 @@ def test_other_targets_still_report_the_first_cycle_bit_as_not_driven():
     result = export(plc)
     assert "TF_OnPrepareStart" not in result.xml
     assert [d.object_name for d in result.diagnostics if d.code == "runtime_object_not_driven"] == ["SB_FIRSTRUN"]
+
+
+def test_cold_and_warm_start_bits_come_from_what_the_start_initialised():
+    # %S0/%S1: a RETAIN flag is re-initialised only by download and Reset cold,
+    # an ordinary one also by Reset warm and a runtime restart
+    # (docs/experiments/codesys-first-cycle.md, "Cold and warm start").
+    plc = parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller
+    assert [plc.tags[n].metadata["runtime_role"] for n in ("SB_COLDSTART", "SB_WARMSTART")] == [
+        "cold_start", "warm_start"]
+    main = plc.programs["New POU"].main_routine
+    assert main is not None
+    for number, (bit, output) in enumerate((("SB_COLDSTART", "%Q0.5"), ("SB_WARMSTART", "%Q0.6"))):
+        main.ladder_rungs.append(LadderRung(number=9 + number, network=LadderSeries((
+            LadderInstruction(LadderOperation.NORMALLY_OPEN_CONTACT, "NormalContact", bit),
+            LadderInstruction(LadderOperation.SET_COIL, "SetCoil", output)))))
+    result = export(plc, "codesys")
+    root = ET.fromstring(result.xml)
+    by_name = {p.get("name"): p for p in pous(result.xml)}
+
+    def st(pou: ET.Element) -> str:
+        return "".join(e.text or "" for e in pou.iter() if _local(e.tag) == "xhtml" and e.text and ":=" in e.text)
+
+    assert st(by_name["TF_OnPrepareStart"]) == (
+        "ControllerTags.SB_COLDSTART := TF_StartFlags.TF_RetainInit;\n"
+        "ControllerTags.SB_WARMSTART := TF_StartFlags.TF_NonRetainInit AND NOT TF_StartFlags.TF_RetainInit;\n"
+        "TF_StartFlags.TF_NonRetainInit := FALSE;\n"
+        "TF_StartFlags.TF_RetainInit := FALSE;\n")
+    assert st(by_name["TF_EndOfScan"]) == "ControllerTags.SB_COLDSTART := FALSE;\nControllerTags.SB_WARMSTART := FALSE;\n"
+
+    # The flags' list, in the form CODESYS exports a list mixing RETAIN and ordinary variables.
+    (flags,) = [g for g in root.iter() if _local(g.tag) == "globalVars" and g.get("name") == "TF_StartFlags"
+                and g.get("retain") is None and any(_local(c.tag) == "addData" for c in g)]
+
+    def names(element: ET.Element) -> list[str]:
+        return [v.get("name") or "" for v in element if _local(v.tag) == "variable"]
+
+    assert names(flags) == ["TF_NonRetainInit", "TF_RetainInit"]
+    assert [s.get("value") for s in flags.iter() if _local(s.tag) == "simpleValue"] == ["TRUE"] * 4  # list and split
+    (mixed,) = [e for e in flags.iter() if _local(e.tag) == "MixedAttrsVarList"]
+    assert [(g.get("retain"), names(g)) for g in mixed] == [(None, ["TF_NonRetainInit"]), ("true", ["TF_RetainInit"])]
+    assert "TF_StartFlags" in {o.get("Name") for o in root.iter() if _local(o.tag) == "Object"}
+
+    diagnostics = {d.object_name: d.message for d in result.diagnostics if d.code == "system_event_binding_required"}
+    assert "a download or Reset cold" in diagnostics["SB_COLDSTART"]
+    assert "a Reset warm or runtime restart" in diagnostics["SB_WARMSTART"]
+
+
+def test_the_first_cycle_bit_alone_needs_no_start_flags():
+    plc = _with_first_cycle_rung(parse_project(capture_file(FIXTURES / "14_drum_simulation.smbp")).controller)
+    assert "TF_StartFlags" not in export(plc, "codesys").xml

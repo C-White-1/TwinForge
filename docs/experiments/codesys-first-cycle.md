@@ -175,11 +175,122 @@ Run on 2026-10-18 with `ld_laba2.smbp` (a downloaded sample whose rung 0 is
 So the converted program sees `%S13` on the first scan after a plain
 stop → start, as on the M221.
 
+## Cold and warm start (`%S0`, `%S1`)
+
+**Question:** which CODESYS starts are Machine Expert – Basic's cold and
+warm starts? The M221 Programming Guide (EIO0000003297.04, "Controller
+State Transitions") defines:
+
+- **Cold start:** "all data initialized to its default values". It happens
+  on download, Initialize controller, power-up without a charged battery,
+  and booting without a validated application. `%S0` is TRUE "during the
+  first complete scan" ("System Bits (%S)").
+- **Warm start:** a power return with data backup; the program "resumes
+  running the program, in its previous operating state, with the
+  counters, function blocks, and system words and bits maintained". `%S1`
+  is TRUE until the end of that scan.
+
+**Method:** two flags, each TRUE only until the first scan clears it. A
+RETAIN flag is re-initialised only when RETAIN data is (cold); a non-retain
+one also when only non-retain data is (warm). The PrepareStart handler above
+marks the first scan. Also an `FB_init` probe, which records its
+`bInitRetains` and `bInCopyCode` parameters
+([CODESYS: FB_init](https://content.helpme-codesys.com/en/CODESYS%20Development%20System/_cds_method_fb_init_fb_reinit.html)).
+
+Added to the same project:
+
+```text
+VAR_GLOBAL
+    bNonRetainInit : BOOL := TRUE;
+    bStartWasCold, bStartWasWarm : BOOL;
+    nStarts : INT;
+END_VAR
+VAR_GLOBAL RETAIN
+    bRetainInit : BOOL := TRUE;
+END_VAR
+```
+
+`PLC_PRG` (with `Probe : FB_StartProbe;` declared):
+
+```text
+IF GVL.bFirstRun THEN
+    GVL.bStartWasCold := GVL.bRetainInit;
+    GVL.bStartWasWarm := GVL.bNonRetainInit AND NOT GVL.bRetainInit;
+    GVL.nStarts := GVL.nStarts + 1;
+END_IF;
+GVL.bRetainInit := FALSE;
+GVL.bNonRetainInit := FALSE;
+GVL.bFirstRun := FALSE;
+```
+
+`FB_StartProbe.FB_init`: `xInitRetains := bInitRetains; xInCopyCode :=
+bInCopyCode; nInits := nInits + 1;`
+
+**Results** (2026-10-18, Control Win), read after each action:
+
+| Action | cold | warm | `nStarts` | `xInitRetains` | `xInCopyCode` |
+| --- | --- | --- | --- | --- | --- |
+| Login (download) | FALSE | FALSE | 0 | TRUE | FALSE |
+| Start | **TRUE** | FALSE | 1 | TRUE | FALSE |
+| Stop → Start | FALSE | FALSE | 2 | TRUE | FALSE |
+| Reset warm | FALSE | FALSE | 0 | FALSE | FALSE |
+| Start | FALSE | **TRUE** | 1 | FALSE | FALSE |
+| Reset cold | FALSE | FALSE | 0 | TRUE | FALSE |
+| Start | **TRUE** | FALSE | 1 | TRUE | FALSE |
+| Runtime restart (tray: Stop PLC, Start PLC; login without download) | FALSE | **TRUE** | 1 | FALSE | FALSE |
+| Online change (comment in `PLC_PRG`) | FALSE | TRUE | 1 | FALSE | FALSE |
+| Online change (variable added to `FB_StartProbe`) | FALSE | TRUE | 1 | FALSE | FALSE |
+
+`nInits` read 1 throughout: the instance is initialised before `FB_init`
+runs, so it cannot count calls.
+
+**Findings:**
+
+- **Cold (`%S0`):** download and Reset cold: RETAIN data initialised.
+- **Warm (`%S1`):** Reset warm and a runtime restart: non-retain data
+  initialised, RETAIN data kept. Control Win kept the RETAIN flag across the
+  restart, the nearest equivalent of the M221's power return with backup.
+- **Neither:** a plain stop → start (only `%S13`, `nStarts` 1 → 2).
+- **`FB_init` agrees with the flags:** `bInitRetains` TRUE at download and
+  Reset cold, FALSE at Reset warm and the restart. This settles CODESYS's
+  ambiguous note "(reset warm / reset cold)": a warm reset gives FALSE.
+- **Online change fires nothing:** `nStarts` and the flags stayed as they
+  were, so `PrepareStart` does not fire on an online change, as `%S13`
+  requires. After the declaration change `xInCopyCode` still read FALSE:
+  per CODESYS's documented order the old instance's values are copied over
+  the new one after `FB_init`, so the probe cannot show that call.
+
+**The converted test** (2026-10-18): fixture 14 with three rungs added,
+`%S13` → reset `%M20`, `%M21`; `%S0` → set `%M20`; `%S1` → set `%M21`.
+TwinForge's export adds `TF_StartFlags` (`TF_NonRetainInit`, and
+`TF_RetainInit` as RETAIN, in the mixed-list form of CODESYS's export of
+`GVL`), and `TF_OnPrepareStart` sets `%S0` from `TF_RetainInit` and `%S1`
+from `TF_NonRetainInit AND NOT TF_RetainInit` before clearing both. After
+the import and the binding script, the list showed `TF_RetainInit` under
+`VAR_GLOBAL RETAIN`, and every row came out as expected:
+
+| Action | `%M20` (cold) | `%M21` (warm) |
+| --- | --- | --- |
+| Download → Start | TRUE | FALSE |
+| Stop → Start | FALSE | FALSE |
+| Reset warm → Start | FALSE | TRUE |
+| Reset cold → Start | TRUE | FALSE |
+| Runtime restart | FALSE | TRUE |
+
+So the handler runs after the start's initialisation, and the flags read
+there tell the starts apart as they did in the first scan.
+
+An export of a list declared only `VAR_GLOBAL RETAIN` came out with no
+RETAIN marking at all; most likely the keyword was missing from that
+declaration, so this is not recorded as a CODESYS rule.
+
+**A difference this exposes:** the M221 keeps all its data on a warm start;
+CODESYS keeps only RETAIN (and PERSISTENT) variables. TwinForge declares
+converted `%M`/`%MW` as ordinary variables, so a runtime restart clears them
+where the M221 would not.
+
 ## Not yet established
 
-- **Online change:** whether `PrepareStart` also fires on an online
-  change (`%S13` should not).
-- **Cold versus warm start (`%S0`/`%S1`):** needs a separate test, for example
-  with a RETAIN variable.
 - **Other targets:** the events offered depend on the device; only the
   SoftPLC was tested.
+- **A real power cycle** on hardware, rather than restarting Control Win.

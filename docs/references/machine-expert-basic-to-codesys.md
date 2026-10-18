@@ -58,7 +58,7 @@ been tried in CODESYS yet.
 | --- | --- | --- | --- | --- |
 | `%I`, `%Q` | Digital I/O bits | `BOOL` variables | Converted | Named by symbol; unnamed ones get surrogates (`%I0.0` → `TF_I0_0`). Not bound to hardware (see above). |
 | `%IW`, `%QW`, cartridge/extension analog | Analog I/O words | `INT` variables | Converted | Not bound to hardware. |
-| `%M` | Memory bits | `BOOL` | Converted | |
+| `%M` | Memory bits | `BOOL` | Converted | Ordinary variables: on a warm start (power return with backup) the M221 keeps them, but a CODESYS Reset warm or runtime restart re-initialises them. RETAIN would match; not decided. The same applies to `%MW`, `%MD`, `%MF`. |
 | `%MW`, `%MD`, `%MF` | Memory words | `INT`, `DINT`, `REAL` | Converted | |
 | `%KW`, `%KD`, `%KF` | Constants | Constants *(candidate)* | **Declared only** | Typed where used, but their configured **values are not read**, so they read as 0. No sample or fixture configures one, so the format is unknown: needs a fixture. |
 | `%TM` TON/TOF/TP | Timer | IEC `TON`/`TOF`/`TP` | Converted | `PT` = preset × time base; 50 of 54 sample timers. Behaviour per the guide, not simulator-checked. |
@@ -84,7 +84,8 @@ The M221 drives or reads these; your program reads or sets them. Every
 `.smbp` lists them all. TwinForge keeps them all in its model, but exports
 **only those the converted logic uses** (since 2026-10-18). A used system
 bit is **"Declared only"**, with a `runtime_object_not_driven` diagnostic
-(nothing updates it), except `%S13`, which is reproduced (below).
+(nothing updates it), except `%S0`, `%S1` and `%S13`, which are
+reproduced (below).
 
 **Which are used in practice** (the 63 downloaded samples; 8 use any system
 object at all):
@@ -98,7 +99,7 @@ So the first to map are first cycle and cold/warm start, then the clocks.
 
 | Bit | M221 meaning | CODESYS *(candidate)* |
 | --- | --- | --- |
-| `%S0`, `%S1` | Cold start, warm start (TRUE for the first scan) | No direct flag; a variable set on start-up |
+| `%S0`, `%S1` | Cold start, warm start (TRUE for the first scan) | **Verified.** Set by the same `TF_OnPrepareStart` from two flags in `TF_StartFlags`, one RETAIN: cold = download or Reset cold, warm = Reset warm or a runtime restart; cleared by `TF_EndOfScan` ([runs](../experiments/codesys-first-cycle.md)). |
 | `%S4`–`%S7` | 10 ms, 100 ms, 1 s, 1 min square waves | A timer-driven toggle |
 | `%S9` | Apply fallback outputs | Device configuration, not a variable |
 | `%S11` | Watchdog overflow | Task watchdog configuration |
@@ -140,8 +141,10 @@ only"** when they are.
 ## What would close the biggest gaps
 
 1. **System objects:** done: only those a program uses are declared, each
-   reported; first cycle `%S13` is reproduced. Next: cold/warm start
-   `%S0`/`%S1`, then the clocks `%S4`–`%S7`, after checking each in CODESYS.
+   reported; first cycle `%S13` and cold/warm start `%S0`/`%S1` are
+   reproduced. Next: the clocks `%S4`–`%S7`, after checking them in CODESYS.
+   Related: on a warm start the M221 keeps all its data, CODESYS only
+   RETAIN variables (see `%M` above).
 2. **Constants (`%KW`/`%KD`/`%KF`):** a fixture with configured constants,
    to read their values.
 3. **Physical I/O:** binding variables to CODESYS I/O (needs CODESYS

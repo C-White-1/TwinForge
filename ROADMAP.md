@@ -147,8 +147,11 @@ roadmaps linked from each item.
      first cycle: a `PrepareStart` handler and an end-of-scan clear, bound
      after the import by `bind_system_events.py`, since PLCopen cannot carry
      the binding (2026-10-18, verified on `ld_laba2`;
-     [runs](docs/experiments/codesys-first-cycle.md)); [ ] `%S0`/`%S1`
-     cold/warm start (3 of 63 samples each), then clocks `%S4`-`%S7`; (2) constants
+     [runs](docs/experiments/codesys-first-cycle.md)); [x] `%S0`/`%S1`
+     cold/warm start: the same handler, from a RETAIN and an ordinary flag
+     (2026-10-18, verified on fixture 14 with three added rungs); [ ] clocks
+     `%S4`-`%S7`; [ ] decide whether converted `%M`/`%MW` become RETAIN, as
+     the M221 keeps them on a warm start; (2) constants
      `%KW`/`%KD`/`%KF` are typed but their values are not read (fixture
      needed); (3) physical I/O binding; (4) remaining function blocks
      (retentive timer, shift bit register, FIFO/LIFO, step counter), then

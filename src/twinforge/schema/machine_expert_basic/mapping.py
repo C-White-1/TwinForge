@@ -42,10 +42,16 @@ class SymbolTable:
     # docs/references/machine-expert-basic-to-codesys.md.
     runtime_maintained: bool = False
     # Vendor-neutral roles of individual runtime-maintained objects, by
-    # address, for targets that can reproduce them. `first_cycle`: "Set to 1
-    # by the system during the first scan after the controller state has been
-    # changed to RUNNING" (%S13; M221 Programming Guide EIO0000003297.04,
-    # "System Bits (%S)").
+    # address, for targets that can reproduce them. From the M221 Programming
+    # Guide EIO0000003297.04, "System Bits (%S)" and "Controller State
+    # Transitions":
+    # - `first_cycle` (%S13): "Set to 1 by the system during the first scan
+    #   after the controller state has been changed to RUNNING";
+    # - `cold_start` (%S0): set to 1 during the first complete scan after a
+    #   cold start, "all data initialized to its default values" (download,
+    #   Initialize controller, power-up without backup);
+    # - `warm_start` (%S1): set to 1 by "a power return with data backup",
+    #   reset at the end of that scan.
     runtime_roles: tuple[tuple[str, str], ...] = ()
 
 
@@ -212,7 +218,8 @@ class MappingSpec:
         SymbolTable("Counters", ("SoftwareConfiguration", "Counters"), "Counter"),
         # Vendor-predefined system objects; every entry carries a symbol.
         SymbolTable("SystemBits", ("SoftwareConfiguration", "SystemBits"), "MemoryBit", "BOOL",
-                    runtime_maintained=True, runtime_roles=(("%S13", "first_cycle"),)),
+                    runtime_maintained=True,
+                    runtime_roles=(("%S0", "cold_start"), ("%S1", "warm_start"), ("%S13", "first_cycle"))),
         SymbolTable("SystemWords", ("SoftwareConfiguration", "SystemWords"), "MemoryWord", "INT",
                     runtime_maintained=True),
     )
